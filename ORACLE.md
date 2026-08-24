@@ -127,11 +127,23 @@ review round's breaking phases became permanent grid rows.
 
 ### M2 — damping estimators on synthetic signals
 
-Log-decrement (successive half-period spans) for ζ ≤ 0.30: measured ζ within
-**5%** relative of truth. Envelope least-squares fit for the heavy case
-ζ = 0.6255 (log-decrement runs out of usable ratios): ζ within **10%**
-relative. Aperiodic: exponential-fit t½ within **2%** on pure decays with the
-published roll/spiral rates.
+Log-decrement (successive half-period spans) for ζ ≤ 0.30: the estimator's
+stated guarantee is **5%** relative, but the grid checks run at **0.5%** —
+round-5 review gutted the exact conversion `δ/√(4π²+δ²)` to its small-angle
+approximation `δ/2π` (a systematic +4.83% at ζ = 0.30) and the 5% rows let
+it through while this file claimed 0.01% capability; measured estimator
+error is ≤ 0.013%, so 0.5% pins the exact formula with 38× margin. Envelope
+least-squares fit for the heavy case ζ = 0.6255 (log-decrement runs out of
+usable ratios): ζ within **10%** relative (its own small-angle mutant is
++28% at this ζ and is caught). Aperiodic: exponential-fit t½ within **2%**
+on pure decays with the published roll/spiral rates.
+
+*Known-unpinned implementation detail (recorded round 5, deliberate):* the
+span-AVERAGING inside both period and damping estimators cannot be pinned on
+clean synthetics — replacing the mean with the first span moves errors by
+10–50× but they stay ≤ 0.007%, far under any honest tolerance. Averaging
+earns its keep on noisy signals, which enter the grid at rung 1; pin it then
+with noise rows rather than pretending a clean-signal tolerance can see it.
 
 *Design note bought by measurement (2026-08-23):* the first implementation
 detrended by the window mean and took ratios of positive-peak amplitudes; on

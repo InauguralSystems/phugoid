@@ -78,7 +78,11 @@ if plant == "p4":
 # 1% guarantee: it pins the parabolic peak refinement, whose removal was
 # measured at +0.33% error (round-2 review found the 1% checks let that
 # mutation survive) while the refined estimator measures <= 0.043%.
-cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.05, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.05, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.05, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.05, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.05, 0.001], ["z30_phi15", 0.30, 1.0, 1.5, 0.0, 0.1, 400, 0.02, 0.05, 0.001], ["z30_phi25", 0.30, 1.0, 2.5, 0.0, 0.1, 400, 0.02, 0.05, 0.001]]
+# The zeta tolerance (0.5%) likewise pins the exact log-decrement
+# conversion delta/sqrt(4pi^2+delta^2): round-5 review gutted it to the
+# small-angle delta/2pi (+4.83% at zeta=0.30) and the old 5% rows let it
+# through; measured estimator error is <= 0.013%, so 0.5% has 38x margin.
+cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.005, 0.001], ["z30_phi15", 0.30, 1.0, 1.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi25", 0.30, 1.0, 2.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001]]
 # The z30_phi15/z30_phi25 rows exist because round-3 review demonstrated
 # the global-peak DFT falsely REFUSING at zeta=0.30 off-grid phases (the
 # envelope leakage skirt beat the mode peak) — the zeta=0.30 claim is now
