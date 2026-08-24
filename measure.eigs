@@ -178,7 +178,16 @@ define zeta_logdec(signal, dt) as:
 # omega_d comes from the mean extrema spacing (exactly T/2 for a damped
 # sinusoid). Refuses with fewer than 3 spans.
 define zeta_envelope(signal, dt) as:
-    local spans is half_spans of [signal, dt]
+    local all_spans is half_spans of [signal, dt]
+    # Same guard as t_half_exp (round-16: the round-15 log-clamp fix had
+    # been applied to only ONE of the two log-domain estimators): span
+    # heights inside the runtime log-saturation range (< 1e-9, see GAPS.md
+    # G3) are excluded from the fit rather than silently biasing it —
+    # measured at -96% zeta error on tiny-amplitude signals before this.
+    local spans is []
+    for i in range of (len of all_spans):
+        if all_spans[i][1] > 1e-9:
+            append of [spans, all_spans[i]]
     local n is len of spans
     if n < 3:
         return {"ok": 0, "reason": "fewer than 3 usable spans"}

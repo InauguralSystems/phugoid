@@ -52,7 +52,10 @@ define run_probe(name, kind, ours, ref, param, want) as:
         print of f"FAIL {name} spec={kind}|{ours}|{ref}|{param}|{want} got={got}"
 
 # name, kind, ours, ref, param, want
-probes is [["pub.rel.inside", "pub", 1.0014, 1.0, 4, 1], ["pub.rel.outside", "pub", 1.0016, 1.0, 4, 0], ["pub.abs.inside", "pub", 0.01006, 0.01, 4, 1], ["pub.abs.outside", "pub", 0.01008, 0.01, 4, 0], ["pub.abs2.inside", "pub", 0.0069, 0.0, 2, 1], ["pub.abs2.outside", "pub", 0.0071, 0.0, 2, 0], ["rel.1pct.inside", "rel", 10.099, 10.0, 0.01, 1], ["rel.1pct.outside", "rel", 10.101, 10.0, 0.01, 0], ["rel.5pct.inside", "rel", 10.499, 10.0, 0.05, 1], ["rel.5pct.outside", "rel", 10.501, 10.0, 0.05, 0], ["abs.inside", "abs", 0.9e-10, 0.0, 1e-10, 1], ["abs.outside", "abs", 1.1e-10, 0.0, 1e-10, 0]]
+# The pub.rel pair sits at +-1% of the 0.0015 bound: round-16 measured the
+# old pair (1.0014/1.0016) quantizing the pin to its own spacing — a +6.7%
+# widening of the rel arm slipped through it.
+probes is [["pub.rel.inside", "pub", 1.001485, 1.0, 4, 1], ["pub.rel.outside", "pub", 1.001515, 1.0, 4, 0], ["pub.abs.inside", "pub", 0.01006, 0.01, 4, 1], ["pub.abs.outside", "pub", 0.01008, 0.01, 4, 0], ["pub.abs2.inside", "pub", 0.0069, 0.0, 2, 1], ["pub.abs2.outside", "pub", 0.0071, 0.0, 2, 0], ["rel.1pct.inside", "rel", 10.099, 10.0, 0.01, 1], ["rel.1pct.outside", "rel", 10.101, 10.0, 0.01, 0], ["rel.5pct.inside", "rel", 10.499, 10.0, 0.05, 1], ["rel.5pct.outside", "rel", 10.501, 10.0, 0.05, 0], ["abs.inside", "abs", 0.9e-10, 0.0, 1e-10, 1], ["abs.outside", "abs", 1.1e-10, 0.0, 1e-10, 0]]
 
 for pr in probes:
     run_probe of [pr[0], pr[1], pr[2], pr[3], pr[4], pr[5]]

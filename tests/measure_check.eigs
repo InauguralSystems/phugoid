@@ -6,7 +6,7 @@
 # p7 (every refusal result forced to ok=1), or p10 (every DFT result
 # forced into a refusal, exercising the refusal arm of check_result).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 67.
+# failure; the check population is pinned at exactly 69.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -137,6 +137,17 @@ unobserved:
     if plant == "p5":
         rh is {"ok": 1, "zeta": 0.05}
     check_result of ["M2.envelope.heavy", rh, "zeta", 0.6255, 0.10]
+    # Amplitude 1e-5, 35s window: the round-16 log-clamp reproduction (the
+    # tail spans decay into the clamp range; before the exclusion guard the
+    # fit answered ok=1 with zeta -14% to -96% wrong).
+    local hs_small is []
+    local hs_base is gen_osc of [0.6255, 0.882, 0.0, 0.0, 0.05, 700, detune]
+    for i in range of (len of hs_base):
+        append of [hs_small, 1e-5 * hs_base[i]]
+    local rh2 is zeta_envelope of [hs_small, 0.05]
+    if plant == "p5":
+        rh2 is {"ok": 1, "zeta": 0.05}
+    check_result of ["M2.envelope.amp_small", rh2, "zeta", 0.6255, 0.10]
 
     # Aperiodic decays at the published roll and spiral rates (ORACLE M2).
     # gen_exp divided by detune: plant p4 dilates the decay too, so the
@@ -197,6 +208,11 @@ unobserved:
     # Envelope fit on a truncated heavy-damping window (< 3 spans).
     local htrunc is gen_osc of [0.6255, 0.882, 0.0, 0.0, 0.05, 150, 1.0]
     check_refused of ["M3.refuse.envelope", force_ok_if_p7 of (zeta_envelope of [htrunc, 0.05])]
+    # EXACTLY 2 spans (3 extrema in a 14s window) — round-16 lowered the
+    # 3-span floor to 2 all-green: the truncated row above yields 0 spans
+    # and the accepting rows 3+, so the floor was pinned only from above.
+    local htrunc2 is gen_osc of [0.6255, 0.882, 0.0, 0.0, 0.05, 280, 1.0]
+    check_refused of ["M3.refuse.envelope_2spans", force_ok_if_p7 of (zeta_envelope of [htrunc2, 0.05])]
     # Exponential fit: too few samples, and a growing (non-decaying) signal.
     local tiny is gen_exp of [1.2308, 0.01, 5]
     check_refused of ["M3.refuse.thalf_short", force_ok_if_p7 of (t_half_exp of [tiny, 0.01])]
@@ -221,8 +237,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 67:
-    print of f"FAIL harness: expected exactly 67 checks, ran {checks_run}"
+if checks_run != 69:
+    print of f"FAIL harness: expected exactly 69 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

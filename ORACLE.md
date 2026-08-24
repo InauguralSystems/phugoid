@@ -245,7 +245,7 @@ to work.
 | P1 | Cmα sign flipped in the checker's in-memory dataset before derivation | L1 (Mw), L2, L3, L4, L5 longitudinal chain |
 | P2 | lateral quartic coefficient c1 perturbed +1% before rooting | L4 lateral root match |
 | P3 | root finder gutted (returns its initial guesses) | L4 both |
-| P4 | synthetic generator detuned: time-dilated so period AND decay rates are +5% vs declared truth (ζ preserved) | M1: all checks, both estimators; all four M2 t½ checks; M2.logdec.minspans through the refusal arm (the dilated window drops below 3 extrema) |
+| P4 | synthetic generator detuned: time-dilated so period AND decay rates are +5% vs declared truth (ζ preserved) | M1: all checks, both estimators; all six M2 t½ checks; M2.logdec.minspans through the refusal arm (the dilated window drops below 3 extrema) |
 | P5 | the ζ result is replaced by a constant 0.05 after the estimator runs (validates the comparator; estimator-wiring faults are covered by the mutation requirement below) | M2 ζ checks (all grid ζ values are >5% away from 0.05 by construction) |
 | P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A31/A32/A33), L3, L4 phugoid/sp |
 | P7 | every refusal result forced to ok=1 before its check | all 11 M3 refusal checks, nothing else |
@@ -283,7 +283,7 @@ Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 179 checks; `measure_check.eigs` exactly 67;
+`modes_check.eigs` runs exactly 179 checks; `measure_check.eigs` exactly 69;
 `comparator_check.eigs` exactly 13. Check *identities* are pinned by the
 manifest rule above. The residual/Vieta "exact" tolerance is a named
 constant in `tests/checklib.eigs` (`exact_tol`), value-pinned by the

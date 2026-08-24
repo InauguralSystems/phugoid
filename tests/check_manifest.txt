@@ -228,6 +228,7 @@ measure M1.peaks.ph_phase1 plantable reltol=0.001
 measure M1.peaks.z30_phi15 plantable reltol=0.001
 measure M1.peaks.z30_phi25 plantable reltol=0.001
 measure M1.peaks.z30_phi50 plantable reltol=0.001
+measure M2.envelope.amp_small plantable reltol=0.1
 measure M2.envelope.heavy plantable reltol=0.1
 measure M2.logdec.dr_4cyc plantable reltol=0.005
 measure M2.logdec.dr_bin3 plantable reltol=0.005
@@ -255,6 +256,7 @@ measure M2.thalf.spiral plantable reltol=0.02
 measure M3.refuse.dft_2cycles plantable refusal
 measure M3.refuse.dft plantable refusal
 measure M3.refuse.dft_short plantable refusal
+measure M3.refuse.envelope_2spans plantable refusal
 measure M3.refuse.envelope_growing plantable refusal
 measure M3.refuse.envelope plantable refusal
 measure M3.refuse.logdec plantable refusal
@@ -270,8 +272,8 @@ comparator pub.abs2.inside selftest spec=pub|0.0069|0|2|1
 comparator pub.abs2.outside selftest spec=pub|0.0071|0|2|0
 comparator pub.abs.inside selftest spec=pub|0.01006|0.01|4|1
 comparator pub.abs.outside selftest spec=pub|0.01008|0.01|4|0
-comparator pub.rel.inside selftest spec=pub|1.0014|1|4|1
-comparator pub.rel.outside selftest spec=pub|1.0016|1|4|0
+comparator pub.rel.inside selftest spec=pub|1.001485|1|4|1
+comparator pub.rel.outside selftest spec=pub|1.001515|1|4|0
 comparator rel.1pct.inside selftest spec=rel|10.099|10|0.01|1
 comparator rel.1pct.outside selftest spec=rel|10.101|10|0.01|0
 comparator rel.5pct.inside selftest spec=rel|10.499|10|0.05|1
