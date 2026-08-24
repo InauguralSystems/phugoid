@@ -276,6 +276,8 @@ to work.
 | P10 | every DFT result forced into a refusal before its check | the 18 M1.dft checks, red THROUGH the refusal arm of `check_result` — which round-8 review gutted to print PASS with nothing noticing (no clean run or plant had ever driven a refusal through it) |
 | P13 | grid time dilation ×1.0011 — ~1.1× the 0.1% peaks arm, inside every other (round-25 measured the original ×1.002 leaving a sub-1.4× widening window on the executed tolerance) | exactly the 18 M1.peaks checks |
 | P14 | grid ζ inflated ×1.0055 — ~1.1× the 0.5% damping arm | exactly the 18 M2.logdec checks |
+| P17 | every `check_abs` value displaced by 1.1× its own site tolerance | the 24 nonzero-abs-arm checks (residual/Vieta, solver root-match, sort tolerances, the poly4 root check; one near-boundary solver site whose honest discrepancy opposes the displacement stays green — measured and pinned) — round-27 found the abs arm's executed tolerance could widen ~2.4× before any plant noticed |
+| P18 | every `check_pub` value displaced by 1.1× the site's effective bound, in the direction of the honest discrepancy | all 81 published-chain checks — the pub arm's effective pin was ~1.43× |
 | P16 | the M0.gen checked value ×(1+1.1·10⁻⁹) — ~1.1× its own 10⁻⁹ arm | all 51 M0.gen/M0.gen1/M0.genN wiring checks — round-23 found this comparator was the one arm without a displacement plant at its own scale (P12 displaces at order-1), so an executed-tolerance slack there survived everything and let a real 0.001-rad wiring fault back through |
 | P15 | the modes unit-family scale factors (u₀ of the synthetic dataset, `unit_scale`, `cu`) ×(1+1.1·10⁻⁹) — ~1.1× the 10⁻⁹ tight arm | the 51 tight-arm checks (five sub-proportionally scale-sensitive entries sit under the 1.1× displacement and stay covered by P8) (L1U/L2U/CU/L5.unit families, structural and u₀-independent entries excepted) — round-22 added slack to the EXECUTED tolerance at a comparison call site, decoupling it from the printed token; the other plants displace at percent scale, so sub-percent widenings slid under every gate. These three pin each effective tolerance from above at its own scale. |
 | P12 | the φ and DC arguments zeroed at the grid generator call | exactly the 20 M0.gen/M0.gen1 wiring checks on rows where either is nonzero — round-21 zeroed φ inside the generator, zeroed DC, and swapped the two call-site arguments, and every gate stayed green: φ and DC are the only row parameters that never enter the expected truth, so only a direct t=0 wiring identity (sig[0] = dc + cos φ, bit-exact) can see them; the both-zero rows are reachable via P16 and carry class plantable |
@@ -346,6 +348,6 @@ a top-severity finding.
 
 ## Exit gate for rung 0
 
-1. All L and M checks green, all sixteen plants red in exactly the declared way.
+1. All L and M checks green, all eighteen plants red in exactly the declared way.
 2. Blind-critic rounds dry (two consecutive rounds with no actionable gap).
 3. CI green on the pushed repo (devcontainer, pinned EIGS_REF=v0.41.0).

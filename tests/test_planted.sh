@@ -169,6 +169,22 @@ expect_red 'L1U\.' 'L2U\.' 'CU\.' 'L5\.unit\.'
 expect_green 'L[1-5]\.lon\.' 'L[1-5]\.lat\.' 'L4\.' 'L5\.ph' 'L5\.sp' 'L5\.dr'
 echo "PASS: P15 red pattern exact"
 
+echo "--- P17: check_abs values displaced 1.1x their site tolerance -> the 24 nonzero-abs-arm checks red ---"
+run_plant modes_check.eigs p17
+expect_population 180
+expect_total_fails 24
+expect_red 'L4\.exact\.' 'L4\.solver\.' 'L5\.unit\.osc_sorted' 'CU\.poly4_eval\.root '
+expect_green 'L[123]\.' 'L4\.chain\.' 'L5\.ph' 'L5\.sp' 'L5\.dr'
+echo "PASS: P17 red pattern exact"
+
+echo "--- P18: check_pub values displaced 1.1x the effective bound -> all 81 published-chain checks red ---"
+run_plant modes_check.eigs p18
+expect_population 180
+expect_total_fails 81
+expect_red 'L1\.' 'L2\.' 'L3\.' 'L4\.chain\.' 'L5\.ph' 'L5\.sp' 'L5\.dr'
+expect_green 'L4\.(solver|exact)\.' 'L5\.unit\.' 'L1U\.' 'L2U\.' 'CU\.'
+echo "PASS: P18 red pattern exact"
+
 echo "--- P16: M0.gen checked value x(1+1.1e-9) (~1.1x its 1e-9 arm) -> all 51 wiring checks red ---"
 run_plant measure_check.eigs p16
 expect_population 126
@@ -237,4 +253,4 @@ done < <(grep -v '^#' tests/check_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 16 plants flip exactly their declared checks"
+echo "PASS: all 18 plants flip exactly their declared checks"

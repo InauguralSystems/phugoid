@@ -21,14 +21,32 @@ failures is 0
 # by tests/comparator_check.eigs — do not inline tolerances here.
 define check_pub(name, ours, printed, decimals) as:
     checks_run is checks_run + 1
+    if plant == "p18":
+        local bound is 0.7 * (pow of [10.0, 0.0 - decimals])
+        local relb is 0.0015 * (abs of printed)
+        if relb > bound:
+            bound is relb
+        if ours >= printed:
+            ours is ours + bound * 1.1
+        else:
+            ours is ours - bound * 1.1
     if (pub_tol_ok of [ours, printed, decimals]) == 1:
         print of f"PASS {name} d={decimals} ours={ours} pub={printed}"
     else:
         failures is failures + 1
         print of f"FAIL {name} d={decimals} ours={ours} pub={printed}"
 
+# Plants p17/p18 (round-27): the abs and pub arms were the last without
+# ~1.1x displacement plants (executed-tolerance slack survived to ~2.4x
+# and ~1.43x). p17 displaces every check_abs value by 1.1x its own site
+# tolerance (zero-tolerance sites unaffected by construction); p18
+# displaces every check_pub value by 1.1x the site's effective bound in
+# the direction of the honest discrepancy, so all pub sites redden and
+# any widening turns some green.
 define check_abs(name, ours, printed, abstol) as:
     checks_run is checks_run + 1
+    if plant == "p17":
+        ours is ours + abstol * 1.1
     if (abs_tol_ok of [ours, printed, abstol]) == 1:
         print of f"PASS {name} tol={abstol} ours={ours} pub={printed}"
     else:
