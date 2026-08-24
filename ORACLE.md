@@ -179,7 +179,9 @@ error is ≤ 0.013%, so 0.5% pins the exact formula with 38× margin. Envelope
 least-squares fit for the heavy case ζ = 0.6255 (log-decrement runs out of
 usable ratios): ζ within **10%** relative (its own small-angle mutant is
 +28% at this ζ and is caught). Aperiodic: exponential-fit t½ within **2%**
-on pure decays with the published roll/spiral rates.
+on pure decays with the published roll/spiral rates, including a 12-sample near-boundary row
+(minimum is 8) — round-11 raised the usable-sample minimum 50× all-green
+because both accepting rows had 500 samples.
 
 *Known-unpinned implementation details (recorded rounds 5–6, deliberate):*
 (a) the span-AVERAGING inside both period and damping estimators,
@@ -209,8 +211,9 @@ than returning a garbage number when the signal cannot support the estimate.
 **Every refusal path of every estimator is pinned** (round-2 blind review
 gutted the unpinned ones — `zeta_envelope` and `t_half_exp` — into
 hard-coded answers and the whole suite stayed green): sub-cycle windows for
-the three oscillatory estimators, growing-signal rows for BOTH the
-exponential and the envelope fits (round 9 deleted the envelope's
+the three oscillatory estimators, growing-signal AND zero-signal rows
+for the exponential fit and a growing-signal row for the envelope fit
+(rounds 9 and 11 each found one of these paths guttable all-green) (round 9 deleted the envelope's
 "not decaying" branch all-green — the pin list had covered only the
 exponential's), the DFT's declared 3-cycle boundary —
 pinned from BOTH sides AND at the constant itself: ~2.5 cycles must refuse,
@@ -237,7 +240,7 @@ to work.
 | P4 | synthetic generator detuned: time-dilated so period AND decay rates are +5% vs declared truth (ζ preserved) | M1: all checks, both estimators; M2 t½ both |
 | P5 | the ζ result is replaced by a constant 0.05 after the estimator runs (validates the comparator; estimator-wiring faults are covered by the mutation requirement below) | M2 ζ checks (all grid ζ values are >5% away from 0.05 by construction) |
 | P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A31/A32/A33), L3, L4 phugoid/sp |
-| P7 | every refusal result forced to ok=1 before its check | all 9 M3 refusal checks, nothing else |
+| P7 | every refusal result forced to ok=1 before its check | all 10 M3 refusal checks, nothing else |
 | P8 | every dataset input poisoned (nonzero values scaled, zeros made nonzero, inertias scaled unevenly, θ₀ tilted, unit-check root lists scaled) | every data-derived check — 133 of 177 (the synthetic unit dataset and the CU/stability unit inputs are poisoned too) — leaving green only the pub-literal solver/exact checks (P2/P3's territory) and the structural constants |
 | P10 | every DFT result forced into a refusal before its check | the 14 M1.dft checks, red THROUGH the refusal arm of `check_result` — which round-8 review gutted to print PASS with nothing noticing (no clean run or plant had ever driven a refusal through it) |
 | P11 | `comparator_check.eigs p11`: the `expect()` helper fed two deliberately-wrong pairs | both must FAIL — round-10 review gutted `expect()` to a tautology and every gate stayed green; with it vacuous, a 2× rel-tolerance widening in checklib slipped every remaining gate |
@@ -248,8 +251,11 @@ the exact total FAIL count, one representative per family, and green-side
 exclusions — because round-3 review showed that subset assertions let 26
 checks be hardcoded vacuous with the matrix still green.
 
-**Manifest rule (round-4):** `tests/check_manifest.txt` lists every check
-NAME with a coverage class, and `test_planted.sh` enforces (a) the unplanted
+**Manifest rule (rounds 4 and 11):** `tests/check_manifest.txt` lists every
+check NAME with a coverage class AND its per-site tolerance token (column 4,
+emitted as the third token of every check line and identity-checked like
+the name — round-11 widened one check's `decimals` argument 100× and the
+name-only manifest could not see it: tolerance arguments are data too), and `test_planted.sh` enforces (a) the unplanted
 name set equals the manifest exactly — identity, not count, because round-4
 review deleted one check and double-counted another under an intact
 population pin; (b) every `plantable` name appears in the red-set union
@@ -263,7 +269,7 @@ Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 177 checks; `measure_check.eigs` exactly 54;
+`modes_check.eigs` runs exactly 177 checks; `measure_check.eigs` exactly 56;
 `comparator_check.eigs` exactly 13. Check *identities* are pinned by the
 manifest rule above. The residual/Vieta "exact" tolerance is a named
 constant in `tests/checklib.eigs` (`exact_tol`), value-pinned by the

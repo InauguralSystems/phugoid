@@ -6,7 +6,7 @@
 # p7 (every refusal result forced to ok=1), or p10 (every DFT result
 # forced into a refusal, exercising the refusal arm of check_result).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 54.
+# failure; the check population is pinned at exactly 56.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -23,12 +23,12 @@ failures is 0
 define check_rel(name, ours, truth, reltol) as:
     checks_run is checks_run + 1
     if (rel_tol_ok of [ours, truth, reltol]) == 1:
-        print of f"PASS {name} ours={ours} truth={truth}"
+        print of f"PASS {name} reltol={reltol} ours={ours} truth={truth}"
     else:
         failures is failures + 1
-        print of f"FAIL {name} ours={ours} truth={truth} reltol={reltol}"
+        print of f"FAIL {name} reltol={reltol} ours={ours} truth={truth}"
 
-# Plant p7 forces every refusal result to ok=1 — it must redden all eight
+# Plant p7 forces every refusal result to ok=1 — it must redden all ten
 # M3 checks and nothing else (round-3 review gutted check_refused itself
 # and the suite stayed green; now the planted matrix exercises it).
 define force_ok_if_p7(res) as:
@@ -39,10 +39,10 @@ define force_ok_if_p7(res) as:
 define check_refused(name, res) as:
     checks_run is checks_run + 1
     if res.ok == 0:
-        print of f"PASS {name} refused: {res.reason}"
+        print of f"PASS {name} refusal refused: {res.reason}"
     else:
         failures is failures + 1
-        print of f"FAIL {name} expected a refusal, got ok=1"
+        print of f"FAIL {name} refusal expected one, got ok=1"
 
 define check_result(name, res, field, truth, reltol) as:
     if res.ok == 1:
@@ -50,7 +50,7 @@ define check_result(name, res, field, truth, reltol) as:
     else:
         checks_run is checks_run + 1
         failures is failures + 1
-        print of f"FAIL {name} estimator refused: {res.reason}"
+        print of f"FAIL {name} reltol={reltol} estimator refused: {res.reason}"
 
 # Damped sinusoid with declared truth zeta/wn. detune > 1 dilates time so
 # the ACTUAL period exceeds the declared one while zeta stays exact — the
@@ -143,6 +143,12 @@ unobserved:
     local spiral_sig is gen_exp of [0.04641 / detune, 0.25, 500]
     local r2 is t_half_exp of [spiral_sig, 0.25]
     check_result of ["M2.thalf.spiral", r2, "t_half", 14.9346, 0.02]
+    # Near-boundary acceptance (12 samples, minimum is 8): round-11 raised
+    # the usable-sample minimum 8 -> 400 all-green — both accepting rows
+    # had 500 samples, so the acceptance boundary was pinned from nowhere.
+    local roll12 is gen_exp of [1.2308 / detune, 0.05, 12]
+    local r3 is t_half_exp of [roll12, 0.05]
+    check_result of ["M2.thalf.roll12", r3, "t_half", 0.563155, 0.02]
 
     # M3 — honesty: every estimator's refusal paths are pinned (round-2
     # review demonstrated the unpinned ones surviving a gutting mutation).
@@ -171,11 +177,16 @@ unobserved:
     # the envelope's); the mutant answered zeta = -0.63 instead of refusing.
     local grow_osc is gen_osc of [0.0 - 0.3, 1.0, 0.0, 0.0, 0.1, 200, 1.0]
     check_refused of ["M3.refuse.envelope_growing", force_ok_if_p7 of (zeta_envelope of [grow_osc, 0.1])]
+    # Zero signal — round-11 review gutted this refusal to a hardcoded
+    # answer (t_half=42.0) and everything stayed green; no check had ever
+    # fed a zero signal.
+    local zsig is [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    check_refused of ["M3.refuse.thalf_zero", force_ok_if_p7 of (t_half_exp of [zsig, 0.01])]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 54:
-    print of f"FAIL harness: expected exactly 54 checks, ran {checks_run}"
+if checks_run != 56:
+    print of f"FAIL harness: expected exactly 56 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

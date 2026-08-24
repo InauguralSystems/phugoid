@@ -22,18 +22,18 @@ failures is 0
 define check_pub(name, ours, printed, decimals) as:
     checks_run is checks_run + 1
     if (pub_tol_ok of [ours, printed, decimals]) == 1:
-        print of f"PASS {name} ours={ours} pub={printed}"
+        print of f"PASS {name} d={decimals} ours={ours} pub={printed}"
     else:
         failures is failures + 1
-        print of f"FAIL {name} ours={ours} pub={printed} decimals={decimals}"
+        print of f"FAIL {name} d={decimals} ours={ours} pub={printed}"
 
 define check_abs(name, ours, printed, abstol) as:
     checks_run is checks_run + 1
     if (abs_tol_ok of [ours, printed, abstol]) == 1:
-        print of f"PASS {name} ours={ours} pub={printed}"
+        print of f"PASS {name} tol={abstol} ours={ours} pub={printed}"
     else:
         failures is failures + 1
-        print of f"FAIL {name} ours={ours} pub={printed} tol={abstol}"
+        print of f"FAIL {name} tol={abstol} ours={ours} pub={printed}"
 
 define fail_missing(name, why) as:
     checks_run is checks_run + 1
@@ -284,10 +284,10 @@ else:
 define check_tight(name, ours, want) as:
     checks_run is checks_run + 1
     if (rel_tol_ok of [ours, want, 1e-9]) == 1:
-        print of f"PASS {name} ours={ours} want={want}"
+        print of f"PASS {name} reltol=1e-9 ours={ours} want={want}"
     else:
         failures is failures + 1
-        print of f"FAIL {name} ours={ours} want={want} reltol=1e-9"
+        print of f"FAIL {name} reltol=1e-9 ours={ours} want={want}"
 
 synth is {"cond": {"u0": 250.0, "rho": 0.002, "S": 5000.0, "cbar": 25.0, "b": 190.0, "W": 500000.0, "g": 32.174, "theta0": 0.2, "Iy": 30000000.0, "Ix": 14000000.0, "Iz": 44000000.0, "Ixz": 0.0 - 2000000.0}, "lon": {"CL": 1.1, "CD": 0.2, "CLa": 5.0, "CDa": 0.7, "Cma": 0.0 - 1.5, "CLadot": 6.0, "Cmadot": 0.0 - 3.0, "CLq": 5.5, "Cmq": 0.0 - 21.0, "CLu": 0.3, "CDu": 0.11, "Cmu": 0.07}, "lat": {"Cyb": 0.0 - 0.9, "Cyp": 0.15, "Cyr": 0.25, "Clb": 0.0 - 0.2, "Clp": 0.0 - 0.5, "Clr": 0.12, "Cnb": 0.16, "Cnp": 0.0 - 0.13, "Cnr": 0.0 - 0.35}}
 if plant == "p8":
