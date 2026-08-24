@@ -9,7 +9,7 @@
 # corruption (S4 comparator validation), q11 period_dft result corruption
 # (estimator wiring; the k-pins are the anti-alias defense).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 61.
+# failure; the check population is pinned at exactly 64.
 #
 # The chain reference (dim_derivs_lon -> a_lon -> charpoly4 -> dk_roots ->
 # modes_of) is ALWAYS computed from a clean dataset copy — plants poison
@@ -298,6 +298,13 @@ base_ph is grade_ph of [run_ph of [0.005, 0.05, 20, tr], 1.0, 1]
 check_result of ["S2.T", base_sp.T, "T", sp_ref.T, 0.01]
 check_result of ["S2.zlog", base_sp.zl, "zeta", sp_ref.zeta, 0.02]
 check_result of ["S2.zenv", base_sp.ze, "zeta", sp_ref.zeta, 0.02]
+# Zeta-slot identity pins (the round-5 enumeration: EVERY estimator slot
+# carries a pin on a field only its true estimator produces, all values
+# distinct — the two zeta estimators returned identical shapes {ok, zeta},
+# so a slot alias between them had no field to trip until measure.eigs
+# grew n_ratios/n_fit; q8's whole-dict replacement proves these can fail).
+check_exact of ["S2.zlog.nr", base_sp.zl.n_ratios, 2]
+check_exact of ["S2.zenv.nf", base_sp.ze.n_fit, 3]
 check_result of ["S3.Tpeaks", base_ph.Tp, "T", ph_ref.T, 0.005]
 check_result of ["S3.Tdft", base_ph.Td, "T", ph_ref.T, 0.005]
 check_result of ["S3.z", base_ph.z, "zeta", ph_ref.zeta, 0.02]
@@ -310,6 +317,7 @@ check_result of ["S3.z", base_ph.z, "zeta", ph_ref.zeta, 0.02]
 # same reason the k-pins do (round 4: one shared literal is forgeable).
 check_exact of ["S3.Tdft.k", base_ph.Td.k, 5]
 check_exact of ["S3.Tpeaks.n", base_ph.Tp.n_extrema, 10]
+check_exact of ["S3.z.nr", base_ph.z.n_ratios, 8]
 
 rerun_phase is 1
 
@@ -409,8 +417,8 @@ check_exact of ["M1X.ph2.Tpeaks.n", g3.Tp.n_extrema, 8]
 # ------------------------------------------------------------ population
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 61:
-    print of f"FAIL harness: expected exactly 61 checks, ran {checks_run}"
+if checks_run != 64:
+    print of f"FAIL harness: expected exactly 64 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

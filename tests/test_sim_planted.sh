@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The rung-1 planted-fault matrix (ORACLE.md): each q-plant must flip
 # EXACTLY its declared red set while everything else stays green, every
-# plant run must execute the full pinned 61-check population, and the
+# plant run must execute the full pinned 64-check population, and the
 # manifest rules hold (identity incl. tolerance tokens; every plantable
 # name in some red set; structural names in none). Counts measured
 # 2026-08-24; a drift in any of them is a real change in the checkers'
@@ -23,7 +23,7 @@ run_plant() {
         exit 1
     fi
     grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 61$' "$OUT" || { echo "FAIL: plant $plant run population != 61"; exit 1; }
+    grep -q '^CHECKS_RUN 64$' "$OUT" || { echo "FAIL: plant $plant run population != 64"; exit 1; }
 }
 
 expect_total_fails() {
@@ -69,17 +69,17 @@ expect_red 'S2\.T ' 'S3\.z ' 'S4\.dt\.spT ' 'S4\.dt\.spzl ' 'S4\.dt\.spze ' 'S4\
 expect_green 'S0\.' 'S1\.' 'S4\.amp\.' 'S4\.ctl\.' 'M1X\.'
 echo "PASS: Q3 red pattern exact"
 
-echo "--- Q4: trim alpha offset +0.01 rad -> S1 + parity + SP set (17) ---"
+echo "--- Q4: trim alpha offset +0.01 rad -> S1 + parity + SP set (19) ---"
 run_plant q4
-expect_total_fails 17
-expect_red 'S1\.res\.' 'S1\.hold\.' 'S0\.a12 ' 'S0\.a13 ' 'S0\.a21 ' 'S0\.a22 ' 'S0\.a24 ' 'S0\.a31 ' 'S2\.T ' 'S2\.zenv '
+expect_total_fails 19
+expect_red 'S1\.res\.' 'S1\.hold\.' 'S0\.a12 ' 'S0\.a13 ' 'S0\.a21 ' 'S0\.a22 ' 'S0\.a24 ' 'S0\.a31 ' 'S2\.T ' 'S2\.zenv ' 'S2\.zlog\.nr ' 'S2\.zenv\.nf '
 expect_green 'S3\.' 'M1X\.'
 echo "PASS: Q4 red pattern exact"
 
-echo "--- Q5: thrust dropped -> S1 + every sim-graded mode (16) ---"
+echo "--- Q5: thrust dropped -> S1 + every sim-graded mode (18) ---"
 run_plant q5
-expect_total_fails 16
-expect_red 'S1\.res\.' 'S1\.hold\.' 'S2\.' 'S3\.' 'S4\.amp\.spT '
+expect_total_fails 18
+expect_red 'S1\.res\.' 'S1\.hold\.' 'S2\.' 'S3\.' 'S2\.zlog\.nr ' 'S2\.zenv\.nf ' 'S4\.amp\.spT '
 expect_green 'S0\.' 'M1X\.'
 echo "PASS: Q5 red pattern exact"
 
@@ -97,10 +97,10 @@ expect_red 'M1X\.sp\.phi20\.T ' 'M1X\.sp\.phi45\.T ' 'M1X\.sp2\.T ' 'M1X\.ph2\.T
 expect_green 'S[0-4]\.' 'M1X\..*z'
 echo "PASS: Q7 red pattern exact"
 
-echo "--- Q8: graded zeta replaced by 0.05 -> exactly the 10 zeta checks ---"
+echo "--- Q8: graded zeta replaced by 0.05 -> the 10 zeta checks + the 3 zeta identity pins (whole-dict replacement drops n_ratios/n_fit) ---"
 run_plant q8
-expect_total_fails 10
-expect_red 'S2\.zlog ' 'S2\.zenv ' 'S3\.z ' 'M1X\.sp\.phi20\.zlog ' 'M1X\.sp\.phi20\.zenv ' 'M1X\.sp\.phi45\.zlog ' 'M1X\.sp\.phi45\.zenv ' 'M1X\.sp2\.zlog ' 'M1X\.sp2\.zenv ' 'M1X\.ph2\.z '
+expect_total_fails 13
+expect_red 'S2\.zlog ' 'S2\.zenv ' 'S2\.zlog\.nr ' 'S2\.zenv\.nf ' 'S3\.z ' 'S3\.z\.nr ' 'M1X\.sp\.phi20\.zlog ' 'M1X\.sp\.phi20\.zenv ' 'M1X\.sp\.phi45\.zlog ' 'M1X\.sp\.phi45\.zenv ' 'M1X\.sp2\.zlog ' 'M1X\.sp2\.zenv ' 'M1X\.ph2\.z '
 expect_green 'S0\.' 'S1\.' 'S2\.T' 'S3\.T' 'S4\.'
 echo "PASS: Q8 red pattern exact"
 

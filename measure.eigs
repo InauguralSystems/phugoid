@@ -155,7 +155,9 @@ define zeta_logdec(signal, dt) as:
     # ln ratio per half period; the classic full-period decrement is twice it.
     local delta is 2.0 * total / count
     local pi2 is 2.0 * (pi of null)
-    return {"ok": 1, "zeta": delta / (sqrt of (pi2 * pi2 + delta * delta))}
+    # n_ratios is this estimator's identity field (rung-1 anti-alias pins:
+    # a result lacking it cannot have come from the log-decrement path).
+    return {"ok": 1, "zeta": delta / (sqrt of (pi2 * pi2 + delta * delta)), "n_ratios": count}
 
 # Damping ratio by least-squares fit of ln(span height) vs t — the
 # heavy-damping estimator (log decrement runs out of usable ratios).
@@ -192,7 +194,8 @@ define zeta_envelope(signal, dt) as:
         return {"ok": 0, "reason": "envelope not decaying"}
     local half_period is (spans[n - 1][0] - spans[0][0]) / (n - 1)
     local wd is (pi of null) / half_period
-    return {"ok": 1, "zeta": sigma / (sqrt of (sigma * sigma + wd * wd))}
+    # n_fit is this estimator's identity field (rung-1 anti-alias pins).
+    return {"ok": 1, "zeta": sigma / (sqrt of (sigma * sigma + wd * wd)), "n_fit": n}
 
 # Time to half amplitude of a pure exponential decay, by least-squares fit
 # of ln|y| vs t. Refuses if fewer than 8 samples are usable.
