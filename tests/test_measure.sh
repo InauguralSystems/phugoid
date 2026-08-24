@@ -3,7 +3,7 @@
 # Green means: both period estimators and both damping estimators are inside
 # their stated tolerances across the grid, the aperiodic fits hit the
 # published roll/spiral half-times, the honesty refusals fire, and exactly
-# 63 checks ran (the pinned population).
+# 67 checks ran (the pinned population).
 set -euo pipefail
 
 EIGS="${EIGENSCRIPT:-eigenscript}"
@@ -20,6 +20,6 @@ if ! "$EIGS" tests/measure_check.eigs > "$OUT" 2>&1; then
     tail -3 "$OUT"
     exit 1
 fi
-grep -q '^CHECKS_RUN 63$' "$OUT" || { echo "FAIL: check population not 63"; tail -3 "$OUT"; exit 1; }
+grep -q '^CHECKS_RUN 67$' "$OUT" || { echo "FAIL: check population not 67"; tail -3 "$OUT"; exit 1; }
 grep -q '^FAILURES 0$' "$OUT" || { echo "FAIL: failures reported"; grep '^FAIL' "$OUT"; exit 1; }
-echo "PASS: 63/63 estimator checks green"
+echo "PASS: 67/67 estimator checks green"

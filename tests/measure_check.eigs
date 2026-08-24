@@ -6,7 +6,7 @@
 # p7 (every refusal result forced to ok=1), or p10 (every DFT result
 # forced into a refusal, exercising the refusal arm of check_result).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 63.
+# failure; the check population is pinned at exactly 67.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -83,7 +83,12 @@ if plant == "p4":
 # conversion delta/sqrt(4pi^2+delta^2): round-5 review gutted it to the
 # small-angle delta/2pi (+4.83% at zeta=0.30) and the old 5% rows let it
 # through; measured estimator error is <= 0.013%, so 0.5% has 38x margin.
-cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.005, 0.001], ["z30_phi15", 0.30, 1.0, 1.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi25", 0.30, 1.0, 2.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi50", 0.30, 1.0, 5.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_4cyc", 0.107, 0.7477, 0.0, 0.0, 0.2, 170, 0.01, 0.005, 0.001], ["dr_bin3", 0.107, 0.7477, 0.0, 0.0, 0.2, 140, 0.01, 0.005, 0.001], ["dr_dcneg", 0.107, 0.7477, 0.0, 0.0 - 2.0, 0.2, 430, 0.01, 0.005, 0.001]]
+cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.005, 0.001], ["z30_phi15", 0.30, 1.0, 1.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi25", 0.30, 1.0, 2.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi50", 0.30, 1.0, 5.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_4cyc", 0.107, 0.7477, 0.0, 0.0, 0.2, 170, 0.01, 0.005, 0.001], ["dr_bin3", 0.107, 0.7477, 0.0, 0.0, 0.2, 140, 0.01, 0.005, 0.001], ["dr_dcneg", 0.107, 0.7477, 0.0, 0.0 - 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n50", 0.107, 0.7477, 0.0, 0.0, 0.56, 50, 0.01, 0.005, 0.001]]
+# dr_n50 (50 samples, 3.31 cycles at coarse dt) pins the period_dft
+# length floor against RAISING: round-15 drifted n<8 to n<100 all-green
+# because every accepting row had hundreds of samples. (Lowering the
+# floor is backstopped by the kbest>=3 requirement, which refuses
+# sub-3-cycle windows regardless of n - noted, not separately pinned.)
 # dr_bin3 (3.31 cycles, spectral peak in bin 3) pins the DFT acceptance
 # boundary AT the declared constant: round-8 review drifted 3 -> 4 and the
 # dr_4cyc row (bin 4) could not see it. dr_dcneg pins detrending for a
@@ -167,6 +172,14 @@ unobserved:
         append of [amp5, 5.0 * base5[i]]
     local r6 is t_half_exp of [amp5, 0.01]
     check_result of ["M2.thalf.amp5", r6, "t_half", 0.563155, 0.02]
+    # Amplitude 0.001: the row that reproduces the round-15 log-saturation
+    # bug (4% wrong at these exact parameters before the absolute floor).
+    local amp_small is []
+    local base_s is gen_exp of [1.2308 / detune, 0.25, 60]
+    for i in range of (len of base_s):
+        append of [amp_small, 0.001 * base_s[i]]
+    local r7 is t_half_exp of [amp_small, 0.25]
+    check_result of ["M2.thalf.amp_small", r7, "t_half", 0.563155, 0.02]
 
     # M3 — honesty: every estimator's refusal paths are pinned (round-2
     # review demonstrated the unpinned ones surviving a gutting mutation).
@@ -208,8 +221,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 63:
-    print of f"FAIL harness: expected exactly 63 checks, ran {checks_run}"
+if checks_run != 67:
+    print of f"FAIL harness: expected exactly 67 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

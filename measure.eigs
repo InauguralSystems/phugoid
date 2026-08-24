@@ -214,7 +214,12 @@ define t_half_exp(signal, dt) as:
     local count is 0
     for i in range of (len of signal):
         local a is abs of signal[i]
-        if a > 1e-9 * m:
+        # The relative floor alone admitted samples inside the runtime log
+        # saturation range (the log builtin clamps inputs < 1e-10 to
+        # ln(1e-10) - round-15 measured a 4-14% silently-wrong t_half on
+        # amplitude-0.001 decays, inside the written 2% claim; GAPS.md G3).
+        # The absolute floor keeps every fitted sample well above the clamp.
+        if a > 1e-9 * m and a > 1e-9:
             local t is i * dt
             local y is log of a
             sx is sx + t

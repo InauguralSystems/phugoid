@@ -30,6 +30,21 @@ signal processing or root-finding will re-roll the same five functions
 shared arithmetic on them). **Candidate upstream API:** a `lib/complex.eigs`
 with the arithmetic + polar helpers, adopted by `engineering.dft`.
 
+### G3 — `log` builtin saturates below 1e-10, silently
+**Hit at rung 0 (2026-08-23, round-15 blind review).** The runtime clamps
+`log` inputs below 1e-10 to ln(1e-10) = -23.0259 (verified:
+`log of 1e-15 == log of 1e-10`; 2e-10 and up compute correctly). This is
+presumably the finite-by-construction design (no -inf), but it is a SILENT
+plateau: numeric code fitting log-domain data (our exponential-decay
+estimator) got a confidently wrong answer — 4-14% off, measured — when a
+small-amplitude signal decayed through the clamp range, because the
+relative sample floor admitted clamped samples. Local mitigation: an
+absolute 1e-9 sample floor in `t_half_exp` plus an amplitude-0.001 grid
+row. **Upstream question:** is the clamp documented semantics, and should
+it be? A lint hint or doc note for log-of-tiny would have saved the hunt;
+consumers doing likelihoods or entropies in log space will hit the same
+plateau.
+
 ## Watch (not yet blocking)
 
 ### W1 — `dft` is O(n²); fine at rung 0, will not scale to swarm telemetry
