@@ -28,7 +28,7 @@ define check_rel(name, ours, truth, reltol) as:
         failures is failures + 1
         print of f"FAIL {name} reltol={reltol} ours={ours} truth={truth}"
 
-# Plant p7 forces every refusal result to ok=1 — it must redden all eleven
+# Plant p7 forces every refusal result to ok=1 — it must redden all twelve
 # M3 checks and nothing else (round-3 review gutted check_refused itself
 # and the suite stayed green; now the planted matrix exercises it).
 define force_ok_if_p7(res) as:
