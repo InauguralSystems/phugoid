@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The rung-1 planted-fault matrix (ORACLE.md): each q-plant must flip
 # EXACTLY its declared red set while everything else stays green, every
-# plant run must execute the full pinned 59-check population, and the
+# plant run must execute the full pinned 61-check population, and the
 # manifest rules hold (identity incl. tolerance tokens; every plantable
 # name in some red set; structural names in none). Counts measured
 # 2026-08-24; a drift in any of them is a real change in the checkers'
@@ -23,7 +23,7 @@ run_plant() {
         exit 1
     fi
     grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 59$' "$OUT" || { echo "FAIL: plant $plant run population != 59"; exit 1; }
+    grep -q '^CHECKS_RUN 61$' "$OUT" || { echo "FAIL: plant $plant run population != 61"; exit 1; }
 }
 
 expect_total_fails() {
@@ -133,6 +133,13 @@ expect_red 'S3\.Tdft\.k ' 'M1X\.ph2\.Tdft\.k '
 expect_green 'S3\.Tdft ' 'S3\.Tpeaks ' 'S4\.' 'S[0-2]\.' 'M1X\.sp'
 echo "PASS: Q12 red pattern exact (drives a null through check_exact's rejection arm every run — round-3 review widened that arm to tolerate null and nothing executed it)"
 
+echo "--- Q13: the Tp slot fed by period_dft (round-5's MIRROR alias, installed as a plant) -> exactly the 2 n-pins ---"
+run_plant q13
+expect_total_fails 2
+expect_red 'S3\.Tpeaks\.n ' 'M1X\.ph2\.Tpeaks\.n '
+expect_green 'S3\.Tpeaks ' 'S3\.Tdft ' 'S4\.' 'S[0-2]\.' 'M1X\.sp'
+echo "PASS: Q13 red pattern exact (rounds 1-4 hardened only the Td slot; the n_extrema pins are the Tp dual, differing 10 vs 8 per the round-4 one-literal lesson)"
+
 # ------------------------------------------------------------------
 # Manifest enforcement (same rules as test_planted.sh): identity over
 # name + tolerance token; plantable coverage; structural exclusion.
@@ -155,4 +162,4 @@ done < <(grep -v '^#' tests/sim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 12 rung-1 plants flip exactly their declared checks"
+echo "PASS: all 13 rung-1 plants flip exactly their declared checks"

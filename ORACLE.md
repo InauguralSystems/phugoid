@@ -482,7 +482,7 @@ at wamp = 0.5; re-injection scales linearly with excitation amplitude,
 confirming genuine second-order coupling. The M1X bridge bounds ~2.2×
 the graded-regime value.
 
-### S3 — phugoid from the elevator pulse (4 checks)
+### S3 — phugoid from the elevator pulse (5 checks)
 
 Elevator pulse (+0.005 rad for 20 s, back to trim), u(t) from t = 45 s
 (the pulse-edge SP is dead: e^(−0.5515·25) ≈ 10⁻⁶), 1.0 s cadence, 280 s
@@ -502,7 +502,7 @@ quantities (T_sp, ζ_sp×2, T_ph×2, ζ_ph) against the base run:
 - **ctl**: C_mδe × 1.5, re-trimmed: each moves < **0.2%** — the nominal
   control derivatives are excitation-only.
 
-### M1X — the estimator bridge (13 checks)
+### M1X — the estimator bridge (14 checks)
 
 Synthetic signals from the chain roots (σ, ω of each mode), truth known,
 graded in the exact windows/cadences the sim grading uses:
@@ -526,11 +526,14 @@ graded in the exact windows/cadences the sim grading uses:
   shape of the S3 window; the pulse-edge SP is dead there by
   construction), S3 cadence over a DELIBERATELY different window length
   (190 samples → 4.05 cycles → DFT bin 4, where S3's 236 → bin 5): T
-  within 0.5% both estimators, ζ within 2%, k pinned at 4 (4). Round-4
+  within 0.5% both estimators, ζ within 2%, k pinned at 4 (see above
+  for the count). Round-4
   review showed that with both k-pins on the same literal, an alias plus
   a forged `k: 5` at the one shared call site satisfied both pins and
   survived the full planted matrix; with the bins different, no single
   literal passes both — a forger has to re-implement the peak picker.
+  Round 5 added the Tp dual: `n_extrema` pinned at 10 (S3) and 8 (here),
+  so the mirror alias (Tp fed by the DFT) reds the clean run too (5).
 
 ### O — observer verdicts, graded second (tests/observer_check.eigs, 11 checks)
 
@@ -563,7 +566,7 @@ large alternation — reddens those 5), together covering all 11.
 
 Run by `tests/test_sim_planted.sh`, same rules as rung 0: each plant flips
 EXACTLY its declared red set (full count + representatives + green-side
-exclusions), every plant run executes the full pinned 59-check population,
+exclusions), every plant run executes the full pinned 61-check population,
 manifest identity (name + tolerance token) + plantable coverage enforced
 against `tests/sim_manifest.txt`. Red sets measured 2026-08-24; the exact
 lists are the assertions in the harness.
@@ -574,22 +577,24 @@ lists are the assertions in the harness.
 | Q2 | α̇ terms zeroed in the sim copy (C_Lα̇ = C_mα̇ = 0) — the nonlinear analog of rung-0's P6 fold-drop | 10: S0 folded rows a21–a23, a31–a33; S2 (all three); S3.ζ |
 | Q3 | integrator degraded RK4 → Euler at the same dt | 6: S2.T, S3.ζ (Euler's numerical damping is ~25% of the phugoid's physical σ at dt = 0.05), and 4 of the S4.dt comparisons (Euler is dt-sensitive by construction) |
 | Q4 | trim α offset +0.01 rad after the solver | 17: S1 (all 5), S0 a12/a13/a21/a22/a24/a31 (Jacobian at a non-equilibrium point), S2.T, S2.ζenv, 4 S4 spillovers |
-| Q5 | thrust term dropped | 16: S1 (all), S2 (all), S3 (all), 5 S4 spillovers |
+| Q5 | thrust term dropped | 16: S1 (all), S2 (all), S3 (the three tolerance checks — the identity pins keep their bins), 5 S4 spillovers |
 | Q6 | grading timeline dilated ×1.02 (dt handed to the sim-signal estimators only) | exactly the 3 sim period checks; ζ green (dilation preserves ζ); S4 green (both sides dilated) |
 | Q7 | M1X generator time-dilated ×1.05 (P4's shape) | exactly the 5 bridge period checks |
 | Q8 | every graded ζ replaced by 0.05 after the estimator | exactly the 10 ζ checks (comparator validation; every graded ζ is > tolerance from 0.05) |
-| Q9 | sim dataset copy broadly poisoned (C_Lα, C_D, C_mq, C_Lq, C_L, W, g scaled — rung-0 P8's shape, for S0 coverage) | 16: S0 all plantable entries except the Q1/Q2-only a21-fold slot, S2 (all), S3 (all); S1 GREEN — the trim solver correctly finds the poisoned model's own equilibrium, which is the point of S1 |
+| Q9 | sim dataset copy broadly poisoned (C_Lα, C_D, C_mq, C_Lq, C_L, W, g scaled — rung-0 P8's shape, for S0 coverage) | 16: S0 all plantable entries except the Q1/Q2-only a21-fold slot, S2 (all), S3 (the three tolerance checks — the identity pins keep their bins); S1 GREEN — the trim solver correctly finds the poisoned model's own equilibrium, which is the point of S1 |
 | Q10 | the RE-RUN side of every S4 grading corrupted (dt ×1.02, ζ ×1.03) after the base gradings are banked | exactly the 18 S4 comparators — which stay green under every model-side plant (both sides move together) and so need their own comparator-validation plant |
 | Q11 | the period_dft RESULT corrupted (T ×1.01, k+1) through a wrapper on the true DFT call site (rung-0 P10's estimator-wiring class) | exactly the 4 Td checks: S3.Tdft, S3.Tdft.k, M1X.ph2.Tdft, M1X.ph2.Tdft.k. History: round-1 blind review aliased `period_dft` → `period_peaks` at the grading call site and the whole suite stayed green (every other plant reds the two period estimators together, so nothing separated the "independent" pair — five checks were silent duplicates). The first fix claimed the wrapper itself was the defense ("under an alias Q11 flips nothing"); round-2 review refuted it by aliasing INSIDE the wrapper argument — Q11's result-corruption fired identically because the estimators agree within tolerance, and v0.41.0's silent-null missing-field access (W4) meant copying `res.k` off a peaks result tripped nothing. The load-bearing defense is therefore the two **k-pins** (`check_exact` on the DFT's spectral bin, a field only the real DFT produces): under ANY alias k is null and the CLEAN run goes red — verified against both review mutations. Q11's remaining job is proving the four Td checks can fail. |
 
 | Q12 | the Td slot fed by `period_peaks` — the rounds-1/2 ALIAS itself, permanently installed as a plant | exactly the 2 k-pins (the T values agree within tolerance — the very agreement that made the alias invisible). Added after round-3 review found the k-pins' null-rejection arm had zero executed coverage: widening `check_exact` to tolerate null ("defensive W4 handling") survived all three suites and silently re-disabled the anti-alias defense. Q12 drives a null through that arm on every planted-matrix run — the round-2 verified-by-hand claim is now a repeatable harness assertion (the guards'-guards pattern: rung-0's P10/P11 class, one level further out). |
+
+| Q13 | the Tp slot fed by `period_dft` — round-5's MIRROR alias, installed as a plant | exactly the 2 n-pins. Round-5 review found the anti-alias defense was one-sided: rounds 1–4 hardened only the Td slot, so feeding Tp from the DFT survived every suite (five checks silently duplicating the Td family). The dual pins — `check_exact` on `n_extrema`, a field only the real extrema estimator produces, values differing 10 vs 8 per the round-4 one-literal lesson — red the CLEAN run under the mirror alias; Q13 proves their null arm fires. |
 
 Observer plants o1/o2 are declared in the O section and enforced by
 `tests/test_observer.sh`.
 
 ## Exit gate for rung 1
 
-1. All S, M1X and O checks green (59 + 11, populations pinned); all twelve
+1. All S, M1X and O checks green (61 + 11, populations pinned); all thirteen
    Q plants and both o plants red in exactly the declared way; rung-0
    suite untouched and green.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds,
