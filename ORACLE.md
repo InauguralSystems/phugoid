@@ -86,7 +86,7 @@ join the manifest exemption list.
 Direct unit checks on the numeric internals that the chain oracles are
 structurally blind to, each bought by a survived mutation:
 
-- **CU (7 checks):** `cdiv`/`cmul`/`cmag`/`poly4_eval` against hand-computed
+- **CU (11 checks):** `cadd`/`csub`/`cdiv`/`cmul`/`cmag`/`poly4_eval` against hand-computed
   values at 10⁻⁹ — round-7 review HALVED cdiv's denominator and everything
   stayed green, because Durand–Kerner self-corrects under delta scaling, so
   residual/Vieta/root-match oracles never see the helpers. (This also makes
@@ -146,7 +146,10 @@ sub-bin interpolated, via `lib/engineering.dft`) on synthetic damped
 sinusoids `e^(−ζωn t)·cos(ωd t + φ)` with known truth, over a grid covering
 the published regimes: ζ ∈ {0.013, 0.107, 0.30}, phases φ ∈ {0, 1.0, 2.0,
 4.5} at ζ = 0.107 and φ ∈ {0, 1.5, 2.5} at ζ = 0.30, a DC offset case, and
-an off-grid window length (n=360). Pass: measured T within **1%** of truth
+DC offset cases of BOTH signs (round-8 review gutted `detrend` to identity
+and the dc=+2 row stayed green — the positive amplitude floor in
+`find_peaks` tolerates a positive offset undetrended, a negative one it
+does not), and an off-grid window length (n=360). Pass: measured T within **1%** of truth
 for ζ ≤ 0.11, **2%** at ζ = 0.30 (both estimators).
 
 *History (all bought by measurement, 2026-08-23):* the first DFT
@@ -204,12 +207,12 @@ than returning a garbage number when the signal cannot support the estimate.
 gutted the unpinned ones — `zeta_envelope` and `t_half_exp` — into
 hard-coded answers and the whole suite stayed green): sub-cycle windows for
 the three oscillatory estimators, the DFT's declared 3-cycle boundary —
-pinned from BOTH sides: ~2.5 cycles must refuse AND the dr_4cyc grid row
-(4.02 cycles) must be answered within tolerance, because round-7 review
-drifted the boundary constant 3 → 5 and every check stayed green (the
-refusal rows only pinned downward drift; every accepting row sat at 6+
-cycles, so an in-regime 4-cycle signal could be silently refused — the same
-false-refusal class round 3 fixed) — plus the DFT's minimum-length path,
+pinned from BOTH sides AND at the constant itself: ~2.5 cycles must refuse,
+the dr_4cyc row (4.02 cycles, bin 4) must be answered, and the dr_bin3 row
+(3.31 cycles, spectral peak in bin 3) must be answered — round-7 drifted
+the constant 3 → 5 all-green (accepting rows all sat at 6+ cycles), and
+round-8 then drifted it 3 → 4, which dr_4cyc could not see either; only a
+bin-3 accepting row pins the declared value exactly — plus the DFT's minimum-length path,
 the envelope fit on a truncated heavy-damping window, and the exponential
 fit on both a too-short and a growing signal.
 
@@ -229,7 +232,8 @@ to work.
 | P5 | the ζ result is replaced by a constant 0.05 after the estimator runs (validates the comparator; estimator-wiring faults are covered by the mutation requirement below) | M2 ζ checks (all grid ζ values are >5% away from 0.05 by construction) |
 | P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A31/A32/A33), L3, L4 phugoid/sp |
 | P7 | every refusal result forced to ok=1 before its check | all 8 M3 refusal checks, nothing else |
-| P8 | every dataset input poisoned (nonzero values scaled, zeros made nonzero, inertias scaled unevenly, θ₀ tilted, unit-check root lists scaled) | every data-derived check — 129 of 173 (the synthetic unit dataset and the CU/stability unit inputs are poisoned too) — leaving green only the pub-literal solver/exact checks (P2/P3's territory) and the structural constants |
+| P8 | every dataset input poisoned (nonzero values scaled, zeros made nonzero, inertias scaled unevenly, θ₀ tilted, unit-check root lists scaled) | every data-derived check — 133 of 177 (the synthetic unit dataset and the CU/stability unit inputs are poisoned too) — leaving green only the pub-literal solver/exact checks (P2/P3's territory) and the structural constants |
+| P10 | every DFT result forced into a refusal before its check | the 14 M1.dft checks, red THROUGH the refusal arm of `check_result` — which round-8 review gutted to print PASS with nothing noticing (no clean run or plant had ever driven a refusal through it) |
 | P9 | every solver root nudged by 3·10⁻⁸ before the exact-arm checks, putting residual/Vieta errors inside (10⁻¹⁰, 10⁻⁶) — a band no natural run produces (DK residuals jump ~10⁻⁶ → ~10⁻¹¹ between iterations 5 and 6) | exactly the 12 L4.exact checks; a call-site tolerance widened to 10⁻⁶ turns this plant green and is caught |
 
 `tests/test_planted.sh` asserts each plant's **full** measured red set —
@@ -252,7 +256,7 @@ Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 173 checks; `measure_check.eigs` exactly 47;
+`modes_check.eigs` runs exactly 177 checks; `measure_check.eigs` exactly 53;
 `comparator_check.eigs` exactly 13. Check *identities* are pinned by the
 manifest rule above. The residual/Vieta "exact" tolerance is a named
 constant in `tests/checklib.eigs` (`exact_tol`), value-pinned by the

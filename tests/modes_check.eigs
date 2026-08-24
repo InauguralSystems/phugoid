@@ -380,6 +380,10 @@ unit_scale2 is unit_scale
 cu is 1.0
 if plant == "p8":
     cu is 1.1
+check_tight of ["CU.cadd.re", (cadd of [[3.0 * cu, 4.0 * cu], [1.0, 2.0]])[0], 4.0]
+check_tight of ["CU.cadd.im", (cadd of [[3.0 * cu, 4.0 * cu], [1.0, 2.0]])[1], 6.0]
+check_tight of ["CU.csub.re", (csub of [[3.0 * cu, 4.0 * cu], [1.0, 2.0]])[0], 2.0]
+check_tight of ["CU.csub.im", (csub of [[3.0 * cu, 4.0 * cu], [1.0, 2.0]])[1], 2.0]
 check_tight of ["CU.cdiv.re", (cdiv of [[3.0 * cu, 4.0 * cu], [1.0, 2.0]])[0], 2.2]
 check_tight of ["CU.cdiv.im", (cdiv of [[3.0 * cu, 4.0 * cu], [1.0, 2.0]])[1], 0.0 - 0.4]
 check_tight of ["CU.cmul.re", (cmul of [[3.0 * cu, 4.0], [1.0, 2.0]])[0], 0.0 - 5.0]
@@ -427,8 +431,8 @@ check_abs of ["L5.unit.reals_sorted_high", u_re.reals[1].re, 0.0 - 1.2, 1e-12]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 173:
-    print of f"FAIL harness: expected exactly 173 checks, ran {checks_run}"
+if checks_run != 177:
+    print of f"FAIL harness: expected exactly 177 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

@@ -3,9 +3,10 @@
 # Run from the repo root:  eigenscript tests/measure_check.eigs [plant]
 # where plant is p4 (generator time-dilated +5% vs declared truth, decay
 # rates included), p5 (damping estimate replaced by a constant 0.05), or
-# p7 (every refusal result forced to ok=1).
+# p7 (every refusal result forced to ok=1), or p10 (every DFT result
+# forced into a refusal, exercising the refusal arm of check_result).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 47.
+# failure; the check population is pinned at exactly 53.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -82,7 +83,13 @@ if plant == "p4":
 # conversion delta/sqrt(4pi^2+delta^2): round-5 review gutted it to the
 # small-angle delta/2pi (+4.83% at zeta=0.30) and the old 5% rows let it
 # through; measured estimator error is <= 0.013%, so 0.5% has 38x margin.
-cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.005, 0.001], ["z30_phi15", 0.30, 1.0, 1.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi25", 0.30, 1.0, 2.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_4cyc", 0.107, 0.7477, 0.0, 0.0, 0.2, 170, 0.01, 0.005, 0.001]]
+cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.005, 0.001], ["z30_phi15", 0.30, 1.0, 1.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi25", 0.30, 1.0, 2.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_4cyc", 0.107, 0.7477, 0.0, 0.0, 0.2, 170, 0.01, 0.005, 0.001], ["dr_bin3", 0.107, 0.7477, 0.0, 0.0, 0.2, 140, 0.01, 0.005, 0.001], ["dr_dcneg", 0.107, 0.7477, 0.0, 0.0 - 2.0, 0.2, 430, 0.01, 0.005, 0.001]]
+# dr_bin3 (3.31 cycles, spectral peak in bin 3) pins the DFT acceptance
+# boundary AT the declared constant: round-8 review drifted 3 -> 4 and the
+# dr_4cyc row (bin 4) could not see it. dr_dcneg pins detrending for a
+# NEGATIVE baseline: round-8 gutted detrend to identity and the dc=+2 row
+# stayed green (the positive amplitude floor in find_peaks tolerates a
+# positive offset without detrending; a negative one it does not).
 # The dr_4cyc row (4.02 cycles in window) pins the DFT acceptance boundary
 # from ABOVE: round-7 review drifted the 3-cycle refusal constant to 5 and
 # every check stayed green — the refusal rows pin only the downward drift,
@@ -107,6 +114,12 @@ unobserved:
         local rp is period_peaks of [sig, dt]
         check_result of [f"M1.peaks.{name}", rp, "T", t_true, c[9]]
         local rd is period_dft of [sig, dt]
+        # Plant p10: every DFT result forced into a refusal — the M1.dft
+        # checks must go red THROUGH the refusal arm of check_result, which
+        # round-8 review gutted to print PASS with nothing noticing (no
+        # clean run or plant had ever driven a refusal through it).
+        if plant == "p10":
+            rd is {"ok": 0, "reason": "planted refusal"}
         check_result of [f"M1.dft.{name}", rd, "T", t_true, c[7]]
         local rz is zeta_logdec of [sig, dt]
         if plant == "p5":
@@ -155,8 +168,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 47:
-    print of f"FAIL harness: expected exactly 47 checks, ran {checks_run}"
+if checks_run != 53:
+    print of f"FAIL harness: expected exactly 53 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

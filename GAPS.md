@@ -22,7 +22,7 @@ eigenvalues (Caughey eq. 5.54/5.95) and by residual/Vieta identities.
 ### G2 — no complex-number support in the stdlib
 **Hit at rung 0 (2026-08-23).** Mode analysis is intrinsically complex-valued.
 phugoid represents complex numbers as `[re, im]` lists with hand-rolled
-`cadd/csub/cmul/cdiv/cmag` (`modes.eigs`), unit-checked directly against
+`cadd/csub/cmul/cdiv/cmag` (`modes.eigs`), all five unit-checked directly against
 hand-computed values (the CU check family — the root-finding oracles alone
 are structurally blind to these helpers; a halved cdiv survived them). Workable, but every consumer doing
 signal processing or root-finding will re-roll the same five functions

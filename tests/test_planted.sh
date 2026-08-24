@@ -62,7 +62,7 @@ expect_green() {
 
 echo "--- P1: Cma sign flip -> full longitudinal chain red (15), rest green ---"
 run_plant modes_check.eigs p1
-expect_population 173
+expect_population 177
 expect_total_fails 15
 expect_red 'L1\.lon\.Mw ' 'L2\.lon\.' 'L3\.lon\.' 'L4\.chain\.lon\.ph' 'L4\.chain\.lon\.sp' 'L5\.ph\.' 'L5\.sp\.'
 expect_green '\.lat\.' 'L4\.(solver|exact)\.' 'L5\.unit\.'
@@ -70,7 +70,7 @@ echo "PASS: P1 red pattern exact"
 
 echo "--- P2: lateral quartic c1 +1% -> only solver-alone lateral red (3) ---"
 run_plant modes_check.eigs p2
-expect_population 173
+expect_population 177
 expect_total_fails 3
 expect_red 'L4\.solver\.lat\.dr' 'L4\.solver\.lat\.roll'
 expect_green 'L[123]\.' 'L4\.chain\.' 'L4\.exact\.' 'L4\.solver\.lon\.' 'L5\.'
@@ -78,7 +78,7 @@ echo "PASS: P2 red pattern exact"
 
 echo "--- P3: solver gutted -> every root-dependent check red (40), L1-L3 + unit green ---"
 run_plant modes_check.eigs p3
-expect_population 173
+expect_population 177
 expect_total_fails 40
 expect_red 'L4\.chain\.lon\.' 'L4\.chain\.lat\.' 'L4\.solver\.lon\.' 'L4\.solver\.lat\.' 'L4\.exact\.lon\.' 'L4\.exact\.lat\.' 'L5\.ph\.' 'L5\.sp\.' 'L5\.dr\.' 'L5\.roll\.' 'L5\.spiral\.'
 expect_green 'L[123]\.' 'L5\.unit\.'
@@ -86,54 +86,63 @@ echo "PASS: P3 red pattern exact"
 
 echo "--- P6: Mwdot folding dropped -> longitudinal A/quartic/roots red (12), L1 + lat green ---"
 run_plant modes_check.eigs p6
-expect_population 173
+expect_population 177
 expect_total_fails 12
 expect_red 'L2\.lon\.a31 ' 'L2\.lon\.a32 ' 'L2\.lon\.a33 ' 'L3\.lon\.' 'L4\.chain\.lon\.' 'L5\.ph\.' 'L5\.sp\.'
 expect_green 'L1\.' '\.lat\.' 'L4\.(solver|exact)\.' 'L5\.unit\.'
 echo "PASS: P6 red pattern exact"
 
-echo "--- P4: generator time-dilated +5% -> all period + t_half checks red (26), damping green ---"
+echo "--- P4: generator time-dilated +5% -> all period + t_half checks red (30), damping green ---"
 run_plant measure_check.eigs p4
-expect_population 47
-expect_total_fails 26
+expect_population 53
+expect_total_fails 30
 expect_red 'M1\.peaks\.' 'M1\.dft\.' 'M2\.thalf\.roll' 'M2\.thalf\.spiral'
-[ "$(grep -c '^FAIL M1\.peaks\.' "$OUT")" -eq 12 ] || { echo "FAIL: P4 peaks count != 12"; exit 1; }
-[ "$(grep -c '^FAIL M1\.dft\.' "$OUT")" -eq 12 ] || { echo "FAIL: P4 dft count != 12"; exit 1; }
+[ "$(grep -c '^FAIL M1\.peaks\.' "$OUT")" -eq 14 ] || { echo "FAIL: P4 peaks count != 14"; exit 1; }
+[ "$(grep -c '^FAIL M1\.dft\.' "$OUT")" -eq 14 ] || { echo "FAIL: P4 dft count != 14"; exit 1; }
 expect_green 'M2\.logdec\.' 'M2\.envelope\.' 'M3\.'
 echo "PASS: P4 red pattern exact"
 
-echo "--- P5: damping estimate replaced by constant 0.05 -> all zeta checks red (13) ---"
+echo "--- P5: damping estimate replaced by constant 0.05 -> all zeta checks red (15) ---"
 run_plant measure_check.eigs p5
-expect_population 47
-expect_total_fails 13
+expect_population 53
+expect_total_fails 15
 expect_red 'M2\.logdec\.' 'M2\.envelope\.heavy '
-[ "$(grep -c '^FAIL M2\.logdec\.' "$OUT")" -eq 12 ] || { echo "FAIL: P5 logdec count != 12"; exit 1; }
+[ "$(grep -c '^FAIL M2\.logdec\.' "$OUT")" -eq 14 ] || { echo "FAIL: P5 logdec count != 14"; exit 1; }
 expect_green 'M1\.' 'M2\.thalf\.' 'M3\.'
 echo "PASS: P5 red pattern exact"
 
 echo "--- P7: refusal results forced to ok=1 -> all 8 M3 checks red, rest green ---"
 run_plant measure_check.eigs p7
-expect_population 47
+expect_population 53
 expect_total_fails 8
 expect_red 'M3\.refuse\.peaks ' 'M3\.refuse\.dft ' 'M3\.refuse\.logdec ' 'M3\.refuse\.dft_2cycles ' 'M3\.refuse\.dft_short ' 'M3\.refuse\.envelope ' 'M3\.refuse\.thalf_short ' 'M3\.refuse\.thalf_growing '
 expect_green 'M1\.' 'M2\.'
 echo "PASS: P7 red pattern exact"
 
-echo "--- P8: every input poisoned -> every data-derived check red (129), structural + pub-literal green ---"
+echo "--- P8: every input poisoned -> every data-derived check red (133), structural + pub-literal green ---"
 run_plant modes_check.eigs p8
-expect_population 173
-expect_total_fails 129
+expect_population 177
+expect_total_fails 133
 expect_red 'L1\.lon\.' 'L1\.lat\.' 'L2\.lon\.a11 ' 'L2\.lat\.a11 ' 'L3\.lon\.' 'L3\.lat\.' 'L4\.chain\.' 'L5\.unit\.'
 expect_green 'L4\.(solver|exact)\.'
 echo "PASS: P8 red pattern exact"
 
 echo "--- P9: solver roots nudged 3e-8 -> exactly the 12 exact-arm checks red ---"
 run_plant modes_check.eigs p9
-expect_population 173
+expect_population 177
 expect_total_fails 12
 expect_red 'L4\.exact\.lon\.resid' 'L4\.exact\.lon\.vieta' 'L4\.exact\.lat\.resid' 'L4\.exact\.lat\.vieta'
 expect_green 'L[1235]\.' 'L4\.chain\.' 'L4\.solver\.'
 echo "PASS: P9 red pattern exact"
+
+echo "--- P10: every DFT result forced into a refusal -> the 14 dft checks red via the refusal arm ---"
+run_plant measure_check.eigs p10
+expect_population 53
+expect_total_fails 14
+expect_red 'M1\.dft\.'
+[ "$(grep -c '^FAIL M1\.dft\.' "$OUT")" -eq 14 ] || { echo "FAIL: P10 dft count != 14"; exit 1; }
+expect_green 'M1\.peaks\.' 'M2\.' 'M3\.'
+echo "PASS: P10 red pattern exact"
 
 # ------------------------------------------------------------------
 # Manifest enforcement (round-4 review): (a) the unplanted check-name set
@@ -166,4 +175,4 @@ done < <(grep -v '^#' tests/check_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 9 plants flip exactly their declared checks"
+echo "PASS: all 10 plants flip exactly their declared checks"
