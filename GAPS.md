@@ -8,6 +8,7 @@ locally in the meantime.
 ## Open
 
 ### G1 — no polynomial root-finder or general eigenvalue routine in the stdlib
+**Upstreamed: EigenScript#1042 (2026-08-24).**
 **Hit at rung 0 (2026-08-23).** Extracting flight modes needs the eigenvalues
 of a 4×4 state matrix (equivalently the roots of its characteristic quartic).
 `lib/linalg.eigs` stops at `eigenvalues_2x2`; `lib/numerics.eigs` has
@@ -20,6 +21,7 @@ eigenvalues (Caughey eq. 5.54/5.95) and by residual/Vieta identities.
 (complex roots as [re, im] pairs), or a direct `eigenvalues of A`.
 
 ### G2 — no complex-number support in the stdlib
+**Upstreamed: EigenScript#1043 (2026-08-24).**
 **Hit at rung 0 (2026-08-23).** Mode analysis is intrinsically complex-valued.
 phugoid represents complex numbers as `[re, im]` lists with hand-rolled
 `cadd/csub/cmul/cdiv/cmag` (`modes.eigs`), all five unit-checked directly against
@@ -31,6 +33,7 @@ shared arithmetic on them). **Candidate upstream API:** a `lib/complex.eigs`
 with the arithmetic + polar helpers, adopted by `engineering.dft`.
 
 ### G3 — `log` builtin saturates below 1e-10, silently
+**Upstreamed: EigenScript#1041 (2026-08-24).**
 **Hit at rung 0 (2026-08-23, round-15 blind review).** The runtime clamps
 `log` inputs below 1e-10 to ln(1e-10) = -23.0259 (verified:
 `log of 1e-15 == log of 1e-10`; 2e-10 and up compute correctly). This is
