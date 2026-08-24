@@ -169,6 +169,14 @@ expect_red 'L1U\.' 'L2U\.' 'CU\.' 'L5\.unit\.'
 expect_green 'L[1-5]\.lon\.' 'L[1-5]\.lat\.' 'L4\.' 'L5\.ph' 'L5\.sp' 'L5\.dr'
 echo "PASS: P15 red pattern exact"
 
+echo "--- P16: M0.gen checked value x(1+3e-9) (just outside its 1e-9 arm) -> all 17 wiring checks red ---"
+run_plant measure_check.eigs p16
+expect_population 92
+expect_total_fails 17
+[ "$(grep -c '^FAIL M0\.gen\.' "$OUT")" -eq 17 ] || { echo "FAIL: P16 M0.gen count != 17"; exit 1; }
+expect_green 'M1\.' 'M2\.' 'M3\.'
+echo "PASS: P16 red pattern exact"
+
 echo "--- P12: generator phase+dc zeroed -> the 10 nonzero-wiring M0.gen checks red ---"
 run_plant measure_check.eigs p12
 expect_population 92
@@ -229,4 +237,4 @@ done < <(grep -v '^#' tests/check_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 15 plants flip exactly their declared checks"
+echo "PASS: all 16 plants flip exactly their declared checks"

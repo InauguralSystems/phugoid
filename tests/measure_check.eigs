@@ -96,6 +96,14 @@ if plant == "p13":
 zeta_gen_scale is 1.0
 if plant == "p14":
     zeta_gen_scale is 1.007
+# p16 displaces the M0.gen CHECKED VALUE by just outside its 1e-9 arm —
+# round-23 found this was the one comparison arm without a displacement
+# plant at its own scale (P12 displaces at order-1, so a 3e7x executed-
+# tolerance slack in this file's check_tight survived everything and let
+# a real 0.001-rad wiring fault back through).
+gen_id_scale is 1.0
+if plant == "p16":
+    gen_id_scale is 1.000000003
 
 # name, zeta, wn, phi, dc, dt, n, dft_T_reltol, zeta_reltol, peaks_T_reltol
 # The peaks tolerance (0.1%) is deliberately tighter than the estimator's
@@ -157,7 +165,7 @@ unobserved:
         local zeta is c[1]
         local wn is c[2]
         local sig is gen_osc of [zeta * zeta_gen_scale, wn, gen_phi, gen_dc, c[5], c[6], detune]
-        check_tight of [f"M0.gen.{name}", sig[0], c[4] + (cos of c[3])]
+        check_tight of [f"M0.gen.{name}", sig[0] * gen_id_scale, c[4] + (cos of c[3])]
         local t_true is 2.0 * (pi of null) / (wn * (sqrt of (1.0 - zeta * zeta)))
         local dt is c[5]
         local rp is period_peaks of [sig, dt]
