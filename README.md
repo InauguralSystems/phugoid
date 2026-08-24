@@ -9,9 +9,9 @@ onset) inside a hot real-time loop. The proposal and contract live at
 `hq/proposals/flight-simulator.md`; the falsifiable prediction recorded there
 is that the physics will *not* be what breaks first.
 
-## Oracle-first: what exists at rung 0
+## Oracle-first: rung 0 is the grader, rung 1 the first flight model
 
-There is deliberately **no flight model yet**. Rung 0 is the grader:
+Rung 0 built and adversarially validated the grader before any model:
 
 - **`DERIVATIVES.md` / `data/b747_approach.eigs`** — a complete public
   airframe dataset (Boeing 747, Mach 0.25 powered approach; Caughey 2011 ←
@@ -32,6 +32,22 @@ There is deliberately **no flight model yet**. Rung 0 is the grader:
   fault matrix proving each checker can fail, and a boundary self-test of
   the comparators so a widened tolerance cannot pass silently.
 
+Rung 1 (shipped 2026-08-24) is the first model, graded by rung 0:
+
+- **`sim.eigs`** — the nonlinear longitudinal 3-DOF model: coefficient
+  aerodynamics with the α̇ dependence solved in closed form, a Newton trim
+  solver, RK4, and the SP-subspace excitation. Its Jacobian at its own
+  solved trim must match the rung-0 A matrix entry-by-entry (S0), and its
+  free responses grade to the chain's mode quantities: phugoid T within
+  0.03% measured, ζ within 0.2%; short period T within 0.17%, ζ within
+  0.15% (arms in ORACLE.md, fifteen-plant fault matrix in
+  `tests/test_sim_planted.sh`).
+- **`tests/observer_check.eigs`** — the observer's verdicts graded against
+  the same physics: 8 agreement pins, and 3 pinned *divergences* — the
+  fixed 10-sample predicate window reads a 47 s mode at 1 Hz as
+  `diverging` on its quarter-cycles (GAPS.md G4, the first measured
+  instance of the proposal's two-timescale prediction).
+
 ## Run it
 
 ```sh
@@ -40,6 +56,9 @@ bash tests/test_comparator.sh  # 15 tolerance boundary self-tests
 bash tests/test_modes.sh       # 180 chain checks vs published values
 bash tests/test_measure.sh     # 126 estimator checks vs synthetic truth
 bash tests/test_planted.sh     # 18 plants must each flip exactly their checks
+bash tests/test_sim.sh         # 64 rung-1 model checks vs the rung-0 chain
+bash tests/test_sim_planted.sh # 15 rung-1 plants, exact red sets + manifest
+bash tests/test_observer.sh    # 11 observer-verdict checks + 2 plants
 ```
 
 Requires `eigenscript` on PATH (or `EIGENSCRIPT=/path/to/binary`), pinned in
@@ -49,8 +68,8 @@ CI at the version in `.devcontainer/Dockerfile`.
 
 | Rung | Scope | Status |
 |---|---|---|
-| 0 | Oracle before code: dataset, mode predictions, measurement scripts | **this repo** |
-| 1 | Longitudinal 3-DOF, trimmed; elevator step → phugoid + short period graded against rung 0 | next |
+| 0 | Oracle before code: dataset, mode predictions, measurement scripts | done |
+| 1 | Longitudinal 3-DOF, trimmed; elevator pulse → phugoid, SP-subspace IC → short period, graded against rung 0; observer verdicts graded second | **done** |
 | 2 | Lateral 3-DOF: Dutch roll, spiral, roll subsidence (the level-set/value-channel stress) | — |
 | 3 | 6-DOF + control tapes, byte-exact replay gate | — |
 | 4 | The swarm: N aircraft, three-arm observer cost curve (ceiling/disciplined/floor), VM-vs-AOT | — |

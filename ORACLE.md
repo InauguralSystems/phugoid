@@ -351,3 +351,313 @@ a top-severity finding.
 1. All L and M checks green, all eighteen plants red in exactly the declared way.
 2. Blind-critic rounds dry (two consecutive rounds with no actionable gap).
 3. CI green on the pushed repo (devcontainer, pinned EIGS_REF=v0.41.0).
+
+---
+
+# Rung 1 — the longitudinal 3-DOF model, graded by rung 0
+
+Written before the model, per the grader-first rule. Rung 1's deliverable is
+the first actual flight model; rung 0's estimators and chain are the grader.
+Tolerances below were claimed first and then pinned against measurement; any
+widening needs a written justification here, same rule as rung 0.
+
+## The pipeline under test
+
+```
+nonlinear longitudinal 3-DOF model (sim.eigs)
+  → trim solver (level flight at the dataset condition)          (S1)
+  → numerical Jacobian at trim vs the rung-0 A matrix            (S0)
+  → SP-subspace IC free response → w(t) → short-period T, ζ      (S2)
+  → elevator pulse → u(t) → phugoid T, ζ (both period estimators)(S3)
+  → invariances: dt-halving, amplitude-halving, control-scaling  (S4)
+```
+
+**Two excitation designs were replaced by measurement on 2026-08-24 —
+the first drafts of this section prescribed an elevator DOUBLET for S2
+and a held STEP for S3; both failed honestly and the failures are part
+of the rung's yield:**
+
+- **Held step (S3 draft):** the step moves the trim point, so the phugoid
+  oscillates about a FASTER equilibrium (u settled ≈ 283 ft/s, +1.4%) and
+  both period estimators read T ≈ +1.3% off the original-trim chain value
+  — agreeing with each other, disagreeing with the reference, because they
+  were measuring a different operating point. Cure: a 20 s return-to-trim
+  pulse; the free response then rings about the original trim (measured
+  after the change: T within 0.03%).
+- **Doublet (S2 draft):** the SP at ζ = 0.6255 leaves only ~2 clean
+  extrema before its 3rd (amplitude ratio 0.089 per extremum) drowns in
+  the phugoid the doublet co-excites (w-contamination ~0.035 vs the 3rd
+  SP extremum's 0.002; measured across 2 s and 0.5 s doublets, q and w
+  channels, and a quadratic detrend that the dominant SP itself corrupts).
+  The estimator floor is 3 extrema, so the natural-input grading REFUSES —
+  the first measured instance of the proposal's two-timescale prediction,
+  at the estimator layer. Cure: the S2 excitation is the SP-subspace
+  initial condition p_ph(A)·e (Cayley–Hamilton: the phugoid pair's
+  quadratic annihilates its own subspace), built entirely from pinned
+  chain quantities; the free response is a clean single-mode decay with
+  4 usable extrema. The mode quantities being graded are properties of
+  the dynamics, not of the excitation — S4 proves that where an elevator
+  path exists, and a plant that poisons the sim's dataset still reddens
+  every graded quantity under this IC (Q9).
+
+plus **M1X**, the estimator bridge: the rung-0 estimators re-validated on
+synthetic single- and two-mode signals built from the rung-0 roots, in the
+same windows the sim grading uses, BEFORE any sim signal is graded. Needed
+because the rung-0 M1 grid stops at ζ = 0.30 while the short period sits at
+ζ = 0.6255, and because every sim signal is mixed-mode where the grid was
+single-mode. (Extrema spacing is exactly T/2 for a damped sinusoid at any ζ
+— the maxima of e^(σt)cos(ωt+φ) sit at tan(ωt+φ) = σ/ω, a uniform shift —
+so the period estimator has no structural ζ limit; M1X measures the
+sampling/refinement error actually achieved in the SP regime.)
+
+## Reference values — the two layers stay separate
+
+Every graded quantity is compared against the rung-0 chain **computed
+in-harness** (`modes_of ∘ dk_roots ∘ charpoly4 ∘ a_lon` on the same dataset),
+never against hardcoded copies of the published numbers. Chain-vs-published
+is already pinned by L1–L5; sim-vs-chain is rung 1's own layer. Hardcoding
+printed values here would stack the print-rounding tolerance on top of the
+estimator tolerance and blur which layer failed.
+
+## The model contract
+
+The nonlinear model must **linearize exactly to the rung-0 A at its own
+trim**: aerodynamic coefficients linear in (α, α̇c̄/2V, qc̄/2V, δe) about the
+dataset trim point; the α̇ dependence solved in closed form (the nonlinear
+counterpart of the Zẇ/Mẇ folds — α̇·(1 + K/V) = α̇₀ with K = QS·C_Lα̇·c̄/(2Vm),
+which reduces to the printed 1/(1−Zẇ) factor at trim); constant thrust along
+body x (the assumption already embedded in Xu's 2·CD term); level trim θ = α.
+Control derivatives C_Lδe/C_mδe are **nominal and excitation-only** (declared
+unsourced in sim.eigs — the public dataset has no control column); S4.ctl
+scales BOTH by 1.5× (round-6 review caught the first draft scaling only
+C_mδe while this sentence claimed the plural) and proves the graded mode
+quantities do not depend on them.
+
+## Checks and tolerances
+
+### S0 — linearization parity (16 checks)
+
+Central-difference Jacobian of the sim's derivative function at the solved
+trim, per-entry against `a_lon` of the rung-0 chain: relative arm
+3·10⁻³, plus a **per-entry absolute arm** sized ~2× that entry's own
+measured trim-offset mechanism (`s0_abs` in sim_check.eigs). The first
+draft claimed a single `5·10⁻³` absolute arm "sized for the θ-column";
+measurement replaced it twice:
+
+1. The solved trim sits at α_trim ≈ −5.4·10⁻⁵ rad (closing the 0.03% gap
+   between the printed C_L = 1.108 and W/QS = 1.1084), and the dominant
+   offset is **u₀·α_trim, not g·α_trim**: A13 = ∂u̇/∂q picks up −w_trim ≈
+   0.0143 — 3× the drafted arm. A13's arm is 0.03; A24 (g·sinθ_trim
+   mechanism, 0.00175 measured) gets 0.004.
+2. A single wide arm makes every |entry| < arm/reltol unplantable:
+   killing Xu outright moves A11 by only 0.021, invisible under a 0.03
+   arm (measured against the first draft). Regular entries (worst honest
+   diff 6.1·10⁻⁵ at A12) get 10⁻³; the doubly-small folded entries A31/A32
+   get 10⁻⁵/10⁻⁶ so the fold-drop plant Q2 and the 5% C_mα plant Q1 are
+   visible at their own scales. A34 (= Mẇ·A24, both sides ~0 at a
+   near-zero-θ trim) is manifest class structural, with A41–A44 (the
+   θ̇ row).
+
+Measured on the first green run: every relative discrepancy ≤ 1.3·10⁻³
+(A12), every absolute one inside half its arm.
+
+### S1 — trim (5 checks)
+
+At the solved trim: |u̇| ≤ 10⁻⁹, |ẇ| ≤ 10⁻⁹, |q̇| ≤ 10⁻¹¹ (units ft/s², rad/s²).
+Held 60 s through the integrator: max |u − u_trim| ≤ 10⁻⁶ ft/s and
+max |q| ≤ 10⁻⁹ rad/s — equilibrium is defined by the equations, so a trim
+that drifts is a wrong trim or a broken integrator, not a tolerance case.
+
+### S2 — short period from the SP-subspace IC (5 checks)
+
+Free response from `sp_subspace_ic` (w-displacement 2 ft/s), w-channel,
+window [0, 16 s] at 0.02 s cadence — 4 usable extrema. `T_sp` within
+**1%** of the chain value; `ζ_sp` within **2%** by BOTH log decrement and
+envelope fit (tightened from the drafted 10% after measuring +0.15%; the
+envelope's own small-angle mutant is +28% at this ζ, so 2% still pins the
+exact conversions with ~13× margin). Measured first green run: T −0.17%,
+ζ +0.15% (both estimators). The nonlinear phugoid re-injection at the
+graded amplitude (wamp = 2.0) is 2.8·10⁻⁴ of the first extremum,
+measured from the 4th extremum's ratio deviation — round-4 review
+corrected the first published figure (6.9·10⁻⁵), which had been measured
+at wamp = 0.5; re-injection scales linearly with excitation amplitude,
+confirming genuine second-order coupling. The M1X bridge bounds ~2.2×
+the graded-regime value.
+
+### S3 — phugoid from the elevator pulse (6 checks)
+
+Elevator pulse (+0.005 rad for 20 s, back to trim), u(t) from t = 45 s
+(the pulse-edge SP is dead: e^(−0.5515·25) ≈ 10⁻⁶), 1.0 s cadence, 280 s
+run (~5 phugoid cycles). `T_ph` within **0.5%** by BOTH period estimators
+(tightened from the drafted 1% after measuring −0.002% / −0.03%); `ζ_ph`
+within **2%** by log decrement (tightened from 5%; measured −0.19%).
+
+### S4 — invariances (18 checks)
+
+The graded quantities must be properties of the MODEL, not of the numerics
+or the excitation. Each invariance re-runs both sims and re-grades all six
+quantities (T_sp, ζ_sp×2, T_ph×2, ζ_ph) against the base run:
+- **dt** halved (recording cadence preserved via doubled decimation):
+  each moves < **0.1%**.
+- **amplitude** halved (IC w-displacement 1 ft/s; pulse +0.0025 rad):
+  each moves < **0.5%** (bounds the operating point's nonlinearity).
+- **ctl**: C_mδe × 1.5, re-trimmed: each moves < **0.2%** — the nominal
+  control derivatives are excitation-only.
+
+### M1X — the estimator bridge (14 checks)
+
+Synthetic signals from the chain roots (σ, ω of each mode), truth known,
+graded in the exact windows/cadences the sim grading uses:
+- **M1X.sp** — single-mode SP at the chain's (σ_sp, ω_sp), S2 sampling,
+  phases {2.0, 4.5}: T within 1%, ζ within 2% by both estimators (6).
+  The ζ = 0.6255 regime the rung-0 grid never covered. Phases are chosen
+  so the 4th extremum sits inside the 16 s window as the sim signal does
+  (first extremum ≤ 2.3 s): φ = 0 puts an extremum on find_extrema's
+  excluded edge sample and φ ∈ [~0.3, 1.7] pushes the 4th extremum out,
+  hitting the envelope's already-pinned refusal (measured on the first
+  harness run — both are estimator boundaries recorded at rung 0, not
+  sim regimes).
+- **M1X.sp2** — SP + phugoid contaminant at 2·10⁻⁴ of the generator
+  amplitude (6.2·10⁻⁴ of its first extremum) ≈ 2.2× the graded S2 run's
+  measured re-injection: same arms (3). At 10⁻³ the 4th extremum drowns
+  and T degrades to −2.3% (measured) — the bridge bounds the sim regime
+  with margin; it does not claim an arbitrary stress, and the contaminant
+  is not raised to manufacture a rounder margin (~3.6·10⁻⁴ extrapolates
+  to −0.8% T error against the 1% arm — too near the cliff).
+- **M1X.ph2** — phugoid + 1% second harmonic (the nonlinear residual
+  shape of the S3 window; the pulse-edge SP is dead there by
+  construction), S3 cadence over a DELIBERATELY different window length
+  (190 samples → 4.05 cycles → DFT bin 4, where S3's 236 → bin 5): T
+  within 0.5% both estimators, ζ within 2%, k pinned at 4 (see above
+  for the count). Round-4
+  review showed that with both k-pins on the same literal, an alias plus
+  a forged `k: 5` at the one shared call site satisfied both pins and
+  survived the full planted matrix; with the bins different, no single
+  literal passes both — a forger has to re-implement the peak picker.
+  Round 5 added the Tp dual: `n_extrema` pinned at 10 (S3) and 8 (here),
+  so the mirror alias (Tp fed by the DFT) reds the clean run too (5).
+
+### O — observer verdicts, graded second (tests/observer_check.eigs, 11 checks)
+
+The graded channels replayed through an observed binding; the physics
+truth table written first; each pinned read compared to it, every check
+labeled `agree` (verdict matches physics) or `divergence` (verdict
+measured to contradict physics — pinned so an upstream change flips it
+loudly). Measured 2026-08-24, the first external grading of observer
+verdicts against a mode-structure oracle:
+
+- **agree (8):** trim hold → `converged`; SP replay at 1 s cadence
+  (~9 samples/cycle) → `oscillating` while the mode lives, `converged`
+  once it has died into the re-injection floor; phugoid replay at 5 s
+  cadence (9.4 samples/cycle) → `oscillating` at every probe point,
+  bare-word and named form.
+- **divergence (3):** phugoid replay at 1 s cadence (47 samples/cycle,
+  window 10 samples) → `stable` / `diverging` / `improving` at the three
+  probe points, physics truth `oscillating` at all three. The verdict is
+  confidently wrong on quarter-cycles of a mode slower than the window —
+  the multi-timescale prediction landing at the observer layer, upstreamed
+  as GAPS.md **G4**. The pins flip the day upstream changes the
+  windowing; that flip is the re-grade signal, not a rung-1 bug.
+
+Observer plants o1 (replay frozen at the first sample — must redden the
+9 motion-expecting checks and must NOT redden the settledness checks,
+which a constant legitimately satisfies) and o2 (replay replaced by a
+large alternation — reddens those 5), together covering all 11.
+
+## Rung-1 planted-fault matrix — validates the graders, not the model
+
+Run by `tests/test_sim_planted.sh`, same rules as rung 0: each plant flips
+EXACTLY its declared red set (full count + representatives + green-side
+exclusions), every plant run executes the full pinned 64-check population,
+manifest identity (name + tolerance token) + plantable coverage enforced
+against `tests/sim_manifest.txt`. Red sets measured 2026-08-24; the exact
+lists are the assertions in the harness.
+
+| Plant | Injected into | Measured red set |
+|---|---|---|
+| Q1 | C_mα × 1.05 in the SIM's dataset copy only (the chain reference stays clean, so the differential fires) | 5: S0.a32, S2.T, S3 (all — C_mα moves the phugoid too: ~0.6% in T, 4% in ζ) |
+| Q2 | α̇ terms zeroed in the sim copy (C_Lα̇ = C_mα̇ = 0) — the nonlinear analog of rung-0's P6 fold-drop | 10: S0 folded rows a21–a23, a31–a33; S2 (all three); S3.ζ |
+| Q3 | integrator degraded RK4 → Euler at the same dt | 6: S2.T, S3.ζ (Euler's numerical damping is ~25% of the phugoid's physical σ at dt = 0.05), and 4 of the S4.dt comparisons (Euler is dt-sensitive by construction) |
+| Q4 | trim α offset +0.01 rad after the solver | 19: S1 (all 5), S0 a12/a13/a21/a22/a24/a31 (Jacobian at a non-equilibrium point), S2.T, S2.ζenv, the 2 SP ζ identity pins (the corrupted run shifts the extrema counts), 4 S4 spillovers |
+| Q5 | thrust term dropped | 18: S1 (all), S2 (all incl. the 2 SP ζ identity pins), S3 (the three tolerance checks — the period identity pins keep their bins), 5 S4 spillovers |
+| Q6 | grading timeline dilated ×1.02 (dt handed to the sim-signal estimators only) | exactly the 3 sim period checks; ζ green (dilation preserves ζ); S4 green (both sides dilated) |
+| Q7 | M1X generator time-dilated ×1.05 (P4's shape) | exactly the 5 bridge period checks |
+| Q8 | every graded ζ replaced by 0.05 after the estimator, identity field CARRIED | exactly the 10 ζ checks, through the NUMERIC arm — enforced by a no-refusals assertion in the harness. History: the round-6 field-less replacement red through the accessors' refusal arm instead, leaving 12 checks' truth wiring unexecuted by any plant; round-7 review demonstrated a truth-argument self-compare mutation surviving where pre-accessor Q8 had caught it. Carrying the field restores the numeric path; the accessor/null arms belong to Q12–Q15. |
+| Q9 | sim dataset copy broadly poisoned (C_Lα, C_D, C_mq, C_Lq, C_L, W, g scaled — rung-0 P8's shape, for S0 coverage) | 16: S0 all plantable entries except the Q1/Q2-only a21-fold slot, S2 (all), S3 (the three tolerance checks — the identity pins keep their bins); S1 GREEN — the trim solver correctly finds the poisoned model's own equilibrium, which is the point of S1 |
+| Q10 | the RE-RUN side of every S4 grading corrupted (dt ×1.02, ζ ×1.03) after the base gradings are banked | exactly the 18 S4 comparators — which stay green under every model-side plant (both sides move together) and so need their own comparator-validation plant |
+| Q11 | the period_dft RESULT corrupted (T ×1.01, k+1) through a wrapper on the true DFT call site (rung-0 P10's estimator-wiring class) | exactly the 4 Td checks: S3.Tdft, S3.Tdft.k, M1X.ph2.Tdft, M1X.ph2.Tdft.k. History: round-1 blind review aliased `period_dft` → `period_peaks` at the grading call site and the whole suite stayed green (every other plant reds the two period estimators together, so nothing separated the "independent" pair — five checks were silent duplicates). The first fix claimed the wrapper itself was the defense ("under an alias Q11 flips nothing"); round-2 review refuted it by aliasing INSIDE the wrapper argument — Q11's result-corruption fired identically because the estimators agree within tolerance, and v0.41.0's silent-null missing-field access (W4) meant copying `res.k` off a peaks result tripped nothing. The load-bearing defense is therefore the two **k-pins** (`check_exact` on the DFT's spectral bin, a field only the real DFT produces): under ANY alias k is null and the CLEAN run goes red — verified against both review mutations. Q11's remaining job is proving the four Td checks can fail. |
+
+| Q12 | the Td slot fed by `period_peaks` — the rounds-1/2 ALIAS itself, permanently installed as a plant | 7: the k-pins, the base and S4 Td rows via the `as_td` accessor refusal, and M1X.ph2.Tdft (the T values agree within tolerance — the very agreement that made the alias invisible; before the round-6 accessors this red set was just the 2 k-pins). Added after round-3 review found the k-pins' null-rejection arm had zero executed coverage: widening `check_exact` to tolerate null ("defensive W4 handling") survived all three suites and silently re-disabled the anti-alias defense. Q12 drives a null through that arm on every planted-matrix run — the round-2 verified-by-hand claim is now a repeatable harness assertion (the guards'-guards pattern: rung-0's P10/P11 class, one level further out). |
+
+| Q13 | the Tp slot fed by `period_dft` — round-5's MIRROR alias, installed as a plant | 7: the n-pins plus the Tp rows through the `as_tp` accessor (2 before the round-6 accessors). Round-5 review found the anti-alias defense was one-sided: rounds 1–4 hardened only the Td slot, so feeding Tp from the DFT survived every suite (five checks silently duplicating the Td family). The dual pins — `check_exact` on `n_extrema`, a field only the real extrema estimator produces, values differing 10 vs 8 per the round-4 one-literal lesson — red the CLEAN run under the mirror alias; Q13 proves their null arm fires. |
+
+**The slot-identity enumeration (closing the rounds-1/2/4/5 class, not its
+instances):** every estimator SLOT in the grading helpers now carries a
+`check_exact` pin on a field only its true estimator produces, all pinned
+values distinct — S3.Tdft.k=5, M1X.ph2.Tdft.k=4 (spectral bin, DFT only);
+S3.Tpeaks.n=10, M1X.ph2.Tpeaks.n=8 (`n_extrema`, extrema estimator only);
+S2.zlog.nr=2, S3.z.nr=8 (`n_ratios`, log decrement only), S2.zenv.nf=3
+(`n_fit`, envelope fit only — the ζ estimators previously returned
+identical `{ok, ζ}` shapes, so a ζ-slot alias had no field to trip until
+measure.eigs grew the identity fields; rung-0 suites unaffected, additive).
+S2's T slot needs no pin: a DFT alias there refuses outright on the
+1.75-cycle SP window and reds the clean run through `check_result`.
+
+**Round 6 extended the enumeration one layer out, to the CONSUMER read
+sites:** the helper-slot pins could not see a check ROW rewired to the
+wrong-but-agreeing result (demonstrated twice: S4's phTd rows fed from
+Tp, and the M1X zlog rows fed from zenv — both survived every suite).
+Every read of a paired-estimator result now goes through an identity
+ACCESSOR (`as_td`/`as_tp`/`as_zl`/`as_ze`) that refuses unless the
+result carries its own estimator's identity field, so a cross-wired read
+reds its check on the clean run via the refusal arm (both round-6
+mutations verified caught). Accessor refusal arms are exercised every
+planted run: Q12/Q13 for the period pair, Q14/Q15 for the ζ pair (Q15,
+the SP-side slot swap, is round-7's addition — and Q8/Q10's fabricated
+dicts deliberately CARRY the identity fields so those plants keep
+validating the numeric comparator rather than being absorbed by the
+accessors; see the Q8 row). **Declared residual depth limit:** a
+simultaneous accessor-gut plus row-alias double mutation on the M1X sp
+rows survives (single mutations of either kind are caught); double-fault
+depth is beyond the rung-1 armor bar by decision, recorded here so a
+later rung can revisit rather than rediscover.
+
+| Q14 | the ζ-slot alias: `zeta_envelope` in grade_ph's log-decrement slot (the two agree within tolerance on the phugoid, so only the identity machinery can see it) | 6: S3.z + S3.z.nr + the three S4 phz rows + M1X.ph2.z, all through `as_zl`'s refusal arm and the nr pin's null arm — the accessor-era plant added with the round-6 read-site fix. |
+
+| Q15 | the SP-side ζ slots SWAPPED (envelope in the log-decrement slot and vice versa) — q14's dual | 16: the S2 ζ rows and pins, the six S4 sp ζ rows, and the six M1X sp ζ rows, all through the accessor refusal / null arms. The only plant driving `as_ze`'s refusal arm with a real wrong-estimator result. |
+
+Observer plants o1/o2 are declared in the O section and enforced by
+`tests/test_observer.sh`.
+
+## Loop closure (round 8, 2026-08-24) — what the loop certified and what it did not
+
+Eight blind rounds, every round productive (rounds 1–7 each surfaced a
+real defect, all in the GRADING APPARATUS, never the physics — round 6
+independently re-derived the whole aero model from Caughey's conventions
+and confirmed deriv() correct). Round 8's closure audit, recorded per the
+evidence-of-absence rule:
+
+**Certified:** the published chain and estimator grids (rung 0, intact);
+S0–S4 + M1X with the 15-plant matrix, slot-identity pins, read-site
+accessors (all four refusal arms plant-driven), no-refusals numeric-arm
+guards on Q8 and Q10, manifest identity + class-vocabulary enforcement;
+the observer layer with both o-plants; CI green on every round's push.
+
+**Known-unexercised (deliberate, bounded):** (a) the shell harnesses' own
+FAIL branches (the harness-of-harness regress ends here); (b) accessor-gut
++ row-alias DOUBLE mutations; (c) sim-harness window/cadence parameters
+are pinned only through the k/n identity integers — arm-sized drifts are
+equivalent mutants; (d) the S2 re-injection magnitude (2.8·10⁻⁴) sizing
+the M1X.sp2 bound is a recorded measurement, not a live check — a model
+change pushing it toward ~6·10⁻⁴ stales the bridge claim before any arm
+reds, so rung 2 should re-measure it when the model grows.
+
+## Exit gate for rung 1
+
+1. All S, M1X and O checks green (64 + 11, populations pinned); all fifteen
+   Q plants and both o plants red in exactly the declared way; rung-0
+   suite untouched and green.
+2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds,
+   whichever first — the rung-0 armor level was grader-appropriate and is
+   deliberately NOT the per-rung bar here (hq proposal, 2026-08-24).
+3. CI green on the pushed branch (devcontainer, EIGS_REF=v0.41.0).

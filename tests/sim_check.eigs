@@ -1,0 +1,483 @@
+# sim_check.eigs — the rung-1 S0..S4 + M1X checks from ORACLE.md.
+# Run from the repo root:  eigenscript tests/sim_check.eigs [plant]
+# Plants (ORACLE.md rung-1 matrix): q1 Cma x1.05 in the SIM's dataset copy,
+# q2 alpha-dot terms zeroed in the sim copy, q3 integrator RK4 -> Euler,
+# q4 trim alpha offset +0.01 rad after the solver, q5 thrust dropped,
+# q6 grading timeline dilated x1.02 (estimator dt only), q7 M1X generator
+# time-dilated x1.05, q8 every graded zeta replaced by 0.05 (also trips
+# the identity accessors), q9 sim dataset
+# copy broadly poisoned (S0 coverage, rung-0 P8's shape), q10 re-run-side
+# corruption (S4 comparator validation), q11 period_dft result corruption
+# (estimator wiring; the k-pins are the anti-alias defense).
+# Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
+# failure; the check population is pinned at exactly 64.
+#
+# The chain reference (dim_derivs_lon -> a_lon -> charpoly4 -> dk_roots ->
+# modes_of) is ALWAYS computed from a clean dataset copy — plants poison
+# only the sim side, so the sim-vs-chain differential fires.
+
+load_file of "data/b747_approach.eigs"
+load_file of "modes.eigs"
+load_file of "sim.eigs"
+load_file of "measure.eigs"
+load_file of "tests/checklib.eigs"
+
+cli is args of null
+plant is ""
+if (len of cli) > 0:
+    plant is cli[0]
+
+checks_run is 0
+failures is 0
+
+define check_rel(name, ours, truth, reltol) as:
+    checks_run is checks_run + 1
+    if (rel_tol_ok of [ours, truth, reltol]) == 1:
+        print of f"PASS {name} reltol={reltol} ours={ours} truth={truth}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} reltol={reltol} ours={ours} truth={truth}"
+
+# S0's mixed arm: relative for the real entries, absolute for the entries
+# the rung-0 A zeroes by assuming trim at exactly alpha = 0 (ours sits at
+# the small alpha that closes the dataset's 0.03% CL gap; see ORACLE.md).
+define check_relabs(name, ours, ref, reltol, abstol) as:
+    checks_run is checks_run + 1
+    local diff is abs of (ours - ref)
+    local ok is 0
+    if diff <= reltol * (abs of ref):
+        ok is 1
+    if diff <= abstol:
+        ok is 1
+    if ok == 1:
+        print of f"PASS {name} relabs={reltol}|{abstol} ours={ours} ref={ref}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} relabs={reltol}|{abstol} ours={ours} ref={ref}"
+
+# Exact-integer pin (the DFT bin-index identity checks). A null (e.g. a
+# missing field read off an aliased estimator's result) never equals the
+# pinned integer, so these red on the CLEAN run under any alias.
+define check_exact(name, val, want) as:
+    checks_run is checks_run + 1
+    if val == want:
+        print of f"PASS {name} exact={want} val={val}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} exact={want} val={val}"
+
+define check_below(name, val, bound) as:
+    checks_run is checks_run + 1
+    if (abs of val) <= bound:
+        print of f"PASS {name} below={bound} val={val}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} below={bound} val={val}"
+
+# A refusal in a graded estimator is a FAIL of that check (rung-0's
+# check_result rule): the sim run must support its own grading.
+define check_result(name, res, field, truth, reltol) as:
+    if res.ok == 1:
+        check_rel of [name, res[field], truth, reltol]
+    else:
+        checks_run is checks_run + 1
+        failures is failures + 1
+        print of f"FAIL {name} reltol={reltol} estimator refused: {res.reason}"
+
+# Plant q8: every graded zeta constant-replaced AFTER the estimator runs
+# (comparator validation — all graded zeta values are > tolerance from
+# 0.05). The replacement CARRIES the real result's identity field:
+# round-7 review found that a field-less dict red through the round-6
+# accessors' refusal arm INSTEAD of the numeric comparator, so 12 checks'
+# truth wiring and tolerance were no longer executed by any plant (a
+# truth-argument self-compare mutation survived where pre-accessor q8
+# had caught it). With the field carried, q8 reds through the numeric
+# arm again; the accessor/null arms are exercised by the alias plants
+# q12-q15 instead.
+define mangle_z(res) as:
+    if plant == "q8":
+        if res.ok == 1:
+            if res.n_ratios != null:
+                return {"ok": 1, "zeta": 0.05, "n_ratios": res.n_ratios}
+            return {"ok": 1, "zeta": 0.05, "n_fit": res.n_fit}
+    return res
+
+# Plant q6: the dt handed to the sim-signal estimators (only) dilated.
+define est_dt(dt) as:
+    if plant == "q6":
+        return dt * 1.02
+    return dt
+
+# ------------------------------------------------------------ references
+data_ref is b747_approach of null
+d_ref is dim_derivs_lon of (data_ref)
+A_ref is a_lon of [d_ref, data_ref.cond]
+q4_ref is charpoly4 of (A_ref)
+roots_ref is dk_roots of [q4_ref, 60]
+mm_ref is modes_of of (roots_ref)
+ph_ref is mm_ref.osc[0]
+sp_ref is mm_ref.osc[1]
+
+# ------------------------------------------------------------ sim params
+# A fresh dataset copy per call; plants mutate only this one.
+define make_sim_P(ctl) as:
+    local dcopy is b747_approach of null
+    if plant == "q1":
+        dcopy.lon.Cma is dcopy.lon.Cma * 1.05
+    if plant == "q9":
+        dcopy.lon.CLa is dcopy.lon.CLa * 1.1
+        dcopy.lon.CD is dcopy.lon.CD * 1.2
+        dcopy.lon.Cmq is dcopy.lon.Cmq * 1.3
+        dcopy.lon.CLq is dcopy.lon.CLq * 1.4
+        dcopy.lon.CL is dcopy.lon.CL * 1.02
+        dcopy.cond.W is dcopy.cond.W * 1.05
+        dcopy.cond.g is dcopy.cond.g * 1.01
+    local P is sim_params of [dcopy, ctl]
+    if plant == "q2":
+        P.CLadot is 0.0
+        P.Cmadot is 0.0
+    return P
+
+method is "rk4"
+if plant == "q3":
+    method is "euler"
+
+define make_trim(ctl) as:
+    local P is make_sim_P of (ctl)
+    local tr is trim_solve of (P)
+    if plant == "q4":
+        tr.alpha is tr.alpha + 0.01
+        tr.state is trim_state of [tr.alpha, tr.P.u0]
+    if plant == "q5":
+        tr.P.thrust is 0.0
+        tr.thrust is 0.0
+    return tr
+
+tr is make_trim of (ctl_nominal of null)
+
+# ------------------------------------------------------------ S1 — trim
+res is trim_residual of [[tr.alpha, tr.de, tr.thrust], tr.P]
+check_below of ["S1.res.udot", res[0], 1e-9]
+check_below of ["S1.res.wdot", res[1], 1e-9]
+check_below of ["S1.res.qdot", res[2], 1e-11]
+
+hold is sim_run of [tr.state, [[1e9, tr.de]], 0.05, 1200, 1, tr.P, method]
+hmax_u is 0.0
+hmax_q is 0.0
+i is 0
+loop while i < (len of hold.t):
+    local du is abs of (hold.u[i] - tr.state[0])
+    if du > hmax_u:
+        hmax_u is du
+    local dq is abs of hold.q[i]
+    if dq > hmax_q:
+        hmax_q is dq
+    i is i + 1
+check_below of ["S1.hold.u", hmax_u, 1e-6]
+check_below of ["S1.hold.q", hmax_q, 1e-9]
+
+# ------------------------------------------------------------ S0 — parity
+J is sim_jacobian of [tr.state, tr.de, tr.P]
+# Per-entry absolute arms, each sized ~2x its own measured trim-offset
+# mechanism (the sim's trim sits at the small alpha that closes the
+# dataset's 0.03% CL gap; ORACLE.md S0 note, measured 2026-08-24):
+#   a13 = -w_trim + O(CLq): 0.0143 measured -> 0.03
+#   a24 = -g*sin(theta_trim)/(1-Zwdot): 0.00175 measured -> 0.004
+#   a31 = Mwdot*a21 (5.4e-5): diff 1.1e-7 -> 1e-5, so q2's fold-drop
+#         (delta = the whole 5.4e-5) is visible
+#   a32 = Mw + Mwdot*a22: diff 3.7e-9 -> 1e-6, so q1's 5% Cma (9e-5)
+#         and q2's fold-drop (1.2e-4) are visible
+#   a34 = Mwdot*a24: doubly small at a near-zero-theta trim, both sides
+#         ~0 by construction -> manifest class structural
+#   everything else: worst measured diff 6.1e-5 (a12) -> 1e-3. A single
+#   0.03 arm here would have made every entry under |ref|~10 unplantable
+#   (killing Xu outright moved a11 by only 0.021 — measured against the
+#   first draft of this file, which is why the arms are per-entry).
+s0_abs is [[0.001, 0.001, 0.03, 0.001], [0.001, 0.001, 0.001, 0.004], [1e-5, 1e-6, 0.001, 1e-5], [0.001, 0.001, 0.001, 0.001]]
+for r in range of 4:
+    for c in range of 4:
+        check_relabs of [f"S0.a{r + 1}{c + 1}", J[r][c], A_ref[r][c], 0.003, s0_abs[r][c]]
+
+# ------------------------------------------------------------ runs
+# S2: SP-subspace IC free response (chain-built, mode-pure; see sim.eigs
+# sp_subspace_ic). w-channel, window [0, 16 s], cadence 0.02 s.
+define run_sp(wamp, dt, decim, trx) as:
+    local ic is sp_subspace_ic of [A_ref, ph_ref.re, ph_ref.im, trx.state, wamp]
+    local rec is sim_run of [ic, [[1e9, trx.de]], dt, floor of (16.0 / dt), decim, trx.P, method]
+    local wwin is []
+    local i is 0
+    loop while i < (len of rec.t):
+        append of [wwin, rec.w[i] - trx.state[1]]
+        i is i + 1
+    return wwin
+
+# S3: elevator pulse (+de_off for 20 s, back to trim) -> free phugoid about
+# the ORIGINAL trim. u-channel from t = 45 s (the pulse-edge SP is dead:
+# e^(-0.5515*25) ~ 1e-6), cadence 1.0 s, 280 s total.
+define run_ph(de_off, dt, decim, trx) as:
+    local sched is [[20.0, trx.de + de_off], [1e9, trx.de]]
+    local rec is sim_run of [trx.state, sched, dt, floor of (280.0 / dt), decim, trx.P, method]
+    local uwin is []
+    local i is 0
+    loop while i < (len of rec.t):
+        if rec.t[i] >= 45.0:
+            append of [uwin, rec.u[i]]
+        i is i + 1
+    return uwin
+
+# Plant q10 validates the S4 invariance COMPARATORS (which compare two
+# same-plant runs and so stay green under every model-side plant): it
+# corrupts only the RE-RUN side's gradings — dt x1.02 (reds the period
+# comparisons) and zeta x1.03 (reds the zeta comparisons) — after the
+# base gradings are banked. rerun_phase flips once S2/S3 are graded.
+rerun_phase is 0
+
+# simflag=1 marks a sim-signal grading (q6 dilates only those; the M1X
+# synthetic gradings pass 0 — their timeline is q7's territory).
+define grade_sp(wwin, dt, simflag) as:
+    local gdt is dt
+    if simflag == 1:
+        gdt is est_dt of (dt)
+        if plant == "q10" and rerun_phase == 1:
+            gdt is gdt * 1.02
+    local zl is mangle_z of (zeta_logdec of [wwin, gdt])
+    local ze is mangle_z of (zeta_envelope of [wwin, gdt])
+    # Plant q15: the SP-side zeta slots SWAPPED — the q14 dual; the only
+    # plant that exercises as_ze's refusal arm with a real (non-fabricated)
+    # wrong-estimator result, plus the two S2 identity pins' null arms.
+    if plant == "q15":
+        zl is zeta_envelope of [wwin, gdt]
+        ze is zeta_logdec of [wwin, gdt]
+    if plant == "q10" and rerun_phase == 1 and simflag == 1:
+        if zl.ok == 1:
+            zl is {"ok": 1, "zeta": zl.zeta * 1.03, "n_ratios": zl.n_ratios}
+        if ze.ok == 1:
+            ze is {"ok": 1, "zeta": ze.zeta * 1.03, "n_fit": ze.n_fit}
+    return {"T": period_peaks of [wwin, gdt], "zl": zl, "ze": ze}
+
+# Plant q11 corrupts ONLY the period_dft result (T x1.01, k+1), through
+# this wrapper on the true DFT call — the estimator-WIRING plant (rung-0
+# P10's class). Round-1 blind review aliased period_dft -> period_peaks
+# at this call site and the ENTIRE suite stayed green: every other
+# plant's red set has Tpeaks and Tdft co-occurring, so nothing separated
+# the two "independent" estimators and five checks were silent
+# duplicates. Round-2 review then aliased INSIDE the wrapper argument and
+# q11's result-corruption fired identically (the two estimators agree
+# within tolerance, and a missing dict field is a silent null in
+# v0.41.0, so copying res.k off a peaks result trips nothing). The
+# load-bearing defense is therefore NOT this plant but the k-PINS below:
+# S3.Tdft.k / M1X.ph2.Tdft.k pin the DFT's spectral bin, a field only
+# the real DFT produces — under ANY alias k is null and the CLEAN run
+# goes red. q11's job is reduced to proving the four Td checks can fail.
+define wrap_dft(res) as:
+    if plant == "q11":
+        if res.ok == 1:
+            return {"ok": 1, "T": res.T * 1.01, "k": res.k + 1}
+    return res
+
+define grade_ph(uwin, dt, simflag) as:
+    local gdt is dt
+    if simflag == 1:
+        gdt is est_dt of (dt)
+        if plant == "q10" and rerun_phase == 1:
+            gdt is gdt * 1.02
+    local z is mangle_z of (zeta_logdec of [uwin, gdt])
+    if plant == "q10" and rerun_phase == 1 and simflag == 1:
+        if z.ok == 1:
+            z is {"ok": 1, "zeta": z.zeta * 1.03, "n_ratios": z.n_ratios}
+    # Plant q12 IS the round-1/2 alias, permanently installed as a plant:
+    # the Td slot fed by period_peaks instead of period_dft. Only the two
+    # k-pins must red (the T values agree within tolerance — that
+    # agreement is what made the alias invisible in rounds 1-2). This
+    # drives a NULL through check_exact's rejection arm on every planted
+    # run: round-3 review widened check_exact to tolerate null ("W4
+    # defensive handling") and all three suites stayed green — the
+    # anti-alias defense could be re-disabled by a one-line edit nothing
+    # executed.
+    local td_raw is period_dft of [uwin, gdt]
+    if plant == "q12":
+        td_raw is period_peaks of [uwin, gdt]
+    # Plant q13 is the MIRROR alias (round-5 review): the Tp slot fed by
+    # period_dft survived every suite, because rounds 1-4 hardened only
+    # the Td slot. The n_extrema pins below are the dual defense (a field
+    # only the real extrema estimator produces), and q13 proves their
+    # null arm fires, exactly as q12 does for the k-pins.
+    local tp_raw is period_peaks of [uwin, gdt]
+    if plant == "q13":
+        tp_raw is period_dft of [uwin, gdt]
+    # Plant q14: the ZETA-slot alias (envelope in the log-decrement slot;
+    # the two agree within tolerance on the phugoid, so only the identity
+    # machinery can see it) — exercises as_zl's refusal arm and the
+    # S3.z.nr pin's null arm on every planted-matrix run.
+    if plant == "q14":
+        z is mangle_z of (zeta_envelope of [uwin, gdt])
+    return {"Tp": tp_raw, "Td": wrap_dft of (td_raw), "z": z}
+
+base_sp is grade_sp of [run_sp of [2.0, 0.02, 1, tr], 0.02, 1]
+base_ph is grade_ph of [run_ph of [0.005, 0.05, 20, tr], 1.0, 1]
+
+# Read-site identity accessors (round 6): the slot-identity pins guard
+# the grading helpers, but every CONSUMER read of a paired-estimator
+# result could still be rewired to the wrong-but-agreeing slot (round-6
+# review demonstrated it twice: S4's phTd rows fed from Tp, and the M1X
+# zlog rows fed from zenv — both survived all suites because the pair
+# agrees within tolerance wherever no plant separates them). Every read
+# of a Td/Tp/zl/ze result now goes through an accessor that REFUSES
+# unless the result carries its own estimator's identity field, so a
+# cross-wired read reds its check on the clean run via the refusal arm.
+# Accessor arms are exercised by q12/q13 (period pair) and q14 (zeta
+# pair); the residual depth limit — a simultaneous accessor-gut plus
+# row-alias double mutation — is recorded in ORACLE.md.
+define as_td(res) as:
+    if res.ok == 1:
+        if res.k == null:
+            return {"ok": 0, "reason": "not a DFT result (identity field k missing)"}
+    return res
+
+define as_tp(res) as:
+    if res.ok == 1:
+        if res.n_extrema == null:
+            return {"ok": 0, "reason": "not an extrema result (n_extrema missing)"}
+    return res
+
+define as_zl(res) as:
+    if res.ok == 1:
+        if res.n_ratios == null:
+            return {"ok": 0, "reason": "not a log-decrement result (n_ratios missing)"}
+    return res
+
+define as_ze(res) as:
+    if res.ok == 1:
+        if res.n_fit == null:
+            return {"ok": 0, "reason": "not an envelope result (n_fit missing)"}
+    return res
+
+# ------------------------------------------------------------ S2 / S3
+check_result of ["S2.T", as_tp of (base_sp.T), "T", sp_ref.T, 0.01]
+check_result of ["S2.zlog", as_zl of (base_sp.zl), "zeta", sp_ref.zeta, 0.02]
+check_result of ["S2.zenv", as_ze of (base_sp.ze), "zeta", sp_ref.zeta, 0.02]
+# Zeta-slot identity pins (the round-5 enumeration: EVERY estimator slot
+# carries a pin on a field only its true estimator produces, all values
+# distinct — the two zeta estimators returned identical shapes {ok, zeta},
+# so a slot alias between them had no field to trip until measure.eigs
+# grew n_ratios/n_fit; q8's whole-dict replacement proves these can fail).
+check_exact of ["S2.zlog.nr", base_sp.zl.n_ratios, 2]
+check_exact of ["S2.zenv.nf", base_sp.ze.n_fit, 3]
+check_result of ["S3.Tpeaks", as_tp of (base_ph.Tp), "T", ph_ref.T, 0.005]
+check_result of ["S3.Tdft", as_td of (base_ph.Td), "T", ph_ref.T, 0.005]
+check_result of ["S3.z", as_zl of (base_ph.z), "zeta", ph_ref.zeta, 0.02]
+# The DFT bin identity: 236 samples over T=46.9 s puts the phugoid peak in
+# bin 5 (5.03 cycles in window). Only the real DFT produces a k at all —
+# the anti-alias pin (see wrap_dft's comment). Its dual: only the real
+# extrema estimator produces n_extrema (10 in this window) — round-5
+# review fed the Tp slot from period_dft and every suite stayed green,
+# the round-1 alias mirrored. The two n-pins differ (10 vs 8) for the
+# same reason the k-pins do (round 4: one shared literal is forgeable).
+check_exact of ["S3.Tdft.k", base_ph.Td.k, 5]
+check_exact of ["S3.Tpeaks.n", base_ph.Tp.n_extrema, 10]
+check_exact of ["S3.z.nr", base_ph.z.n_ratios, 8]
+
+rerun_phase is 1
+
+# ------------------------------------------------------------ S4
+# The graded quantities are properties of the MODEL, not the numerics or
+# the excitation. Each invariance re-runs the sims and compares the six
+# graded quantities against the base run's values.
+define inv_pair(tag, gsp, gph, sp_tol, ph_tol) as:
+    check_result of [f"S4.{tag}.spT", as_tp of (gsp.T), "T", base_sp.T.T, sp_tol]
+    check_result of [f"S4.{tag}.spzl", as_zl of (gsp.zl), "zeta", base_sp.zl.zeta, sp_tol]
+    check_result of [f"S4.{tag}.spze", as_ze of (gsp.ze), "zeta", base_sp.ze.zeta, sp_tol]
+    check_result of [f"S4.{tag}.phTp", as_tp of (gph.Tp), "T", base_ph.Tp.T, ph_tol]
+    check_result of [f"S4.{tag}.phTd", as_td of (gph.Td), "T", base_ph.Td.T, ph_tol]
+    check_result of [f"S4.{tag}.phz", as_zl of (gph.z), "zeta", base_ph.z.zeta, ph_tol]
+
+# dt halved (recording cadence preserved via doubled decimation)
+dt_sp is grade_sp of [run_sp of [2.0, 0.01, 2, tr], 0.02, 1]
+dt_ph is grade_ph of [run_ph of [0.005, 0.025, 40, tr], 1.0, 1]
+inv_pair of ["dt", dt_sp, dt_ph, 0.001, 0.001]
+
+# excitation amplitude halved
+amp_sp is grade_sp of [run_sp of [1.0, 0.02, 1, tr], 0.02, 1]
+amp_ph is grade_ph of [run_ph of [0.0025, 0.05, 20, tr], 1.0, 1]
+inv_pair of ["amp", amp_sp, amp_ph, 0.005, 0.005]
+
+# nominal control derivatives are excitation-only: Cmde x1.5 re-trims and
+# re-runs; the graded quantities must not move.
+ctl2 is ctl_nominal of null
+ctl2.Cmde is ctl2.Cmde * 1.5
+ctl2.CLde is ctl2.CLde * 1.5
+tr2 is make_trim of (ctl2)
+ctl_sp is grade_sp of [run_sp of [2.0, 0.02, 1, tr2], 0.02, 1]
+ctl_ph is grade_ph of [run_ph of [0.005, 0.05, 20, tr2], 1.0, 1]
+inv_pair of ["ctl", ctl_sp, ctl_ph, 0.002, 0.002]
+
+# ------------------------------------------------------------ M1X
+# The estimator bridge: the rung-0 estimators validated on synthetic
+# signals with KNOWN truth built from the chain roots, in the exact
+# windows/cadences the sim grading uses — the zeta = 0.6255 regime the
+# rung-0 M1 grid never covered, and the mixed-mode reality the grid's
+# single-mode rows never posed.
+define gen_two(s1, w1, a1, p1, s2, w2, a2, p2, dt, n) as:
+    local det is 1.0
+    if plant == "q7":
+        det is 1.05
+    local out is []
+    for i in range of n:
+        local t is i * dt * det
+        append of [out, a1 * (exp of (s1 * t)) * (cos of (w1 * t + p1)) + a2 * (exp of (s2 * t)) * (cos of (w2 * t + p2))]
+    return out
+
+sp_w is sp_ref.im
+ph_w is ph_ref.im
+
+# pure SP at the chain's (sigma, omega), S2 sampling. Phases chosen so
+# the 4th extremum sits inside the 16 s window as the sim signal does
+# (first extremum <= 2.3 s): phases that push it out (or put an extremum
+# on the excluded edge sample, phi=0) hit the estimator's edge refusal,
+# already pinned at rung 0 (M3) — measured 2026-08-24, first harness run.
+for pcase in [["phi20", 2.0], ["phi45", 4.5]]:
+    local sig is gen_two of [sp_ref.re, sp_w, 1.0, pcase[1], 0.0, 1.0, 0.0, 0.0, 0.02, 800]
+    local g is grade_sp of [sig, 0.02, 0]
+    check_result of [f"M1X.sp.{pcase[0]}.T", as_tp of (g.T), "T", sp_ref.T, 0.01]
+    check_result of [f"M1X.sp.{pcase[0]}.zlog", as_zl of (g.zl), "zeta", sp_ref.zeta, 0.02]
+    check_result of [f"M1X.sp.{pcase[0]}.zenv", as_ze of (g.ze), "zeta", sp_ref.zeta, 0.02]
+
+# SP + phugoid contaminant at 2e-4 of the generator amplitude (6.2e-4 of
+# its first extremum) — ~2.2x the nonlinear re-injection the graded S2
+# run carries (2.8e-4 of ITS first extremum at wamp=2.0; round-4 review
+# corrected the first published 6.9e-5, which had been measured at
+# wamp=0.5 — re-injection scales linearly with amplitude). At 1e-3 the
+# 4th extremum drowns and T degrades to -2.3% (measured 2026-08-24) —
+# the bridge bounds the sim regime with margin, not an arbitrary stress;
+# the contaminant is NOT raised to manufacture a rounder margin because
+# ~3.6e-4 extrapolates to -0.8% T error against the 1% arm.
+sp2 is gen_two of [sp_ref.re, sp_w, 1.0, 4.5, ph_ref.re, ph_w, 0.0002, 1.5, 0.02, 800]
+g2 is grade_sp of [sp2, 0.02, 0]
+check_result of ["M1X.sp2.T", as_tp of (g2.T), "T", sp_ref.T, 0.01]
+check_result of ["M1X.sp2.zlog", as_zl of (g2.zl), "zeta", sp_ref.zeta, 0.02]
+check_result of ["M1X.sp2.zenv", as_ze of (g2.ze), "zeta", sp_ref.zeta, 0.02]
+
+# phugoid + 1% second harmonic (the nonlinear residual shape of the S3
+# window; the pulse-edge SP is dead there by construction), S3 cadence.
+# The window is DELIBERATELY 190 samples (4.05 cycles -> bin 4) where S3's
+# is 236 (5.03 -> bin 5): round-4 review showed that with both k-pins on
+# the same literal, an alias plus a forged "k: 5" at the one shared call
+# site satisfied both pins and survived the full planted matrix. With the
+# bins different, no single literal passes both — a forger has to compute
+# the argmax, i.e. re-implement the DFT peak picker.
+ph2 is gen_two of [ph_ref.re, ph_w, 1.0, 0.7, 2.0 * ph_ref.re, 2.0 * ph_w, 0.01, 2.1, 1.0, 190]
+g3 is grade_ph of [ph2, 1.0, 0]
+check_result of ["M1X.ph2.Tpeaks", as_tp of (g3.Tp), "T", ph_ref.T, 0.005]
+check_result of ["M1X.ph2.Tdft", as_td of (g3.Td), "T", ph_ref.T, 0.005]
+check_result of ["M1X.ph2.z", as_zl of (g3.z), "zeta", ph_ref.zeta, 0.02]
+check_exact of ["M1X.ph2.Tdft.k", g3.Td.k, 4]
+check_exact of ["M1X.ph2.Tpeaks.n", g3.Tp.n_extrema, 8]
+
+# ------------------------------------------------------------ population
+print of f"CHECKS_RUN {checks_run}"
+print of f"FAILURES {failures}"
+if checks_run != 64:
+    print of f"FAIL harness: expected exactly 64 checks, ran {checks_run}"
+    exit of 1
+if failures > 0:
+    exit of 1

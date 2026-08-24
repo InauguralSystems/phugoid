@@ -1,0 +1,76 @@
+# sim_manifest.txt — every check name in sim_check.eigs with its
+# planted-fault coverage class and tolerance token (same rules as
+# check_manifest.txt, enforced by tests/test_sim_planted.sh):
+#   sim <name> plantable <token>  — must appear in some q-plant's red set
+#   sim <name> structural <token> — must NEVER appear in a red set.
+# Structural entries (written justification, ORACLE.md rung-1 S0):
+#   S0.a34 = Mwdot*a24 — doubly small at a near-zero-theta trim; both
+#     sides ~0 by construction, no physical-scale data fault moves it
+#     past an arm that still sees the trim-offset mechanism.
+#   S0.a41..a44 — the theta-dot row [0,0,1,0], a builder constant
+#     (same exemption as rung 0's).
+# Regenerate only with a written justification in ORACLE.md.
+sim S1.res.udot plantable below=1e-09
+sim S1.res.wdot plantable below=1e-09
+sim S1.res.qdot plantable below=1e-11
+sim S1.hold.u plantable below=1e-06
+sim S1.hold.q plantable below=1e-09
+sim S0.a11 plantable relabs=0.003|0.001
+sim S0.a12 plantable relabs=0.003|0.001
+sim S0.a13 plantable relabs=0.003|0.03
+sim S0.a14 plantable relabs=0.003|0.001
+sim S0.a21 plantable relabs=0.003|0.001
+sim S0.a22 plantable relabs=0.003|0.001
+sim S0.a23 plantable relabs=0.003|0.001
+sim S0.a24 plantable relabs=0.003|0.004
+sim S0.a31 plantable relabs=0.003|1e-05
+sim S0.a32 plantable relabs=0.003|1e-06
+sim S0.a33 plantable relabs=0.003|0.001
+sim S0.a34 structural relabs=0.003|1e-05
+sim S0.a41 structural relabs=0.003|0.001
+sim S0.a42 structural relabs=0.003|0.001
+sim S0.a43 structural relabs=0.003|0.001
+sim S0.a44 structural relabs=0.003|0.001
+sim S2.T plantable reltol=0.01
+sim S2.zlog plantable reltol=0.02
+sim S2.zenv plantable reltol=0.02
+sim S2.zlog.nr plantable exact=2
+sim S2.zenv.nf plantable exact=3
+sim S3.Tpeaks plantable reltol=0.005
+sim S3.Tdft plantable reltol=0.005
+sim S3.z plantable reltol=0.02
+sim S3.Tdft.k plantable exact=5
+sim S3.Tpeaks.n plantable exact=10
+sim S3.z.nr plantable exact=8
+sim S4.dt.spT plantable reltol=0.001
+sim S4.dt.spzl plantable reltol=0.001
+sim S4.dt.spze plantable reltol=0.001
+sim S4.dt.phTp plantable reltol=0.001
+sim S4.dt.phTd plantable reltol=0.001
+sim S4.dt.phz plantable reltol=0.001
+sim S4.amp.spT plantable reltol=0.005
+sim S4.amp.spzl plantable reltol=0.005
+sim S4.amp.spze plantable reltol=0.005
+sim S4.amp.phTp plantable reltol=0.005
+sim S4.amp.phTd plantable reltol=0.005
+sim S4.amp.phz plantable reltol=0.005
+sim S4.ctl.spT plantable reltol=0.002
+sim S4.ctl.spzl plantable reltol=0.002
+sim S4.ctl.spze plantable reltol=0.002
+sim S4.ctl.phTp plantable reltol=0.002
+sim S4.ctl.phTd plantable reltol=0.002
+sim S4.ctl.phz plantable reltol=0.002
+sim M1X.sp.phi20.T plantable reltol=0.01
+sim M1X.sp.phi20.zlog plantable reltol=0.02
+sim M1X.sp.phi20.zenv plantable reltol=0.02
+sim M1X.sp.phi45.T plantable reltol=0.01
+sim M1X.sp.phi45.zlog plantable reltol=0.02
+sim M1X.sp.phi45.zenv plantable reltol=0.02
+sim M1X.sp2.T plantable reltol=0.01
+sim M1X.sp2.zlog plantable reltol=0.02
+sim M1X.sp2.zenv plantable reltol=0.02
+sim M1X.ph2.Tpeaks plantable reltol=0.005
+sim M1X.ph2.Tdft plantable reltol=0.005
+sim M1X.ph2.z plantable reltol=0.02
+sim M1X.ph2.Tdft.k plantable exact=4
+sim M1X.ph2.Tpeaks.n plantable exact=8

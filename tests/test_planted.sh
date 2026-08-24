@@ -249,6 +249,11 @@ while read -r kind name klass tolspec; do
     if [ "$klass" = structural ] && grep -qx "$name" "$U"; then
         echo "FAIL: structural check '$name' went red — exemption list is stale"; BAD=1
     fi
+    # Rung-1 round-8 lesson applied here too: an unknown class token was
+    # silently skipped, exempting a check from coverage with identity
+    # intact. Classes here: plantable/structural plus the rung-0-only
+    # selftest/rowparams (consumed by their own identity gates above).
+    case "$klass" in plantable|structural|selftest|rowparams) ;; *) echo "FAIL: unknown manifest class '$klass' for '$name'"; BAD=1;; esac
 done < <(grep -v '^#' tests/check_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
