@@ -9,7 +9,7 @@
 # M0.gen wiring checks must catch it; rows where both are already zero
 # are unreachable by construction and carry manifest class structural).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 109.
+# failure; the check population is pinned at exactly 126.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -178,6 +178,11 @@ unobserved:
         local e_wd is wn * (sqrt of (1.0 - e_zeta * e_zeta)) / detune
         local e_sig is e_zeta * wn / detune
         check_tight of [f"M0.gen1.{name}", sig[1] * gen_id_scale, c[4] + (exp of (0.0 - e_sig * c[5])) * (cos of (e_wd * c[5] + c[3]))]
+        # Length identity (round-26): n was the one generator parameter in
+        # neither wiring identity nor any expected truth — a silent
+        # one-sample truncation of every grid signal survived all gates
+        # (the boundary rows quantize the length pin to +-1).
+        check_tight of [f"M0.genN.{name}", (len of sig) * gen_id_scale, c[6]]
         local t_true is 2.0 * (pi of null) / (wn * (sqrt of (1.0 - zeta * zeta)))
         local dt is c[5]
         local rp is period_peaks of [sig, dt]
@@ -323,8 +328,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 109:
-    print of f"FAIL harness: expected exactly 109 checks, ran {checks_run}"
+if checks_run != 126:
+    print of f"FAIL harness: expected exactly 126 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

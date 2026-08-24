@@ -211,7 +211,10 @@ old estimator),
 (d) `detrend` on the DFT path (round-19: gutting it stays within 0.07%
 even at dc=100 — the Hann window concentrates the offset in bins 0–2 and
 local-max picking ignores it),
-(e) `find_extrema`'s one-sample edge exclusion width, and (f) the span
+(e) `find_extrema`'s one-sample edge exclusion width, (g) the RELATIVE
+arm of `t_half_exp`'s sample floor (`1e-9·m` — the absolute arm is the
+load-bearing clamp guard; the relative arm is noise-domain hygiene,
+round-26), and (f) the span
 midpoint-vs-endpoint timestamp convention in `half_spans` (round-23:
 both survive mutation on clean signals — a uniform time shift cancels in
 every slope/ratio consumer; noise rows at rung 1 are the honest pin).
@@ -273,9 +276,9 @@ to work.
 | P10 | every DFT result forced into a refusal before its check | the 18 M1.dft checks, red THROUGH the refusal arm of `check_result` — which round-8 review gutted to print PASS with nothing noticing (no clean run or plant had ever driven a refusal through it) |
 | P13 | grid time dilation ×1.0011 — ~1.1× the 0.1% peaks arm, inside every other (round-25 measured the original ×1.002 leaving a sub-1.4× widening window on the executed tolerance) | exactly the 18 M1.peaks checks |
 | P14 | grid ζ inflated ×1.0055 — ~1.1× the 0.5% damping arm | exactly the 18 M2.logdec checks |
-| P16 | the M0.gen checked value ×(1+1.1·10⁻⁹) — ~1.1× its own 10⁻⁹ arm | all 34 M0.gen/M0.gen1 wiring checks — round-23 found this comparator was the one arm without a displacement plant at its own scale (P12 displaces at order-1), so an executed-tolerance slack there survived everything and let a real 0.001-rad wiring fault back through |
+| P16 | the M0.gen checked value ×(1+1.1·10⁻⁹) — ~1.1× its own 10⁻⁹ arm | all 51 M0.gen/M0.gen1/M0.genN wiring checks — round-23 found this comparator was the one arm without a displacement plant at its own scale (P12 displaces at order-1), so an executed-tolerance slack there survived everything and let a real 0.001-rad wiring fault back through |
 | P15 | the modes unit-family scale factors (u₀ of the synthetic dataset, `unit_scale`, `cu`) ×(1+1.1·10⁻⁹) — ~1.1× the 10⁻⁹ tight arm | the 51 tight-arm checks (five sub-proportionally scale-sensitive entries sit under the 1.1× displacement and stay covered by P8) (L1U/L2U/CU/L5.unit families, structural and u₀-independent entries excepted) — round-22 added slack to the EXECUTED tolerance at a comparison call site, decoupling it from the printed token; the other plants displace at percent scale, so sub-percent widenings slid under every gate. These three pin each effective tolerance from above at its own scale. |
-| P12 | the φ and DC arguments zeroed at the grid generator call | exactly the 20 M0.gen/M0.gen1 wiring checks on rows where either is nonzero — round-21 zeroed φ inside the generator, zeroed DC, and swapped the two call-site arguments, and every gate stayed green: φ and DC are the only row parameters that never enter the expected truth, so only a direct t=0 wiring identity (sig[0] = dc + cos φ, bit-exact) can see them; rows with both zero are unreachable by construction (manifest class structural) |
+| P12 | the φ and DC arguments zeroed at the grid generator call | exactly the 20 M0.gen/M0.gen1 wiring checks on rows where either is nonzero — round-21 zeroed φ inside the generator, zeroed DC, and swapped the two call-site arguments, and every gate stayed green: φ and DC are the only row parameters that never enter the expected truth, so only a direct t=0 wiring identity (sig[0] = dc + cos φ, bit-exact) can see them; the both-zero rows are reachable via P16 and carry class plantable |
 | P11 | `comparator_check.eigs p11`: the `expect()` helper fed two deliberately-wrong pairs | both must FAIL — round-10 review gutted `expect()` to a tautology and every gate stayed green; with it vacuous, a 2× rel-tolerance widening in checklib slipped every remaining gate |
 | P9 | every solver root nudged by 3·10⁻⁸ before the exact-arm checks, putting residual/Vieta errors inside (10⁻¹⁰, 10⁻⁶) — a band no natural run produces (DK residuals jump ~10⁻⁶ → ~10⁻¹¹ between iterations 5 and 6) | exactly the 12 L4.exact checks; a call-site tolerance widened to 10⁻⁶ turns this plant green and is caught |
 
@@ -313,7 +316,7 @@ Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 180 checks; `measure_check.eigs` exactly 109;
+`modes_check.eigs` runs exactly 180 checks; `measure_check.eigs` exactly 126;
 `comparator_check.eigs` exactly 15. Check *identities* are pinned by the
 manifest rule above. The residual/Vieta "exact" tolerance is a named
 constant in `tests/checklib.eigs` (`exact_tol`), value-pinned by the
