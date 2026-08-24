@@ -261,12 +261,13 @@ to work.
 | P1 | Cmα sign flipped in the checker's in-memory dataset before derivation | L1 (Mw), L2, L3, L4, L5 longitudinal chain |
 | P2 | lateral quartic coefficient c1 perturbed +1% before rooting | L4 lateral root match |
 | P3 | root finder gutted (returns its initial guesses) | L4 both |
-| P4 | synthetic generator detuned: time-dilated so period AND decay rates are +5% vs declared truth (ζ preserved) | M1: all checks, both estimators; all six M2 t½ checks; M2.logdec.minspans through the refusal arm (the dilated window drops below 3 extrema) |
+| P4 | synthetic generator detuned: time-dilated so period AND decay rates are +5% vs declared truth (ζ preserved) | M1: all grid-row checks, both estimators (the hand-rolled n9 row excepted); all six M2 t½ checks; M2.logdec.minspans through the refusal arm (the dilated window drops below 3 extrema) |
 | P5 | the ζ result is replaced by a constant 0.05 after the estimator runs (validates the comparator; estimator-wiring faults are covered by the mutation requirement below) | M2 ζ checks (all grid ζ values are >5% away from 0.05 by construction) |
 | P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A31/A32/A33), L3, L4 phugoid/sp |
 | P7 | every refusal result forced to ok=1 before its check | all 13 M3 refusal checks, nothing else |
 | P8 | every dataset input poisoned (nonzero values scaled, zeros made nonzero, inertias scaled unevenly, θ₀ tilted, unit-check root lists scaled) | every data-derived check — 136 of 180 (the synthetic unit dataset and the CU/stability unit inputs are poisoned too) — leaving green only the pub-literal solver/exact checks (P2/P3's territory) and the structural constants |
 | P10 | every DFT result forced into a refusal before its check | the 18 M1.dft checks, red THROUGH the refusal arm of `check_result` — which round-8 review gutted to print PASS with nothing noticing (no clean run or plant had ever driven a refusal through it) |
+| P12 | the φ and DC arguments zeroed at the grid generator call | exactly the 10 M0.gen wiring checks on rows where either is nonzero — round-21 zeroed φ inside the generator, zeroed DC, and swapped the two call-site arguments, and every gate stayed green: φ and DC are the only row parameters that never enter the expected truth, so only a direct t=0 wiring identity (sig[0] = dc + cos φ, bit-exact) can see them; rows with both zero are unreachable by construction (manifest class structural) |
 | P11 | `comparator_check.eigs p11`: the `expect()` helper fed two deliberately-wrong pairs | both must FAIL — round-10 review gutted `expect()` to a tautology and every gate stayed green; with it vacuous, a 2× rel-tolerance widening in checklib slipped every remaining gate |
 | P9 | every solver root nudged by 3·10⁻⁸ before the exact-arm checks, putting residual/Vieta errors inside (10⁻¹⁰, 10⁻⁶) — a band no natural run produces (DK residuals jump ~10⁻⁶ → ~10⁻¹¹ between iterations 5 and 6) | exactly the 12 L4.exact checks; a call-site tolerance widened to 10⁻⁶ turns this plant green and is caught |
 
@@ -304,7 +305,7 @@ Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 180 checks; `measure_check.eigs` exactly 75;
+`modes_check.eigs` runs exactly 180 checks; `measure_check.eigs` exactly 92;
 `comparator_check.eigs` exactly 15. Check *identities* are pinned by the
 manifest rule above. The residual/Vieta "exact" tolerance is a named
 constant in `tests/checklib.eigs` (`exact_tol`), value-pinned by the

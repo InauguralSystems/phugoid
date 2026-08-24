@@ -3,10 +3,13 @@
 # Run from the repo root:  eigenscript tests/measure_check.eigs [plant]
 # where plant is p4 (generator time-dilated +5% vs declared truth, decay
 # rates included), p5 (damping estimate replaced by a constant 0.05), or
-# p7 (every refusal result forced to ok=1), or p10 (every DFT result
-# forced into a refusal, exercising the refusal arm of check_result).
+# p7 (every refusal result forced to ok=1), p10 (every DFT result
+# forced into a refusal, exercising the refusal arm of check_result), or
+# p12 (the phase AND dc arguments zeroed at the generator call — the
+# M0.gen wiring checks must catch it; rows where both are already zero
+# are unreachable by construction and carry manifest class structural).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 75.
+# failure; the check population is pinned at exactly 92.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -35,6 +38,16 @@ define force_ok_if_p7(res) as:
     if plant == "p7":
         return {"ok": 1}
     return res
+
+# Token derived from the same variable as the comparison (round-14 rule).
+define check_tight(name, ours, want) as:
+    checks_run is checks_run + 1
+    local tt is 1e-9
+    if (rel_tol_ok of [ours, want, tt]) == 1:
+        print of f"PASS {name} reltol={tt} ours={ours} want={want}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} reltol={tt} ours={ours} want={want}"
 
 define check_refused(name, res) as:
     checks_run is checks_run + 1
@@ -119,9 +132,22 @@ unobserved:
         # corner row's generator arguments wholesale and nothing noticed —
         # round-12's comparator lesson, carried to the grid table).
         print of f"ROW {name} params={c[1]}|{c[2]}|{c[3]}|{c[4]}|{c[5]}|{c[6]}|{c[7]}|{c[8]}|{c[9]}"
+        # Generator WIRING self-check (round-21: zeroing phi inside gen_osc,
+        # zeroing dc, or swapping the phi/dc call-site arguments all
+        # survived every gate — phi and dc are the two row parameters that
+        # never enter the expected truth, so no estimator comparison can
+        # see them). At t=0 the signal is exactly dc + cos(phi), pinning
+        # both parameters and their call-site order. Plant p12 zeroes the
+        # generated phase while the expectation keeps the row value.
+        local gen_phi is c[3]
+        local gen_dc is c[4]
+        if plant == "p12":
+            gen_phi is 0.0
+            gen_dc is 0.0
         local zeta is c[1]
         local wn is c[2]
-        local sig is gen_osc of [zeta, wn, c[3], c[4], c[5], c[6], detune]
+        local sig is gen_osc of [zeta, wn, gen_phi, gen_dc, c[5], c[6], detune]
+        check_tight of [f"M0.gen.{name}", sig[0], c[4] + (cos of c[3])]
         local t_true is 2.0 * (pi of null) / (wn * (sqrt of (1.0 - zeta * zeta)))
         local dt is c[5]
         local rp is period_peaks of [sig, dt]
@@ -267,8 +293,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 75:
-    print of f"FAIL harness: expected exactly 75 checks, ran {checks_run}"
+if checks_run != 92:
+    print of f"FAIL harness: expected exactly 92 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

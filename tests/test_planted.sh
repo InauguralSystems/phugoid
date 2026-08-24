@@ -94,7 +94,7 @@ echo "PASS: P6 red pattern exact"
 
 echo "--- P4: generator time-dilated +5% -> all period + t_half checks red (42, incl. minspans through the refusal arm: the dilated window drops below 3 extrema), damping green ---"
 run_plant measure_check.eigs p4
-expect_population 75
+expect_population 92
 expect_total_fails 42
 expect_red 'M1\.peaks\.' 'M1\.dft\.' 'M2\.thalf\.roll' 'M2\.thalf\.spiral'
 [ "$(grep -c '^FAIL M1\.peaks\.' "$OUT")" -eq 18 ] || { echo "FAIL: P4 peaks count != 18"; exit 1; }
@@ -105,7 +105,7 @@ echo "PASS: P4 red pattern exact"
 
 echo "--- P5: damping estimate replaced by constant 0.05 -> all zeta checks red (19) ---"
 run_plant measure_check.eigs p5
-expect_population 75
+expect_population 92
 expect_total_fails 19
 expect_red 'M2\.logdec\.' 'M2\.envelope\.heavy '
 [ "$(grep -c '^FAIL M2\.logdec\.' "$OUT")" -eq 17 ] || { echo "FAIL: P5 logdec count != 17"; exit 1; }
@@ -114,7 +114,7 @@ echo "PASS: P5 red pattern exact"
 
 echo "--- P7: refusal results forced to ok=1 -> all 13 M3 checks red, rest green ---"
 run_plant measure_check.eigs p7
-expect_population 75
+expect_population 92
 expect_total_fails 13
 expect_red 'M3\.refuse\.peaks_2extrema ' 'M3\.refuse\.envelope_2spans ' 'M3\.refuse\.thalf_seven ' 'M3\.refuse\.thalf_zero ' 'M3\.refuse\.peaks ' 'M3\.refuse\.dft ' 'M3\.refuse\.logdec ' 'M3\.refuse\.dft_2cycles ' 'M3\.refuse\.dft_short ' 'M3\.refuse\.envelope ' 'M3\.refuse\.envelope_growing ' 'M3\.refuse\.thalf_short ' 'M3\.refuse\.thalf_growing '
 expect_green 'M1\.' 'M2\.'
@@ -138,12 +138,21 @@ echo "PASS: P9 red pattern exact"
 
 echo "--- P10: every DFT result forced into a refusal -> the 18 dft checks red via the refusal arm ---"
 run_plant measure_check.eigs p10
-expect_population 75
+expect_population 92
 expect_total_fails 18
 expect_red 'M1\.dft\.'
 [ "$(grep -c '^FAIL M1\.dft\.' "$OUT")" -eq 18 ] || { echo "FAIL: P10 dft count != 18"; exit 1; }
 expect_green 'M1\.peaks\.' 'M2\.' 'M3\.'
 echo "PASS: P10 red pattern exact"
+
+echo "--- P12: generator phase+dc zeroed -> the 10 nonzero-wiring M0.gen checks red ---"
+run_plant measure_check.eigs p12
+expect_population 92
+expect_total_fails 10
+expect_red 'M0\.gen\.'
+[ "$(grep -c '^FAIL M0\.gen\.' "$OUT")" -eq 10 ] || { echo "FAIL: P12 M0.gen count != 10"; exit 1; }
+expect_green 'M1\.' 'M2\.' 'M3\.'
+echo "PASS: P12 red pattern exact"
 
 echo "--- P11: expect() fed two deliberately-wrong pairs -> both must FAIL ---"
 run_plant comparator_check.eigs p11
@@ -196,4 +205,4 @@ done < <(grep -v '^#' tests/check_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 11 plants flip exactly their declared checks"
+echo "PASS: all 12 plants flip exactly their declared checks"

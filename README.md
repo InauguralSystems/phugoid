@@ -24,11 +24,11 @@ There is deliberately **no flight model yet**. Rung 0 is the grader:
 - **`measure.eigs`** — the estimators that will grade rung-1+ trajectories:
   period by extrema-spacing and by Hann-windowed DFT peak, damping by log
   decrement and by envelope fit (both baseline-free, on peak-to-trough
-  spans), aperiodic t½ by exponential fit. 75 pinned checks against
+  spans), aperiodic t½ by exponential fit. 92 pinned checks against
   synthetic truth, with every refusal path pinned — the estimators must
   *refuse* rather than answer when a window can't support the estimate.
 - **`ORACLE.md`** — the quality bar itself: published numbers, stated
-  tolerances (with written justifications for every widening), an eleven-plant
+  tolerances (with written justifications for every widening), a twelve-plant
   fault matrix proving each checker can fail, and a boundary self-test of
   the comparators so a widened tolerance cannot pass silently.
 
@@ -38,8 +38,8 @@ There is deliberately **no flight model yet**. Rung 0 is the grader:
 bash tests/test_lint.sh        # every .eigs lints clean (planted-fault validated)
 bash tests/test_comparator.sh  # 15 tolerance boundary self-tests
 bash tests/test_modes.sh       # 180 chain checks vs published values
-bash tests/test_measure.sh     # 75 estimator checks vs synthetic truth
-bash tests/test_planted.sh     # 11 plants must each flip exactly their checks
+bash tests/test_measure.sh     # 92 estimator checks vs synthetic truth
+bash tests/test_planted.sh     # 12 plants must each flip exactly their checks
 ```
 
 Requires `eigenscript` on PATH (or `EIGENSCRIPT=/path/to/binary`), pinned in
