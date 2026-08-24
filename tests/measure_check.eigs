@@ -6,7 +6,7 @@
 # p7 (every refusal result forced to ok=1), or p10 (every DFT result
 # forced into a refusal, exercising the refusal arm of check_result).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 62.
+# failure; the check population is pinned at exactly 63.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -28,7 +28,7 @@ define check_rel(name, ours, truth, reltol) as:
         failures is failures + 1
         print of f"FAIL {name} reltol={reltol} ours={ours} truth={truth}"
 
-# Plant p7 forces every refusal result to ok=1 — it must redden all ten
+# Plant p7 forces every refusal result to ok=1 — it must redden all eleven
 # M3 checks and nothing else (round-3 review gutted check_refused itself
 # and the suite stayed green; now the planted matrix exercises it).
 define force_ok_if_p7(res) as:
@@ -158,6 +158,15 @@ unobserved:
     local span2 is gen_osc of [0.107, 0.7477, 0.0, 0.0, 0.2, 66, detune]
     local r5 is zeta_logdec of [span2, 0.2]
     check_result of ["M2.logdec.minspans", r5, "zeta", 0.107, 0.005]
+    # Amplitude 5.0, not 1.0: every other exponential row has ln(A)=0, so
+    # the least-squares intercept term sat on a structural zero — round-14
+    # gutted the fit to through-origin (65% wrong at amplitude 5) all-green.
+    local amp5 is []
+    local base5 is gen_exp of [1.2308 / detune, 0.01, 500]
+    for i in range of (len of base5):
+        append of [amp5, 5.0 * base5[i]]
+    local r6 is t_half_exp of [amp5, 0.01]
+    check_result of ["M2.thalf.amp5", r6, "t_half", 0.563155, 0.02]
 
     # M3 — honesty: every estimator's refusal paths are pinned (round-2
     # review demonstrated the unpinned ones surviving a gutting mutation).
@@ -199,8 +208,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 62:
-    print of f"FAIL harness: expected exactly 62 checks, ran {checks_run}"
+if checks_run != 63:
+    print of f"FAIL harness: expected exactly 63 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

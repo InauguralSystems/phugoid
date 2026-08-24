@@ -282,12 +282,17 @@ else:
 # formula terms live (Cmu/CLu/CDu/Cyp/Cyr = 0, theta0 = 0), so published-
 # value checks cannot distinguish a wrong formula on a zeroed path.
 define check_tight(name, ours, want) as:
+    # The printed token and the comparison share ONE variable — round-14
+    # widened the comparison literal 4e7x while the hardcoded token string
+    # kept saying reltol=1e-9 and the manifest identity was satisfied by
+    # prose. Tokens must be derived from the argument they claim to pin.
     checks_run is checks_run + 1
-    if (rel_tol_ok of [ours, want, 1e-9]) == 1:
-        print of f"PASS {name} reltol=1e-9 ours={ours} want={want}"
+    local tt is 1e-9
+    if (rel_tol_ok of [ours, want, tt]) == 1:
+        print of f"PASS {name} reltol={tt} ours={ours} want={want}"
     else:
         failures is failures + 1
-        print of f"FAIL {name} reltol=1e-9 ours={ours} want={want}"
+        print of f"FAIL {name} reltol={tt} ours={ours} want={want}"
 
 synth is {"cond": {"u0": 250.0, "rho": 0.002, "S": 5000.0, "cbar": 25.0, "b": 190.0, "W": 500000.0, "g": 32.174, "theta0": 0.2, "Iy": 30000000.0, "Ix": 14000000.0, "Iz": 44000000.0, "Ixz": 0.0 - 2000000.0}, "lon": {"CL": 1.1, "CD": 0.2, "CLa": 5.0, "CDa": 0.7, "Cma": 0.0 - 1.5, "CLadot": 6.0, "Cmadot": 0.0 - 3.0, "CLq": 5.5, "Cmq": 0.0 - 21.0, "CLu": 0.3, "CDu": 0.11, "Cmu": 0.07}, "lat": {"Cyb": 0.0 - 0.9, "Cyp": 0.15, "Cyr": 0.25, "Clb": 0.0 - 0.2, "Clp": 0.0 - 0.5, "Clr": 0.12, "Cnb": 0.16, "Cnp": 0.0 - 0.13, "Cnr": 0.0 - 0.35}}
 if plant == "p8":
@@ -424,6 +429,12 @@ u_osc is modes_of of ([[(0.0 - 0.5) * unit_scale, 0.7 * unit_scale], [(0.0 - 0.5
 check_abs of ["L5.unit.osc_sorted_low", u_osc.osc[0].im, 0.13, 1e-12]
 check_abs of ["L5.unit.osc_sorted_high", u_osc.osc[1].im, 0.7, 1e-12]
 u_re is modes_of of ([[(0.0 - 1.2) * unit_scale, 0.0], [(0.0 - 0.05) * unit_scale, 0.0]])
+# wn/im-DISCORDANT pairs: wn order (0.61, 2.06) disagrees with im order
+# (0.6, 0.5) — round-14 mutated the sort key wn -> im and every existing
+# row (both airframes and the unit rows) had the two orders coincide.
+u_disc is modes_of of ([[(0.0 - 2.0) * unit_scale, 0.5 * unit_scale], [(0.0 - 2.0) * unit_scale, (0.0 - 0.5) * unit_scale], [(0.0 - 0.1) * unit_scale, 0.6 * unit_scale], [(0.0 - 0.1) * unit_scale, (0.0 - 0.6) * unit_scale]])
+check_tight of ["L5.unit.discordant_low", u_disc.osc[0].im, 0.6]
+check_tight of ["L5.unit.discordant_high", u_disc.osc[1].im, 0.5]
 check_abs of ["L5.unit.reals_sorted_low", u_re.reals[0].re, 0.0 - 0.05, 1e-12]
 check_abs of ["L5.unit.reals_sorted_high", u_re.reals[1].re, 0.0 - 1.2, 1e-12]
 
@@ -431,8 +442,8 @@ check_abs of ["L5.unit.reals_sorted_high", u_re.reals[1].re, 0.0 - 1.2, 1e-12]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 177:
-    print of f"FAIL harness: expected exactly 177 checks, ran {checks_run}"
+if checks_run != 179:
+    print of f"FAIL harness: expected exactly 179 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1
