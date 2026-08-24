@@ -9,7 +9,7 @@
 # M0.gen wiring checks must catch it; rows where both are already zero
 # are unreachable by construction and carry manifest class structural).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 92.
+# failure; the check population is pinned at exactly 109.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -166,6 +166,16 @@ unobserved:
         local wn is c[2]
         local sig is gen_osc of [zeta * zeta_gen_scale, wn, gen_phi, gen_dc, c[5], c[6], detune]
         check_tight of [f"M0.gen.{name}", sig[0] * gen_id_scale, c[4] + (cos of c[3])]
+        # Second-sample identity (round-24): cos is even, so the t=0 check
+        # pins phi only up to SIGN — a +phi -> -phi reflection inside
+        # gen_osc survived every gate while silently reflecting every
+        # tested phase. At t=dt the sign matters. The expected side mirrors
+        # every plant knob EXCEPT the wiring parameters (phi/dc come from
+        # the table), bit-exactly re-deriving gen_osc's own expressions.
+        local e_zeta is zeta * zeta_gen_scale
+        local e_wd is wn * (sqrt of (1.0 - e_zeta * e_zeta)) / detune
+        local e_sig is e_zeta * wn / detune
+        check_tight of [f"M0.gen1.{name}", sig[1] * gen_id_scale, c[4] + (exp of (0.0 - e_sig * c[5])) * (cos of (e_wd * c[5] + c[3]))]
         local t_true is 2.0 * (pi of null) / (wn * (sqrt of (1.0 - zeta * zeta)))
         local dt is c[5]
         local rp is period_peaks of [sig, dt]
@@ -311,8 +321,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 92:
-    print of f"FAIL harness: expected exactly 92 checks, ran {checks_run}"
+if checks_run != 109:
+    print of f"FAIL harness: expected exactly 109 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

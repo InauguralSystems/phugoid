@@ -94,7 +94,7 @@ echo "PASS: P6 red pattern exact"
 
 echo "--- P4: generator time-dilated +5% -> all period + t_half checks red (42, incl. minspans through the refusal arm: the dilated window drops below 3 extrema), damping green ---"
 run_plant measure_check.eigs p4
-expect_population 92
+expect_population 109
 expect_total_fails 42
 expect_red 'M1\.peaks\.' 'M1\.dft\.' 'M2\.thalf\.roll' 'M2\.thalf\.spiral'
 [ "$(grep -c '^FAIL M1\.peaks\.' "$OUT")" -eq 18 ] || { echo "FAIL: P4 peaks count != 18"; exit 1; }
@@ -105,7 +105,7 @@ echo "PASS: P4 red pattern exact"
 
 echo "--- P5: damping estimate replaced by constant 0.05 -> all zeta checks red (19) ---"
 run_plant measure_check.eigs p5
-expect_population 92
+expect_population 109
 expect_total_fails 19
 expect_red 'M2\.logdec\.' 'M2\.envelope\.heavy '
 [ "$(grep -c '^FAIL M2\.logdec\.' "$OUT")" -eq 17 ] || { echo "FAIL: P5 logdec count != 17"; exit 1; }
@@ -114,7 +114,7 @@ echo "PASS: P5 red pattern exact"
 
 echo "--- P7: refusal results forced to ok=1 -> all 13 M3 checks red, rest green ---"
 run_plant measure_check.eigs p7
-expect_population 92
+expect_population 109
 expect_total_fails 13
 expect_red 'M3\.refuse\.peaks_2extrema ' 'M3\.refuse\.envelope_2spans ' 'M3\.refuse\.thalf_seven ' 'M3\.refuse\.thalf_zero ' 'M3\.refuse\.peaks ' 'M3\.refuse\.dft ' 'M3\.refuse\.logdec ' 'M3\.refuse\.dft_2cycles ' 'M3\.refuse\.dft_short ' 'M3\.refuse\.envelope ' 'M3\.refuse\.envelope_growing ' 'M3\.refuse\.thalf_short ' 'M3\.refuse\.thalf_growing '
 expect_green 'M1\.' 'M2\.'
@@ -138,7 +138,7 @@ echo "PASS: P9 red pattern exact"
 
 echo "--- P10: every DFT result forced into a refusal -> the 18 dft checks red via the refusal arm ---"
 run_plant measure_check.eigs p10
-expect_population 92
+expect_population 109
 expect_total_fails 18
 expect_red 'M1\.dft\.'
 [ "$(grep -c '^FAIL M1\.dft\.' "$OUT")" -eq 18 ] || { echo "FAIL: P10 dft count != 18"; exit 1; }
@@ -147,7 +147,7 @@ echo "PASS: P10 red pattern exact"
 
 echo "--- P13: time dilation x1.002 (just outside the 0.1% arm) -> exactly the 18 peaks checks red ---"
 run_plant measure_check.eigs p13
-expect_population 92
+expect_population 109
 expect_total_fails 18
 [ "$(grep -c '^FAIL M1\.peaks\.' "$OUT")" -eq 18 ] || { echo "FAIL: P13 peaks count != 18"; exit 1; }
 expect_green 'M0\.' 'M1\.dft\.' 'M2\.' 'M3\.'
@@ -155,7 +155,7 @@ echo "PASS: P13 red pattern exact"
 
 echo "--- P14: zeta inflated x1.007 (just outside the 0.5% arm) -> exactly the 18 logdec checks red ---"
 run_plant measure_check.eigs p14
-expect_population 92
+expect_population 109
 expect_total_fails 18
 [ "$(grep -c '^FAIL M2\.logdec\.' "$OUT")" -eq 18 ] || { echo "FAIL: P14 logdec count != 18"; exit 1; }
 expect_green 'M0\.' 'M1\.' 'M2\.thalf\.' 'M2\.envelope\.' 'M3\.'
@@ -169,20 +169,20 @@ expect_red 'L1U\.' 'L2U\.' 'CU\.' 'L5\.unit\.'
 expect_green 'L[1-5]\.lon\.' 'L[1-5]\.lat\.' 'L4\.' 'L5\.ph' 'L5\.sp' 'L5\.dr'
 echo "PASS: P15 red pattern exact"
 
-echo "--- P16: M0.gen checked value x(1+3e-9) (just outside its 1e-9 arm) -> all 17 wiring checks red ---"
+echo "--- P16: M0.gen checked value x(1+3e-9) (just outside its 1e-9 arm) -> all 34 wiring checks red ---"
 run_plant measure_check.eigs p16
-expect_population 92
-expect_total_fails 17
-[ "$(grep -c '^FAIL M0\.gen\.' "$OUT")" -eq 17 ] || { echo "FAIL: P16 M0.gen count != 17"; exit 1; }
+expect_population 109
+expect_total_fails 34
+[ "$(grep -Ec '^FAIL M0\.gen1?\.' "$OUT")" -eq 34 ] || { echo "FAIL: P16 wiring count != 34"; exit 1; }
 expect_green 'M1\.' 'M2\.' 'M3\.'
 echo "PASS: P16 red pattern exact"
 
-echo "--- P12: generator phase+dc zeroed -> the 10 nonzero-wiring M0.gen checks red ---"
+echo "--- P12: generator phase+dc zeroed -> the 20 nonzero-wiring M0.gen/M0.gen1 checks red ---"
 run_plant measure_check.eigs p12
-expect_population 92
-expect_total_fails 10
-expect_red 'M0\.gen\.'
-[ "$(grep -c '^FAIL M0\.gen\.' "$OUT")" -eq 10 ] || { echo "FAIL: P12 M0.gen count != 10"; exit 1; }
+expect_population 109
+expect_total_fails 20
+expect_red 'M0\.gen\.' 'M0\.gen1\.'
+[ "$(grep -Ec '^FAIL M0\.gen1?\.' "$OUT")" -eq 20 ] || { echo "FAIL: P12 wiring count != 20"; exit 1; }
 expect_green 'M1\.' 'M2\.' 'M3\.'
 echo "PASS: P12 red pattern exact"
 
