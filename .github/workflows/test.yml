@@ -23,8 +23,13 @@ jobs:
         with:
           runCmd: |
             set -e
-            EIGENSCRIPT=eigenscript bash tests/test_lint.sh
-            EIGENSCRIPT=eigenscript bash tests/test_comparator.sh
-            EIGENSCRIPT=eigenscript bash tests/test_modes.sh
-            EIGENSCRIPT=eigenscript bash tests/test_measure.sh
-            EIGENSCRIPT=eigenscript bash tests/test_planted.sh
+            # Glob, not a hardcoded list: round-9 review showed a script
+            # dropped from an inline enumeration keeps CI green silently.
+            # The count assertion makes a missing/unglobbed script loud.
+            N=0
+            for t in tests/test_*.sh; do
+              echo "=== $t"
+              EIGENSCRIPT=eigenscript bash "$t"
+              N=$((N+1))
+            done
+            [ "$N" -ge 5 ] || { echo "FAIL: only $N test scripts found"; exit 1; }

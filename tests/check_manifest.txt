@@ -236,6 +236,7 @@ measure M3.refuse.dft plantable
 measure M3.refuse.dft_2cycles plantable
 measure M3.refuse.dft_short plantable
 measure M3.refuse.envelope plantable
+measure M3.refuse.envelope_growing plantable
 measure M3.refuse.logdec plantable
 measure M3.refuse.peaks plantable
 measure M3.refuse.thalf_growing plantable

@@ -6,7 +6,7 @@
 # p7 (every refusal result forced to ok=1), or p10 (every DFT result
 # forced into a refusal, exercising the refusal arm of check_result).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 53.
+# failure; the check population is pinned at exactly 54.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -165,11 +165,17 @@ unobserved:
     check_refused of ["M3.refuse.thalf_short", force_ok_if_p7 of (t_half_exp of [tiny, 0.01])]
     local growing is gen_exp of [0.0 - 1.0, 0.01, 100]
     check_refused of ["M3.refuse.thalf_growing", force_ok_if_p7 of (t_half_exp of [growing, 0.01])]
+    # Envelope fit on a GROWING oscillation — round-9 review deleted the
+    # "envelope not decaying" branch and the suite stayed green (the
+    # enumerated pins covered the exponential fit's growing path but not
+    # the envelope's); the mutant answered zeta = -0.63 instead of refusing.
+    local grow_osc is gen_osc of [0.0 - 0.3, 1.0, 0.0, 0.0, 0.1, 200, 1.0]
+    check_refused of ["M3.refuse.envelope_growing", force_ok_if_p7 of (zeta_envelope of [grow_osc, 0.1])]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 53:
-    print of f"FAIL harness: expected exactly 53 checks, ran {checks_run}"
+if checks_run != 54:
+    print of f"FAIL harness: expected exactly 54 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

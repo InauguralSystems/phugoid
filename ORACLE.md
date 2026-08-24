@@ -182,12 +182,15 @@ usable ratios): ζ within **10%** relative (its own small-angle mutant is
 on pure decays with the published roll/spiral rates.
 
 *Known-unpinned implementation details (recorded rounds 5–6, deliberate):*
-(a) the span-AVERAGING inside both period and damping estimators, and
-(b) the parabolic AMPLITUDE refinement in `find_extrema` — on clean
-synthetics, removing either moves errors 10–50× but keeps them ≤ 0.03%,
-far under any honest tolerance. Both earn their keep on noisy signals,
-which enter the grid at rung 1; pin them then with noise rows rather than
-pretending a clean-signal tolerance can see them.
+(a) the span-AVERAGING inside both period and damping estimators,
+(b) the parabolic AMPLITUDE refinement in `find_extrema`, and
+(c) the amplitude floors (`1e-3` in `find_peaks`, `1e-6·hmax` in
+`half_spans`) and the `abs` in `sig_absmax` — round 9 removed all three
+all-green on clean synthetics. Removing any of these moves clean-signal
+errors 10–50× but keeps them ≤ 0.03%, far under any honest tolerance.
+All earn their keep on noisy signals, which enter the grid at rung 1; pin
+them then with noise rows rather than pretending a clean-signal tolerance
+can see them.
 
 *Design note bought by measurement (2026-08-23):* the first implementation
 detrended by the window mean and took ratios of positive-peak amplitudes; on
@@ -206,7 +209,10 @@ than returning a garbage number when the signal cannot support the estimate.
 **Every refusal path of every estimator is pinned** (round-2 blind review
 gutted the unpinned ones — `zeta_envelope` and `t_half_exp` — into
 hard-coded answers and the whole suite stayed green): sub-cycle windows for
-the three oscillatory estimators, the DFT's declared 3-cycle boundary —
+the three oscillatory estimators, growing-signal rows for BOTH the
+exponential and the envelope fits (round 9 deleted the envelope's
+"not decaying" branch all-green — the pin list had covered only the
+exponential's), the DFT's declared 3-cycle boundary —
 pinned from BOTH sides AND at the constant itself: ~2.5 cycles must refuse,
 the dr_4cyc row (4.02 cycles, bin 4) must be answered, and the dr_bin3 row
 (3.31 cycles, spectral peak in bin 3) must be answered — round-7 drifted
@@ -256,7 +262,7 @@ Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 177 checks; `measure_check.eigs` exactly 53;
+`modes_check.eigs` runs exactly 177 checks; `measure_check.eigs` exactly 54;
 `comparator_check.eigs` exactly 13. Check *identities* are pinned by the
 manifest rule above. The residual/Vieta "exact" tolerance is a named
 constant in `tests/checklib.eigs` (`exact_tol`), value-pinned by the
@@ -284,6 +290,6 @@ a top-severity finding.
 
 ## Exit gate for rung 0
 
-1. All L and M checks green, all nine plants red in exactly the declared way.
+1. All L and M checks green, all ten plants red in exactly the declared way.
 2. Blind-critic rounds dry (two consecutive rounds with no actionable gap).
 3. CI green on the pushed repo (devcontainer, pinned EIGS_REF=v0.41.0).
