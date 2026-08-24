@@ -4,7 +4,7 @@
 # where plant is p4 (generator detuned +5% in period vs declared truth) or
 # p5 (damping estimate replaced by a constant 0.05).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 24.
+# failure; the check population is pinned at exactly 33.
 
 load_file of "measure.eigs"
 
@@ -64,12 +64,10 @@ if plant == "p4":
     detune is 1.05
 
 # name, zeta, wn, phi, dc, dt, n, T_reltol, zeta_reltol
-cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.05], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.05], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.05], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.05], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.05], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.05]]
-
-# The DFT estimator's stated regime is zeta <= 0.11 at 1%; at zeta = 0.30
-# it carries a measured -4.0% image-leakage bias, so its check runs at 5%
-# (ORACLE.md M1). The peak-spacing estimator keeps the per-case tolerance.
-dft_tol_override is {"mid_z30": 0.05}
+cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.05], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.05], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.05], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.05], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.05], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.05], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.05], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.05], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.05]]
+# The dr_phi2/dr_phi45/dr_n360 rows exist because round-1 blind review
+# demonstrated the unwindowed DFT breaking its 1% claim exactly at off-grid
+# phases and window lengths — the grid now covers the space the claim spans.
 
 unobserved:
     for c in cases:
@@ -82,10 +80,7 @@ unobserved:
         local rp is period_peaks of [sig, dt]
         check_result of [f"M1.peaks.{name}", rp, "T", t_true, c[7]]
         local rd is period_dft of [sig, dt]
-        local dft_tol is c[7]
-        if (has_key of [dft_tol_override, name]) == 1:
-            dft_tol is dft_tol_override[name]
-        check_result of [f"M1.dft.{name}", rd, "T", t_true, dft_tol]
+        check_result of [f"M1.dft.{name}", rd, "T", t_true, c[7]]
         local rz is zeta_logdec of [sig, dt]
         if plant == "p5":
             rz is {"ok": 1, "zeta": 0.05}
@@ -115,8 +110,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 24:
-    print of f"FAIL harness: expected exactly 24 checks, ran {checks_run}"
+if checks_run != 33:
+    print of f"FAIL harness: expected exactly 33 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

@@ -65,19 +65,19 @@ echo "PASS: P6 red pattern exact ($(fails) longitudinal fails)"
 
 echo "--- P4: generator time-dilated +5% -> period checks red, damping green ---"
 run_plant measure_check.eigs p4
-expect_population 24
+expect_population 33
 PEAKS=$(grep -c '^FAIL M1\.peaks\.' "$OUT" || true)
-[ "$PEAKS" -eq 6 ] || { echo "FAIL: P4 flipped $PEAKS/6 peak-spacing checks"; exit 1; }
+[ "$PEAKS" -eq 9 ] || { echo "FAIL: P4 flipped $PEAKS/9 peak-spacing checks"; exit 1; }
 DFT=$(grep -c '^FAIL M1\.dft\.' "$OUT" || true)
-[ "$DFT" -ge 5 ] || { echo "FAIL: P4 flipped only $DFT DFT checks (expected >= 5)"; exit 1; }
+[ "$DFT" -eq 9 ] || { echo "FAIL: P4 flipped $DFT/9 DFT checks"; exit 1; }
 if grep -Eq '^FAIL M[23]\.' "$OUT"; then echo "FAIL: P4 leaked into damping/honesty checks"; exit 1; fi
 echo "PASS: P4 red pattern exact ($(fails) period fails)"
 
 echo "--- P5: damping estimate replaced by constant 0.05 -> all zeta checks red ---"
 run_plant measure_check.eigs p5
-expect_population 24
+expect_population 33
 ZL=$(grep -c '^FAIL M2\.logdec\.' "$OUT" || true)
-[ "$ZL" -eq 6 ] || { echo "FAIL: P5 flipped $ZL/6 log-decrement checks"; exit 1; }
+[ "$ZL" -eq 9 ] || { echo "FAIL: P5 flipped $ZL/9 log-decrement checks"; exit 1; }
 grep -q '^FAIL M2\.envelope\.heavy ' "$OUT" || { echo "FAIL: P5 did not flip the envelope check"; exit 1; }
 if grep -Eq '^FAIL (M1|M3)\.' "$OUT"; then echo "FAIL: P5 leaked into period/honesty checks"; exit 1; fi
 if grep -q '^FAIL M2\.thalf\.' "$OUT"; then echo "FAIL: P5 leaked into aperiodic checks"; exit 1; fi

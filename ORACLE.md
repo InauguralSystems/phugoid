@@ -100,19 +100,23 @@ t½_roll=0.563 s, t½_spiral=14.93 s. Same per-value rule.
 
 ### M1 — period estimators on synthetic signals
 
-Two independent estimators (peak-spacing with parabolic refinement; DFT peak
-with sub-bin interpolation via `lib/engineering.dft`) on synthetic damped
-sinusoids `e^(−ζωn t)·cos(ωd t + φ)` with known truth, over a grid covering the
-published regimes: ζ ∈ {0.013, 0.107, 0.30}, plus phases φ ∈ {0, 1.0} and a DC
-offset case. Pass: measured T within **1%** of truth for ζ ≤ 0.11; at
-ζ = 0.30 the peak-spacing estimator stays at **2%** and the DFT estimator
-gets **5%**. *Justification (measured 2026-08-23):* at ζ = 0.30 the spectral
-peak is wide (σ ≈ 0.3 rad/s against a 0.157 rad/s bin) and the
-negative-frequency image, only 2ωd away, skews the interpolated peak low —
-measured −4.0% (6.3245 vs 6.5866 s truth); at ζ ≤ 0.11 the same estimator
-measures within 0.6%. The DFT estimator's stated regime is therefore
-ζ ≤ 0.11 at 1%; the ζ = 0.30 row stays in the grid at 5% so a regression
-in the heavy regime is still caught.
+Two independent estimators (peak-spacing with parabolic refinement;
+Hann-windowed DFT peak with sub-bin interpolation via `lib/engineering.dft`)
+on synthetic damped sinusoids `e^(−ζωn t)·cos(ωd t + φ)` with known truth,
+over a grid covering the published regimes: ζ ∈ {0.013, 0.107, 0.30}, phases
+φ ∈ {0, 1.0, 2.0, 4.5}, a DC offset case, and an off-grid window length
+(n=360). Pass: measured T within **1%** of truth for ζ ≤ 0.11, **2%** at
+ζ = 0.30 (both estimators).
+
+*History (both bought by measurement, 2026-08-23):* the first DFT
+implementation used a rectangular window; it carried a −4.0% image-leakage
+bias at ζ = 0.30, and round-1 blind review then demonstrated it breaking the
+1% claim *inside* the stated regime at off-grid phases (+1.09% at φ=4.5) and
+window lengths (−1.33% at n=360) — the original grid's two phases sat in
+good pockets, so the written claim was wider than the tested claim. The
+Hann window fixed both (worst off-grid error 0.043%; ζ = 0.30 bias +0.23%),
+and the off-grid phase/window rows are now permanent grid rows so the claim
+and the test cover the same space.
 
 ### M2 — damping estimators on synthetic signals
 
@@ -147,18 +151,22 @@ to work.
 
 | Plant | Injected into | Must go red |
 |---|---|---|
-| P1 | Cmα sign flipped in a copy of the dataset | L1 (Mw), L2, L3, L4, L5 longitudinal chain |
+| P1 | Cmα sign flipped in the checker's in-memory dataset before derivation | L1 (Mw), L2, L3, L4, L5 longitudinal chain |
 | P2 | lateral quartic coefficient c1 perturbed +1% before rooting | L4 lateral root match |
 | P3 | root finder gutted (returns its initial guesses) | L4 both |
-| P4 | synthetic generator detuned: time-dilated so period is +5% vs declared truth (ζ preserved) | M1: all peak-spacing checks and the ζ ≤ 0.11 DFT checks (the ζ = 0.30 DFT check sits at 5% tolerance over a −4% bias, so +5% detune can land inside it) |
-| P5 | damping estimator returns a constant 0.05 | M2 (all ζ cases except any within 5% of 0.05 — grid chosen so none is) |
+| P4 | synthetic generator detuned: time-dilated so period is +5% vs declared truth (ζ preserved) | M1: all checks, both estimators |
+| P5 | the ζ result is replaced by a constant 0.05 after the estimator runs (validates the comparator; estimator-wiring faults are covered by the mutation requirement below) | M2 ζ checks (all grid ζ values are >5% away from 0.05 by construction) |
 | P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A32/A33), L3, L4 phugoid/sp |
 
 Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 101 checks.
+`modes_check.eigs` runs exactly 101 checks; `measure_check.eigs` exactly 33.
+Blind-review rounds are additionally expected to mutation-test the checkers
+themselves (perturb a published value, gut an estimator, widen a tolerance —
+in a copy) and treat any mutation the suite survives as a top-severity
+finding.
 
 ## Exit gate for rung 0
 

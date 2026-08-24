@@ -68,12 +68,19 @@ define period_peaks(signal, dt) as:
 # Period from the DFT magnitude peak with parabolic sub-bin interpolation
 # on log-magnitude. Refuses when the window holds fewer than 3 cycles
 # (peak bin < 3), where the bin resolution cannot support the estimate.
+# The signal is Hann-windowed first: with a rectangular window the leakage
+# skirt is phase-dependent and biased the estimate past 1% at off-grid
+# phases/window lengths (found by blind review, round 1 — see ORACLE.md M1).
 define period_dft(signal, dt) as:
     local d is detrend of (signal)
     local n is len of d
     if n < 8:
         return {"ok": 0, "reason": "signal too short"}
-    local spec is engineering.dft of (d)
+    local win is []
+    for i in range of n:
+        local w is 0.5 * (1.0 - (cos of (2.0 * (pi of null) * i / (n - 1))))
+        append of [win, d[i] * w]
+    local spec is engineering.dft of (win)
     local mag is engineering.magnitude_spectrum of (spec)
     local kbest is 1
     local mbest is 0.0

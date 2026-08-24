@@ -20,6 +20,6 @@ if ! "$EIGS" tests/measure_check.eigs > "$OUT" 2>&1; then
     tail -3 "$OUT"
     exit 1
 fi
-grep -q '^CHECKS_RUN 24$' "$OUT" || { echo "FAIL: check population not 24"; tail -3 "$OUT"; exit 1; }
+grep -q '^CHECKS_RUN 33$' "$OUT" || { echo "FAIL: check population not 33"; tail -3 "$OUT"; exit 1; }
 grep -q '^FAILURES 0$' "$OUT" || { echo "FAIL: failures reported"; grep '^FAIL' "$OUT"; exit 1; }
-echo "PASS: 24/24 estimator checks green"
+echo "PASS: 33/33 estimator checks green"
