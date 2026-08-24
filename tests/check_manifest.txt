@@ -264,6 +264,7 @@ measure M3.refuse.envelope_2spans plantable refusal
 measure M3.refuse.envelope_growing plantable refusal
 measure M3.refuse.envelope plantable refusal
 measure M3.refuse.logdec plantable refusal
+measure M3.refuse.peaks_2extrema plantable refusal
 measure M3.refuse.peaks plantable refusal
 measure M3.refuse.thalf_growing plantable refusal
 measure M3.refuse.thalf_seven plantable refusal

@@ -6,7 +6,7 @@
 # p7 (every refusal result forced to ok=1), or p10 (every DFT result
 # forced into a refusal, exercising the refusal arm of check_result).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 72.
+# failure; the check population is pinned at exactly 73.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -201,6 +201,12 @@ unobserved:
     # A window holding under one cycle:
     local shortsig is gen_osc of [0.107, 0.7477, 0.0, 0.0, 0.2, 25, 1.0]
     check_refused of ["M3.refuse.peaks", force_ok_if_p7 of (period_peaks of [shortsig, 0.2])]
+    # EXACTLY 2 extrema (a 0.78-cycle window) — round-19 lowered the
+    # rewritten estimator's 3-extrema floor to 2 all-green (the 25-sample
+    # row above yields 1 extremum, pinning only the raising direction) and
+    # the mutant then ANSWERED a sub-cycle window.
+    local two_ex is gen_osc of [0.107, 0.7477, 2.0, 0.0, 0.2, 34, 1.0]
+    check_refused of ["M3.refuse.peaks_2extrema", force_ok_if_p7 of (period_peaks of [two_ex, 0.2])]
     check_refused of ["M3.refuse.dft", force_ok_if_p7 of (period_dft of [shortsig, 0.2])]
     check_refused of ["M3.refuse.logdec", force_ok_if_p7 of (zeta_logdec of [shortsig, 0.2])]
     # The DFT's declared 3-cycle boundary itself: ~2.5 cycles must refuse.
@@ -241,8 +247,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 72:
-    print of f"FAIL harness: expected exactly 72 checks, ran {checks_run}"
+if checks_run != 73:
+    print of f"FAIL harness: expected exactly 73 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

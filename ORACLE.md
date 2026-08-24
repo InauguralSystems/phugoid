@@ -152,10 +152,13 @@ sub-bin interpolated, via `lib/engineering.dft`) on synthetic damped
 sinusoids `e^(−ζωn t)·cos(ωd t + φ)` with known truth, over a grid covering
 the published regimes: ζ ∈ {0.013, 0.107, 0.30}, phases φ ∈ {0, 1.0, 2.0,
 4.5} at ζ = 0.107 and φ ∈ {0, 1.5, 2.5, 5.0} at ζ = 0.30, a DC offset case, and
-DC offset cases of BOTH signs (round-8 review gutted `detrend` to identity
-and the dc=+2 row stayed green — the positive amplitude floor in
-`find_peaks` tolerates a positive offset undetrended, a negative one it
-does not), and an off-grid window length (n=360). Pass: measured T within **1%** of truth
+DC offset cases of BOTH signs (historical: they were added when round-8
+gutted `detrend` under the old positive-peaks estimator; since the
+round-18 extrema rewrite the period estimator is baseline-free by
+construction, and `detrend` — now serving only the DFT path — was
+re-measured in round 19 as genuinely clean-signal-invisible there, within
+0.07% even at dc=100, so it moved to the known-unpinned ledger), and an
+off-grid window length (n=360). Pass: measured T within **1%** of truth
 for ζ ≤ 0.11, **2%** at ζ = 0.30 (both estimators).
 
 *History (all bought by measurement, 2026-08-23):* the first DFT
@@ -198,15 +201,20 @@ bin-3 lesson applied to acceptance minimums, both directions).
 
 *Known-unpinned implementation details (recorded rounds 5–6, deliberate):*
 (a) the span-AVERAGING inside both period and damping estimators,
-(b) the parabolic AMPLITUDE and TIME refinements in `find_extrema`
-(round-14 removed the time half alone, all-green), and
-(c) the amplitude floors (`1e-3` in `find_peaks`, `1e-6·hmax` in
-`half_spans`, `1e-9·m` in `t_half_exp`) and the `abs` in `sig_absmax` — rounds 9-10 removed all four
-all-green on clean synthetics. Removing any of these moves clean-signal
-errors 10–50× but keeps them ≤ 0.03%, far under any honest tolerance.
-All earn their keep on noisy signals, which enter the grid at rung 1; pin
-them then with noise rows rather than pretending a clean-signal tolerance
-can see them.
+(b) the parabolic AMPLITUDE refinement in `find_extrema` (the TIME half
+graduated to PINNED with the round-18 extrema rewrite — its removal now
+reds the 0.1% peaks rows; round-14 had measured it unpinnable under the
+old estimator),
+(c) the `1e-6·hmax` floor in `half_spans` and the `abs` in `sig_absmax`
+(the old `find_peaks` 1e-3 floor left with the round-18 rewrite; the
+`t_half_exp` 1e-9 floor graduated to pinned in round 15), and
+(d) `detrend` on the DFT path (round-19: gutting it stays within 0.07%
+even at dc=100 — the Hann window concentrates the offset in bins 0–2 and
+local-max picking ignores it).
+Removing any of these moves clean-signal errors but keeps them far under
+any honest tolerance. All earn their keep on noisy signals, which enter
+the grid at rung 1; pin them then with noise rows rather than pretending a
+clean-signal tolerance can see them.
 
 *Design note bought by measurement (2026-08-23):* the first implementation
 detrended by the window mean and took ratios of positive-peak amplitudes; on
@@ -225,7 +233,8 @@ than returning a garbage number when the signal cannot support the estimate.
 **Every refusal path of every estimator is pinned** (round-2 blind review
 gutted the unpinned ones — `zeta_envelope` and `t_half_exp` — into
 hard-coded answers and the whole suite stayed green): sub-cycle windows for
-the three oscillatory estimators, growing-signal AND zero-signal rows
+the three oscillatory estimators (incl. an exactly-2-extrema row pinning
+the rewritten period estimator's floor from below, round 19), growing-signal AND zero-signal rows
 for the exponential fit and a growing-signal row for the envelope fit
 (rounds 9 and 11 each found one of these paths guttable all-green) (round 9 deleted the envelope's
 "not decaying" branch all-green — the pin list had covered only the
@@ -254,9 +263,9 @@ to work.
 | P4 | synthetic generator detuned: time-dilated so period AND decay rates are +5% vs declared truth (ζ preserved) | M1: all checks, both estimators; all six M2 t½ checks; M2.logdec.minspans through the refusal arm (the dilated window drops below 3 extrema) |
 | P5 | the ζ result is replaced by a constant 0.05 after the estimator runs (validates the comparator; estimator-wiring faults are covered by the mutation requirement below) | M2 ζ checks (all grid ζ values are >5% away from 0.05 by construction) |
 | P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A31/A32/A33), L3, L4 phugoid/sp |
-| P7 | every refusal result forced to ok=1 before its check | all 12 M3 refusal checks, nothing else |
-| P8 | every dataset input poisoned (nonzero values scaled, zeros made nonzero, inertias scaled unevenly, θ₀ tilted, unit-check root lists scaled) | every data-derived check — 135 of 179 (the synthetic unit dataset and the CU/stability unit inputs are poisoned too) — leaving green only the pub-literal solver/exact checks (P2/P3's territory) and the structural constants |
-| P10 | every DFT result forced into a refusal before its check | the 16 M1.dft checks, red THROUGH the refusal arm of `check_result` — which round-8 review gutted to print PASS with nothing noticing (no clean run or plant had ever driven a refusal through it) |
+| P7 | every refusal result forced to ok=1 before its check | all 13 M3 refusal checks, nothing else |
+| P8 | every dataset input poisoned (nonzero values scaled, zeros made nonzero, inertias scaled unevenly, θ₀ tilted, unit-check root lists scaled) | every data-derived check — 136 of 180 (the synthetic unit dataset and the CU/stability unit inputs are poisoned too) — leaving green only the pub-literal solver/exact checks (P2/P3's territory) and the structural constants |
+| P10 | every DFT result forced into a refusal before its check | the 17 M1.dft checks, red THROUGH the refusal arm of `check_result` — which round-8 review gutted to print PASS with nothing noticing (no clean run or plant had ever driven a refusal through it) |
 | P11 | `comparator_check.eigs p11`: the `expect()` helper fed two deliberately-wrong pairs | both must FAIL — round-10 review gutted `expect()` to a tautology and every gate stayed green; with it vacuous, a 2× rel-tolerance widening in checklib slipped every remaining gate |
 | P9 | every solver root nudged by 3·10⁻⁸ before the exact-arm checks, putting residual/Vieta errors inside (10⁻¹⁰, 10⁻⁶) — a band no natural run produces (DK residuals jump ~10⁻⁶ → ~10⁻¹¹ between iterations 5 and 6) | exactly the 12 L4.exact checks; a call-site tolerance widened to 10⁻⁶ turns this plant green and is caught |
 
@@ -289,7 +298,7 @@ Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 180 checks; `measure_check.eigs` exactly 72;
+`modes_check.eigs` runs exactly 180 checks; `measure_check.eigs` exactly 73;
 `comparator_check.eigs` exactly 13. Check *identities* are pinned by the
 manifest rule above. The residual/Vieta "exact" tolerance is a named
 constant in `tests/checklib.eigs` (`exact_tol`), value-pinned by the
