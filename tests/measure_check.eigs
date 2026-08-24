@@ -6,7 +6,7 @@
 # p7 (every refusal result forced to ok=1), or p10 (every DFT result
 # forced into a refusal, exercising the refusal arm of check_result).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 69.
+# failure; the check population is pinned at exactly 72.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -83,7 +83,10 @@ if plant == "p4":
 # conversion delta/sqrt(4pi^2+delta^2): round-5 review gutted it to the
 # small-angle delta/2pi (+4.83% at zeta=0.30) and the old 5% rows let it
 # through; measured estimator error is <= 0.013%, so 0.5% has 38x margin.
-cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.005, 0.001], ["z30_phi15", 0.30, 1.0, 1.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi25", 0.30, 1.0, 2.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi50", 0.30, 1.0, 5.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_4cyc", 0.107, 0.7477, 0.0, 0.0, 0.2, 170, 0.01, 0.005, 0.001], ["dr_bin3", 0.107, 0.7477, 0.0, 0.0, 0.2, 140, 0.01, 0.005, 0.001], ["dr_dcneg", 0.107, 0.7477, 0.0, 0.0 - 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n50", 0.107, 0.7477, 0.0, 0.0, 0.56, 50, 0.01, 0.005, 0.001]]
+cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.005, 0.001], ["z30_phi15", 0.30, 1.0, 1.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi25", 0.30, 1.0, 2.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi50", 0.30, 1.0, 5.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_4cyc", 0.107, 0.7477, 0.0, 0.0, 0.2, 170, 0.01, 0.005, 0.001], ["dr_bin3", 0.107, 0.7477, 0.0, 0.0, 0.2, 140, 0.01, 0.005, 0.001], ["dr_dcneg", 0.107, 0.7477, 0.0, 0.0 - 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n50", 0.107, 0.7477, 0.0, 0.0, 0.56, 50, 0.01, 0.005, 0.001], ["z30_phi60", 0.30, 1.0, 6.0, 0.0, 0.1, 210, 0.02, 0.005, 0.001]]
+# z30_phi60 is the round-18 false-refusal corner (phi near 2pi, 3.2-4.6
+# cycles at zeta=0.30): the old positive-peaks period estimator refused it
+# outright; the extrema-spacing rewrite must answer it within tolerance.
 # dr_n50 (50 samples, 3.31 cycles at coarse dt) pins the period_dft
 # length floor against RAISING: round-15 drifted n<8 to n<100 all-green
 # because every accepting row had hundreds of samples. (Lowering the
@@ -93,8 +96,9 @@ cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], [
 # boundary AT the declared constant: round-8 review drifted 3 -> 4 and the
 # dr_4cyc row (bin 4) could not see it. dr_dcneg pins detrending for a
 # NEGATIVE baseline: round-8 gutted detrend to identity and the dc=+2 row
-# stayed green (the positive amplitude floor in find_peaks tolerates a
-# positive offset without detrending; a negative one it does not).
+# stayed green. (Historical: the mechanism involved the old positive-peaks
+# period estimator, replaced in round 18 by baseline-free extrema spacing;
+# the row stays as DC coverage for the DFT path, which still detrends.)
 # The dr_4cyc row (4.02 cycles in window) pins the DFT acceptance boundary
 # from ABOVE: round-7 review drifted the 3-cycle refusal constant to 5 and
 # every check stayed green — the refusal rows pin only the downward drift,
@@ -237,8 +241,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 69:
-    print of f"FAIL harness: expected exactly 69 checks, ran {checks_run}"
+if checks_run != 72:
+    print of f"FAIL harness: expected exactly 72 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

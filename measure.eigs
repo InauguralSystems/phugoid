@@ -29,41 +29,25 @@ define sig_absmax(signal) as:
             m is a
     return m
 
-# Local maxima of `signal` strictly above both neighbors, with parabolic
-# refinement of time and amplitude. Returns list of [t, amp]. Only peaks
-# with amp >= floor_frac * max|signal| count as usable.
-define find_peaks(signal, dt, floor_frac) as:
-    local out is []
-    local floor_amp is floor_frac * (sig_absmax of (signal))
-    local n is len of signal
-    for i in range of n:
-        if i >= 1 and i < n - 1:
-            local y0 is signal[i - 1]
-            local y1 is signal[i]
-            local y2 is signal[i + 1]
-            if y1 > y0 and y1 > y2 and y1 >= floor_amp:
-                local denom is y0 - 2.0 * y1 + y2
-                local off is 0.0
-                if (abs of denom) > 1e-300:
-                    off is 0.5 * (y0 - y2) / denom
-                local tpk is (i + off) * dt
-                local apk is y1 - 0.25 * (y0 - y2) * off
-                append of [out, [tpk, apk]]
-    return out
-
-# Period from mean spacing of successive positive peaks of the detrended
-# signal. Refuses with fewer than 2 usable peaks.
+# Period from mean spacing of successive EXTREMA (exactly T/2 apart for a
+# damped sinusoid), parabolic-refined, baseline-free. Round-18 review
+# demonstrated the old positive-peaks-of-detrended design falsely REFUSING
+# inside the written 2% claim (zeta=0.30, phi near 2pi, 3.2-4.6-cycle
+# windows): the envelope mean that detrend subtracts pushed every decayed
+# later peak below the 1e-3 amplitude floor, leaving one usable peak — the
+# same baseline mechanism that bit the damping estimators in round 1, cured
+# the same way (difference both-sign extrema of the RAW signal).
+# Refuses with fewer than 3 extrema (i.e. fewer than 2 half-period gaps).
 define period_peaks(signal, dt) as:
-    local d is detrend of (signal)
-    local pks is find_peaks of [d, dt, 1e-3]
-    if (len of pks) < 2:
-        return {"ok": 0, "reason": "fewer than 2 usable peaks"}
+    local ex is find_extrema of [signal, dt]
+    if (len of ex) < 3:
+        return {"ok": 0, "reason": "fewer than 3 extrema"}
     local total is 0.0
     local count is 0
-    for i in range of ((len of pks) - 1):
-        total is total + pks[i + 1][0] - pks[i][0]
+    for i in range of ((len of ex) - 1):
+        total is total + ex[i + 1][0] - ex[i][0]
         count is count + 1
-    return {"ok": 1, "T": total / count, "n_peaks": len of pks}
+    return {"ok": 1, "T": 2.0 * total / count, "n_extrema": len of ex}
 
 # Period from the DFT magnitude peak with parabolic sub-bin interpolation
 # on log-magnitude. Refuses when no resolvable spectral peak sits at 3+

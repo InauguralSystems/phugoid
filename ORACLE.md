@@ -140,7 +140,13 @@ t½_roll=0.563 s, t½_spiral=14.93 s. Same per-value rule.
 
 ### M1 — period estimators on synthetic signals
 
-Two independent estimators (peak-spacing with parabolic refinement;
+Two independent estimators (extrema-spacing with parabolic refinement —
+round 18 replaced positive-peaks-of-detrended after demonstrating a false
+REFUSAL inside the 2% claim at ζ=0.30, φ near 2π, 3.2–4.6-cycle windows:
+the envelope mean that detrend subtracts pushed decayed peaks under the
+amplitude floor; extrema of the raw signal are baseline-free, the same
+cure the damping estimators got in round 1, and the failing corner is now
+grid row z30_phi60;
 Hann-windowed DFT with the peak taken as the largest LOCAL spectral maximum,
 sub-bin interpolated, via `lib/engineering.dft`) on synthetic damped
 sinusoids `e^(−ζωn t)·cos(ωd t + φ)` with known truth, over a grid covering
@@ -283,7 +289,7 @@ Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 179 checks; `measure_check.eigs` exactly 69;
+`modes_check.eigs` runs exactly 180 checks; `measure_check.eigs` exactly 72;
 `comparator_check.eigs` exactly 13. Check *identities* are pinned by the
 manifest rule above. The residual/Vieta "exact" tolerance is a named
 constant in `tests/checklib.eigs` (`exact_tol`), value-pinned by the

@@ -428,6 +428,10 @@ check_tight of ["L5.unit.osc_neg_zeta", u_st.osc[0].zeta, 0.0 - 0.01999600119960
 u_osc is modes_of of ([[(0.0 - 0.5) * unit_scale, 0.7 * unit_scale], [(0.0 - 0.5) * unit_scale, (0.0 - 0.7) * unit_scale], [(0.0 - 0.002) * unit_scale, 0.13 * unit_scale], [(0.0 - 0.002) * unit_scale, (0.0 - 0.13) * unit_scale]])
 check_abs of ["L5.unit.osc_sorted_low", u_osc.osc[0].im, 0.13, 1e-12]
 check_abs of ["L5.unit.osc_sorted_high", u_osc.osc[1].im, 0.7, 1e-12]
+# The STABLE-oscillatory t_half quadrant — round-18 gutted the osc-branch
+# t_half to a constant and only L5.dr.nhalf (0.0015-rel) consumed it; the
+# four stability-contract checks covered 3 of 4 quadrants.
+check_tight of ["L5.unit.osc_stable_thalf", u_osc.osc[0].t_half, 346.5735902799726]
 u_re is modes_of of ([[(0.0 - 1.2) * unit_scale, 0.0], [(0.0 - 0.05) * unit_scale, 0.0]])
 # wn/im-DISCORDANT pairs: wn order (0.61, 2.06) disagrees with im order
 # (0.6, 0.5) — round-14 mutated the sort key wn -> im and every existing
@@ -442,8 +446,8 @@ check_abs of ["L5.unit.reals_sorted_high", u_re.reals[1].re, 0.0 - 1.2, 1e-12]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 179:
-    print of f"FAIL harness: expected exactly 179 checks, ran {checks_run}"
+if checks_run != 180:
+    print of f"FAIL harness: expected exactly 180 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1
