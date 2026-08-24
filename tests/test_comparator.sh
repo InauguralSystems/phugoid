@@ -20,6 +20,6 @@ if ! "$EIGS" tests/comparator_check.eigs > "$OUT" 2>&1; then
     tail -3 "$OUT"
     exit 1
 fi
-grep -q '^CHECKS_RUN 13$' "$OUT" || { echo "FAIL: check population not 13"; tail -3 "$OUT"; exit 1; }
+grep -q '^CHECKS_RUN 15$' "$OUT" || { echo "FAIL: check population not 15"; tail -3 "$OUT"; exit 1; }
 grep -q '^FAILURES 0$' "$OUT" || { echo "FAIL: failures reported"; grep '^FAIL' "$OUT"; exit 1; }
-echo "PASS: 13/13 comparator boundary checks green"
+echo "PASS: 15/15 comparator boundary checks green"

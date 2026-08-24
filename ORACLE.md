@@ -233,8 +233,9 @@ than returning a garbage number when the signal cannot support the estimate.
 **Every refusal path of every estimator is pinned** (round-2 blind review
 gutted the unpinned ones — `zeta_envelope` and `t_half_exp` — into
 hard-coded answers and the whole suite stayed green): sub-cycle windows for
-the three oscillatory estimators (incl. an exactly-2-extrema row pinning
-the rewritten period estimator's floor from below, round 19), growing-signal AND zero-signal rows
+the three oscillatory estimators (incl. exactly-2-extrema refusal and exactly-3-extrema acceptance rows
+pinning the rewritten period estimator's floor from both sides, rounds
+19-20, and an n=9 three-cycle row pinning the DFT length guard at <=9), growing-signal AND zero-signal rows
 for the exponential fit and a growing-signal row for the envelope fit
 (rounds 9 and 11 each found one of these paths guttable all-green) (round 9 deleted the envelope's
 "not decaying" branch all-green — the pin list had covered only the
@@ -265,7 +266,7 @@ to work.
 | P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A31/A32/A33), L3, L4 phugoid/sp |
 | P7 | every refusal result forced to ok=1 before its check | all 13 M3 refusal checks, nothing else |
 | P8 | every dataset input poisoned (nonzero values scaled, zeros made nonzero, inertias scaled unevenly, θ₀ tilted, unit-check root lists scaled) | every data-derived check — 136 of 180 (the synthetic unit dataset and the CU/stability unit inputs are poisoned too) — leaving green only the pub-literal solver/exact checks (P2/P3's territory) and the structural constants |
-| P10 | every DFT result forced into a refusal before its check | the 17 M1.dft checks, red THROUGH the refusal arm of `check_result` — which round-8 review gutted to print PASS with nothing noticing (no clean run or plant had ever driven a refusal through it) |
+| P10 | every DFT result forced into a refusal before its check | the 18 M1.dft checks, red THROUGH the refusal arm of `check_result` — which round-8 review gutted to print PASS with nothing noticing (no clean run or plant had ever driven a refusal through it) |
 | P11 | `comparator_check.eigs p11`: the `expect()` helper fed two deliberately-wrong pairs | both must FAIL — round-10 review gutted `expect()` to a tautology and every gate stayed green; with it vacuous, a 2× rel-tolerance widening in checklib slipped every remaining gate |
 | P9 | every solver root nudged by 3·10⁻⁸ before the exact-arm checks, putting residual/Vieta errors inside (10⁻¹⁰, 10⁻⁶) — a band no natural run produces (DK residuals jump ~10⁻⁶ → ~10⁻¹¹ between iterations 5 and 6) | exactly the 12 L4.exact checks; a call-site tolerance widened to 10⁻⁶ turns this plant green and is caught |
 
@@ -284,7 +285,12 @@ name and count intact, so `comparator_check`'s table-driven probes emit a
 full `spec=kind|ours|ref|param|want` token (round-13 flipped a probe's ARM
 to a tautology while the argument token stayed intact — the kind is data
 too), identity-checked as class
-`selftest`), and `test_planted.sh` enforces (a) the unplanted
+`selftest`; round-20 extended the same rule to the estimator GRID — each
+row emits a `params=` token of its generator arguments, identity-checked
+as class `rowparams`, after a wholesale row-parameter swap survived under
+an intact name+tolerance — and gave the rel arm a tight-scale probe pair
+after a +1e-6 absolute slack, invisible at the 0.01/0.05 probe scale,
+un-pinned all ~70 1e-9 unit checks), and `test_planted.sh` enforces (a) the unplanted
 name set equals the manifest exactly — identity, not count, because round-4
 review deleted one check and double-counted another under an intact
 population pin; (b) every `plantable` name appears in the red-set union
@@ -298,8 +304,8 @@ Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 180 checks; `measure_check.eigs` exactly 73;
-`comparator_check.eigs` exactly 13. Check *identities* are pinned by the
+`modes_check.eigs` runs exactly 180 checks; `measure_check.eigs` exactly 75;
+`comparator_check.eigs` exactly 15. Check *identities* are pinned by the
 manifest rule above. The residual/Vieta "exact" tolerance is a named
 constant in `tests/checklib.eigs` (`exact_tol`), value-pinned by the
 comparator self-test — round-4 review widened an inline call-site copy

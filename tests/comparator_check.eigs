@@ -2,7 +2,7 @@
 # For every tolerance arm: a value JUST INSIDE must pass and a value JUST
 # OUTSIDE must fail. A widened (or narrowed) tolerance flips one of these.
 # Run from the repo root: eigenscript tests/comparator_check.eigs
-# Population pinned at exactly 13 (15 under plant p11).
+# Population pinned at exactly 15 (17 under plant p11).
 #
 # Run with argument p11 to validate the expect() helper itself: two
 # deliberately-wrong pairs must FAIL (round-10 review gutted expect() to
@@ -52,10 +52,14 @@ define run_probe(name, kind, ours, ref, param, want) as:
         print of f"FAIL {name} spec={kind}|{ours}|{ref}|{param}|{want} got={got}"
 
 # name, kind, ours, ref, param, want
+# The rel.tight pair probes the rel arm at the 1e-9 scale the unit-check
+# families use: round-20 added a +1e-6 ABSOLUTE slack to rel_tol_ok and
+# the 0.01/0.05-scale probes could not see it (it un-pinned all ~70 tight
+# checks, letting a formula fault on a dataset zero back through).
 # The pub.rel pair sits at +-1% of the 0.0015 bound: round-16 measured the
 # old pair (1.0014/1.0016) quantizing the pin to its own spacing — a +6.7%
 # widening of the rel arm slipped through it.
-probes is [["pub.rel.inside", "pub", 1.001485, 1.0, 4, 1], ["pub.rel.outside", "pub", 1.001515, 1.0, 4, 0], ["pub.abs.inside", "pub", 0.01006, 0.01, 4, 1], ["pub.abs.outside", "pub", 0.01008, 0.01, 4, 0], ["pub.abs2.inside", "pub", 0.0069, 0.0, 2, 1], ["pub.abs2.outside", "pub", 0.0071, 0.0, 2, 0], ["rel.1pct.inside", "rel", 10.099, 10.0, 0.01, 1], ["rel.1pct.outside", "rel", 10.101, 10.0, 0.01, 0], ["rel.5pct.inside", "rel", 10.499, 10.0, 0.05, 1], ["rel.5pct.outside", "rel", 10.501, 10.0, 0.05, 0], ["abs.inside", "abs", 0.9e-10, 0.0, 1e-10, 1], ["abs.outside", "abs", 1.1e-10, 0.0, 1e-10, 0]]
+probes is [["pub.rel.inside", "pub", 1.001485, 1.0, 4, 1], ["pub.rel.outside", "pub", 1.001515, 1.0, 4, 0], ["pub.abs.inside", "pub", 0.01006, 0.01, 4, 1], ["pub.abs.outside", "pub", 0.01008, 0.01, 4, 0], ["pub.abs2.inside", "pub", 0.0069, 0.0, 2, 1], ["pub.abs2.outside", "pub", 0.0071, 0.0, 2, 0], ["rel.tight.inside", "rel", 0.0010000000009, 0.001, 1e-9, 1], ["rel.tight.outside", "rel", 0.0010000000015, 0.001, 1e-9, 0], ["rel.1pct.inside", "rel", 10.099, 10.0, 0.01, 1], ["rel.1pct.outside", "rel", 10.101, 10.0, 0.01, 0], ["rel.5pct.inside", "rel", 10.499, 10.0, 0.05, 1], ["rel.5pct.outside", "rel", 10.501, 10.0, 0.05, 0], ["abs.inside", "abs", 0.9e-10, 0.0, 1e-10, 1], ["abs.outside", "abs", 1.1e-10, 0.0, 1e-10, 0]]
 
 for pr in probes:
     run_probe of [pr[0], pr[1], pr[2], pr[3], pr[4], pr[5]]
@@ -68,9 +72,9 @@ if plant == "p11":
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-expected_n is 13
+expected_n is 15
 if plant == "p11":
-    expected_n is 15
+    expected_n is 17
 if checks_run != expected_n:
     print of f"FAIL harness: expected exactly {expected_n} checks, ran {checks_run}"
     exit of 1

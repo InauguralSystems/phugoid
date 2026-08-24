@@ -208,6 +208,7 @@ measure M1.dft.dr_phase1 plantable reltol=0.01
 measure M1.dft.dr_phi2 plantable reltol=0.01
 measure M1.dft.dr_phi45 plantable reltol=0.01
 measure M1.dft.mid_z30 plantable reltol=0.02
+measure M1.dft.n9 plantable reltol=0.01
 measure M1.dft.ph_phase0 plantable reltol=0.01
 measure M1.dft.ph_phase1 plantable reltol=0.01
 measure M1.dft.z30_phi15 plantable reltol=0.02
@@ -225,6 +226,7 @@ measure M1.peaks.dr_phase1 plantable reltol=0.001
 measure M1.peaks.dr_phi2 plantable reltol=0.001
 measure M1.peaks.dr_phi45 plantable reltol=0.001
 measure M1.peaks.mid_z30 plantable reltol=0.001
+measure M1.peaks.min3extrema plantable reltol=0.001
 measure M1.peaks.ph_phase0 plantable reltol=0.001
 measure M1.peaks.ph_phase1 plantable reltol=0.001
 measure M1.peaks.z30_phi15 plantable reltol=0.001
@@ -270,6 +272,23 @@ measure M3.refuse.thalf_growing plantable refusal
 measure M3.refuse.thalf_seven plantable refusal
 measure M3.refuse.thalf_short plantable refusal
 measure M3.refuse.thalf_zero plantable refusal
+rowparams dr_4cyc params=0.107|0.7477|0|0|0.2|170|0.01|0.005|0.001
+rowparams dr_bin3 params=0.107|0.7477|0|0|0.2|140|0.01|0.005|0.001
+rowparams dr_dcneg params=0.107|0.7477|0|-2|0.2|430|0.01|0.005|0.001
+rowparams dr_dc params=0.107|0.7477|0|2|0.2|430|0.01|0.005|0.001
+rowparams dr_n360 params=0.107|0.7477|0|0|0.2|360|0.01|0.005|0.001
+rowparams dr_n50 params=0.107|0.7477|0|0|0.56|50|0.01|0.005|0.001
+rowparams dr_phase0 params=0.107|0.7477|0|0|0.2|430|0.01|0.005|0.001
+rowparams dr_phase1 params=0.107|0.7477|1|0|0.2|430|0.01|0.005|0.001
+rowparams dr_phi2 params=0.107|0.7477|2|0|0.2|430|0.01|0.005|0.001
+rowparams dr_phi45 params=0.107|0.7477|4.5|0|0.2|430|0.01|0.005|0.001
+rowparams mid_z30 params=0.3|1|0|0|0.1|400|0.02|0.005|0.001
+rowparams ph_phase0 params=0.013|0.134|0|0|1|470|0.01|0.005|0.001
+rowparams ph_phase1 params=0.013|0.134|1|0|1|470|0.01|0.005|0.001
+rowparams z30_phi15 params=0.3|1|1.5|0|0.1|400|0.02|0.005|0.001
+rowparams z30_phi25 params=0.3|1|2.5|0|0.1|400|0.02|0.005|0.001
+rowparams z30_phi50 params=0.3|1|5|0|0.1|400|0.02|0.005|0.001
+rowparams z30_phi60 params=0.3|1|6|0|0.1|210|0.02|0.005|0.001
 comparator abs.exact_tol_pinned selftest expectok
 comparator abs.inside selftest spec=abs|9e-11|0|1e-10|1
 comparator abs.outside selftest spec=abs|1.1e-10|0|1e-10|0
@@ -283,3 +302,5 @@ comparator rel.1pct.inside selftest spec=rel|10.099|10|0.01|1
 comparator rel.1pct.outside selftest spec=rel|10.101|10|0.01|0
 comparator rel.5pct.inside selftest spec=rel|10.499|10|0.05|1
 comparator rel.5pct.outside selftest spec=rel|10.501|10|0.05|0
+comparator rel.tight.inside selftest spec=rel|0.0010000000009|0.001|1e-09|1
+comparator rel.tight.outside selftest spec=rel|0.0010000000015|0.001|1e-09|0

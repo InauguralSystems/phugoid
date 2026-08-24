@@ -92,12 +92,12 @@ expect_red 'L2\.lon\.a31 ' 'L2\.lon\.a32 ' 'L2\.lon\.a33 ' 'L3\.lon\.' 'L4\.chai
 expect_green 'L1\.' '\.lat\.' 'L4\.(solver|exact)\.' 'L5\.unit\.'
 echo "PASS: P6 red pattern exact"
 
-echo "--- P4: generator time-dilated +5% -> all period + t_half checks red (41, incl. minspans through the refusal arm: the dilated window drops below 3 extrema), damping green ---"
+echo "--- P4: generator time-dilated +5% -> all period + t_half checks red (42, incl. minspans through the refusal arm: the dilated window drops below 3 extrema), damping green ---"
 run_plant measure_check.eigs p4
-expect_population 73
-expect_total_fails 41
+expect_population 75
+expect_total_fails 42
 expect_red 'M1\.peaks\.' 'M1\.dft\.' 'M2\.thalf\.roll' 'M2\.thalf\.spiral'
-[ "$(grep -c '^FAIL M1\.peaks\.' "$OUT")" -eq 17 ] || { echo "FAIL: P4 peaks count != 17"; exit 1; }
+[ "$(grep -c '^FAIL M1\.peaks\.' "$OUT")" -eq 18 ] || { echo "FAIL: P4 peaks count != 18"; exit 1; }
 [ "$(grep -c '^FAIL M1\.dft\.' "$OUT")" -eq 17 ] || { echo "FAIL: P4 dft count != 17"; exit 1; }
 expect_green 'M2\.envelope\.' 'M3\.'
 [ "$(grep -c '^FAIL M2\.logdec\.' "$OUT")" -eq 1 ] || { echo "FAIL: P4 logdec reds != 1 (only minspans should)"; exit 1; }
@@ -105,7 +105,7 @@ echo "PASS: P4 red pattern exact"
 
 echo "--- P5: damping estimate replaced by constant 0.05 -> all zeta checks red (19) ---"
 run_plant measure_check.eigs p5
-expect_population 73
+expect_population 75
 expect_total_fails 19
 expect_red 'M2\.logdec\.' 'M2\.envelope\.heavy '
 [ "$(grep -c '^FAIL M2\.logdec\.' "$OUT")" -eq 17 ] || { echo "FAIL: P5 logdec count != 17"; exit 1; }
@@ -114,7 +114,7 @@ echo "PASS: P5 red pattern exact"
 
 echo "--- P7: refusal results forced to ok=1 -> all 13 M3 checks red, rest green ---"
 run_plant measure_check.eigs p7
-expect_population 73
+expect_population 75
 expect_total_fails 13
 expect_red 'M3\.refuse\.peaks_2extrema ' 'M3\.refuse\.envelope_2spans ' 'M3\.refuse\.thalf_seven ' 'M3\.refuse\.thalf_zero ' 'M3\.refuse\.peaks ' 'M3\.refuse\.dft ' 'M3\.refuse\.logdec ' 'M3\.refuse\.dft_2cycles ' 'M3\.refuse\.dft_short ' 'M3\.refuse\.envelope ' 'M3\.refuse\.envelope_growing ' 'M3\.refuse\.thalf_short ' 'M3\.refuse\.thalf_growing '
 expect_green 'M1\.' 'M2\.'
@@ -136,18 +136,18 @@ expect_red 'L4\.exact\.lon\.resid' 'L4\.exact\.lon\.vieta' 'L4\.exact\.lat\.resi
 expect_green 'L[1235]\.' 'L4\.chain\.' 'L4\.solver\.'
 echo "PASS: P9 red pattern exact"
 
-echo "--- P10: every DFT result forced into a refusal -> the 17 dft checks red via the refusal arm ---"
+echo "--- P10: every DFT result forced into a refusal -> the 18 dft checks red via the refusal arm ---"
 run_plant measure_check.eigs p10
-expect_population 73
-expect_total_fails 17
+expect_population 75
+expect_total_fails 18
 expect_red 'M1\.dft\.'
-[ "$(grep -c '^FAIL M1\.dft\.' "$OUT")" -eq 17 ] || { echo "FAIL: P10 dft count != 17"; exit 1; }
+[ "$(grep -c '^FAIL M1\.dft\.' "$OUT")" -eq 18 ] || { echo "FAIL: P10 dft count != 18"; exit 1; }
 expect_green 'M1\.peaks\.' 'M2\.' 'M3\.'
 echo "PASS: P10 red pattern exact"
 
 echo "--- P11: expect() fed two deliberately-wrong pairs -> both must FAIL ---"
 run_plant comparator_check.eigs p11
-expect_population 15
+expect_population 17
 expect_total_fails 2
 expect_red 'cal\.must_fail_ne ' 'cal\.must_fail_zero '
 expect_green 'pub\.' 'rel\.' 'abs\.'
@@ -170,6 +170,11 @@ grep -E '^(PASS|FAIL) ' "$WORK/clean_modes" | awk '{print $2, $3}' | sort > "$WO
 grep -E '^(PASS|FAIL) ' "$WORK/clean_measure" | awk '{print $2, $3}' | sort > "$WORK/names_measure"
 grep '^modes ' tests/check_manifest.txt | awk '{print $2, $4}' | sort > "$WORK/man_modes"
 grep '^measure ' tests/check_manifest.txt | awk '{print $2, $4}' | sort > "$WORK/man_measure"
+# Grid-row generator parameters are identity-checked too (round-20 swapped
+# a corner row's parameters wholesale under an intact name+tolerance).
+grep '^ROW ' "$WORK/clean_measure" | awk '{print $2, $3}' | sort > "$WORK/rows_measure"
+grep '^rowparams ' tests/check_manifest.txt | awk '{print $2, $3}' | sort > "$WORK/man_rows"
+diff -u "$WORK/man_rows" "$WORK/rows_measure" > /dev/null || { echo "FAIL: grid-row parameter set drifted from manifest"; diff "$WORK/man_rows" "$WORK/rows_measure" || true; exit 1; }
 diff -u "$WORK/man_modes" "$WORK/names_modes" > /dev/null || { echo "FAIL: modes check-name set drifted from manifest"; diff "$WORK/man_modes" "$WORK/names_modes" || true; exit 1; }
 diff -u "$WORK/man_measure" "$WORK/names_measure" > /dev/null || { echo "FAIL: measure check-name set drifted from manifest"; diff "$WORK/man_measure" "$WORK/names_measure" || true; exit 1; }
 sort -u "$WORK/red_modes_check" > "$WORK/redu_modes" 2>/dev/null || : > "$WORK/redu_modes"

@@ -6,7 +6,7 @@
 # p7 (every refusal result forced to ok=1), or p10 (every DFT result
 # forced into a refusal, exercising the refusal arm of check_result).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 73.
+# failure; the check population is pinned at exactly 75.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -28,7 +28,7 @@ define check_rel(name, ours, truth, reltol) as:
         failures is failures + 1
         print of f"FAIL {name} reltol={reltol} ours={ours} truth={truth}"
 
-# Plant p7 forces every refusal result to ok=1 — it must redden all twelve
+# Plant p7 forces every refusal result to ok=1 — it must redden all thirteen
 # M3 checks and nothing else (round-3 review gutted check_refused itself
 # and the suite stayed green; now the planted matrix exercises it).
 define force_ok_if_p7(res) as:
@@ -115,6 +115,10 @@ cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], [
 unobserved:
     for c in cases:
         local name is c[0]
+        # Grid-row parameters are identity-checked data (round-20 swapped a
+        # corner row's generator arguments wholesale and nothing noticed —
+        # round-12's comparator lesson, carried to the grid table).
+        print of f"ROW {name} params={c[1]}|{c[2]}|{c[3]}|{c[4]}|{c[5]}|{c[6]}|{c[7]}|{c[8]}|{c[9]}"
         local zeta is c[1]
         local wn is c[2]
         local sig is gen_osc of [zeta, wn, c[3], c[4], c[5], c[6], detune]
@@ -207,6 +211,22 @@ unobserved:
     # the mutant then ANSWERED a sub-cycle window.
     local two_ex is gen_osc of [0.107, 0.7477, 2.0, 0.0, 0.2, 34, 1.0]
     check_refused of ["M3.refuse.peaks_2extrema", force_ok_if_p7 of (period_peaks of [two_ex, 0.2])]
+    # EXACTLY 3 extrema, must ANSWER (round-20 raised the floor to 6
+    # all-green: accepting rows all had 6+ extrema) — with the 2-extrema
+    # refusal above, the 3-extrema floor is pinned from both sides.
+    local rp3 is period_peaks of [span2, 0.2]
+    check_result of ["M1.peaks.min3extrema", rp3, "T", 2.0 * (pi of null) / (0.7477 * (sqrt of (1.0 - 0.107 * 0.107))), 0.001]
+    # n=9, exactly 3 cycles, must ANSWER (round-20 raised the n<8 length
+    # guard to 49 all-green: the nearest accepting row had n=50) — pins the
+    # length guard at <=9; between 8 and 9 the kbest>=3 spectral floor is
+    # the effective boundary anyway.
+    local sig9 is []
+    for i in range of 9:
+        append of [sig9, (exp of (0.0 - 0.02 * i)) * (cos of (2.0 * (pi of null) * i / 3.0))]
+    local r9 is period_dft of [sig9, 1.0]
+    if plant == "p10":
+        r9 is {"ok": 0, "reason": "planted refusal"}
+    check_result of ["M1.dft.n9", r9, "T", 3.0, 0.01]
     check_refused of ["M3.refuse.dft", force_ok_if_p7 of (period_dft of [shortsig, 0.2])]
     check_refused of ["M3.refuse.logdec", force_ok_if_p7 of (zeta_logdec of [shortsig, 0.2])]
     # The DFT's declared 3-cycle boundary itself: ~2.5 cycles must refuse.
@@ -247,8 +267,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 73:
-    print of f"FAIL harness: expected exactly 73 checks, ran {checks_run}"
+if checks_run != 75:
+    print of f"FAIL harness: expected exactly 75 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1
