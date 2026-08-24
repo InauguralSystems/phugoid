@@ -138,9 +138,15 @@ baseline shift. After the change the grid measures ζ to better than 0.01%.
 
 ### M3 — estimator honesty
 
-Estimators must REFUSE (return a sentinel, distinct from a number) when the
-signal has fewer than 2 usable peaks / fewer than 3 cycles for the DFT path,
-rather than returning a garbage number. Checked with a truncated signal.
+Estimators must REFUSE (return a sentinel, distinct from a number) rather
+than returning a garbage number when the signal cannot support the estimate.
+**Every refusal path of every estimator is pinned** (round-2 blind review
+gutted the unpinned ones — `zeta_envelope` and `t_half_exp` — into
+hard-coded answers and the whole suite stayed green): sub-cycle windows for
+the three oscillatory estimators, the DFT's declared 3-cycle boundary
+(~2.5 cycles must refuse — pinning the boundary constant itself) and its
+minimum-length path, the envelope fit on a truncated heavy-damping window,
+and the exponential fit on both a too-short and a growing signal.
 
 ## Planted-fault matrix — validates the checkers, not the code
 
@@ -162,11 +168,21 @@ Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 101 checks; `measure_check.eigs` exactly 33.
+`modes_check.eigs` runs exactly 101 checks; `measure_check.eigs` exactly 38;
+`comparator_check.eigs` exactly 12.
+
+The comparator tolerances themselves live in one place
+(`tests/checklib.eigs`) and are boundary-self-tested by
+`tests/comparator_check.eigs` with just-inside/just-outside pairs on every
+arm — because round-2 blind review widened an inline tolerance 10× and the
+entire suite, planted matrix included, stayed green. The peak-spacing checks
+run at 0.1% (against the estimator's 1% guarantee) to pin the parabolic
+refinement, whose removal was measured at +0.33% error.
+
 Blind-review rounds are additionally expected to mutation-test the checkers
-themselves (perturb a published value, gut an estimator, widen a tolerance —
-in a copy) and treat any mutation the suite survives as a top-severity
-finding.
+themselves (perturb a published value, gut an estimator or a refusal path,
+widen a tolerance — in a copy) and treat any mutation the suite survives as
+a top-severity finding.
 
 ## Exit gate for rung 0
 

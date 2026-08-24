@@ -1,0 +1,28 @@
+# checklib.eigs — the comparator cores shared by the check programs.
+# Extracted to a single site and boundary-self-tested by
+# tests/comparator_check.eigs because round-2 blind review demonstrated a
+# 10x tolerance widening (0.0015 -> 0.015 inline in modes_check) surviving
+# the entire suite including the planted-fault matrix: the checkers' own
+# discriminating power was unpinned. Any change to these tolerances now has
+# to survive the self-test's just-inside/just-outside pairs.
+
+# The published-value rule (ORACLE.md): with d printed decimal places,
+# pass iff |ours - printed| <= 0.7*10^-d  OR  <= 0.0015*|printed|.
+define pub_tol_ok(ours, printed, decimals) as:
+    local tol is 0.7 * (pow of [10.0, 0.0 - decimals])
+    local diff is abs of (ours - printed)
+    if diff <= tol:
+        return 1
+    if diff <= 0.0015 * (abs of printed):
+        return 1
+    return 0
+
+define rel_tol_ok(ours, truth, reltol) as:
+    if (abs of (ours - truth)) <= reltol * (abs of truth):
+        return 1
+    return 0
+
+define abs_tol_ok(ours, printed, abstol) as:
+    if (abs of (ours - printed)) <= abstol:
+        return 1
+    return 0

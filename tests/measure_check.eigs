@@ -4,9 +4,10 @@
 # where plant is p4 (generator detuned +5% in period vs declared truth) or
 # p5 (damping estimate replaced by a constant 0.05).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 33.
+# failure; the check population is pinned at exactly 38.
 
 load_file of "measure.eigs"
+load_file of "tests/checklib.eigs"
 
 cli is args of null
 plant is ""
@@ -16,10 +17,10 @@ if (len of cli) > 0:
 checks_run is 0
 failures is 0
 
+# Comparator core lives in tests/checklib.eigs (boundary-self-tested).
 define check_rel(name, ours, truth, reltol) as:
     checks_run is checks_run + 1
-    local diff is abs of (ours - truth)
-    if diff <= reltol * (abs of truth):
+    if (rel_tol_ok of [ours, truth, reltol]) == 1:
         print of f"PASS {name} ours={ours} truth={truth}"
     else:
         failures is failures + 1
@@ -63,8 +64,12 @@ detune is 1.0
 if plant == "p4":
     detune is 1.05
 
-# name, zeta, wn, phi, dc, dt, n, T_reltol, zeta_reltol
-cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.05], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.05], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.05], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.05], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.05], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.05], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.05], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.05], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.05]]
+# name, zeta, wn, phi, dc, dt, n, dft_T_reltol, zeta_reltol, peaks_T_reltol
+# The peaks tolerance (0.1%) is deliberately tighter than the estimator's
+# 1% guarantee: it pins the parabolic peak refinement, whose removal was
+# measured at +0.33% error (round-2 review found the 1% checks let that
+# mutation survive) while the refined estimator measures <= 0.043%.
+cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.05, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.05, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.05, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.05, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.05, 0.001]]
 # The dr_phi2/dr_phi45/dr_n360 rows exist because round-1 blind review
 # demonstrated the unwindowed DFT breaking its 1% claim exactly at off-grid
 # phases and window lengths — the grid now covers the space the claim spans.
@@ -78,7 +83,7 @@ unobserved:
         local t_true is 2.0 * (pi of null) / (wn * (sqrt of (1.0 - zeta * zeta)))
         local dt is c[5]
         local rp is period_peaks of [sig, dt]
-        check_result of [f"M1.peaks.{name}", rp, "T", t_true, c[7]]
+        check_result of [f"M1.peaks.{name}", rp, "T", t_true, c[9]]
         local rd is period_dft of [sig, dt]
         check_result of [f"M1.dft.{name}", rd, "T", t_true, c[7]]
         local rz is zeta_logdec of [sig, dt]
@@ -101,17 +106,32 @@ unobserved:
     local r2 is t_half_exp of [spiral_sig, 0.25]
     check_result of ["M2.thalf.spiral", r2, "t_half", 14.9346, 0.02]
 
-    # M3 — honesty: a window holding under one cycle must be refused by
-    # every oscillatory estimator, not turned into a number.
+    # M3 — honesty: every estimator's refusal paths are pinned (round-2
+    # review demonstrated the unpinned ones surviving a gutting mutation).
+    # A window holding under one cycle:
     local shortsig is gen_osc of [0.107, 0.7477, 0.0, 0.0, 0.2, 25, 1.0]
     check_refused of ["M3.refuse.peaks", period_peaks of [shortsig, 0.2]]
     check_refused of ["M3.refuse.dft", period_dft of [shortsig, 0.2]]
     check_refused of ["M3.refuse.logdec", zeta_logdec of [shortsig, 0.2]]
+    # The DFT's declared 3-cycle boundary itself: ~2.5 cycles must refuse.
+    local sig25 is gen_osc of [0.107, 0.7477, 0.0, 0.0, 0.2, 105, 1.0]
+    check_refused of ["M3.refuse.dft_2cycles", period_dft of [sig25, 0.2]]
+    # The DFT's minimum-length path.
+    local sig6 is gen_osc of [0.107, 0.7477, 0.0, 0.0, 0.2, 6, 1.0]
+    check_refused of ["M3.refuse.dft_short", period_dft of [sig6, 0.2]]
+    # Envelope fit on a truncated heavy-damping window (< 3 spans).
+    local htrunc is gen_osc of [0.6255, 0.882, 0.0, 0.0, 0.05, 150, 1.0]
+    check_refused of ["M3.refuse.envelope", zeta_envelope of [htrunc, 0.05]]
+    # Exponential fit: too few samples, and a growing (non-decaying) signal.
+    local tiny is gen_exp of [1.2308, 0.01, 5]
+    check_refused of ["M3.refuse.thalf_short", t_half_exp of [tiny, 0.01]]
+    local growing is gen_exp of [0.0 - 1.0, 0.01, 100]
+    check_refused of ["M3.refuse.thalf_growing", t_half_exp of [growing, 0.01]]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 33:
-    print of f"FAIL harness: expected exactly 33 checks, ran {checks_run}"
+if checks_run != 38:
+    print of f"FAIL harness: expected exactly 38 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

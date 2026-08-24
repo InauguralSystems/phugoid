@@ -24,6 +24,7 @@ jobs:
           runCmd: |
             set -e
             EIGENSCRIPT=eigenscript bash tests/test_lint.sh
+            EIGENSCRIPT=eigenscript bash tests/test_comparator.sh
             EIGENSCRIPT=eigenscript bash tests/test_modes.sh
             EIGENSCRIPT=eigenscript bash tests/test_measure.sh
             EIGENSCRIPT=eigenscript bash tests/test_planted.sh

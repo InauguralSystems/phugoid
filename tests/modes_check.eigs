@@ -7,6 +7,7 @@
 
 load_file of "data/b747_approach.eigs"
 load_file of "modes.eigs"
+load_file of "tests/checklib.eigs"
 
 cli is args of null
 plant is ""
@@ -16,23 +17,19 @@ if (len of cli) > 0:
 checks_run is 0
 failures is 0
 
+# Comparator cores live in tests/checklib.eigs and are boundary-self-tested
+# by tests/comparator_check.eigs — do not inline tolerances here.
 define check_pub(name, ours, printed, decimals) as:
     checks_run is checks_run + 1
-    local tol is 0.7 * (pow of [10.0, 0.0 - decimals])
-    local diff is abs of (ours - printed)
-    local rel_ok is 0
-    if diff <= 0.0015 * (abs of printed):
-        rel_ok is 1
-    if diff <= tol or rel_ok == 1:
+    if (pub_tol_ok of [ours, printed, decimals]) == 1:
         print of f"PASS {name} ours={ours} pub={printed}"
     else:
         failures is failures + 1
-        print of f"FAIL {name} ours={ours} pub={printed} tol={tol}"
+        print of f"FAIL {name} ours={ours} pub={printed} decimals={decimals}"
 
 define check_abs(name, ours, printed, abstol) as:
     checks_run is checks_run + 1
-    local diff is abs of (ours - printed)
-    if diff <= abstol:
+    if (abs_tol_ok of [ours, printed, abstol]) == 1:
         print of f"PASS {name} ours={ours} pub={printed}"
     else:
         failures is failures + 1
