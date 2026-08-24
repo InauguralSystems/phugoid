@@ -48,6 +48,30 @@ it be? A lint hint or doc note for log-of-tiny would have saved the hunt;
 consumers doing likelihoods or entropies in log space will hit the same
 plateau.
 
+### G4 — observer value-channel window is a fixed 10 samples; a slow mode under a fast cadence reads `diverging`, confidently
+**Hit at rung 1 (2026-08-24, observer grading layer).** The value-channel
+predicates classify over a window of the last **10 observed samples**
+(docs/PREDICATES.md), with no per-binding control. A mode slower than ~10
+samples of the consumer's cadence cannot fold inside the window, so the
+verdict is not merely insensitive — it is **confidently wrong**: the
+phugoid (T = 46.9 s) replayed at 1 Hz reads `diverging` on its rising
+quarter-cycles, `stable`/`improving` elsewhere (measured; the pinned
+divergence rows in `tests/observer_check.eigs`). The same signal decimated
+to 5 s cadence (9.4 samples/cycle) reads `oscillating` correctly at every
+probe point. `dynamics` already documents the entropy-channel cadence
+sensitivity ("sampling every step … everything reads equilibrium",
+physics.eigs header); the value-channel version is sharper because
+`diverging` is an alarm verdict a consumer would act on. A frame-locked
+consumer (this repo's whole premise: verdicts at a frame deadline) cannot
+decimate per binding without hand-building shadow bindings per timescale —
+exactly the multi-timescale gray band the proposal predicted would break
+first. **Upstream question:** should the window be per-binding
+configurable (samples or seconds), or should a slow-fold detector widen it
+adaptively? A time-aware window (seconds, not samples) matches how flight
+modes are specified. Local mitigation: the O checks pin today's misreads
+as `divergence`-class rows so an upstream windowing change flips them
+loudly and rung 1 re-grades.
+
 ## Watch (not yet blocking)
 
 ### W1 — `dft` is O(n²); fine at rung 0, will not scale to swarm telemetry
@@ -60,3 +84,13 @@ Not a bug — documented behavior, and `pow of [a, b]` exists. Recorded because
 numeric-code authors habitually write `x ^ 2` and get a silent wrong number
 (caught here in the first probe script). A lint hint for `^` between float
 operands might be worth an upstream issue if it bites again.
+
+### W3 — no ODE integrator in the stdlib; second consumer re-roll
+`lib/calculus.eigs` has quadrature only. `dynamics` hand-rolled
+semi-implicit Euler (`physics.eigs step`); phugoid has now hand-rolled
+RK4 + Euler (`sim.eigs`), validated here by the S0 parity and S4.dt
+checks. Two consumers re-rolling the same numerics is the G1/G2 shape one
+rung earlier. Candidate upstream API: `lib/ode.eigs` with `rk4_step` /
+`semi_implicit_step` over a user derivative function. Upstream when a
+third consumer rolls one, or when rung 4's swarm makes integrator cost a
+measured concern.

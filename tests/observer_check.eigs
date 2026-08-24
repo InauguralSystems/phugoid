@@ -1,0 +1,130 @@
+# observer_check.eigs — the rung-1 O checks (ORACLE.md): the observer's
+# verdicts graded against physics ground truth on the same trajectories
+# the S checks grade. Run:  eigenscript tests/observer_check.eigs [plant]
+# Plant o1: every replayed sample frozen at the channel's first value —
+# proves each verdict check can fail. Population pinned at exactly 11.
+#
+# Two check classes (both regression-pinned):
+#   agree      — the verdict matches physics truth.
+#   divergence — the verdict is measured to CONTRADICT physics truth
+#                (recorded 2026-08-24; GAPS.md G4): the value-channel
+#                window is a fixed 10 SAMPLES, so a mode slower than
+#                ~10 samples of the consumer's cadence cannot fold inside
+#                the window — the phugoid (T=47 s) replayed at 1 Hz reads
+#                diverging/stable/improving on its quarter-cycles.
+#                These pins flip the day upstream changes the windowing;
+#                that flip is the signal to re-grade, not a rung-1 bug.
+
+load_file of "data/b747_approach.eigs"
+load_file of "modes.eigs"
+load_file of "sim.eigs"
+
+cli is args of null
+plant is ""
+if (len of cli) > 0:
+    plant is cli[0]
+
+checks_run is 0
+failures is 0
+
+define check_verdict(name, got, want, klass) as:
+    checks_run is checks_run + 1
+    if got == want:
+        print of f"PASS {name} {klass} verdict={got}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} {klass} want={want} got={got}"
+
+data is b747_approach of null
+P0 is sim_params of [data, ctl_nominal of null]
+tr is trim_solve of (P0)
+d is dim_derivs_lon of (data)
+A is a_lon of [d, data.cond]
+q4c is charpoly4 of (A)
+roots is dk_roots of [q4c, 60]
+mm is modes_of of (roots)
+ph is mm.osc[0]
+
+# Plant o1 freezes the replayed stream at its first sample; plant o2
+# replaces it with a large alternation (o1 cannot redden the checks whose
+# expectation IS settledness — a frozen constant is legitimately
+# converged — so o2 covers those; together they cover all 11).
+define replay_at(chan, i) as:
+    if plant == "o1":
+        return chan[0] + 0.0
+    if plant == "o2":
+        return chan[0] + (i % 2) * 5.0
+    return chan[i] + 0.0
+
+# ---------------------------------------------------------- trim hold
+hold is sim_run of [tr.state, [[1e9, tr.de]], 0.05, 400, 20, tr.P, "rk4"]
+z is 0.0
+i is 0
+loop while i < (len of hold.t):
+    z is replay_at of [hold.u, i]
+    i is i + 1
+# An o1-frozen constant is also converged, so this check is validated by
+# the OTHER arm: physics truth here IS constancy; o1 must leave it green.
+check_verdict of ["O.hold", report of z, "converged", "agree"]
+
+# ---------------------------------------------------------- SP replay
+ic is sp_subspace_ic of [A, ph.re, ph.im, tr.state, 2.0]
+recS is sim_run of [ic, [[1e9, tr.de]], 0.02, 1500, 50, tr.P, "rk4"]
+x is 0.0
+i is 0
+loop while i < (len of recS.t):
+    x is replay_at of [recS.w, i]
+    if i == 10:
+        check_verdict of ["O.sp.t10", report of x, "oscillating", "agree"]
+    if i == 15:
+        check_verdict of ["O.sp.t15", report of x, "oscillating", "agree"]
+    if i == 29:
+        check_verdict of ["O.sp.t29", report of x, "converged", "agree"]
+    i is i + 1
+
+# ---------------------------------------------------------- phugoid replay
+schedB is [[20.0, tr.de + 0.005], [1e9, tr.de]]
+recB is sim_run of [tr.state, schedB, 0.05, 5600, 20, tr.P, "rk4"]
+
+# 5 s cadence: ~9.4 samples/cycle — the oscillation folds inside the
+# 10-sample window and the verdict tracks physics.
+y is 0.0
+i is 0
+loop while i < (len of recB.t):
+    if recB.t[i] >= 45.0 and i % 5 == 0:
+        y is replay_at of [recB.u, i]
+        if i == 120:
+            check_verdict of ["O.ph5s.t120", report of y, "oscillating", "agree"]
+        if i == 200:
+            check_verdict of ["O.ph5s.t200", report of y, "oscillating", "agree"]
+        if i == 280:
+            check_verdict of ["O.ph5s.t280", report of y, "oscillating", "agree"]
+    i is i + 1
+onamed is 0
+if oscillating of y:
+    onamed is 1
+check_verdict of ["O.ph5s.named", f"{onamed}", "1", "agree"]
+
+# 1 s cadence: ~47 samples/cycle — the window cannot see the fold; the
+# measured contradictions are pinned (divergence class; GAPS.md G4).
+# Physics truth at ALL THREE points: oscillating.
+w1 is 0.0
+i is 0
+loop while i < (len of recB.t):
+    if recB.t[i] >= 45.0:
+        w1 is replay_at of [recB.u, i]
+        if i == 120:
+            check_verdict of ["O.ph1s.t120", report of w1, "stable", "divergence"]
+        if i == 200:
+            check_verdict of ["O.ph1s.t200", report of w1, "diverging", "divergence"]
+        if i == 280:
+            check_verdict of ["O.ph1s.t280", report of w1, "improving", "divergence"]
+    i is i + 1
+
+print of f"CHECKS_RUN {checks_run}"
+print of f"FAILURES {failures}"
+if checks_run != 11:
+    print of f"FAIL harness: expected exactly 11 checks, ran {checks_run}"
+    exit of 1
+if failures > 0:
+    exit of 1
