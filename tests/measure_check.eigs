@@ -6,7 +6,7 @@
 # p7 (every refusal result forced to ok=1), or p10 (every DFT result
 # forced into a refusal, exercising the refusal arm of check_result).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 56.
+# failure; the check population is pinned at exactly 61.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -83,7 +83,7 @@ if plant == "p4":
 # conversion delta/sqrt(4pi^2+delta^2): round-5 review gutted it to the
 # small-angle delta/2pi (+4.83% at zeta=0.30) and the old 5% rows let it
 # through; measured estimator error is <= 0.013%, so 0.5% has 38x margin.
-cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.005, 0.001], ["z30_phi15", 0.30, 1.0, 1.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi25", 0.30, 1.0, 2.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_4cyc", 0.107, 0.7477, 0.0, 0.0, 0.2, 170, 0.01, 0.005, 0.001], ["dr_bin3", 0.107, 0.7477, 0.0, 0.0, 0.2, 140, 0.01, 0.005, 0.001], ["dr_dcneg", 0.107, 0.7477, 0.0, 0.0 - 2.0, 0.2, 430, 0.01, 0.005, 0.001]]
+cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.005, 0.001], ["z30_phi15", 0.30, 1.0, 1.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi25", 0.30, 1.0, 2.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi50", 0.30, 1.0, 5.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_4cyc", 0.107, 0.7477, 0.0, 0.0, 0.2, 170, 0.01, 0.005, 0.001], ["dr_bin3", 0.107, 0.7477, 0.0, 0.0, 0.2, 140, 0.01, 0.005, 0.001], ["dr_dcneg", 0.107, 0.7477, 0.0, 0.0 - 2.0, 0.2, 430, 0.01, 0.005, 0.001]]
 # dr_bin3 (3.31 cycles, spectral peak in bin 3) pins the DFT acceptance
 # boundary AT the declared constant: round-8 review drifted 3 -> 4 and the
 # dr_4cyc row (bin 4) could not see it. dr_dcneg pins detrending for a
@@ -149,6 +149,15 @@ unobserved:
     local roll12 is gen_exp of [1.2308 / detune, 0.05, 12]
     local r3 is t_half_exp of [roll12, 0.05]
     check_result of ["M2.thalf.roll12", r3, "t_half", 0.563155, 0.02]
+    # EXACT acceptance boundaries (round-12: both minimums could be raised
+    # silently — logdec's 2-span floor to 4 and t_half_exp's 8-sample floor
+    # to 12 — because no accepting row sat exactly at the declared minimum).
+    local roll8 is gen_exp of [1.2308 / detune, 0.05, 8]
+    local r4 is t_half_exp of [roll8, 0.05]
+    check_result of ["M2.thalf.roll8", r4, "t_half", 0.563155, 0.02]
+    local span2 is gen_osc of [0.107, 0.7477, 0.0, 0.0, 0.2, 66, detune]
+    local r5 is zeta_logdec of [span2, 0.2]
+    check_result of ["M2.logdec.minspans", r5, "zeta", 0.107, 0.005]
 
     # M3 — honesty: every estimator's refusal paths are pinned (round-2
     # review demonstrated the unpinned ones surviving a gutting mutation).
@@ -185,8 +194,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 56:
-    print of f"FAIL harness: expected exactly 56 checks, ran {checks_run}"
+if checks_run != 61:
+    print of f"FAIL harness: expected exactly 61 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

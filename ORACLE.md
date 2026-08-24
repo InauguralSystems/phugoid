@@ -145,7 +145,7 @@ Hann-windowed DFT with the peak taken as the largest LOCAL spectral maximum,
 sub-bin interpolated, via `lib/engineering.dft`) on synthetic damped
 sinusoids `e^(−ζωn t)·cos(ωd t + φ)` with known truth, over a grid covering
 the published regimes: ζ ∈ {0.013, 0.107, 0.30}, phases φ ∈ {0, 1.0, 2.0,
-4.5} at ζ = 0.107 and φ ∈ {0, 1.5, 2.5} at ζ = 0.30, a DC offset case, and
+4.5} at ζ = 0.107 and φ ∈ {0, 1.5, 2.5, 5.0} at ζ = 0.30, a DC offset case, and
 DC offset cases of BOTH signs (round-8 review gutted `detrend` to identity
 and the dc=+2 row stayed green — the positive amplitude floor in
 `find_peaks` tolerates a positive offset undetrended, a negative one it
@@ -179,9 +179,13 @@ error is ≤ 0.013%, so 0.5% pins the exact formula with 38× margin. Envelope
 least-squares fit for the heavy case ζ = 0.6255 (log-decrement runs out of
 usable ratios): ζ within **10%** relative (its own small-angle mutant is
 +28% at this ζ and is caught). Aperiodic: exponential-fit t½ within **2%**
-on pure decays with the published roll/spiral rates, including a 12-sample near-boundary row
-(minimum is 8) — round-11 raised the usable-sample minimum 50× all-green
-because both accepting rows had 500 samples.
+on pure decays with the published roll/spiral rates, including near-boundary accepting rows
+at exactly the declared minimums — 8 usable samples for the exponential
+fit and 2 spans for log-decrement (round-11 raised the 8 to 400 and
+round-12 to 12 and the 2-span floor to 4, all all-green, because every
+accepting row sat far above the minimum; the exact-boundary rows pin the
+declared constants, the round-8 bin-3 lesson applied to acceptance
+minimums).
 
 *Known-unpinned implementation details (recorded rounds 5–6, deliberate):*
 (a) the span-AVERAGING inside both period and damping estimators,
@@ -237,7 +241,7 @@ to work.
 | P1 | Cmα sign flipped in the checker's in-memory dataset before derivation | L1 (Mw), L2, L3, L4, L5 longitudinal chain |
 | P2 | lateral quartic coefficient c1 perturbed +1% before rooting | L4 lateral root match |
 | P3 | root finder gutted (returns its initial guesses) | L4 both |
-| P4 | synthetic generator detuned: time-dilated so period AND decay rates are +5% vs declared truth (ζ preserved) | M1: all checks, both estimators; M2 t½ both |
+| P4 | synthetic generator detuned: time-dilated so period AND decay rates are +5% vs declared truth (ζ preserved) | M1: all checks, both estimators; all four M2 t½ checks; M2.logdec.minspans through the refusal arm (the dilated window drops below 3 extrema) |
 | P5 | the ζ result is replaced by a constant 0.05 after the estimator runs (validates the comparator; estimator-wiring faults are covered by the mutation requirement below) | M2 ζ checks (all grid ζ values are >5% away from 0.05 by construction) |
 | P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A31/A32/A33), L3, L4 phugoid/sp |
 | P7 | every refusal result forced to ok=1 before its check | all 10 M3 refusal checks, nothing else |
@@ -251,11 +255,15 @@ the exact total FAIL count, one representative per family, and green-side
 exclusions — because round-3 review showed that subset assertions let 26
 checks be hardcoded vacuous with the matrix still green.
 
-**Manifest rule (rounds 4 and 11):** `tests/check_manifest.txt` lists every
+**Manifest rule (rounds 4, 11 and 12):** `tests/check_manifest.txt` lists every
 check NAME with a coverage class AND its per-site tolerance token (column 4,
 emitted as the third token of every check line and identity-checked like
 the name — round-11 widened one check's `decimals` argument 100× and the
-name-only manifest could not see it: tolerance arguments are data too), and `test_planted.sh` enforces (a) the unplanted
+name-only manifest could not see it: tolerance arguments are data too —
+and round-12 then edited a comparator PROBE argument into a tautology with
+name and count intact, so `comparator_check`'s table-driven probes emit a
+full `spec=ours|ref|param|want` token, identity-checked as class
+`selftest`), and `test_planted.sh` enforces (a) the unplanted
 name set equals the manifest exactly — identity, not count, because round-4
 review deleted one check and double-counted another under an intact
 population pin; (b) every `plantable` name appears in the red-set union

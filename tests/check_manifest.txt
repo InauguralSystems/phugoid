@@ -13,6 +13,10 @@
 # Column 4 is the check's tolerance token, identity-checked like the
 # name (round-11: a per-site decimals argument widened 100x was
 # invisible to a name-only manifest).
+# comparator rows carry class 'selftest': their fail-ability is proven
+# by plant p11 (expect) and by construction (a probe fails iff the
+# comparator arm is broken); the spec token pins their probe DATA,
+# which round-12 edited into a tautology with name+count intact.
 modes CU.cadd.im plantable reltol=1e-9
 modes CU.cadd.re plantable reltol=1e-9
 modes CU.cdiv.im plantable reltol=1e-9
@@ -204,6 +208,7 @@ measure M1.dft.ph_phase0 plantable reltol=0.01
 measure M1.dft.ph_phase1 plantable reltol=0.01
 measure M1.dft.z30_phi15 plantable reltol=0.02
 measure M1.dft.z30_phi25 plantable reltol=0.02
+measure M1.dft.z30_phi50 plantable reltol=0.02
 measure M1.peaks.dr_4cyc plantable reltol=0.001
 measure M1.peaks.dr_bin3 plantable reltol=0.001
 measure M1.peaks.dr_dcneg plantable reltol=0.001
@@ -218,6 +223,7 @@ measure M1.peaks.ph_phase0 plantable reltol=0.001
 measure M1.peaks.ph_phase1 plantable reltol=0.001
 measure M1.peaks.z30_phi15 plantable reltol=0.001
 measure M1.peaks.z30_phi25 plantable reltol=0.001
+measure M1.peaks.z30_phi50 plantable reltol=0.001
 measure M2.envelope.heavy plantable reltol=0.1
 measure M2.logdec.dr_4cyc plantable reltol=0.005
 measure M2.logdec.dr_bin3 plantable reltol=0.005
@@ -229,11 +235,14 @@ measure M2.logdec.dr_phase1 plantable reltol=0.005
 measure M2.logdec.dr_phi2 plantable reltol=0.005
 measure M2.logdec.dr_phi45 plantable reltol=0.005
 measure M2.logdec.mid_z30 plantable reltol=0.005
+measure M2.logdec.minspans plantable reltol=0.005
 measure M2.logdec.ph_phase0 plantable reltol=0.005
 measure M2.logdec.ph_phase1 plantable reltol=0.005
 measure M2.logdec.z30_phi15 plantable reltol=0.005
 measure M2.logdec.z30_phi25 plantable reltol=0.005
+measure M2.logdec.z30_phi50 plantable reltol=0.005
 measure M2.thalf.roll12 plantable reltol=0.02
+measure M2.thalf.roll8 plantable reltol=0.02
 measure M2.thalf.roll plantable reltol=0.02
 measure M2.thalf.spiral plantable reltol=0.02
 measure M3.refuse.dft_2cycles plantable refusal
@@ -246,3 +255,15 @@ measure M3.refuse.peaks plantable refusal
 measure M3.refuse.thalf_growing plantable refusal
 measure M3.refuse.thalf_short plantable refusal
 measure M3.refuse.thalf_zero plantable refusal
+comparator abs.inside selftest spec=9e-11|0|1e-10|1
+comparator abs.outside selftest spec=1.1e-10|0|1e-10|0
+comparator pub.abs2.inside selftest spec=0.0069|0|2|1
+comparator pub.abs2.outside selftest spec=0.0071|0|2|0
+comparator pub.abs.inside selftest spec=0.01006|0.01|4|1
+comparator pub.abs.outside selftest spec=0.01008|0.01|4|0
+comparator pub.rel.inside selftest spec=1.0014|1|4|1
+comparator pub.rel.outside selftest spec=1.0016|1|4|0
+comparator rel.1pct.inside selftest spec=10.099|10|0.01|1
+comparator rel.1pct.outside selftest spec=10.101|10|0.01|0
+comparator rel.5pct.inside selftest spec=10.499|10|0.05|1
+comparator rel.5pct.outside selftest spec=10.501|10|0.05|0

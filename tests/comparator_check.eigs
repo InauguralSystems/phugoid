@@ -1,13 +1,20 @@
 # comparator_check.eigs — boundary self-test of tests/checklib.eigs.
+# For every tolerance arm: a value JUST INSIDE must pass and a value JUST
+# OUTSIDE must fail. A widened (or narrowed) tolerance flips one of these.
+# Run from the repo root: eigenscript tests/comparator_check.eigs
+# Population pinned at exactly 13 (15 under plant p11).
+#
 # Run with argument p11 to validate the expect() helper itself: two
 # deliberately-wrong pairs must FAIL (round-10 review gutted expect() to
 # got==got and every gate stayed green — comparator_check was the one
 # checker in the tree with no validation, and with it vacuous, a 2x
 # rel-tolerance widening in checklib slipped every remaining gate).
-# For every tolerance arm: a value JUST INSIDE must pass and a value JUST
-# OUTSIDE must fail. A widened (or narrowed) tolerance flips one of these.
-# Run from the repo root: eigenscript tests/comparator_check.eigs
-# Population pinned at exactly 13.
+#
+# The probes are TABLE-DRIVEN and each line emits its full argument spec
+# as a single token (spec=ours|ref|param|want): round-12 review edited one
+# probe's argument (1.0016 -> 1.0014, flipping it to a tautology) with the
+# name and population intact, re-opening sub-2x tolerance widening — the
+# spec tokens are identity-checked against the manifest like check names.
 
 load_file of "tests/checklib.eigs"
 
@@ -27,25 +34,27 @@ define expect(name, got, want) as:
         failures is failures + 1
         print of f"FAIL {name} got={got} want={want}"
 
-# pub rule, relative arm dominant (printed=1.0: rel bound 1.5e-3 > abs 7e-5)
-expect of ["pub.rel.inside", pub_tol_ok of [1.0014, 1.0, 4], 1]
-expect of ["pub.rel.outside", pub_tol_ok of [1.0016, 1.0, 4], 0]
-# pub rule, absolute arm dominant (printed=0.01: abs bound 7e-5 > rel 1.5e-5)
-expect of ["pub.abs.inside", pub_tol_ok of [0.01006, 0.01, 4], 1]
-expect of ["pub.abs.outside", pub_tol_ok of [0.01008, 0.01, 4], 0]
-# pub rule, pure absolute at a coarser print precision (printed=0, 2 decimals)
-expect of ["pub.abs2.inside", pub_tol_ok of [0.0069, 0.0, 2], 1]
-expect of ["pub.abs2.outside", pub_tol_ok of [0.0071, 0.0, 2], 0]
+define run_probe(name, kind, ours, ref, param, want) as:
+    checks_run is checks_run + 1
+    local got is 0
+    if kind == "pub":
+        got is pub_tol_ok of [ours, ref, param]
+    elif kind == "rel":
+        got is rel_tol_ok of [ours, ref, param]
+    else:
+        got is abs_tol_ok of [ours, ref, param]
+    if got == want:
+        print of f"PASS {name} spec={ours}|{ref}|{param}|{want}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} spec={ours}|{ref}|{param}|{want} got={got}"
 
-# rel rule at the two tolerances the estimator grid uses
-expect of ["rel.1pct.inside", rel_tol_ok of [10.099, 10.0, 0.01], 1]
-expect of ["rel.1pct.outside", rel_tol_ok of [10.101, 10.0, 0.01], 0]
-expect of ["rel.5pct.inside", rel_tol_ok of [10.499, 10.0, 0.05], 1]
-expect of ["rel.5pct.outside", rel_tol_ok of [10.501, 10.0, 0.05], 0]
+# name, kind, ours, ref, param, want
+probes is [["pub.rel.inside", "pub", 1.0014, 1.0, 4, 1], ["pub.rel.outside", "pub", 1.0016, 1.0, 4, 0], ["pub.abs.inside", "pub", 0.01006, 0.01, 4, 1], ["pub.abs.outside", "pub", 0.01008, 0.01, 4, 0], ["pub.abs2.inside", "pub", 0.0069, 0.0, 2, 1], ["pub.abs2.outside", "pub", 0.0071, 0.0, 2, 0], ["rel.1pct.inside", "rel", 10.099, 10.0, 0.01, 1], ["rel.1pct.outside", "rel", 10.101, 10.0, 0.01, 0], ["rel.5pct.inside", "rel", 10.499, 10.0, 0.05, 1], ["rel.5pct.outside", "rel", 10.501, 10.0, 0.05, 0], ["abs.inside", "abs", 0.9e-10, 0.0, 1e-10, 1], ["abs.outside", "abs", 1.1e-10, 0.0, 1e-10, 0]]
 
-# abs rule at the solver-exactness scale
-expect of ["abs.inside", abs_tol_ok of [0.9e-10, 0.0, exact_tol of null], 1]
-expect of ["abs.outside", abs_tol_ok of [1.1e-10, 0.0, exact_tol of null], 0]
+for pr in probes:
+    run_probe of [pr[0], pr[1], pr[2], pr[3], pr[4], pr[5]]
+
 expect of ["abs.exact_tol_pinned", exact_tol of null, 1e-10]
 
 if plant == "p11":
