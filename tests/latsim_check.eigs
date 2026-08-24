@@ -31,6 +31,16 @@ failures is 0
 
 define check_rel(name, ours, truth, reltol) as:
     checks_run is checks_run + 1
+    if plant == "r16":
+        # displace 1.1x this site's executed rel arm, in the DIRECTION of
+        # the honest discrepancy (rung-0 P18's rule) so no site's honest
+        # offset can absorb it — round-2 review found check_rel (the third
+        # comparator) had no displacement plant at all: a single-site x10
+        # executed-tolerance widening survived every suite.
+        local sg is 1.0
+        if ours < truth:
+            sg is 0.0 - 1.0
+        ours is ours + sg * 1.1 * reltol * (abs of truth)
     if (rel_tol_ok of [ours, truth, reltol]) == 1:
         print of f"PASS {name} reltol={reltol} ours={ours} truth={truth}"
     else:
@@ -61,7 +71,13 @@ define check_relabs(name, ours, ref, reltol, abstol) as:
             local eff is reltol * (abs of ref)
             if abstol > eff:
                 eff is abstol
-            ours is ours + 1.1 * eff
+            # direction of the honest discrepancy (P18's rule; round-2
+            # review measured S0.a12's honest offset absorbing 6% of an
+            # always-positive displacement's margin)
+            local sg is 1.0
+            if ours < ref:
+                sg is 0.0 - 1.0
+            ours is ours + sg * 1.1 * eff
     local diff is abs of (ours - ref)
     local ok is 0
     if diff <= reltol * (abs of ref):

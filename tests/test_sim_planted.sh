@@ -170,6 +170,14 @@ expect_red 'S1\.res\.' 'S1\.hold\.' 'S0\.a11 ' 'S0\.a12 ' 'S0\.a13 ' 'S0\.a14 ' 
 expect_green 'S0\.a34 ' 'S0\.a4' 'S[2-4]\.' 'M1X\.'
 echo "PASS: Q16 red pattern exact (found at rung-2 round 1: the executed comparator tolerance was unpinned — rung-0's P15/P17 class, now inherited by both rungs)"
 
+echo "--- Q17: every check_rel value displaced 1.1x its own executed rel arm, direction of the honest discrepancy -> all 36 tolerance rows ---"
+run_plant q17
+expect_total_fails 36
+expect_red 'S2\.T ' 'S2\.zlog ' 'S3\.Tpeaks ' 'S3\.z ' 'S4\.dt\.' 'S4\.amp\.' 'S4\.ctl\.' 'M1X\.sp\.' 'M1X\.sp2\.' 'M1X\.ph2\.Tpeaks ' 'M1X\.ph2\.z '
+grep '^FAIL ' "$OUT" | grep -q 'refused' && { echo "FAIL: Q17 reds must use the numeric arm, found a refusal"; exit 1; }
+expect_green 'S0\.' 'S1\.' '\.k ' '\.n ' '\.nr ' '\.nf '
+echo "PASS: Q17 red pattern exact (rung-2 round 2's find, applied to both rungs)"
+
 # ------------------------------------------------------------------
 # Manifest enforcement (same rules as test_planted.sh): identity over
 # name + tolerance token; plantable coverage; structural exclusion.
@@ -197,4 +205,4 @@ done < <(grep -v '^#' tests/sim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 16 rung-1 plants flip exactly their declared checks"
+echo "PASS: all 17 rung-1 plants flip exactly their declared checks"

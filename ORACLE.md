@@ -655,7 +655,7 @@ reds, so rung 2 should re-measure it when the model grows.
 
 ## Exit gate for rung 1
 
-1. All S, M1X and O checks green (64 + 11, populations pinned); all sixteen
+1. All S, M1X and O checks green (64 + 11, populations pinned); all seventeen
    Q plants and both o plants red in exactly the declared way; rung-0
    suite untouched and green.
 
@@ -748,7 +748,12 @@ control columns); T3.ctl scales all of them ×1.5.
   (measured: at 5·10⁻³ over a 5 s window the tail drowned and t½ read
   −4.9% — the 2.5 s window plus measured-scale contaminant keeps the
   bridge inside the sim regime, the rung-1 sp2 discipline); spiral +
-  DR contaminant.
+  DR contaminant at 5·10⁻³. Sim-signal impurities MEASURED (round 2:
+  nonlinear run vs exact-linear RK4, same IC/dt, max channel diff over
+  amplitude): roll 2.5·10⁻⁵ (bridge bound 40×), spiral 1.7·10⁻⁴ (29×),
+  DR 1.25·10⁻³ (drs 5% bound 40×) — the first draft's "10⁻⁴ scale"
+  understated the DR residual ~12×; these are the recorded numbers the
+  bounds are judged against, per rung-1's closure item (d).
 - **Identity armor, inherited:** the DR trio reuses the rung-1 identity
   fields/pins/accessors (k, n_extrema, n_ratios — distinct pinned values
   from rung 1's sites, per the one-literal rule). Roll and spiral are
@@ -825,7 +830,15 @@ structural sites exempt (17: the 6 T1 + 11 plantable T0 — added after
 round-1 review widened check_below's executed bound ×10⁶ with every
 suite green, rung-0's P15/P17 executed-tolerance class; the same fix
 went to rung 1 as Q16, whose S1/S0 comparators had the identical
-unpinned shape).
+unpinned shape), R16 every check_rel value displaced 1.1× its own
+executed rel arm in the DIRECTION of the honest discrepancy (28: all
+tolerance rows — round-2 review found round 1's fix two-thirds done:
+check_rel, the third comparator, had no displacement plant, and a
+single-site ×10 executed widening survived every suite; the direction
+rule is rung-0 P18's, added after the same round measured a rung-1 site
+whose honest offset absorbed 6% of an always-positive displacement's
+margin; rung 1 got the twin as Q17, 36 rows). All three comparators in
+both rungs are now pinned at 1.1× their executed scale.
 
 ## Exit gate for rung 2
 
