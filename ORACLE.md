@@ -629,6 +629,29 @@ later rung can revisit rather than rediscover.
 Observer plants o1/o2 are declared in the O section and enforced by
 `tests/test_observer.sh`.
 
+## Loop closure (round 8, 2026-08-24) — what the loop certified and what it did not
+
+Eight blind rounds, every round productive (rounds 1–7 each surfaced a
+real defect, all in the GRADING APPARATUS, never the physics — round 6
+independently re-derived the whole aero model from Caughey's conventions
+and confirmed deriv() correct). Round 8's closure audit, recorded per the
+evidence-of-absence rule:
+
+**Certified:** the published chain and estimator grids (rung 0, intact);
+S0–S4 + M1X with the 15-plant matrix, slot-identity pins, read-site
+accessors (all four refusal arms plant-driven), no-refusals numeric-arm
+guards on Q8 and Q10, manifest identity + class-vocabulary enforcement;
+the observer layer with both o-plants; CI green on every round's push.
+
+**Known-unexercised (deliberate, bounded):** (a) the shell harnesses' own
+FAIL branches (the harness-of-harness regress ends here); (b) accessor-gut
++ row-alias DOUBLE mutations; (c) sim-harness window/cadence parameters
+are pinned only through the k/n identity integers — arm-sized drifts are
+equivalent mutants; (d) the S2 re-injection magnitude (2.8·10⁻⁴) sizing
+the M1X.sp2 bound is a recorded measurement, not a live check — a model
+change pushing it toward ~6·10⁻⁴ stales the bridge claim before any arm
+reds, so rung 2 should re-measure it when the model grows.
+
 ## Exit gate for rung 1
 
 1. All S, M1X and O checks green (64 + 11, populations pinned); all fifteen

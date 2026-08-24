@@ -120,6 +120,11 @@ run_plant q10
 expect_total_fails 18
 expect_red 'S4\.dt\.' 'S4\.amp\.' 'S4\.ctl\.'
 [ "$(grep -c '^FAIL S4\.' "$OUT")" -eq 18 ] || { echo "FAIL: Q10 S4 count != 18"; exit 1; }
+# Round 8: q10's reds must ALL be numeric — the round-7 no-refusals rule
+# was applied only to the Q8 block, and dropping q10's carried identity
+# fields silently moved 6 reds onto the accessor refusal arm, leaving
+# S4.amp.spze / S4.ctl.spzl / S4.ctl.spze with no numeric plant at all.
+grep '^FAIL ' "$OUT" | grep -q 'refused' && { echo "FAIL: Q10 reds must use the numeric arm, found a refusal"; exit 1; }
 expect_green 'S[0-3]\.' 'M1X\.'
 echo "PASS: Q10 red pattern exact"
 
@@ -130,14 +135,14 @@ expect_red 'S3\.Tdft ' 'S3\.Tdft\.k ' 'M1X\.ph2\.Tdft ' 'M1X\.ph2\.Tdft\.k '
 expect_green 'S3\.Tpeaks ' 'S4\.' 'S[0-2]\.' 'M1X\.sp'
 echo "PASS: Q11 red pattern exact (rounds 1-2: the anti-alias defense is the k-pins, which red the CLEAN run under any period_peaks alias; q11 proves the four Td checks can fail)"
 
-echo "--- Q12: the Td slot fed by period_peaks (the rounds-1/2 alias, installed as a plant) -> exactly the 2 k-pins ---"
+echo "--- Q12: the Td slot fed by period_peaks (the rounds-1/2 alias, installed as a plant) -> the k-pins + accessor-refused Td rows (7) ---"
 run_plant q12
 expect_total_fails 7
 expect_red 'S3\.Tdft ' 'S3\.Tdft\.k ' 'S4\.dt\.phTd ' 'S4\.amp\.phTd ' 'S4\.ctl\.phTd ' 'M1X\.ph2\.Tdft ' 'M1X\.ph2\.Tdft\.k '
 expect_green 'S3\.Tpeaks ' 'S4\..*phTp ' 'S[0-2]\.' 'M1X\.sp'
 echo "PASS: Q12 red pattern exact (drives a null through check_exact's rejection arm every run — round-3 review widened that arm to tolerate null and nothing executed it)"
 
-echo "--- Q13: the Tp slot fed by period_dft (round-5's MIRROR alias, installed as a plant) -> exactly the 2 n-pins ---"
+echo "--- Q13: the Tp slot fed by period_dft (round-5's MIRROR alias, installed as a plant) -> the n-pins + accessor-refused Tp rows (7) ---"
 run_plant q13
 expect_total_fails 7
 expect_red 'S3\.Tpeaks ' 'S3\.Tpeaks\.n ' 'S4\.dt\.phTp ' 'S4\.amp\.phTp ' 'S4\.ctl\.phTp ' 'M1X\.ph2\.Tpeaks ' 'M1X\.ph2\.Tpeaks\.n '
@@ -176,6 +181,11 @@ while read -r kind name klass tolspec; do
     if [ "$klass" = structural ] && grep -qx "$name" "$WORK/redu_sim"; then
         echo "FAIL: structural check '$name' went red — exemption list is stale"; BAD=1
     fi
+    # Round 8: an unknown class token silently EXEMPTED a check from
+    # coverage enforcement (mutation: 'plantable' -> 'plantablee' passed
+    # the whole matrix with identity intact — class is the one manifest
+    # column the identity checks do not cover).
+    case "$klass" in plantable|structural) ;; *) echo "FAIL: unknown manifest class '$klass' for '$name'"; BAD=1;; esac
 done < <(grep -v '^#' tests/sim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
