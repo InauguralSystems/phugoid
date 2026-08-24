@@ -474,9 +474,13 @@ window [0, 16 s] at 0.02 s cadence — 4 usable extrema. `T_sp` within
 envelope fit (tightened from the drafted 10% after measuring +0.15%; the
 envelope's own small-angle mutant is +28% at this ζ, so 2% still pins the
 exact conversions with ~13× margin). Measured first green run: T −0.17%,
-ζ +0.15% (both estimators). The nonlinear phugoid re-injection is
-6.9·10⁻⁵ of the first extremum (measured from the 4th extremum's ratio
-deviation); the M1X bridge bounds 4× that.
+ζ +0.15% (both estimators). The nonlinear phugoid re-injection at the
+graded amplitude (wamp = 2.0) is 2.8·10⁻⁴ of the first extremum,
+measured from the 4th extremum's ratio deviation — round-4 review
+corrected the first published figure (6.9·10⁻⁵), which had been measured
+at wamp = 0.5; re-injection scales linearly with excitation amplitude,
+confirming genuine second-order coupling. The M1X bridge bounds ~2.2×
+the graded-regime value.
 
 ### S3 — phugoid from the elevator pulse (4 checks)
 
@@ -512,14 +516,21 @@ graded in the exact windows/cadences the sim grading uses:
   harness run — both are estimator boundaries recorded at rung 0, not
   sim regimes).
 - **M1X.sp2** — SP + phugoid contaminant at 2·10⁻⁴ of the generator
-  amplitude ≈ 4× the sim's measured re-injection relative to its first
-  extremum: same arms (3). At 10⁻³ the 4th extremum drowns and T degrades
-  to −2.3% (measured) — the bridge bounds the sim regime with margin; it
-  does not claim an arbitrary stress.
+  amplitude (6.2·10⁻⁴ of its first extremum) ≈ 2.2× the graded S2 run's
+  measured re-injection: same arms (3). At 10⁻³ the 4th extremum drowns
+  and T degrades to −2.3% (measured) — the bridge bounds the sim regime
+  with margin; it does not claim an arbitrary stress, and the contaminant
+  is not raised to manufacture a rounder margin (~3.6·10⁻⁴ extrapolates
+  to −0.8% T error against the 1% arm — too near the cliff).
 - **M1X.ph2** — phugoid + 1% second harmonic (the nonlinear residual
   shape of the S3 window; the pulse-edge SP is dead there by
-  construction), S3 sampling: T within 0.5% both estimators, ζ within
-  2% (3).
+  construction), S3 cadence over a DELIBERATELY different window length
+  (190 samples → 4.05 cycles → DFT bin 4, where S3's 236 → bin 5): T
+  within 0.5% both estimators, ζ within 2%, k pinned at 4 (4). Round-4
+  review showed that with both k-pins on the same literal, an alias plus
+  a forged `k: 5` at the one shared call site satisfied both pins and
+  survived the full planted matrix; with the bins different, no single
+  literal passes both — a forger has to re-implement the peak picker.
 
 ### O — observer verdicts, graded second (tests/observer_check.eigs, 11 checks)
 

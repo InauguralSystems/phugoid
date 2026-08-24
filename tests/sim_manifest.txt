@@ -68,4 +68,4 @@ sim M1X.sp2.zenv plantable reltol=0.02
 sim M1X.ph2.Tpeaks plantable reltol=0.005
 sim M1X.ph2.Tdft plantable reltol=0.005
 sim M1X.ph2.z plantable reltol=0.02
-sim M1X.ph2.Tdft.k plantable exact=5
+sim M1X.ph2.Tdft.k plantable exact=4

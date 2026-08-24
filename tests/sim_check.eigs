@@ -362,11 +362,15 @@ for pcase in [["phi20", 2.0], ["phi45", 4.5]]:
     check_result of [f"M1X.sp.{pcase[0]}.zlog", g.zl, "zeta", sp_ref.zeta, 0.02]
     check_result of [f"M1X.sp.{pcase[0]}.zenv", g.ze, "zeta", sp_ref.zeta, 0.02]
 
-# SP + phugoid contaminant at 2e-4 of the generator amplitude — ~4x the
-# nonlinear re-injection the S2 run measures relative to its own first
-# extremum (6.9e-5; ORACLE.md S2 note). At 1e-3 the 4th extremum drowns
-# and T degrades to -2.3% (measured 2026-08-24) — the bridge bounds the
-# sim regime with margin, not an arbitrary stress.
+# SP + phugoid contaminant at 2e-4 of the generator amplitude (6.2e-4 of
+# its first extremum) — ~2.2x the nonlinear re-injection the graded S2
+# run carries (2.8e-4 of ITS first extremum at wamp=2.0; round-4 review
+# corrected the first published 6.9e-5, which had been measured at
+# wamp=0.5 — re-injection scales linearly with amplitude). At 1e-3 the
+# 4th extremum drowns and T degrades to -2.3% (measured 2026-08-24) —
+# the bridge bounds the sim regime with margin, not an arbitrary stress;
+# the contaminant is NOT raised to manufacture a rounder margin because
+# ~3.6e-4 extrapolates to -0.8% T error against the 1% arm.
 sp2 is gen_two of [sp_ref.re, sp_w, 1.0, 4.5, ph_ref.re, ph_w, 0.0002, 1.5, 0.02, 800]
 g2 is grade_sp of [sp2, 0.02, 0]
 check_result of ["M1X.sp2.T", g2.T, "T", sp_ref.T, 0.01]
@@ -374,13 +378,19 @@ check_result of ["M1X.sp2.zlog", g2.zl, "zeta", sp_ref.zeta, 0.02]
 check_result of ["M1X.sp2.zenv", g2.ze, "zeta", sp_ref.zeta, 0.02]
 
 # phugoid + 1% second harmonic (the nonlinear residual shape of the S3
-# window; the pulse-edge SP is dead there by construction), S3 sampling
-ph2 is gen_two of [ph_ref.re, ph_w, 1.0, 0.7, 2.0 * ph_ref.re, 2.0 * ph_w, 0.01, 2.1, 1.0, 236]
+# window; the pulse-edge SP is dead there by construction), S3 cadence.
+# The window is DELIBERATELY 190 samples (4.05 cycles -> bin 4) where S3's
+# is 236 (5.03 -> bin 5): round-4 review showed that with both k-pins on
+# the same literal, an alias plus a forged "k: 5" at the one shared call
+# site satisfied both pins and survived the full planted matrix. With the
+# bins different, no single literal passes both — a forger has to compute
+# the argmax, i.e. re-implement the DFT peak picker.
+ph2 is gen_two of [ph_ref.re, ph_w, 1.0, 0.7, 2.0 * ph_ref.re, 2.0 * ph_w, 0.01, 2.1, 1.0, 190]
 g3 is grade_ph of [ph2, 1.0, 0]
 check_result of ["M1X.ph2.Tpeaks", g3.Tp, "T", ph_ref.T, 0.005]
 check_result of ["M1X.ph2.Tdft", g3.Td, "T", ph_ref.T, 0.005]
 check_result of ["M1X.ph2.z", g3.z, "zeta", ph_ref.zeta, 0.02]
-check_exact of ["M1X.ph2.Tdft.k", g3.Td.k, 5]
+check_exact of ["M1X.ph2.Tdft.k", g3.Td.k, 4]
 
 # ------------------------------------------------------------ population
 print of f"CHECKS_RUN {checks_run}"
