@@ -6,7 +6,7 @@
 # p7 (every refusal result forced to ok=1), or p10 (every DFT result
 # forced into a refusal, exercising the refusal arm of check_result).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 61.
+# failure; the check population is pinned at exactly 62.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -178,6 +178,11 @@ unobserved:
     # Exponential fit: too few samples, and a growing (non-decaying) signal.
     local tiny is gen_exp of [1.2308, 0.01, 5]
     check_refused of ["M3.refuse.thalf_short", force_ok_if_p7 of (t_half_exp of [tiny, 0.01])]
+    # 7 samples — one under the declared 8-sample floor. With only the
+    # 5-sample refusal and 8-sample acceptance rows, round-13 LOWERED the
+    # floor to 6 all-green; this row pins it from below.
+    local seven is gen_exp of [1.2308, 0.01, 7]
+    check_refused of ["M3.refuse.thalf_seven", force_ok_if_p7 of (t_half_exp of [seven, 0.01])]
     local growing is gen_exp of [0.0 - 1.0, 0.01, 100]
     check_refused of ["M3.refuse.thalf_growing", force_ok_if_p7 of (t_half_exp of [growing, 0.01])]
     # Envelope fit on a GROWING oscillation — round-9 review deleted the
@@ -194,8 +199,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 61:
-    print of f"FAIL harness: expected exactly 61 checks, ran {checks_run}"
+if checks_run != 62:
+    print of f"FAIL harness: expected exactly 62 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

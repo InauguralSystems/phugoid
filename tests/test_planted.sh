@@ -94,7 +94,7 @@ echo "PASS: P6 red pattern exact"
 
 echo "--- P4: generator time-dilated +5% -> all period + t_half checks red (35, incl. minspans through the refusal arm: the dilated window drops below 3 extrema), damping green ---"
 run_plant measure_check.eigs p4
-expect_population 61
+expect_population 62
 expect_total_fails 35
 expect_red 'M1\.peaks\.' 'M1\.dft\.' 'M2\.thalf\.roll' 'M2\.thalf\.spiral'
 [ "$(grep -c '^FAIL M1\.peaks\.' "$OUT")" -eq 15 ] || { echo "FAIL: P4 peaks count != 15"; exit 1; }
@@ -105,18 +105,18 @@ echo "PASS: P4 red pattern exact"
 
 echo "--- P5: damping estimate replaced by constant 0.05 -> all zeta checks red (16) ---"
 run_plant measure_check.eigs p5
-expect_population 61
+expect_population 62
 expect_total_fails 16
 expect_red 'M2\.logdec\.' 'M2\.envelope\.heavy '
 [ "$(grep -c '^FAIL M2\.logdec\.' "$OUT")" -eq 15 ] || { echo "FAIL: P5 logdec count != 15"; exit 1; }
 expect_green 'M1\.' 'M2\.thalf\.' 'M3\.'
 echo "PASS: P5 red pattern exact"
 
-echo "--- P7: refusal results forced to ok=1 -> all 10 M3 checks red, rest green ---"
+echo "--- P7: refusal results forced to ok=1 -> all 11 M3 checks red, rest green ---"
 run_plant measure_check.eigs p7
-expect_population 61
-expect_total_fails 10
-expect_red 'M3\.refuse\.thalf_zero ' 'M3\.refuse\.peaks ' 'M3\.refuse\.dft ' 'M3\.refuse\.logdec ' 'M3\.refuse\.dft_2cycles ' 'M3\.refuse\.dft_short ' 'M3\.refuse\.envelope ' 'M3\.refuse\.envelope_growing ' 'M3\.refuse\.thalf_short ' 'M3\.refuse\.thalf_growing '
+expect_population 62
+expect_total_fails 11
+expect_red 'M3\.refuse\.thalf_seven ' 'M3\.refuse\.thalf_zero ' 'M3\.refuse\.peaks ' 'M3\.refuse\.dft ' 'M3\.refuse\.logdec ' 'M3\.refuse\.dft_2cycles ' 'M3\.refuse\.dft_short ' 'M3\.refuse\.envelope ' 'M3\.refuse\.envelope_growing ' 'M3\.refuse\.thalf_short ' 'M3\.refuse\.thalf_growing '
 expect_green 'M1\.' 'M2\.'
 echo "PASS: P7 red pattern exact"
 
@@ -138,7 +138,7 @@ echo "PASS: P9 red pattern exact"
 
 echo "--- P10: every DFT result forced into a refusal -> the 15 dft checks red via the refusal arm ---"
 run_plant measure_check.eigs p10
-expect_population 61
+expect_population 62
 expect_total_fails 15
 expect_red 'M1\.dft\.'
 [ "$(grep -c '^FAIL M1\.dft\.' "$OUT")" -eq 15 ] || { echo "FAIL: P10 dft count != 15"; exit 1; }

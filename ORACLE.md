@@ -184,8 +184,10 @@ at exactly the declared minimums — 8 usable samples for the exponential
 fit and 2 spans for log-decrement (round-11 raised the 8 to 400 and
 round-12 to 12 and the 2-span floor to 4, all all-green, because every
 accepting row sat far above the minimum; the exact-boundary rows pin the
-declared constants, the round-8 bin-3 lesson applied to acceptance
-minimums).
+declared constants against RAISING, and a 7-sample refusal row pins the
+8-sample floor against LOWERING — round-13 dropped it to 6 all-green
+between the 5-sample refusal and 8-sample acceptance rows; the round-8
+bin-3 lesson applied to acceptance minimums, both directions).
 
 *Known-unpinned implementation details (recorded rounds 5–6, deliberate):*
 (a) the span-AVERAGING inside both period and damping estimators,
@@ -246,7 +248,7 @@ to work.
 | P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A31/A32/A33), L3, L4 phugoid/sp |
 | P7 | every refusal result forced to ok=1 before its check | all 10 M3 refusal checks, nothing else |
 | P8 | every dataset input poisoned (nonzero values scaled, zeros made nonzero, inertias scaled unevenly, θ₀ tilted, unit-check root lists scaled) | every data-derived check — 133 of 177 (the synthetic unit dataset and the CU/stability unit inputs are poisoned too) — leaving green only the pub-literal solver/exact checks (P2/P3's territory) and the structural constants |
-| P10 | every DFT result forced into a refusal before its check | the 14 M1.dft checks, red THROUGH the refusal arm of `check_result` — which round-8 review gutted to print PASS with nothing noticing (no clean run or plant had ever driven a refusal through it) |
+| P10 | every DFT result forced into a refusal before its check | the 15 M1.dft checks, red THROUGH the refusal arm of `check_result` — which round-8 review gutted to print PASS with nothing noticing (no clean run or plant had ever driven a refusal through it) |
 | P11 | `comparator_check.eigs p11`: the `expect()` helper fed two deliberately-wrong pairs | both must FAIL — round-10 review gutted `expect()` to a tautology and every gate stayed green; with it vacuous, a 2× rel-tolerance widening in checklib slipped every remaining gate |
 | P9 | every solver root nudged by 3·10⁻⁸ before the exact-arm checks, putting residual/Vieta errors inside (10⁻¹⁰, 10⁻⁶) — a band no natural run produces (DK residuals jump ~10⁻⁶ → ~10⁻¹¹ between iterations 5 and 6) | exactly the 12 L4.exact checks; a call-site tolerance widened to 10⁻⁶ turns this plant green and is caught |
 
@@ -262,7 +264,9 @@ the name — round-11 widened one check's `decimals` argument 100× and the
 name-only manifest could not see it: tolerance arguments are data too —
 and round-12 then edited a comparator PROBE argument into a tautology with
 name and count intact, so `comparator_check`'s table-driven probes emit a
-full `spec=ours|ref|param|want` token, identity-checked as class
+full `spec=kind|ours|ref|param|want` token (round-13 flipped a probe's ARM
+to a tautology while the argument token stayed intact — the kind is data
+too), identity-checked as class
 `selftest`), and `test_planted.sh` enforces (a) the unplanted
 name set equals the manifest exactly — identity, not count, because round-4
 review deleted one check and double-counted another under an intact
@@ -277,7 +281,7 @@ Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 177 checks; `measure_check.eigs` exactly 56;
+`modes_check.eigs` runs exactly 177 checks; `measure_check.eigs` exactly 62;
 `comparator_check.eigs` exactly 13. Check *identities* are pinned by the
 manifest rule above. The residual/Vieta "exact" tolerance is a named
 constant in `tests/checklib.eigs` (`exact_tol`), value-pinned by the

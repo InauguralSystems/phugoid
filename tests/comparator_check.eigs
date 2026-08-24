@@ -11,7 +11,9 @@
 # rel-tolerance widening in checklib slipped every remaining gate).
 #
 # The probes are TABLE-DRIVEN and each line emits its full argument spec
-# as a single token (spec=ours|ref|param|want): round-12 review edited one
+# as a single token (spec=kind|ours|ref|param|want — the KIND is part of
+# the spec: round-13 review flipped a probe's arm from rel to abs, making
+# it a tautology with the rest of the token intact): round-12 edited one
 # probe's argument (1.0016 -> 1.0014, flipping it to a tautology) with the
 # name and population intact, re-opening sub-2x tolerance widening — the
 # spec tokens are identity-checked against the manifest like check names.
@@ -29,7 +31,7 @@ failures is 0
 define expect(name, got, want) as:
     checks_run is checks_run + 1
     if got == want:
-        print of f"PASS {name}"
+        print of f"PASS {name} expectok"
     else:
         failures is failures + 1
         print of f"FAIL {name} got={got} want={want}"
@@ -44,10 +46,10 @@ define run_probe(name, kind, ours, ref, param, want) as:
     else:
         got is abs_tol_ok of [ours, ref, param]
     if got == want:
-        print of f"PASS {name} spec={ours}|{ref}|{param}|{want}"
+        print of f"PASS {name} spec={kind}|{ours}|{ref}|{param}|{want}"
     else:
         failures is failures + 1
-        print of f"FAIL {name} spec={ours}|{ref}|{param}|{want} got={got}"
+        print of f"FAIL {name} spec={kind}|{ours}|{ref}|{param}|{want} got={got}"
 
 # name, kind, ours, ref, param, want
 probes is [["pub.rel.inside", "pub", 1.0014, 1.0, 4, 1], ["pub.rel.outside", "pub", 1.0016, 1.0, 4, 0], ["pub.abs.inside", "pub", 0.01006, 0.01, 4, 1], ["pub.abs.outside", "pub", 0.01008, 0.01, 4, 0], ["pub.abs2.inside", "pub", 0.0069, 0.0, 2, 1], ["pub.abs2.outside", "pub", 0.0071, 0.0, 2, 0], ["rel.1pct.inside", "rel", 10.099, 10.0, 0.01, 1], ["rel.1pct.outside", "rel", 10.101, 10.0, 0.01, 0], ["rel.5pct.inside", "rel", 10.499, 10.0, 0.05, 1], ["rel.5pct.outside", "rel", 10.501, 10.0, 0.05, 0], ["abs.inside", "abs", 0.9e-10, 0.0, 1e-10, 1], ["abs.outside", "abs", 1.1e-10, 0.0, 1e-10, 0]]
