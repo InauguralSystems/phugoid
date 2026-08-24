@@ -62,7 +62,7 @@ expect_green() {
 
 echo "--- P1: Cma sign flip -> full longitudinal chain red (15), rest green ---"
 run_plant modes_check.eigs p1
-expect_population 158
+expect_population 173
 expect_total_fails 15
 expect_red 'L1\.lon\.Mw ' 'L2\.lon\.' 'L3\.lon\.' 'L4\.chain\.lon\.ph' 'L4\.chain\.lon\.sp' 'L5\.ph\.' 'L5\.sp\.'
 expect_green '\.lat\.' 'L4\.(solver|exact)\.' 'L5\.unit\.'
@@ -70,7 +70,7 @@ echo "PASS: P1 red pattern exact"
 
 echo "--- P2: lateral quartic c1 +1% -> only solver-alone lateral red (3) ---"
 run_plant modes_check.eigs p2
-expect_population 158
+expect_population 173
 expect_total_fails 3
 expect_red 'L4\.solver\.lat\.dr' 'L4\.solver\.lat\.roll'
 expect_green 'L[123]\.' 'L4\.chain\.' 'L4\.exact\.' 'L4\.solver\.lon\.' 'L5\.'
@@ -78,7 +78,7 @@ echo "PASS: P2 red pattern exact"
 
 echo "--- P3: solver gutted -> every root-dependent check red (40), L1-L3 + unit green ---"
 run_plant modes_check.eigs p3
-expect_population 158
+expect_population 173
 expect_total_fails 40
 expect_red 'L4\.chain\.lon\.' 'L4\.chain\.lat\.' 'L4\.solver\.lon\.' 'L4\.solver\.lat\.' 'L4\.exact\.lon\.' 'L4\.exact\.lat\.' 'L5\.ph\.' 'L5\.sp\.' 'L5\.dr\.' 'L5\.roll\.' 'L5\.spiral\.'
 expect_green 'L[123]\.' 'L5\.unit\.'
@@ -86,50 +86,50 @@ echo "PASS: P3 red pattern exact"
 
 echo "--- P6: Mwdot folding dropped -> longitudinal A/quartic/roots red (12), L1 + lat green ---"
 run_plant modes_check.eigs p6
-expect_population 158
+expect_population 173
 expect_total_fails 12
 expect_red 'L2\.lon\.a31 ' 'L2\.lon\.a32 ' 'L2\.lon\.a33 ' 'L3\.lon\.' 'L4\.chain\.lon\.' 'L5\.ph\.' 'L5\.sp\.'
 expect_green 'L1\.' '\.lat\.' 'L4\.(solver|exact)\.' 'L5\.unit\.'
 echo "PASS: P6 red pattern exact"
 
-echo "--- P4: generator time-dilated +5% -> all period + t_half checks red (24), damping green ---"
+echo "--- P4: generator time-dilated +5% -> all period + t_half checks red (26), damping green ---"
 run_plant measure_check.eigs p4
-expect_population 44
-expect_total_fails 24
+expect_population 47
+expect_total_fails 26
 expect_red 'M1\.peaks\.' 'M1\.dft\.' 'M2\.thalf\.roll' 'M2\.thalf\.spiral'
-[ "$(grep -c '^FAIL M1\.peaks\.' "$OUT")" -eq 11 ] || { echo "FAIL: P4 peaks count != 11"; exit 1; }
-[ "$(grep -c '^FAIL M1\.dft\.' "$OUT")" -eq 11 ] || { echo "FAIL: P4 dft count != 11"; exit 1; }
+[ "$(grep -c '^FAIL M1\.peaks\.' "$OUT")" -eq 12 ] || { echo "FAIL: P4 peaks count != 12"; exit 1; }
+[ "$(grep -c '^FAIL M1\.dft\.' "$OUT")" -eq 12 ] || { echo "FAIL: P4 dft count != 12"; exit 1; }
 expect_green 'M2\.logdec\.' 'M2\.envelope\.' 'M3\.'
 echo "PASS: P4 red pattern exact"
 
-echo "--- P5: damping estimate replaced by constant 0.05 -> all zeta checks red (12) ---"
+echo "--- P5: damping estimate replaced by constant 0.05 -> all zeta checks red (13) ---"
 run_plant measure_check.eigs p5
-expect_population 44
-expect_total_fails 12
+expect_population 47
+expect_total_fails 13
 expect_red 'M2\.logdec\.' 'M2\.envelope\.heavy '
-[ "$(grep -c '^FAIL M2\.logdec\.' "$OUT")" -eq 11 ] || { echo "FAIL: P5 logdec count != 11"; exit 1; }
+[ "$(grep -c '^FAIL M2\.logdec\.' "$OUT")" -eq 12 ] || { echo "FAIL: P5 logdec count != 12"; exit 1; }
 expect_green 'M1\.' 'M2\.thalf\.' 'M3\.'
 echo "PASS: P5 red pattern exact"
 
 echo "--- P7: refusal results forced to ok=1 -> all 8 M3 checks red, rest green ---"
 run_plant measure_check.eigs p7
-expect_population 44
+expect_population 47
 expect_total_fails 8
 expect_red 'M3\.refuse\.peaks ' 'M3\.refuse\.dft ' 'M3\.refuse\.logdec ' 'M3\.refuse\.dft_2cycles ' 'M3\.refuse\.dft_short ' 'M3\.refuse\.envelope ' 'M3\.refuse\.thalf_short ' 'M3\.refuse\.thalf_growing '
 expect_green 'M1\.' 'M2\.'
 echo "PASS: P7 red pattern exact"
 
-echo "--- P8: every input poisoned -> every data-derived check red (75), structural + pub-literal green ---"
+echo "--- P8: every input poisoned -> every data-derived check red (129), structural + pub-literal green ---"
 run_plant modes_check.eigs p8
-expect_population 158
-expect_total_fails 118
+expect_population 173
+expect_total_fails 129
 expect_red 'L1\.lon\.' 'L1\.lat\.' 'L2\.lon\.a11 ' 'L2\.lat\.a11 ' 'L3\.lon\.' 'L3\.lat\.' 'L4\.chain\.' 'L5\.unit\.'
 expect_green 'L4\.(solver|exact)\.'
 echo "PASS: P8 red pattern exact"
 
 echo "--- P9: solver roots nudged 3e-8 -> exactly the 12 exact-arm checks red ---"
 run_plant modes_check.eigs p9
-expect_population 158
+expect_population 173
 expect_total_fails 12
 expect_red 'L4\.exact\.lon\.resid' 'L4\.exact\.lon\.vieta' 'L4\.exact\.lat\.resid' 'L4\.exact\.lat\.vieta'
 expect_green 'L[1235]\.' 'L4\.chain\.' 'L4\.solver\.'

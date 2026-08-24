@@ -5,7 +5,7 @@
 # rates included), p5 (damping estimate replaced by a constant 0.05), or
 # p7 (every refusal result forced to ok=1).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 44.
+# failure; the check population is pinned at exactly 47.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -82,7 +82,12 @@ if plant == "p4":
 # conversion delta/sqrt(4pi^2+delta^2): round-5 review gutted it to the
 # small-angle delta/2pi (+4.83% at zeta=0.30) and the old 5% rows let it
 # through; measured estimator error is <= 0.013%, so 0.5% has 38x margin.
-cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.005, 0.001], ["z30_phi15", 0.30, 1.0, 1.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi25", 0.30, 1.0, 2.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001]]
+cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.005, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.005, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.005, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.005, 0.001], ["z30_phi15", 0.30, 1.0, 1.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["z30_phi25", 0.30, 1.0, 2.5, 0.0, 0.1, 400, 0.02, 0.005, 0.001], ["dr_4cyc", 0.107, 0.7477, 0.0, 0.0, 0.2, 170, 0.01, 0.005, 0.001]]
+# The dr_4cyc row (4.02 cycles in window) pins the DFT acceptance boundary
+# from ABOVE: round-7 review drifted the 3-cycle refusal constant to 5 and
+# every check stayed green — the refusal rows pin only the downward drift,
+# and every accepting row sat at 6+ cycles, so a 3-5-cycle in-regime signal
+# could be silently refused.
 # The z30_phi15/z30_phi25 rows exist because round-3 review demonstrated
 # the global-peak DFT falsely REFUSING at zeta=0.30 off-grid phases (the
 # envelope leakage skirt beat the mode peak) — the zeta=0.30 claim is now
@@ -150,8 +155,8 @@ unobserved:
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 44:
-    print of f"FAIL harness: expected exactly 44 checks, ran {checks_run}"
+if checks_run != 47:
+    print of f"FAIL harness: expected exactly 47 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

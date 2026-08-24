@@ -363,15 +363,59 @@ check_tight of ["L2U.lat.a42", SB[3][1], 0.0 - 0.030230800653594774]
 check_tight of ["L2U.lat.a43", SB[3][2], 0.0]
 check_tight of ["L2U.lat.a44", SB[3][3], 0.0 - 0.1894955065359477]
 
+unit_scale is 1.0
+if plant == "p8":
+    unit_scale is 1.1
+unit_scale2 is unit_scale
+
+# ----------------------- CU unit (complex helpers, direct coverage)
+# cdiv/cmul/cmag/poly4_eval checked directly against hand-computed values:
+# round-7 review halved cdiv's denominator and everything stayed green —
+# Durand-Kerner is self-correcting under delta scaling, so the residual/
+# Vieta/root oracles are structurally blind to these helpers. Inputs are
+# scaled under plant p8 so the family is red-coverable.
+# Inputs scale under p8; the WANTS stay fixed at the cu=1 values, so the
+# plant reddens the family (an expectation written in terms of the scale
+# would track the plant and never fail — measured, and rewritten).
+cu is 1.0
+if plant == "p8":
+    cu is 1.1
+check_tight of ["CU.cdiv.re", (cdiv of [[3.0 * cu, 4.0 * cu], [1.0, 2.0]])[0], 2.2]
+check_tight of ["CU.cdiv.im", (cdiv of [[3.0 * cu, 4.0 * cu], [1.0, 2.0]])[1], 0.0 - 0.4]
+check_tight of ["CU.cmul.re", (cmul of [[3.0 * cu, 4.0], [1.0, 2.0]])[0], 0.0 - 5.0]
+check_tight of ["CU.cmul.im", (cmul of [[3.0 * cu, 4.0], [1.0, 2.0]])[1], 10.0]
+check_tight of ["CU.cmag", cmag of ([3.0 * cu, 4.0 * cu]), 5.0]
+check_abs of ["CU.poly4_eval.root", (poly4_eval of [[0.0, 0.0, 0.0, 0.0 - 16.0], [0.0, 2.0 * cu]])[0], 0.0, 1e-12]
+check_tight of ["CU.poly4_eval.val", (poly4_eval of [[0.0, 0.0, 0.0, 0.0 - 16.0], [cu, cu]])[0], 0.0 - 20.0]
+
+# ------------------- L5 unit (classification threshold, two-sided)
+# The osc/real split constant (osc_im_threshold, 1e-6) pinned from BOTH
+# sides: an im just above must classify oscillatory, one just below must
+# classify real. Round-7 review drifted the inline constant to 0.1 and
+# every check stayed green. These are literal-fed and no data plant can
+# move them — manifest class: structural.
+u_th_hi is modes_of of ([[0.0 - 0.1, 2e-6], [0.0 - 0.1, 0.0 - 2e-6]])
+check_abs of ["L5.unit.thresh_above_osc", len of u_th_hi.osc, 1, 0]
+check_abs of ["L5.unit.thresh_above_reals", len of u_th_hi.reals, 0, 0]
+u_th_lo is modes_of of ([[0.0 - 0.1, 5e-7], [0.0 - 0.1, 0.0 - 5e-7]])
+check_abs of ["L5.unit.thresh_below_osc", len of u_th_lo.osc, 0, 0]
+check_abs of ["L5.unit.thresh_below_reals", len of u_th_lo.reals, 2, 0]
+
+# ------------------------- L5 unit (stability contract, both kinds)
+# Round-7 review gutted t_double to 999.0 and nothing noticed — no check
+# ever exercised an unstable root. Scaled under p8 like the sort checks.
+u_st is modes_of of ([[0.05 * unit_scale2, 0.0], [(0.0 - 0.04) * unit_scale2, 0.0], [0.01 * unit_scale2, 0.5], [0.01 * unit_scale2, 0.0 - 0.5]])
+check_tight of ["L5.unit.real_tdouble", u_st.reals[1].t_double, 13.862943611198904]
+check_tight of ["L5.unit.real_thalf", u_st.reals[0].t_half, 17.328679513998633]
+check_tight of ["L5.unit.osc_tdouble", u_st.osc[0].t_double, 69.31471805599453]
+check_tight of ["L5.unit.osc_neg_zeta", u_st.osc[0].zeta, 0.0 - 0.01999600119960014]
+
 # ------------------------------------------- L5 unit (sort branches)
 # modes_of fed hand-ordered roots — short-period pair FIRST, roll-rate
 # root first — so the sort/swap branches actually execute. Round-3 review
 # deleted the wn-sort and the whole suite stayed green: Durand-Kerner
 # happens to emit the pairs already ordered, so the ordering contract was
 # resting on accident.
-unit_scale is 1.0
-if plant == "p8":
-    unit_scale is 1.1
 u_osc is modes_of of ([[(0.0 - 0.5) * unit_scale, 0.7 * unit_scale], [(0.0 - 0.5) * unit_scale, (0.0 - 0.7) * unit_scale], [(0.0 - 0.002) * unit_scale, 0.13 * unit_scale], [(0.0 - 0.002) * unit_scale, (0.0 - 0.13) * unit_scale]])
 check_abs of ["L5.unit.osc_sorted_low", u_osc.osc[0].im, 0.13, 1e-12]
 check_abs of ["L5.unit.osc_sorted_high", u_osc.osc[1].im, 0.7, 1e-12]
@@ -383,8 +427,8 @@ check_abs of ["L5.unit.reals_sorted_high", u_re.reals[1].re, 0.0 - 1.2, 1e-12]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 158:
-    print of f"FAIL harness: expected exactly 158 checks, ran {checks_run}"
+if checks_run != 173:
+    print of f"FAIL harness: expected exactly 173 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

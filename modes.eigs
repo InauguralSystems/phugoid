@@ -156,25 +156,35 @@ define dk_roots(coeffs, iters) as:
 
 # ---------------------------------------------------------------- L5
 
+# Roots with |im| <= this are treated as real modes; above it, as members
+# of an oscillatory pair. Pinned two-sided by the L5.unit.thresh checks.
+define osc_im_threshold as:
+    return 1e-6
+
 define modes_of(roots) as:
     # Splits roots into oscillatory conjugate pairs (taken once, im > 0)
     # and real modes. Oscillatory sorted by ascending wn (phugoid before
     # short period; Dutch roll alone on the lateral side); real modes by
-    # ascending |re| (spiral before roll). t_half < 0 encodes "unstable:
-    # value is time to double" via the t_double field instead.
+    # ascending |re| (spiral before roll). Stability contract (both mode
+    # kinds): a stable entry (re < 0) carries t_half = ln2/(-re) and
+    # t_double = 0; an unstable one (re > 0) carries t_double = ln2/re and
+    # t_half = 0.
     local osc is []
     local reals is []
     for i in range of (len of roots):
         local r is roots[i]
-        if (abs of r[1]) > 1e-6:
+        if (abs of r[1]) > (osc_im_threshold of null):
             if r[1] > 0.0:
                 local wn is sqrt of (r[0] * r[0] + r[1] * r[1])
                 local zeta is (0.0 - r[0]) / wn
                 local T is 2.0 * (pi of null) / (abs of r[1])
                 local th is 0.0
+                local td is 0.0
                 if r[0] < 0.0:
                     th is (log of 2.0) / (0.0 - r[0])
-                append of [osc, {"re": r[0], "im": r[1], "wn": wn, "zeta": zeta, "T": T, "t_half": th, "n_half": th / T}]
+                elif r[0] > 0.0:
+                    td is (log of 2.0) / r[0]
+                append of [osc, {"re": r[0], "im": r[1], "wn": wn, "zeta": zeta, "T": T, "t_half": th, "t_double": td, "n_half": th / T}]
         else:
             local entry is {"re": r[0], "t_half": 0.0, "t_double": 0.0}
             if r[0] < 0.0:
