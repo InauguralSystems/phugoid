@@ -95,3 +95,14 @@ rung earlier. Candidate upstream API: `lib/ode.eigs` with `rk4_step` /
 `semi_implicit_step` over a user derivative function. Upstream when a
 third consumer rolls one, or when rung 4's swarm makes integrator cost a
 measured concern.
+
+### W4 — missing dict-field access is a silent null
+`d.k` on a dict without `k` returns null silently (v0.41.0; exit 0).
+Bit in round 2 of the rung-1 review: a checker copying `res.k` off the
+WRONG estimator's result (which has `n_extrema`, not `k`) tripped
+nothing, letting an estimator-alias mutation survive — the anti-alias
+k-pins had to be designed around comparing against null instead of
+relying on field access erroring. Likely intended fail-soft semantics
+(the #971/#975 reform track owns the policy); recorded so rung-2+
+checkers keep the pattern: pin a field only via a comparison a null
+cannot pass.

@@ -5,9 +5,11 @@
 # q4 trim alpha offset +0.01 rad after the solver, q5 thrust dropped,
 # q6 grading timeline dilated x1.02 (estimator dt only), q7 M1X generator
 # time-dilated x1.05, q8 every graded zeta replaced by 0.05, q9 sim dataset
-# copy broadly poisoned (S0 coverage, rung-0 P8's shape).
+# copy broadly poisoned (S0 coverage, rung-0 P8's shape), q10 re-run-side
+# corruption (S4 comparator validation), q11 period_dft result corruption
+# (estimator wiring; the k-pins are the anti-alias defense).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 57.
+# failure; the check population is pinned at exactly 59.
 #
 # The chain reference (dim_derivs_lon -> a_lon -> charpoly4 -> dk_roots ->
 # modes_of) is ALWAYS computed from a clean dataset copy — plants poison
@@ -51,6 +53,17 @@ define check_relabs(name, ours, ref, reltol, abstol) as:
     else:
         failures is failures + 1
         print of f"FAIL {name} relabs={reltol}|{abstol} ours={ours} ref={ref}"
+
+# Exact-integer pin (the DFT bin-index identity checks). A null (e.g. a
+# missing field read off an aliased estimator's result) never equals the
+# pinned integer, so these red on the CLEAN run under any alias.
+define check_exact(name, val, want) as:
+    checks_run is checks_run + 1
+    if val == want:
+        print of f"PASS {name} exact={want} val={val}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} exact={want} val={val}"
 
 define check_below(name, val, bound) as:
     checks_run is checks_run + 1
@@ -226,19 +239,24 @@ define grade_sp(wwin, dt, simflag) as:
             ze is {"ok": 1, "zeta": ze.zeta * 1.03}
     return {"T": period_peaks of [wwin, gdt], "zl": zl, "ze": ze}
 
-# Plant q11 corrupts ONLY the period_dft result (x1.01), through this
-# wrapper on the true DFT call — the estimator-WIRING plant (rung-0
+# Plant q11 corrupts ONLY the period_dft result (T x1.01, k+1), through
+# this wrapper on the true DFT call — the estimator-WIRING plant (rung-0
 # P10's class). Round-1 blind review aliased period_dft -> period_peaks
 # at this call site and the ENTIRE suite stayed green: every other
 # plant's red set has Tpeaks and Tdft co-occurring, so nothing separated
 # the two "independent" estimators and five checks were silent
-# duplicates. Under an aliased wiring this wrapper never runs, q11 flips
-# nothing, and the planted harness fails loudly ("plant did not make
-# sim_check exit nonzero").
+# duplicates. Round-2 review then aliased INSIDE the wrapper argument and
+# q11's result-corruption fired identically (the two estimators agree
+# within tolerance, and a missing dict field is a silent null in
+# v0.41.0, so copying res.k off a peaks result trips nothing). The
+# load-bearing defense is therefore NOT this plant but the k-PINS below:
+# S3.Tdft.k / M1X.ph2.Tdft.k pin the DFT's spectral bin, a field only
+# the real DFT produces — under ANY alias k is null and the CLEAN run
+# goes red. q11's job is reduced to proving the four Td checks can fail.
 define wrap_dft(res) as:
     if plant == "q11":
         if res.ok == 1:
-            return {"ok": 1, "T": res.T * 1.01, "k": res.k}
+            return {"ok": 1, "T": res.T * 1.01, "k": res.k + 1}
     return res
 
 define grade_ph(uwin, dt, simflag) as:
@@ -263,6 +281,10 @@ check_result of ["S2.zenv", base_sp.ze, "zeta", sp_ref.zeta, 0.02]
 check_result of ["S3.Tpeaks", base_ph.Tp, "T", ph_ref.T, 0.005]
 check_result of ["S3.Tdft", base_ph.Td, "T", ph_ref.T, 0.005]
 check_result of ["S3.z", base_ph.z, "zeta", ph_ref.zeta, 0.02]
+# The DFT bin identity: 236 samples over T=46.9 s puts the phugoid peak in
+# bin 5 (5.03 cycles in window). Only the real DFT produces a k at all —
+# the anti-alias pin (see wrap_dft's comment).
+check_exact of ["S3.Tdft.k", base_ph.Td.k, 5]
 
 rerun_phase is 1
 
@@ -346,12 +368,13 @@ g3 is grade_ph of [ph2, 1.0, 0]
 check_result of ["M1X.ph2.Tpeaks", g3.Tp, "T", ph_ref.T, 0.005]
 check_result of ["M1X.ph2.Tdft", g3.Td, "T", ph_ref.T, 0.005]
 check_result of ["M1X.ph2.z", g3.z, "zeta", ph_ref.zeta, 0.02]
+check_exact of ["M1X.ph2.Tdft.k", g3.Td.k, 5]
 
 # ------------------------------------------------------------ population
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 57:
-    print of f"FAIL harness: expected exactly 57 checks, ran {checks_run}"
+if checks_run != 59:
+    print of f"FAIL harness: expected exactly 59 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

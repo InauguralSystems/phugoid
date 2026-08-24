@@ -21,6 +21,6 @@ if ! "$EIGS" tests/sim_check.eigs > "$OUT" 2>&1; then
     tail -3 "$OUT"
     exit 1
 fi
-grep -q '^CHECKS_RUN 57$' "$OUT" || { echo "FAIL: check population not 57"; tail -3 "$OUT"; exit 1; }
+grep -q '^CHECKS_RUN 59$' "$OUT" || { echo "FAIL: check population not 59"; tail -3 "$OUT"; exit 1; }
 grep -q '^FAILURES 0$' "$OUT" || { echo "FAIL: failures reported"; grep '^FAIL' "$OUT"; exit 1; }
-echo "PASS: 57/57 rung-1 checks green"
+echo "PASS: 59/59 rung-1 checks green"

@@ -23,7 +23,7 @@ run_plant() {
         exit 1
     fi
     grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 57$' "$OUT" || { echo "FAIL: plant $plant run population != 57"; exit 1; }
+    grep -q '^CHECKS_RUN 59$' "$OUT" || { echo "FAIL: plant $plant run population != 59"; exit 1; }
 }
 
 expect_total_fails() {
@@ -119,12 +119,12 @@ expect_red 'S4\.dt\.' 'S4\.amp\.' 'S4\.ctl\.'
 expect_green 'S[0-3]\.' 'M1X\.'
 echo "PASS: Q10 red pattern exact"
 
-echo "--- Q11: period_dft result corrupted x1.01 at its true call site -> exactly the 2 base DFT checks ---"
+echo "--- Q11: period_dft result corrupted (T x1.01, k+1) -> exactly the 4 Td checks ---"
 run_plant q11
-expect_total_fails 2
-expect_red 'S3\.Tdft ' 'M1X\.ph2\.Tdft '
+expect_total_fails 4
+expect_red 'S3\.Tdft ' 'S3\.Tdft\.k ' 'M1X\.ph2\.Tdft ' 'M1X\.ph2\.Tdft\.k '
 expect_green 'S3\.Tpeaks ' 'S4\.' 'S[0-2]\.' 'M1X\.sp'
-echo "PASS: Q11 red pattern exact (round-1 review: aliasing period_dft -> period_peaks survived every other plant; under that alias q11 flips nothing and run_plant fails)"
+echo "PASS: Q11 red pattern exact (rounds 1-2: the anti-alias defense is the k-pins, which red the CLEAN run under any period_peaks alias; q11 proves the four Td checks can fail)"
 
 # ------------------------------------------------------------------
 # Manifest enforcement (same rules as test_planted.sh): identity over

@@ -478,7 +478,7 @@ exact conversions with ~13× margin). Measured first green run: T −0.17%,
 6.9·10⁻⁵ of the first extremum (measured from the 4th extremum's ratio
 deviation); the M1X bridge bounds 4× that.
 
-### S3 — phugoid from the elevator pulse (3 checks)
+### S3 — phugoid from the elevator pulse (4 checks)
 
 Elevator pulse (+0.005 rad for 20 s, back to trim), u(t) from t = 45 s
 (the pulse-edge SP is dead: e^(−0.5515·25) ≈ 10⁻⁶), 1.0 s cadence, 280 s
@@ -498,7 +498,7 @@ quantities (T_sp, ζ_sp×2, T_ph×2, ζ_ph) against the base run:
 - **ctl**: C_mδe × 1.5, re-trimmed: each moves < **0.2%** — the nominal
   control derivatives are excitation-only.
 
-### M1X — the estimator bridge (12 checks)
+### M1X — the estimator bridge (13 checks)
 
 Synthetic signals from the chain roots (σ, ω of each mode), truth known,
 graded in the exact windows/cadences the sim grading uses:
@@ -552,7 +552,7 @@ large alternation — reddens those 5), together covering all 11.
 
 Run by `tests/test_sim_planted.sh`, same rules as rung 0: each plant flips
 EXACTLY its declared red set (full count + representatives + green-side
-exclusions), every plant run executes the full pinned 57-check population,
+exclusions), every plant run executes the full pinned 59-check population,
 manifest identity (name + tolerance token) + plantable coverage enforced
 against `tests/sim_manifest.txt`. Red sets measured 2026-08-24; the exact
 lists are the assertions in the harness.
@@ -569,14 +569,14 @@ lists are the assertions in the harness.
 | Q8 | every graded ζ replaced by 0.05 after the estimator | exactly the 10 ζ checks (comparator validation; every graded ζ is > tolerance from 0.05) |
 | Q9 | sim dataset copy broadly poisoned (C_Lα, C_D, C_mq, C_Lq, C_L, W, g scaled — rung-0 P8's shape, for S0 coverage) | 16: S0 all plantable entries except the Q1/Q2-only a21-fold slot, S2 (all), S3 (all); S1 GREEN — the trim solver correctly finds the poisoned model's own equilibrium, which is the point of S1 |
 | Q10 | the RE-RUN side of every S4 grading corrupted (dt ×1.02, ζ ×1.03) after the base gradings are banked | exactly the 18 S4 comparators — which stay green under every model-side plant (both sides move together) and so need their own comparator-validation plant |
-| Q11 | the period_dft RESULT ×1.01, through a wrapper on the true DFT call site (rung-0 P10's estimator-wiring class) | exactly S3.Tdft + M1X.ph2.Tdft. Added after round-1 blind review aliased `period_dft` → `period_peaks` at the grading call site and the whole suite stayed green — every other plant's red set has the two period estimators co-occurring, so nothing separated the "independent" pair and five checks were silent duplicates. Under an aliased wiring the wrapper never runs, Q11 flips nothing, and the harness fails loudly. |
+| Q11 | the period_dft RESULT corrupted (T ×1.01, k+1) through a wrapper on the true DFT call site (rung-0 P10's estimator-wiring class) | exactly the 4 Td checks: S3.Tdft, S3.Tdft.k, M1X.ph2.Tdft, M1X.ph2.Tdft.k. History: round-1 blind review aliased `period_dft` → `period_peaks` at the grading call site and the whole suite stayed green (every other plant reds the two period estimators together, so nothing separated the "independent" pair — five checks were silent duplicates). The first fix claimed the wrapper itself was the defense ("under an alias Q11 flips nothing"); round-2 review refuted it by aliasing INSIDE the wrapper argument — Q11's result-corruption fired identically because the estimators agree within tolerance, and v0.41.0's silent-null missing-field access (W4) meant copying `res.k` off a peaks result tripped nothing. The load-bearing defense is therefore the two **k-pins** (`check_exact` on the DFT's spectral bin, a field only the real DFT produces): under ANY alias k is null and the CLEAN run goes red — verified against both review mutations. Q11's remaining job is proving the four Td checks can fail. |
 
 Observer plants o1/o2 are declared in the O section and enforced by
 `tests/test_observer.sh`.
 
 ## Exit gate for rung 1
 
-1. All S, M1X and O checks green (57 + 11, populations pinned); all eleven
+1. All S, M1X and O checks green (59 + 11, populations pinned); all eleven
    Q plants and both o plants red in exactly the declared way; rung-0
    suite untouched and green.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds,
