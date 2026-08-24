@@ -1,0 +1,218 @@
+# measure.eigs — the estimators that will grade rung-1+ trajectories.
+# Validated at rung 0 on synthetic signals with known truth (see
+# tests/measure_check.eigs and ORACLE.md M1-M3).
+#
+# Every estimator returns a dict: {"ok": 1, ...} on success, or
+# {"ok": 0, "reason": ...} when the signal cannot support the estimate
+# (M3: refuse rather than return a garbage number).
+
+import engineering
+
+define sig_mean(signal) as:
+    local s is 0.0
+    for i in range of (len of signal):
+        s is s + signal[i]
+    return s / (len of signal)
+
+define detrend(signal) as:
+    local m is sig_mean of (signal)
+    local out is []
+    for i in range of (len of signal):
+        append of [out, signal[i] - m]
+    return out
+
+define sig_absmax(signal) as:
+    local m is 0.0
+    for i in range of (len of signal):
+        local a is abs of signal[i]
+        if a > m:
+            m is a
+    return m
+
+# Local maxima of `signal` strictly above both neighbors, with parabolic
+# refinement of time and amplitude. Returns list of [t, amp]. Only peaks
+# with amp >= floor_frac * max|signal| count as usable.
+define find_peaks(signal, dt, floor_frac) as:
+    local out is []
+    local floor_amp is floor_frac * (sig_absmax of (signal))
+    local n is len of signal
+    for i in range of n:
+        if i >= 1 and i < n - 1:
+            local y0 is signal[i - 1]
+            local y1 is signal[i]
+            local y2 is signal[i + 1]
+            if y1 > y0 and y1 > y2 and y1 >= floor_amp:
+                local denom is y0 - 2.0 * y1 + y2
+                local off is 0.0
+                if (abs of denom) > 1e-300:
+                    off is 0.5 * (y0 - y2) / denom
+                local tpk is (i + off) * dt
+                local apk is y1 - 0.25 * (y0 - y2) * off
+                append of [out, [tpk, apk]]
+    return out
+
+# Period from mean spacing of successive positive peaks of the detrended
+# signal. Refuses with fewer than 2 usable peaks.
+define period_peaks(signal, dt) as:
+    local d is detrend of (signal)
+    local pks is find_peaks of [d, dt, 1e-3]
+    if (len of pks) < 2:
+        return {"ok": 0, "reason": "fewer than 2 usable peaks"}
+    local total is 0.0
+    local count is 0
+    for i in range of ((len of pks) - 1):
+        total is total + pks[i + 1][0] - pks[i][0]
+        count is count + 1
+    return {"ok": 1, "T": total / count, "n_peaks": len of pks}
+
+# Period from the DFT magnitude peak with parabolic sub-bin interpolation
+# on log-magnitude. Refuses when the window holds fewer than 3 cycles
+# (peak bin < 3), where the bin resolution cannot support the estimate.
+define period_dft(signal, dt) as:
+    local d is detrend of (signal)
+    local n is len of d
+    if n < 8:
+        return {"ok": 0, "reason": "signal too short"}
+    local spec is engineering.dft of (d)
+    local mag is engineering.magnitude_spectrum of (spec)
+    local kbest is 1
+    local mbest is 0.0
+    local half is floor of (n / 2)
+    local k is 1
+    loop while k <= half:
+        if mag[k] > mbest:
+            mbest is mag[k]
+            kbest is k
+        k is k + 1
+    if kbest < 3:
+        return {"ok": 0, "reason": "fewer than 3 cycles in window"}
+    local off is 0.0
+    if kbest >= 1 and kbest < half:
+        local la is log of (mag[kbest - 1] + 1e-300)
+        local lb is log of (mag[kbest] + 1e-300)
+        local lc is log of (mag[kbest + 1] + 1e-300)
+        local denom is la - 2.0 * lb + lc
+        if (abs of denom) > 1e-300:
+            off is 0.5 * (la - lc) / denom
+    local freq is (kbest + off) / (n * dt)
+    return {"ok": 1, "T": 1.0 / freq, "k": kbest}
+
+# Strict local maxima AND minima of the raw signal, parabolic-refined,
+# as [t, value]. Baseline-free consumers difference successive extrema,
+# so no detrending is needed (a constant offset cancels in the spans).
+define find_extrema(signal, dt) as:
+    local out is []
+    local n is len of signal
+    for i in range of n:
+        if i >= 1 and i < n - 1:
+            local y0 is signal[i - 1]
+            local y1 is signal[i]
+            local y2 is signal[i + 1]
+            local ismax is 0
+            if y1 > y0 and y1 > y2:
+                ismax is 1
+            local ismin is 0
+            if y1 < y0 and y1 < y2:
+                ismin is 1
+            if ismax == 1 or ismin == 1:
+                local denom is y0 - 2.0 * y1 + y2
+                local off is 0.0
+                if (abs of denom) > 1e-300:
+                    off is 0.5 * (y0 - y2) / denom
+                append of [out, [(i + off) * dt, y1 - 0.25 * (y0 - y2) * off]]
+    return out
+
+# Half-period spans between successive extrema: [t_mid, height]. For a
+# damped sinusoid the heights are exactly self-similar (ratio e^(-sigma*T/2))
+# and any constant baseline cancels — this is what makes the damping
+# estimators immune to DC offset and to the mean of a decaying signal
+# (mean-detrending was measured to bias log-decrement by +21%/-37%
+# depending on phase; see ORACLE.md M2).
+define half_spans(signal, dt) as:
+    local ex is find_extrema of [signal, dt]
+    local spans is []
+    if (len of ex) < 2:
+        return spans
+    local hmax is 0.0
+    for i in range of ((len of ex) - 1):
+        local h is abs of (ex[i][1] - ex[i + 1][1])
+        if h > hmax:
+            hmax is h
+    for i in range of ((len of ex) - 1):
+        local h is abs of (ex[i][1] - ex[i + 1][1])
+        if h >= 1e-6 * hmax and h > 0.0:
+            append of [spans, [0.5 * (ex[i][0] + ex[i + 1][0]), h]]
+    return spans
+
+# Damping ratio by log decrement over successive half-period spans.
+# Grid-validated to zeta = 0.30 (M2). Refuses with fewer than 2 spans.
+define zeta_logdec(signal, dt) as:
+    local spans is half_spans of [signal, dt]
+    if (len of spans) < 2:
+        return {"ok": 0, "reason": "fewer than 2 usable spans"}
+    local total is 0.0
+    local count is 0
+    for i in range of ((len of spans) - 1):
+        total is total + (log of (spans[i][1] / spans[i + 1][1]))
+        count is count + 1
+    # ln ratio per half period; the classic full-period decrement is twice it.
+    local delta is 2.0 * total / count
+    local pi2 is 2.0 * (pi of null)
+    return {"ok": 1, "zeta": delta / (sqrt of (pi2 * pi2 + delta * delta))}
+
+# Damping ratio by least-squares fit of ln(span height) vs t — the
+# heavy-damping estimator (log decrement runs out of usable ratios).
+# omega_d comes from the mean extrema spacing (exactly T/2 for a damped
+# sinusoid). Refuses with fewer than 3 spans.
+define zeta_envelope(signal, dt) as:
+    local spans is half_spans of [signal, dt]
+    local n is len of spans
+    if n < 3:
+        return {"ok": 0, "reason": "fewer than 3 usable spans"}
+    local sx is 0.0
+    local sy is 0.0
+    local sxx is 0.0
+    local sxy is 0.0
+    for i in range of n:
+        local t is spans[i][0]
+        local y is log of spans[i][1]
+        sx is sx + t
+        sy is sy + y
+        sxx is sxx + t * t
+        sxy is sxy + t * y
+    local slope is (n * sxy - sx * sy) / (n * sxx - sx * sx)
+    local sigma is 0.0 - slope
+    if sigma <= 0.0:
+        return {"ok": 0, "reason": "envelope not decaying"}
+    local half_period is (spans[n - 1][0] - spans[0][0]) / (n - 1)
+    local wd is (pi of null) / half_period
+    return {"ok": 1, "zeta": sigma / (sqrt of (sigma * sigma + wd * wd))}
+
+# Time to half amplitude of a pure exponential decay, by least-squares fit
+# of ln|y| vs t. Refuses if fewer than 8 samples are usable.
+define t_half_exp(signal, dt) as:
+    local m is sig_absmax of (signal)
+    if m <= 0.0:
+        return {"ok": 0, "reason": "zero signal"}
+    local sx is 0.0
+    local sy is 0.0
+    local sxx is 0.0
+    local sxy is 0.0
+    local count is 0
+    for i in range of (len of signal):
+        local a is abs of signal[i]
+        if a > 1e-9 * m:
+            local t is i * dt
+            local y is log of a
+            sx is sx + t
+            sy is sy + y
+            sxx is sxx + t * t
+            sxy is sxy + t * y
+            count is count + 1
+    if count < 8:
+        return {"ok": 0, "reason": "fewer than 8 usable samples"}
+    local slope is (count * sxy - sx * sy) / (count * sxx - sx * sx)
+    local sigma is 0.0 - slope
+    if sigma <= 0.0:
+        return {"ok": 0, "reason": "not decaying"}
+    return {"ok": 1, "t_half": (log of 2.0) / sigma}

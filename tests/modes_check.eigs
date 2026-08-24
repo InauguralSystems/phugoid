@@ -1,0 +1,237 @@
+# modes_check.eigs — the L1..L5 oracle checks from ORACLE.md.
+# Run from the repo root:  eigenscript tests/modes_check.eigs [plant]
+# where plant is one of p1 p2 p3 p6 (see the planted-fault matrix).
+# Prints one PASS/FAIL line per check, then CHECKS_RUN / FAILURES totals;
+# exits nonzero on any failure. A zero-check run is itself a failure
+# (mechanical-gates: a checker that examined nothing must not print OK).
+
+load_file of "data/b747_approach.eigs"
+load_file of "modes.eigs"
+
+cli is args of null
+plant is ""
+if (len of cli) > 0:
+    plant is cli[0]
+
+checks_run is 0
+failures is 0
+
+define check_pub(name, ours, printed, decimals) as:
+    checks_run is checks_run + 1
+    local tol is 0.7 * (pow of [10.0, 0.0 - decimals])
+    local diff is abs of (ours - printed)
+    local rel_ok is 0
+    if diff <= 0.0015 * (abs of printed):
+        rel_ok is 1
+    if diff <= tol or rel_ok == 1:
+        print of f"PASS {name} ours={ours} pub={printed}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} ours={ours} pub={printed} tol={tol}"
+
+define check_abs(name, ours, printed, abstol) as:
+    checks_run is checks_run + 1
+    local diff is abs of (ours - printed)
+    if diff <= abstol:
+        print of f"PASS {name} ours={ours} pub={printed}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} ours={ours} pub={printed} tol={abstol}"
+
+define fail_missing(name, why) as:
+    checks_run is checks_run + 1
+    failures is failures + 1
+    print of f"FAIL {name} MISSING: {why}"
+
+define check_solver_exact(tag, coeffs, roots) as:
+    # Rounding-free solver checks: per-root residual, plus Vieta sum/product.
+    for i in range of (len of roots):
+        local resid is cmag of (poly4_eval of [coeffs, roots[i]])
+        check_abs of [f"L4.exact.{tag}.resid{i}", resid, 0.0, 1e-10]
+    local rsum is [0.0, 0.0]
+    local rprod is [1.0, 0.0]
+    for i in range of (len of roots):
+        rsum is cadd of [rsum, roots[i]]
+        rprod is cmul of [rprod, roots[i]]
+    check_abs of [f"L4.exact.{tag}.vieta_sum", cmag of (cadd of [rsum, [coeffs[0], 0.0]]), 0.0, 1e-10]
+    check_abs of [f"L4.exact.{tag}.vieta_prod", cmag of (csub of [rprod, [coeffs[3], 0.0]]), 0.0, 1e-10]
+
+# Durand-Kerner iteration budget — plant p3 guts the solver by giving it
+# zero iterations, so it returns its initial guesses.
+dk_iters is 500
+if plant == "p3":
+    dk_iters is 0
+
+data is b747_approach of null
+
+# Plant p1: Cma sign flipped in the dataset before anything is derived.
+if plant == "p1":
+    data.lon.Cma is 0.0 - data.lon.Cma
+
+# ---------------------------------------------------------------- L1
+
+dl is dim_derivs_lon of (data)
+check_pub of ["L1.lon.Xu", dl.Xu, 0.0 - 0.0212, 4]
+check_pub of ["L1.lon.Xw", dl.Xw, 0.0466, 4]
+check_pub of ["L1.lon.Zu", dl.Zu, 0.0 - 0.2306, 4]
+check_pub of ["L1.lon.Zw", dl.Zw, 0.0 - 0.6038, 4]
+check_pub of ["L1.lon.Zwdot", dl.Zwdot, 0.0 - 0.0341, 4]
+check_pub of ["L1.lon.Zq", dl.Zq, 0.0 - 7.674, 3]
+check_pub of ["L1.lon.Mu", dl.Mu, 0.0, 4]
+check_pub of ["L1.lon.Mw", dl.Mw, 0.0 - 0.0019, 4]
+check_pub of ["L1.lon.Mwdot", dl.Mwdot, 0.0 - 0.0002, 4]
+check_pub of ["L1.lon.Mq", dl.Mq, 0.0 - 0.4381, 4]
+
+dlat is dim_derivs_lat of (data)
+check_pub of ["L1.lat.Yv", dlat.Yv, 0.0 - 0.0999, 4]
+check_pub of ["L1.lat.Yp", dlat.Yp, 0.0, 4]
+check_pub of ["L1.lat.Yr", dlat.Yr, 0.0, 4]
+check_pub of ["L1.lat.Lv", dlat.Lv, 0.0 - 0.0055, 4]
+check_pub of ["L1.lat.Lp", dlat.Lp, 0.0 - 1.0994, 4]
+check_pub of ["L1.lat.Lr", dlat.Lr, 0.2468, 4]
+check_pub of ["L1.lat.Nv", dlat.Nv, 0.0012, 4]
+check_pub of ["L1.lat.Np", dlat.Np, 0.0 - 0.0933, 4]
+check_pub of ["L1.lat.Nr", dlat.Nr, 0.0 - 0.2314, 4]
+check_pub of ["L1.lat.ix", dlat.ix, 0.0 - 0.1559, 4]
+check_pub of ["L1.lat.iz", dlat.iz, 0.0 - 0.0492, 4]
+
+# Plant p6: the Mwdot folding is dropped from the longitudinal A build.
+if plant == "p6":
+    dl.Mwdot is 0.0
+
+# ---------------------------------------------------------------- L2
+
+A is a_lon of [dl, data.cond]
+pub_a_lon is [[0.0 - 0.0212, 0.0466, 0.0, 0.0 - 32.174], [0.0 - 0.2229, 0.0 - 0.5839, 262.472, 0.0], [0.0001, 0.0 - 0.0018, 0.0 - 0.5015, 0.0], [0.0, 0.0, 1.0, 0.0]]
+pub_a_lon_dec is [[4, 4, 4, 3], [4, 4, 3, 4], [4, 4, 4, 4], [4, 4, 4, 4]]
+for i in range of 4:
+    for j in range of 4:
+        check_pub of [f"L2.lon.a{i + 1}{j + 1}", A[i][j], pub_a_lon[i][j], pub_a_lon_dec[i][j]]
+
+B is a_lat of [dlat, data.cond]
+pub_a_lat is [[0.0 - 0.0999, 0.0, 32.174, 0.0 - 279.10], [0.0 - 0.0057, 0.0 - 1.0932, 0.0, 0.2850], [0.0, 1.0, 0.0, 0.0], [0.0015, 0.0 - 0.0395, 0.0, 0.0 - 0.2454]]
+pub_a_lat_dec is [[4, 4, 3, 2], [4, 4, 4, 4], [4, 4, 4, 4], [4, 4, 4, 4]]
+for i in range of 4:
+    for j in range of 4:
+        check_pub of [f"L2.lat.a{i + 1}{j + 1}", B[i][j], pub_a_lat[i][j], pub_a_lat_dec[i][j]]
+
+# ---------------------------------------------------------------- L3
+
+cp_lon is charpoly4 of (A)
+check_pub of ["L3.lon.c1", cp_lon[0], 1.1066, 4]
+check_pub of ["L3.lon.c2", cp_lon[1], 0.7994, 4]
+check_pub of ["L3.lon.c3", cp_lon[2], 0.0225, 4]
+check_pub of ["L3.lon.c4", cp_lon[3], 0.0139, 4]
+
+cp_lat is charpoly4 of (B)
+check_pub of ["L3.lat.c1", cp_lat[0], 1.4385, 4]
+check_pub of ["L3.lat.c2", cp_lat[1], 0.8222, 4]
+check_pub of ["L3.lat.c3", cp_lat[2], 0.7232, 4]
+check_pub of ["L3.lat.c4", cp_lat[3], 0.0319, 4]
+
+# --------------------------------------------------- L4 (full chain)
+
+rts_lon is dk_roots of [cp_lon, dk_iters]
+m_lon is modes_of of (rts_lon)
+if (len of m_lon.osc) == 2:
+    check_pub of ["L4.chain.lon.ph.re", m_lon.osc[0].re, 0.0 - 0.00178, 5]
+    check_pub of ["L4.chain.lon.ph.im", m_lon.osc[0].im, 0.1339, 4]
+    check_pub of ["L4.chain.lon.sp.re", m_lon.osc[1].re, 0.0 - 0.5515, 4]
+    check_pub of ["L4.chain.lon.sp.im", m_lon.osc[1].im, 0.6880, 4]
+else:
+    fail_missing of ["L4.chain.lon.ph.re", "expected 2 oscillatory pairs"]
+    fail_missing of ["L4.chain.lon.ph.im", "expected 2 oscillatory pairs"]
+    fail_missing of ["L4.chain.lon.sp.re", "expected 2 oscillatory pairs"]
+    fail_missing of ["L4.chain.lon.sp.im", "expected 2 oscillatory pairs"]
+
+rts_lat is dk_roots of [cp_lat, dk_iters]
+m_lat is modes_of of (rts_lat)
+if (len of m_lat.osc) == 1 and (len of m_lat.reals) == 2:
+    check_pub of ["L4.chain.lat.dr.re", m_lat.osc[0].re, 0.0 - 0.08066, 5]
+    check_pub of ["L4.chain.lat.dr.im", m_lat.osc[0].im, 0.7433, 4]
+    check_pub of ["L4.chain.lat.spiral.re", m_lat.reals[0].re, 0.0 - 0.04641, 5]
+    check_pub of ["L4.chain.lat.roll.re", m_lat.reals[1].re, 0.0 - 1.2308, 4]
+else:
+    fail_missing of ["L4.chain.lat.dr.re", "expected 1 pair + 2 real roots"]
+    fail_missing of ["L4.chain.lat.dr.im", "expected 1 pair + 2 real roots"]
+    fail_missing of ["L4.chain.lat.spiral.re", "expected 1 pair + 2 real roots"]
+    fail_missing of ["L4.chain.lat.roll.re", "expected 1 pair + 2 real roots"]
+
+# --------------------------- L4 (solver alone, on the PUBLISHED quartics)
+
+pub_cp_lon is [1.1066, 0.7994, 0.0225, 0.0139]
+pub_cp_lat is [1.4385, 0.8222, 0.7232, 0.0319]
+
+# Plant p2: one published lateral coefficient perturbed +1% before rooting.
+if plant == "p2":
+    pub_cp_lat[0] is pub_cp_lat[0] * 1.01
+
+rts_pub_lon is dk_roots of [pub_cp_lon, dk_iters]
+check_solver_exact of ["lon", pub_cp_lon, rts_pub_lon]
+s_lon is modes_of of (rts_pub_lon)
+if (len of s_lon.osc) == 2:
+    check_abs of ["L4.solver.lon.ph.re", s_lon.osc[0].re, 0.0 - 0.00178, 5e-4]
+    check_abs of ["L4.solver.lon.ph.im", s_lon.osc[0].im, 0.1339, 5e-4]
+    check_abs of ["L4.solver.lon.sp.re", s_lon.osc[1].re, 0.0 - 0.5515, 5e-4]
+    check_abs of ["L4.solver.lon.sp.im", s_lon.osc[1].im, 0.6880, 5e-4]
+else:
+    fail_missing of ["L4.solver.lon.ph.re", "expected 2 oscillatory pairs"]
+    fail_missing of ["L4.solver.lon.ph.im", "expected 2 oscillatory pairs"]
+    fail_missing of ["L4.solver.lon.sp.re", "expected 2 oscillatory pairs"]
+    fail_missing of ["L4.solver.lon.sp.im", "expected 2 oscillatory pairs"]
+
+rts_pub_lat is dk_roots of [pub_cp_lat, dk_iters]
+check_solver_exact of ["lat", pub_cp_lat, rts_pub_lat]
+s_lat is modes_of of (rts_pub_lat)
+if (len of s_lat.osc) == 1 and (len of s_lat.reals) == 2:
+    check_abs of ["L4.solver.lat.dr.re", s_lat.osc[0].re, 0.0 - 0.08066, 5e-4]
+    check_abs of ["L4.solver.lat.dr.im", s_lat.osc[0].im, 0.7433, 5e-4]
+    check_abs of ["L4.solver.lat.spiral.re", s_lat.reals[0].re, 0.0 - 0.04641, 5e-4]
+    check_abs of ["L4.solver.lat.roll.re", s_lat.reals[1].re, 0.0 - 1.2308, 5e-4]
+else:
+    fail_missing of ["L4.solver.lat.dr.re", "expected 1 pair + 2 real roots"]
+    fail_missing of ["L4.solver.lat.dr.im", "expected 1 pair + 2 real roots"]
+    fail_missing of ["L4.solver.lat.spiral.re", "expected 1 pair + 2 real roots"]
+    fail_missing of ["L4.solver.lat.roll.re", "expected 1 pair + 2 real roots"]
+
+# ------------------------------------------------- L5 (from the chain)
+
+if (len of m_lon.osc) == 2:
+    check_pub of ["L5.ph.zeta", m_lon.osc[0].zeta, 0.0133, 4]
+    check_pub of ["L5.ph.wn", m_lon.osc[0].wn, 0.134, 3]
+    check_pub of ["L5.ph.T", m_lon.osc[0].T, 46.9, 1]
+    check_pub of ["L5.sp.zeta", m_lon.osc[1].zeta, 0.6255, 4]
+    check_pub of ["L5.sp.wn", m_lon.osc[1].wn, 0.882, 3]
+    check_pub of ["L5.sp.T", m_lon.osc[1].T, 9.13, 2]
+else:
+    fail_missing of ["L5.ph.zeta", "expected 2 oscillatory pairs"]
+    fail_missing of ["L5.ph.wn", "expected 2 oscillatory pairs"]
+    fail_missing of ["L5.ph.T", "expected 2 oscillatory pairs"]
+    fail_missing of ["L5.sp.zeta", "expected 2 oscillatory pairs"]
+    fail_missing of ["L5.sp.wn", "expected 2 oscillatory pairs"]
+    fail_missing of ["L5.sp.T", "expected 2 oscillatory pairs"]
+
+if (len of m_lat.osc) == 1 and (len of m_lat.reals) == 2:
+    check_pub of ["L5.dr.zeta", m_lat.osc[0].zeta, 0.1079, 4]
+    check_pub of ["L5.dr.wn", m_lat.osc[0].wn, 0.7477, 4]
+    check_pub of ["L5.dr.T", m_lat.osc[0].T, 8.45, 2]
+    check_pub of ["L5.dr.nhalf", m_lat.osc[0].n_half, 1.016, 3]
+    check_pub of ["L5.roll.thalf", m_lat.reals[1].t_half, 0.563, 3]
+    check_pub of ["L5.spiral.thalf", m_lat.reals[0].t_half, 14.93, 2]
+else:
+    fail_missing of ["L5.dr.zeta", "expected 1 pair + 2 real roots"]
+    fail_missing of ["L5.dr.wn", "expected 1 pair + 2 real roots"]
+    fail_missing of ["L5.dr.T", "expected 1 pair + 2 real roots"]
+    fail_missing of ["L5.dr.nhalf", "expected 1 pair + 2 real roots"]
+    fail_missing of ["L5.roll.thalf", "expected 1 pair + 2 real roots"]
+    fail_missing of ["L5.spiral.thalf", "expected 1 pair + 2 real roots"]
+
+# ---------------------------------------------------------------- exit
+
+print of f"CHECKS_RUN {checks_run}"
+print of f"FAILURES {failures}"
+if checks_run != 101:
+    print of f"FAIL harness: expected exactly 101 checks, ran {checks_run}"
+    exit of 1
+if failures > 0:
+    exit of 1

@@ -1,0 +1,6 @@
+{
+  "name": "phugoid",
+  "version": "0.0.1",
+  "description": "Fixed-wing flight-mode lab in EigenScript — textbook aerodynamic modes as an external oracle for observer semantics, built oracle-first (rung 0: derivative tables, mode predictions, and planted-fault-validated measurement scripts; no flight model yet).",
+  "deps": {}
+}

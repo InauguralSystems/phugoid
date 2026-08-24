@@ -1,0 +1,188 @@
+# modes.eigs — the rung-0 derivation chain:
+#   nondimensional coefficients + flight condition
+#     -> dimensional stability derivatives (L1)
+#     -> longitudinal/lateral state matrices (L2)
+#     -> characteristic quartic via Faddeev-LeVerrier (L3)
+#     -> roots via Durand-Kerner (L4)
+#     -> mode quantities wn/zeta/T/t_half/N_half (L5)
+# Conventions (Etkin/Nelson, as printed in Caughey 2011 §5.2-5.3):
+# longitudinal state [u, w, q, theta], lateral state [v, p, phi, r].
+# Complex numbers are [re, im] pairs. All quartics are monic:
+# coeffs [c1, c2, c3, c4] means l^4 + c1 l^3 + c2 l^2 + c3 l + c4.
+
+import linalg
+
+# ---------------------------------------------------------------- L1
+
+define dim_derivs_lon(data) as:
+    local c is data.cond
+    local k is data.lon
+    local Q is 0.5 * c.rho * c.u0 * c.u0
+    local QS is Q * c.S
+    local m is c.W / c.g
+    local f1 is QS / (m * c.u0)
+    local fm is QS * c.cbar / (c.Iy * c.u0)
+    local Xu is 0.0 - f1 * (k.CDu + 2.0 * k.CD)
+    local Xw is f1 * (k.CL - k.CDa)
+    local Zu is 0.0 - f1 * (k.CLu + 2.0 * k.CL)
+    local Zw is 0.0 - f1 * (k.CLa + k.CD)
+    local Zwdot is 0.0 - f1 * (c.cbar / (2.0 * c.u0)) * k.CLadot
+    local Zq is 0.0 - f1 * (c.cbar / 2.0) * k.CLq
+    local Mu is fm * k.Cmu
+    local Mw is fm * k.Cma
+    local Mwdot is fm * (c.cbar / (2.0 * c.u0)) * k.Cmadot
+    local Mq is fm * (c.cbar / 2.0) * k.Cmq
+    return {"Xu": Xu, "Xw": Xw, "Zu": Zu, "Zw": Zw, "Zwdot": Zwdot, "Zq": Zq, "Mu": Mu, "Mw": Mw, "Mwdot": Mwdot, "Mq": Mq}
+
+define dim_derivs_lat(data) as:
+    local c is data.cond
+    local k is data.lat
+    local Q is 0.5 * c.rho * c.u0 * c.u0
+    local QS is Q * c.S
+    local m is c.W / c.g
+    local f1 is QS / (m * c.u0)
+    local fl is QS * c.b / (c.Ix * c.u0)
+    local fn is QS * c.b / (c.Iz * c.u0)
+    local Yv is f1 * k.Cyb
+    local Yp is f1 * (c.b / 2.0) * k.Cyp
+    local Yr is f1 * (c.b / 2.0) * k.Cyr
+    local Lv is fl * k.Clb
+    local Lp is fl * (c.b / 2.0) * k.Clp
+    local Lr is fl * (c.b / 2.0) * k.Clr
+    local Nv is fn * k.Cnb
+    local Np is fn * (c.b / 2.0) * k.Cnp
+    local Nr is fn * (c.b / 2.0) * k.Cnr
+    local ix is c.Ixz / c.Ix
+    local iz is c.Ixz / c.Iz
+    return {"Yv": Yv, "Yp": Yp, "Yr": Yr, "Lv": Lv, "Lp": Lp, "Lr": Lr, "Nv": Nv, "Np": Np, "Nr": Nr, "ix": ix, "iz": iz}
+
+# ---------------------------------------------------------------- L2
+
+define a_lon(d, cond) as:
+    # Zwdot folding in the w-row; Mwdot folding in the q-row (theta0 = 0).
+    local zdenom is 1.0 - d.Zwdot
+    local a21 is d.Zu / zdenom
+    local a22 is d.Zw / zdenom
+    local a23 is (d.Zq + cond.u0) / zdenom
+    return [[d.Xu, d.Xw, 0.0, 0.0 - cond.g], [a21, a22, a23, 0.0], [d.Mu + d.Mwdot * a21, d.Mw + d.Mwdot * a22, d.Mq + d.Mwdot * a23, 0.0], [0.0, 0.0, 1.0, 0.0]]
+
+define a_lat(d, cond) as:
+    # Ixz cross-inertia priming of the L and N rows (theta0 = 0).
+    local dd is 1.0 - d.ix * d.iz
+    return [[d.Yv, d.Yp, cond.g, d.Yr - cond.u0], [(d.Lv + d.ix * d.Nv) / dd, (d.Lp + d.ix * d.Np) / dd, 0.0, (d.Lr + d.ix * d.Nr) / dd], [0.0, 1.0, 0.0, 0.0], [(d.Nv + d.iz * d.Lv) / dd, (d.Np + d.iz * d.Lp) / dd, 0.0, (d.Nr + d.iz * d.Lr) / dd]]
+
+# ---------------------------------------------------------------- L3
+
+define charpoly4(A) as:
+    # Faddeev-LeVerrier: c_k = -tr(A * M_(k-1)) / k with the running
+    # M_k = A * M_(k-1) + c_k I. Returns [c1, c2, c3, c4] of det(lI - A).
+    local n is 4
+    local M is linalg.mat_identity of (n)
+    local coeffs is []
+    local kk is 1
+    loop while kk <= n:
+        local AM is linalg.mat_mul of [A, M]
+        local ck is (0.0 - (linalg.mat_trace of AM)) / kk
+        append of [coeffs, ck]
+        local cI is linalg.mat_scale of [linalg.mat_identity of (n), ck]
+        M is linalg.mat_add of [AM, cI]
+        kk is kk + 1
+    return coeffs
+
+# ------------------------------------------------- complex helpers
+
+define cadd(a, b) as:
+    return [a[0] + b[0], a[1] + b[1]]
+
+define csub(a, b) as:
+    return [a[0] - b[0], a[1] - b[1]]
+
+define cmul(a, b) as:
+    return [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]]
+
+define cdiv(a, b) as:
+    local d is b[0] * b[0] + b[1] * b[1]
+    return [(a[0] * b[0] + a[1] * b[1]) / d, (a[1] * b[0] - a[0] * b[1]) / d]
+
+define cmag(a) as:
+    return sqrt of (a[0] * a[0] + a[1] * a[1])
+
+define poly4_eval(coeffs, z) as:
+    # Horner on the monic quartic.
+    local p is cadd of [z, [coeffs[0], 0.0]]
+    p is cadd of [cmul of [p, z], [coeffs[1], 0.0]]
+    p is cadd of [cmul of [p, z], [coeffs[2], 0.0]]
+    p is cadd of [cmul of [p, z], [coeffs[3], 0.0]]
+    return p
+
+# ---------------------------------------------------------------- L4
+
+define dk_roots(coeffs, iters) as:
+    # Durand-Kerner with the standard (0.4 + 0.9i)^k starting points.
+    # iters = 0 returns the untouched initial guesses (used by plant P3).
+    local base is [0.4, 0.9]
+    local roots is []
+    local cur is [1.0, 0.0]
+    for k in range of 4:
+        append of [roots, cur]
+        cur is cmul of [cur, base]
+    local it is 0
+    local done is 0
+    loop while it < iters and done == 0:
+        local maxd is 0.0
+        for i in range of 4:
+            local zi is roots[i]
+            local pnum is poly4_eval of [coeffs, zi]
+            local den is [1.0, 0.0]
+            for j in range of 4:
+                if j != i:
+                    den is cmul of [den, csub of [zi, roots[j]]]
+            local delta is cdiv of [pnum, den]
+            roots[i] is csub of [zi, delta]
+            local dm is cmag of (delta)
+            if dm > maxd:
+                maxd is dm
+        if maxd < 1e-13:
+            done is 1
+        it is it + 1
+    return roots
+
+# ---------------------------------------------------------------- L5
+
+define modes_of(roots) as:
+    # Splits roots into oscillatory conjugate pairs (taken once, im > 0)
+    # and real modes. Oscillatory sorted by ascending wn (phugoid before
+    # short period; Dutch roll alone on the lateral side); real modes by
+    # ascending |re| (spiral before roll). t_half < 0 encodes "unstable:
+    # value is time to double" via the t_double field instead.
+    local osc is []
+    local reals is []
+    for i in range of (len of roots):
+        local r is roots[i]
+        if (abs of r[1]) > 1e-6:
+            if r[1] > 0.0:
+                local wn is sqrt of (r[0] * r[0] + r[1] * r[1])
+                local zeta is (0.0 - r[0]) / wn
+                local T is 2.0 * (pi of null) / (abs of r[1])
+                local th is 0.0
+                if r[0] < 0.0:
+                    th is (log of 2.0) / (0.0 - r[0])
+                append of [osc, {"re": r[0], "im": r[1], "wn": wn, "zeta": zeta, "T": T, "t_half": th, "n_half": th / T}]
+        else:
+            local entry is {"re": r[0], "t_half": 0.0, "t_double": 0.0}
+            if r[0] < 0.0:
+                entry.t_half is (log of 2.0) / (0.0 - r[0])
+            else:
+                entry.t_double is (log of 2.0) / r[0]
+            append of [reals, entry]
+    if (len of osc) == 2:
+        if osc[0].wn > osc[1].wn:
+            local tmp is osc[0]
+            osc[0] is osc[1]
+            osc[1] is tmp
+    if (len of reals) == 2:
+        if (abs of reals[0].re) > (abs of reals[1].re):
+            local tmp2 is reals[0]
+            reals[0] is reals[1]
+            reals[1] is tmp2
+    return {"osc": osc, "reals": reals}

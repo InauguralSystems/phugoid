@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: suite (in devcontainer)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Build the devcontainer (EigenScript pinned by .devcontainer/Dockerfile's
+      # EIGS_REF) and run the suite inside it — the same image a Codespace opens.
+      - name: Build devcontainer and run suite
+        uses: devcontainers/ci@v0.3
+        with:
+          runCmd: |
+            set -e
+            EIGENSCRIPT=eigenscript bash tests/test_lint.sh
+            EIGENSCRIPT=eigenscript bash tests/test_modes.sh
+            EIGENSCRIPT=eigenscript bash tests/test_measure.sh
+            EIGENSCRIPT=eigenscript bash tests/test_planted.sh

@@ -1,0 +1,167 @@
+# The rung-0 oracle — written before any code
+
+This file is the quality bar for rung 0 (grader-first: the oracle exists and is
+validated before any flight model is written). Every check below is inspectable
+by an outside critic: a published number, a stated tolerance, and a planted
+fault that proves the check can fail. **Tolerances may not be widened without a
+written justification in this file recording the measured discrepancy and why
+it is print-rounding rather than a defect.**
+
+## Source of truth
+
+Caughey, David A., *Introduction to Aircraft Stability and Control*, Course
+Notes for M&AE 5070, Cornell University, 2011.
+<https://courses.cit.cornell.edu/mae5070/Caughey_2011_04.pdf>
+§5.2–5.3 (equations 5.48–5.101). Caughey's data is from Nelson, *Flight
+Stability and Automatic Control*, 2nd ed. (his ref [2]), whose 747 tables trace
+to Heffley & Jewell, *Aircraft Handling Qualities Data*, NASA CR-2144 (1972).
+
+Airframe: **Boeing 747, Mach 0.25 powered-approach configuration, standard sea
+level** (Caughey eq. 5.48). Chosen over the proposal's example airframes
+(Navion / Cessna-182) because this is the one public dataset where the source
+publishes *every link of the chain* — nondimensional coefficients, dimensional
+derivatives, the assembled state matrices, the characteristic quartics, their
+roots, and the derived mode quantities — so each stage of our pipeline has an
+independent printed answer, not just the endpoints. The full input data is in
+`DERIVATIVES.md` and `data/b747_approach.eigs`.
+
+## The pipeline under test
+
+```
+nondimensional coefficients + flight condition       (primary data, exact)
+  → dimensional stability derivatives                (L1)
+  → longitudinal / lateral state matrices A          (L2)
+  → characteristic quartic coefficients              (L3)
+  → roots (complex)                                  (L4)
+  → mode quantities: ωn, ζ, T, t_half, N_half        (L5)
+```
+
+and, independently, the **measurement scripts** that will grade rung-1+
+trajectories (M1–M3 below).
+
+## Checks and tolerances
+
+Printed values are rounded; the source computed later stages from unrounded
+intermediates (verified by hand for A33: rebuilding from the printed Mẇ =
+−0.0002 gives −0.4906, from the unrounded −0.000241 gives the printed
+−0.5015). So each stage is computed from **our own unrounded chain** and
+compared against the printed value at that stage, with tolerance = print
+rounding plus a small margin.
+
+Per-value tolerance rule, used by every L-check: with d = number of decimal
+places in the printed value, pass iff
+`|ours − printed| ≤ 0.7·10⁻ᵈ` **or** `|ours − printed| ≤ 0.0015·|printed|`.
+
+### L1 — dimensional derivatives (vs Caughey eq. 5.51 and 5.91)
+
+Longitudinal: Xu=−0.0212, Xw=0.0466, Zu=−0.2306, Zw=−0.6038, Zẇ=−0.0341,
+Zq=−7.674, Mu=0.0, Mw=−0.0019, Mẇ=−0.0002, Mq=−0.4381.
+Lateral: Yv=−0.0999, Yp=0.0, Yr=0.0, Lv=−0.0055, Lp=−1.0994, Lr=0.2468,
+Nv=0.0012, Np=−0.0933, Nr=−0.2314; ix=−0.1559, iz=−0.0492.
+
+### L2 — state matrices (vs eq. 5.52 and 5.93)
+
+All 16 entries of each printed A, same per-value rule. The folding conventions
+(Zẇ and Mẇ absorption in the longitudinal rows; Ixz cross-inertia priming in
+the lateral rows) are exactly what these entries pin down.
+
+### L3 — characteristic quartics (vs eq. 5.53 and 5.94)
+
+Longitudinal: λ⁴ + 1.1066λ³ + 0.7994λ² + 0.0225λ + 0.0139.
+Lateral:      λ⁴ + 1.4385λ³ + 0.8222λ² + 0.7232λ + 0.0319.
+Same per-value rule, applied to each coefficient.
+
+### L4 — roots (vs eq. 5.54 and 5.95)
+
+Longitudinal: short period −0.5515 ± 0.6880i; phugoid −0.00178 ± 0.1339i.
+Lateral: Dutch roll −0.08066 ± 0.7433i; roll −1.2308; spiral −0.04641.
+Per-value rule on each real and imaginary part, from OUR quartic.
+
+Additionally the root finder alone is checked on the PUBLISHED quartic
+coefficients three ways:
+1. **Residuals**: |p(z)| ≤ 10⁻¹⁰ for every returned root — exact, no
+   rounding dependence.
+2. **Vieta**: Σroots = −c1 and Πroots = c4, each to 10⁻¹⁰ — exact.
+3. Match to the published roots with **5·10⁻⁴ absolute** per component.
+   *Justification for the wider tolerance (measured 2026-08-23, first run):*
+   the published roots were computed from unrounded coefficients; rooting the
+   printed (rounded) quartic shifts the phugoid pair by up to 2.1·10⁻⁴ on the
+   imaginary part (0.13368934 vs printed 0.1339) and 9.1·10⁻⁶ on the real
+   part — c4 alone is printed 0.29% off its unrounded value and the small
+   phugoid pair absorbs most of that. 5·10⁻⁴ covers the measured rounding
+   shift with ~2× margin while still flipping on plant P2's +1% coefficient
+   perturbation (which moves the Dutch-roll pair by ~10⁻²).
+
+### L5 — mode quantities (vs eq. 5.55–5.56, 5.96–5.101)
+
+ζ_sp=0.6255, ωn_sp=0.882 s⁻¹, T_sp=9.13 s; ζ_ph=0.0133, ωn_ph=0.134 s⁻¹,
+T_ph=46.9 s; ζ_DR=0.1079, ωn_DR=0.7477 s⁻¹, T_DR=8.45 s, N½_DR=1.016;
+t½_roll=0.563 s, t½_spiral=14.93 s. Same per-value rule.
+
+### M1 — period estimators on synthetic signals
+
+Two independent estimators (peak-spacing with parabolic refinement; DFT peak
+with sub-bin interpolation via `lib/engineering.dft`) on synthetic damped
+sinusoids `e^(−ζωn t)·cos(ωd t + φ)` with known truth, over a grid covering the
+published regimes: ζ ∈ {0.013, 0.107, 0.30}, plus phases φ ∈ {0, 1.0} and a DC
+offset case. Pass: measured T within **1%** of truth for ζ ≤ 0.11; at
+ζ = 0.30 the peak-spacing estimator stays at **2%** and the DFT estimator
+gets **5%**. *Justification (measured 2026-08-23):* at ζ = 0.30 the spectral
+peak is wide (σ ≈ 0.3 rad/s against a 0.157 rad/s bin) and the
+negative-frequency image, only 2ωd away, skews the interpolated peak low —
+measured −4.0% (6.3245 vs 6.5866 s truth); at ζ ≤ 0.11 the same estimator
+measures within 0.6%. The DFT estimator's stated regime is therefore
+ζ ≤ 0.11 at 1%; the ζ = 0.30 row stays in the grid at 5% so a regression
+in the heavy regime is still caught.
+
+### M2 — damping estimators on synthetic signals
+
+Log-decrement (successive half-period spans) for ζ ≤ 0.30: measured ζ within
+**5%** relative of truth. Envelope least-squares fit for the heavy case
+ζ = 0.6255 (log-decrement runs out of usable ratios): ζ within **10%**
+relative. Aperiodic: exponential-fit t½ within **2%** on pure decays with the
+published roll/spiral rates.
+
+*Design note bought by measurement (2026-08-23):* the first implementation
+detrended by the window mean and took ratios of positive-peak amplitudes; on
+a *decaying* signal the mean is a phase-dependent baseline and biased ζ by
++21% (φ=0) to −37% (φ=1) at ζ = 0.107. Both damping estimators therefore
+work on **peak-to-trough spans of the raw signal** — successive-extrema
+differences are exactly self-similar for a damped sinusoid and any constant
+baseline cancels, which is also what lets the heavy-damping case keep three
+usable spans where the |detrended| envelope had lost its tail to the
+baseline shift. After the change the grid measures ζ to better than 0.01%.
+
+### M3 — estimator honesty
+
+Estimators must REFUSE (return a sentinel, distinct from a number) when the
+signal has fewer than 2 usable peaks / fewer than 3 cycles for the DFT path,
+rather than returning a garbage number. Checked with a truncated signal.
+
+## Planted-fault matrix — validates the checkers, not the code
+
+Run by `tests/test_planted.sh`. Each plant must flip **exactly the named
+check(s) to FAIL** while the others stay green; a plant that flips nothing
+fails the harness itself. A checker that has never failed has not been shown
+to work.
+
+| Plant | Injected into | Must go red |
+|---|---|---|
+| P1 | Cmα sign flipped in a copy of the dataset | L1 (Mw), L2, L3, L4, L5 longitudinal chain |
+| P2 | lateral quartic coefficient c1 perturbed +1% before rooting | L4 lateral root match |
+| P3 | root finder gutted (returns its initial guesses) | L4 both |
+| P4 | synthetic generator detuned: time-dilated so period is +5% vs declared truth (ζ preserved) | M1: all peak-spacing checks and the ζ ≤ 0.11 DFT checks (the ζ = 0.30 DFT check sits at 5% tolerance over a −4% bias, so +5% detune can land inside it) |
+| P5 | damping estimator returns a constant 0.05 | M2 (all ζ cases except any within 5% of 0.05 — grid chosen so none is) |
+| P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A32/A33), L3, L4 phugoid/sp |
+
+Additional harness rule (mechanical-gates): every test script counts the
+checks it executed and **fails unless the count equals its declared, pinned
+population** (the check set is fixed, so the pin is exact, not a floor), so a
+broken loader or a silently-skipped section cannot print an OK. Pinned:
+`modes_check.eigs` runs exactly 101 checks.
+
+## Exit gate for rung 0
+
+1. All L and M checks green, all six plants red in exactly the declared way.
+2. Blind-critic rounds dry (two consecutive rounds with no actionable gap).
+3. CI green on the pushed repo (devcontainer, pinned EIGS_REF=v0.41.0).

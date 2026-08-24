@@ -1,0 +1,48 @@
+# Boeing 747, Mach 0.25 powered approach, standard sea level.
+# Machine-readable copy of DERIVATIVES.md — sources and units live there.
+# The nondimensional coefficients + flight condition are the PRIMARY data;
+# everything downstream (dimensional derivatives, A matrices, quartics,
+# roots, mode quantities) is derived by modes.eigs and checked against the
+# published values recorded in tests/modes_check.eigs.
+
+define b747_approach as:
+    local cond is {
+        "u0": 279.1,
+        "rho": 0.002377,
+        "S": 5500.0,
+        "cbar": 27.3,
+        "b": 195.7,
+        "W": 564032.0,
+        "g": 32.174,
+        "theta0": 0.0,
+        "Iy": 32300000.0,
+        "Ix": 14300000.0,
+        "Iz": 45300000.0,
+        "Ixz": 0.0 - 2230000.0
+    }
+    local lon is {
+        "CL": 1.108,
+        "CD": 0.102,
+        "CLa": 5.70,
+        "CDa": 0.66,
+        "Cma": 0.0 - 1.26,
+        "CLadot": 6.7,
+        "Cmadot": 0.0 - 3.2,
+        "CLq": 5.4,
+        "Cmq": 0.0 - 20.8,
+        "CLu": 0.0,
+        "CDu": 0.0,
+        "Cmu": 0.0
+    }
+    local lat is {
+        "Cyb": 0.0 - 0.96,
+        "Cyp": 0.0,
+        "Cyr": 0.0,
+        "Clb": 0.0 - 0.221,
+        "Clp": 0.0 - 0.45,
+        "Clr": 0.101,
+        "Cnb": 0.15,
+        "Cnp": 0.0 - 0.121,
+        "Cnr": 0.0 - 0.30
+    }
+    return {"cond": cond, "lon": lon, "lat": lat}

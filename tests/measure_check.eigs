@@ -1,0 +1,122 @@
+# measure_check.eigs — the M1..M3 estimator checks from ORACLE.md, on
+# synthetic signals with known truth.
+# Run from the repo root:  eigenscript tests/measure_check.eigs [plant]
+# where plant is p4 (generator detuned +5% in period vs declared truth) or
+# p5 (damping estimate replaced by a constant 0.05).
+# Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
+# failure; the check population is pinned at exactly 24.
+
+load_file of "measure.eigs"
+
+cli is args of null
+plant is ""
+if (len of cli) > 0:
+    plant is cli[0]
+
+checks_run is 0
+failures is 0
+
+define check_rel(name, ours, truth, reltol) as:
+    checks_run is checks_run + 1
+    local diff is abs of (ours - truth)
+    if diff <= reltol * (abs of truth):
+        print of f"PASS {name} ours={ours} truth={truth}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} ours={ours} truth={truth} reltol={reltol}"
+
+define check_refused(name, res) as:
+    checks_run is checks_run + 1
+    if res.ok == 0:
+        print of f"PASS {name} refused: {res.reason}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} expected a refusal, got ok=1"
+
+define check_result(name, res, field, truth, reltol) as:
+    if res.ok == 1:
+        check_rel of [name, res[field], truth, reltol]
+    else:
+        checks_run is checks_run + 1
+        failures is failures + 1
+        print of f"FAIL {name} estimator refused: {res.reason}"
+
+# Damped sinusoid with declared truth zeta/wn. detune > 1 dilates time so
+# the ACTUAL period exceeds the declared one while zeta stays exact — the
+# shape plant p4 uses to hit the period checks alone.
+define gen_osc(zeta, wn, phi, dc, dt, n, detune) as:
+    local wd is wn * (sqrt of (1.0 - zeta * zeta)) / detune
+    local sigma is zeta * wn / detune
+    local out is []
+    for i in range of n:
+        local t is i * dt
+        append of [out, dc + (exp of (0.0 - sigma * t)) * (cos of (wd * t + phi))]
+    return out
+
+define gen_exp(sigma, dt, n) as:
+    local out is []
+    for i in range of n:
+        append of [out, exp of (0.0 - sigma * i * dt)]
+    return out
+
+detune is 1.0
+if plant == "p4":
+    detune is 1.05
+
+# name, zeta, wn, phi, dc, dt, n, T_reltol, zeta_reltol
+cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.05], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.05], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.05], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.05], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.05], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.05]]
+
+# The DFT estimator's stated regime is zeta <= 0.11 at 1%; at zeta = 0.30
+# it carries a measured -4.0% image-leakage bias, so its check runs at 5%
+# (ORACLE.md M1). The peak-spacing estimator keeps the per-case tolerance.
+dft_tol_override is {"mid_z30": 0.05}
+
+unobserved:
+    for c in cases:
+        local name is c[0]
+        local zeta is c[1]
+        local wn is c[2]
+        local sig is gen_osc of [zeta, wn, c[3], c[4], c[5], c[6], detune]
+        local t_true is 2.0 * (pi of null) / (wn * (sqrt of (1.0 - zeta * zeta)))
+        local dt is c[5]
+        local rp is period_peaks of [sig, dt]
+        check_result of [f"M1.peaks.{name}", rp, "T", t_true, c[7]]
+        local rd is period_dft of [sig, dt]
+        local dft_tol is c[7]
+        if (has_key of [dft_tol_override, name]) == 1:
+            dft_tol is dft_tol_override[name]
+        check_result of [f"M1.dft.{name}", rd, "T", t_true, dft_tol]
+        local rz is zeta_logdec of [sig, dt]
+        if plant == "p5":
+            rz is {"ok": 1, "zeta": 0.05}
+        check_result of [f"M2.logdec.{name}", rz, "zeta", zeta, c[8]]
+
+    # Heavy damping: the short-period regime, envelope fit (ORACLE M2).
+    local hsig is gen_osc of [0.6255, 0.882, 0.0, 0.0, 0.05, 400, detune]
+    local rh is zeta_envelope of [hsig, 0.05]
+    if plant == "p5":
+        rh is {"ok": 1, "zeta": 0.05}
+    check_result of ["M2.envelope.heavy", rh, "zeta", 0.6255, 0.10]
+
+    # Aperiodic decays at the published roll and spiral rates (ORACLE M2).
+    local roll_sig is gen_exp of [1.2308, 0.01, 500]
+    local r1 is t_half_exp of [roll_sig, 0.01]
+    check_result of ["M2.thalf.roll", r1, "t_half", 0.563155, 0.02]
+    local spiral_sig is gen_exp of [0.04641, 0.25, 500]
+    local r2 is t_half_exp of [spiral_sig, 0.25]
+    check_result of ["M2.thalf.spiral", r2, "t_half", 14.9346, 0.02]
+
+    # M3 — honesty: a window holding under one cycle must be refused by
+    # every oscillatory estimator, not turned into a number.
+    local shortsig is gen_osc of [0.107, 0.7477, 0.0, 0.0, 0.2, 25, 1.0]
+    check_refused of ["M3.refuse.peaks", period_peaks of [shortsig, 0.2]]
+    check_refused of ["M3.refuse.dft", period_dft of [shortsig, 0.2]]
+    check_refused of ["M3.refuse.logdec", zeta_logdec of [shortsig, 0.2]]
+
+print of f"CHECKS_RUN {checks_run}"
+print of f"FAILURES {failures}"
+if checks_run != 24:
+    print of f"FAIL harness: expected exactly 24 checks, ran {checks_run}"
+    exit of 1
+if failures > 0:
+    exit of 1
