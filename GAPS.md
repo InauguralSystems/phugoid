@@ -49,6 +49,7 @@ consumers doing likelihoods or entropies in log space will hit the same
 plateau.
 
 ### G4 — observer value-channel window is a fixed 10 samples; a slow mode under a fast cadence reads `diverging`, confidently
+**Upstreamed: EigenScript#1044 (2026-08-24).**
 **Hit at rung 1 (2026-08-24, observer grading layer).** The value-channel
 predicates classify over a window of the last **10 observed samples**
 (docs/PREDICATES.md), with no per-binding control. A mode slower than ~10
