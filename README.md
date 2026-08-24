@@ -20,7 +20,7 @@ There is deliberately **no flight model yet**. Rung 0 is the grader:
 - **`modes.eigs`** — nondimensional coefficients → dimensional stability
   derivatives → state matrices → characteristic quartic (Faddeev–LeVerrier)
   → complex roots (Durand–Kerner) → mode quantities (ωn, ζ, T, t½, N½).
-  Every stage is checked against the published values: 105 pinned checks.
+  Every stage is checked against the published values: 158 pinned checks.
 - **`measure.eigs`** — the estimators that will grade rung-1+ trajectories:
   period by peak-spacing and by Hann-windowed DFT peak, damping by log
   decrement and by envelope fit (both baseline-free, on peak-to-trough
@@ -37,7 +37,7 @@ There is deliberately **no flight model yet**. Rung 0 is the grader:
 ```sh
 bash tests/test_lint.sh        # every .eigs lints clean (planted-fault validated)
 bash tests/test_comparator.sh  # 13 tolerance boundary self-tests
-bash tests/test_modes.sh       # 105 chain checks vs published values
+bash tests/test_modes.sh       # 158 chain checks vs published values
 bash tests/test_measure.sh     # 44 estimator checks vs synthetic truth
 bash tests/test_planted.sh     # 9 plants must each flip exactly their checks
 ```

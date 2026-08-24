@@ -272,6 +272,97 @@ else:
     fail_missing of ["L5.roll.thalf", "expected 1 pair + 2 real roots"]
     fail_missing of ["L5.spiral.thalf", "expected 1 pair + 2 real roots"]
 
+# ---------------------------- L1U/L2U unit (formula terms on zeros)
+# A SYNTHETIC dataset with EVERY input nonzero (theta0 = 0.2 included),
+# checked against expectations computed by an INDEPENDENT implementation
+# of the same published formulas (Python, double precision) at 1e-9
+# relative. Exists because round-6 review multiplied a wrong moment arm
+# into the Mu term and swapped tan(theta0) for sin(theta0) and the whole
+# suite stayed green — the 747 dataset has zeros exactly where those
+# formula terms live (Cmu/CLu/CDu/Cyp/Cyr = 0, theta0 = 0), so published-
+# value checks cannot distinguish a wrong formula on a zeroed path.
+define check_tight(name, ours, want) as:
+    checks_run is checks_run + 1
+    if (rel_tol_ok of [ours, want, 1e-9]) == 1:
+        print of f"PASS {name} ours={ours} want={want}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} ours={ours} want={want} reltol=1e-9"
+
+synth is {"cond": {"u0": 250.0, "rho": 0.002, "S": 5000.0, "cbar": 25.0, "b": 190.0, "W": 500000.0, "g": 32.174, "theta0": 0.2, "Iy": 30000000.0, "Ix": 14000000.0, "Iz": 44000000.0, "Ixz": 0.0 - 2000000.0}, "lon": {"CL": 1.1, "CD": 0.2, "CLa": 5.0, "CDa": 0.7, "Cma": 0.0 - 1.5, "CLadot": 6.0, "Cmadot": 0.0 - 3.0, "CLq": 5.5, "Cmq": 0.0 - 21.0, "CLu": 0.3, "CDu": 0.11, "Cmu": 0.07}, "lat": {"Cyb": 0.0 - 0.9, "Cyp": 0.15, "Cyr": 0.25, "Clb": 0.0 - 0.2, "Clp": 0.0 - 0.5, "Clr": 0.12, "Cnb": 0.16, "Cnp": 0.0 - 0.13, "Cnr": 0.0 - 0.35}}
+if plant == "p8":
+    synth.cond.u0 is synth.cond.u0 * 1.15
+    synth.cond.theta0 is 0.4
+    synth.lon.Cmu is synth.lon.Cmu * 2.0
+    synth.lon.CLadot is synth.lon.CLadot * 2.0
+    synth.lon.Cmadot is synth.lon.Cmadot * 2.0
+    synth.lon.CLu is synth.lon.CLu * 2.0
+    synth.lon.CDu is synth.lon.CDu * 2.0
+    synth.lon.CL is synth.lon.CL * 2.0
+    synth.lat.Cyp is synth.lat.Cyp * 2.0
+    synth.lat.Cyr is synth.lat.Cyr * 2.0
+    synth.lat.Cyb is synth.lat.Cyb * 2.0
+    synth.lat.Clb is synth.lat.Clb * 2.0
+    synth.lat.Cnb is synth.lat.Cnb * 2.0
+    synth.cond.Ixz is synth.cond.Ixz * 2.0
+sdl is dim_derivs_lon of (synth)
+sdlat is dim_derivs_lat of (synth)
+SA is a_lon of [sdl, synth.cond]
+SB is a_lat of [sdlat, synth.cond]
+check_tight of ["L1U.lon.Xu", sdl.Xu, 0.0 - 0.041021850000000006]
+check_tight of ["L1U.lon.Xw", sdl.Xw, 0.032174000000000015]
+check_tight of ["L1U.lon.Zu", sdl.Zu, 0.0 - 0.20108750000000003]
+check_tight of ["L1U.lon.Zw", sdl.Zw, 0.0 - 0.418262]
+check_tight of ["L1U.lon.Zwdot", sdl.Zwdot, 0.0 - 0.0241305]
+check_tight of ["L1U.lon.Zq", sdl.Zq, 0.0 - 5.52990625]
+check_tight of ["L1U.lon.Mu", sdl.Mu, 7.291666666666667e-05]
+check_tight of ["L1U.lon.Mw", sdl.Mw, 0.0 - 0.0015625]
+check_tight of ["L1U.lon.Mwdot", sdl.Mwdot, 0.0 - 0.00015625]
+check_tight of ["L1U.lon.Mq", sdl.Mq, 0.0 - 0.2734375]
+check_tight of ["L1U.lat.Yv", sdlat.Yv, 0.0 - 0.07239150000000001]
+check_tight of ["L1U.lat.Yp", sdlat.Yp, 1.1461987500000002]
+check_tight of ["L1U.lat.Yr", sdlat.Yr, 1.9103312500000003]
+check_tight of ["L1U.lat.Lv", sdlat.Lv, 0.0 - 0.0033928571428571428]
+check_tight of ["L1U.lat.Lp", sdlat.Lp, 0.0 - 0.8058035714285714]
+check_tight of ["L1U.lat.Lr", sdlat.Lr, 0.19339285714285712]
+check_tight of ["L1U.lat.Nv", sdlat.Nv, 0.0008636363636363636]
+check_tight of ["L1U.lat.Np", sdlat.Np, 0.0 - 0.06666193181818182]
+check_tight of ["L1U.lat.Nr", sdlat.Nr, 0.0 - 0.17947443181818182]
+check_tight of ["L1U.lat.ix", sdlat.ix, 0.0 - 0.14285714285714285]
+check_tight of ["L1U.lat.iz", sdlat.iz, 0.0 - 0.045454545454545456]
+check_tight of ["L2U.lon.a11", SA[0][0], 0.0 - 0.041021850000000006]
+check_tight of ["L2U.lon.a12", SA[0][1], 0.032174000000000015]
+check_tight of ["L2U.lon.a13", SA[0][2], 0.0]
+check_tight of ["L2U.lon.a14", SA[0][3], 0.0 - 31.532662075464106]
+check_tight of ["L2U.lon.a21", SA[1][0], 0.0 - 0.19634948866379823]
+check_tight of ["L2U.lon.a22", SA[1][1], 0.0 - 0.4084069364207003]
+check_tight of ["L2U.lon.a23", SA[1][2], 238.70990440183158]
+check_tight of ["L2U.lon.a24", SA[1][3], 0.0 - 6.241379442366279]
+check_tight of ["L2U.lon.a31", SA[2][0], 0.00010359627427038515]
+check_tight of ["L2U.lon.a32", SA[2][1], 0.0 - 0.0014986864161842656]
+check_tight of ["L2U.lon.a33", SA[2][2], 0.0 - 0.3107359225627862]
+check_tight of ["L2U.lon.a34", SA[2][3], 0.0009752155378697312]
+check_tight of ["L2U.lon.a41", SA[3][0], 0.0]
+check_tight of ["L2U.lon.a42", SA[3][1], 0.0]
+check_tight of ["L2U.lon.a43", SA[3][2], 1.0]
+check_tight of ["L2U.lon.a44", SA[3][3], 0.0]
+check_tight of ["L2U.lat.a11", SB[0][0], 0.0 - 0.07239150000000001]
+check_tight of ["L2U.lat.a12", SB[0][1], 1.1461987500000002]
+check_tight of ["L2U.lat.a13", SB[0][2], 31.532662075464106]
+check_tight of ["L2U.lat.a14", SB[0][3], 0.0 - 248.08966875]
+check_tight of ["L2U.lat.a21", SB[1][0], 0.0 - 0.0035392156862745095]
+check_tight of ["L2U.lat.a22", SB[1][1], 0.0 - 0.8014848856209149]
+check_tight of ["L2U.lat.a23", SB[1][2], 0.0]
+check_tight of ["L2U.lat.a24", SB[1][3], 0.22046364379084962]
+check_tight of ["L2U.lat.a31", SB[2][0], 0.0]
+check_tight of ["L2U.lat.a32", SB[2][1], 1.0]
+check_tight of ["L2U.lat.a33", SB[2][2], 0.0]
+check_tight of ["L2U.lat.a34", SB[2][3], 0.20271003550867248]
+check_tight of ["L2U.lat.a41", SB[3][0], 0.0010245098039215685]
+check_tight of ["L2U.lat.a42", SB[3][1], 0.0 - 0.030230800653594774]
+check_tight of ["L2U.lat.a43", SB[3][2], 0.0]
+check_tight of ["L2U.lat.a44", SB[3][3], 0.0 - 0.1894955065359477]
+
 # ------------------------------------------- L5 unit (sort branches)
 # modes_of fed hand-ordered roots — short-period pair FIRST, roll-rate
 # root first — so the sort/swap branches actually execute. Round-3 review
@@ -292,8 +383,8 @@ check_abs of ["L5.unit.reals_sorted_high", u_re.reals[1].re, 0.0 - 1.2, 1e-12]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 105:
-    print of f"FAIL harness: expected exactly 105 checks, ran {checks_run}"
+if checks_run != 158:
+    print of f"FAIL harness: expected exactly 158 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

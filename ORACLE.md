@@ -65,6 +65,22 @@ All 16 entries of each printed A, same per-value rule. The folding conventions
 (Zẇ and Mẇ absorption in the longitudinal rows; Ixz cross-inertia priming in
 the lateral rows) are exactly what these entries pin down.
 
+### L1U/L2U — formula-term unit checks on a synthetic all-nonzero dataset
+
+53 checks driving `dim_derivs_*` and `a_*` with a SYNTHETIC dataset in which
+every coefficient is nonzero and θ₀ = 0.2, compared at **10⁻⁹ relative**
+against expectations computed by an independent double-precision
+implementation of the same published formulas (Python; generated, not
+hand-transcribed). Exists because round-6 review multiplied a wrong moment
+arm into the Mu term and swapped tan θ₀ → sin θ₀ and the whole suite stayed
+green: the 747 dataset has zeros exactly where those terms live
+(C_mu = C_Lu = C_Du = C_yp = C_yr = 0, θ₀ = 0), and P8 cannot help — a wrong
+formula on poisoned data fails against the published values exactly like a
+right one. P8 additionally poisons the synthetic dataset (including the
+u₀-cancelling C_Lα̇/C_mα̇ terms, whose independence from u₀ was itself
+measured here) so the family is red-coverable; its 10 structural entries
+join the manifest exemption list.
+
 ### L3 — characteristic quartics (vs eq. 5.53 and 5.94)
 
 Longitudinal: λ⁴ + 1.1066λ³ + 0.7994λ² + 0.0225λ + 0.0139.
@@ -138,12 +154,13 @@ usable ratios): ζ within **10%** relative (its own small-angle mutant is
 +28% at this ζ and is caught). Aperiodic: exponential-fit t½ within **2%**
 on pure decays with the published roll/spiral rates.
 
-*Known-unpinned implementation detail (recorded round 5, deliberate):* the
-span-AVERAGING inside both period and damping estimators cannot be pinned on
-clean synthetics — replacing the mean with the first span moves errors by
-10–50× but they stay ≤ 0.007%, far under any honest tolerance. Averaging
-earns its keep on noisy signals, which enter the grid at rung 1; pin it then
-with noise rows rather than pretending a clean-signal tolerance can see it.
+*Known-unpinned implementation details (recorded rounds 5–6, deliberate):*
+(a) the span-AVERAGING inside both period and damping estimators, and
+(b) the parabolic AMPLITUDE refinement in `find_extrema` — on clean
+synthetics, removing either moves errors 10–50× but keeps them ≤ 0.03%,
+far under any honest tolerance. Both earn their keep on noisy signals,
+which enter the grid at rung 1; pin them then with noise rows rather than
+pretending a clean-signal tolerance can see them.
 
 *Design note bought by measurement (2026-08-23):* the first implementation
 detrended by the window mean and took ratios of positive-peak amplitudes; on
@@ -183,7 +200,7 @@ to work.
 | P5 | the ζ result is replaced by a constant 0.05 after the estimator runs (validates the comparator; estimator-wiring faults are covered by the mutation requirement below) | M2 ζ checks (all grid ζ values are >5% away from 0.05 by construction) |
 | P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A31/A32/A33), L3, L4 phugoid/sp |
 | P7 | every refusal result forced to ok=1 before its check | all 8 M3 refusal checks, nothing else |
-| P8 | every dataset input poisoned (nonzero values scaled, zeros made nonzero, inertias scaled unevenly, θ₀ tilted, unit-check root lists scaled) | every data-derived check — 75 of 105 — leaving green only the pub-literal solver/exact checks (P2/P3's territory) and the structural constants |
+| P8 | every dataset input poisoned (nonzero values scaled, zeros made nonzero, inertias scaled unevenly, θ₀ tilted, unit-check root lists scaled) | every data-derived check — 118 of 158 (the synthetic unit dataset is poisoned too) — leaving green only the pub-literal solver/exact checks (P2/P3's territory) and the structural constants |
 | P9 | every solver root nudged by 3·10⁻⁸ before the exact-arm checks, putting residual/Vieta errors inside (10⁻¹⁰, 10⁻⁶) — a band no natural run produces (DK residuals jump ~10⁻⁶ → ~10⁻¹¹ between iterations 5 and 6) | exactly the 12 L4.exact checks; a call-site tolerance widened to 10⁻⁶ turns this plant green and is caught |
 
 `tests/test_planted.sh` asserts each plant's **full** measured red set —
@@ -206,7 +223,7 @@ Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 105 checks; `measure_check.eigs` exactly 44;
+`modes_check.eigs` runs exactly 158 checks; `measure_check.eigs` exactly 44;
 `comparator_check.eigs` exactly 13. Check *identities* are pinned by the
 manifest rule above. The residual/Vieta "exact" tolerance is a named
 constant in `tests/checklib.eigs` (`exact_tol`), value-pinned by the
