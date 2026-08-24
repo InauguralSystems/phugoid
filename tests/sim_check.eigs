@@ -85,12 +85,21 @@ define check_result(name, res, field, truth, reltol) as:
         print of f"FAIL {name} reltol={reltol} estimator refused: {res.reason}"
 
 # Plant q8: every graded zeta constant-replaced AFTER the estimator runs
-# (comparator validation — all graded zeta values are > tolerance from 0.05).
+# (comparator validation — all graded zeta values are > tolerance from
+# 0.05). The replacement CARRIES the real result's identity field:
+# round-7 review found that a field-less dict red through the round-6
+# accessors' refusal arm INSTEAD of the numeric comparator, so 12 checks'
+# truth wiring and tolerance were no longer executed by any plant (a
+# truth-argument self-compare mutation survived where pre-accessor q8
+# had caught it). With the field carried, q8 reds through the numeric
+# arm again; the accessor/null arms are exercised by the alias plants
+# q12-q15 instead.
 define mangle_z(res) as:
     if plant == "q8":
         if res.ok == 1:
-            local out is {"ok": 1, "zeta": 0.05}
-            return out
+            if res.n_ratios != null:
+                return {"ok": 1, "zeta": 0.05, "n_ratios": res.n_ratios}
+            return {"ok": 1, "zeta": 0.05, "n_fit": res.n_fit}
     return res
 
 # Plant q6: the dt handed to the sim-signal estimators (only) dilated.
@@ -233,11 +242,17 @@ define grade_sp(wwin, dt, simflag) as:
             gdt is gdt * 1.02
     local zl is mangle_z of (zeta_logdec of [wwin, gdt])
     local ze is mangle_z of (zeta_envelope of [wwin, gdt])
+    # Plant q15: the SP-side zeta slots SWAPPED — the q14 dual; the only
+    # plant that exercises as_ze's refusal arm with a real (non-fabricated)
+    # wrong-estimator result, plus the two S2 identity pins' null arms.
+    if plant == "q15":
+        zl is zeta_envelope of [wwin, gdt]
+        ze is zeta_logdec of [wwin, gdt]
     if plant == "q10" and rerun_phase == 1 and simflag == 1:
         if zl.ok == 1:
-            zl is {"ok": 1, "zeta": zl.zeta * 1.03}
+            zl is {"ok": 1, "zeta": zl.zeta * 1.03, "n_ratios": zl.n_ratios}
         if ze.ok == 1:
-            ze is {"ok": 1, "zeta": ze.zeta * 1.03}
+            ze is {"ok": 1, "zeta": ze.zeta * 1.03, "n_fit": ze.n_fit}
     return {"T": period_peaks of [wwin, gdt], "zl": zl, "ze": ze}
 
 # Plant q11 corrupts ONLY the period_dft result (T x1.01, k+1), through
@@ -269,7 +284,7 @@ define grade_ph(uwin, dt, simflag) as:
     local z is mangle_z of (zeta_logdec of [uwin, gdt])
     if plant == "q10" and rerun_phase == 1 and simflag == 1:
         if z.ok == 1:
-            z is {"ok": 1, "zeta": z.zeta * 1.03}
+            z is {"ok": 1, "zeta": z.zeta * 1.03, "n_ratios": z.n_ratios}
     # Plant q12 IS the round-1/2 alias, permanently installed as a plant:
     # the Td slot fed by period_peaks instead of period_dft. Only the two
     # k-pins must red (the T values agree within tolerance — that

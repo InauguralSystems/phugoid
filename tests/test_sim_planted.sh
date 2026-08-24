@@ -97,11 +97,15 @@ expect_red 'M1X\.sp\.phi20\.T ' 'M1X\.sp\.phi45\.T ' 'M1X\.sp2\.T ' 'M1X\.ph2\.T
 expect_green 'S[0-4]\.' 'M1X\..*z'
 echo "PASS: Q7 red pattern exact"
 
-echo "--- Q8: graded zeta replaced by 0.05 -> every zeta check, pin, and S4 zeta row (the identity accessors refuse the field-less dict) ---"
+echo "--- Q8: graded zeta replaced by 0.05 (identity fields carried) -> exactly the 10 zeta checks through the NUMERIC arm ---"
 run_plant q8
-expect_total_fails 22
-expect_red 'S2\.zlog ' 'S2\.zenv ' 'S2\.zlog\.nr ' 'S2\.zenv\.nf ' 'S3\.z ' 'S3\.z\.nr ' 'S4\.dt\.spzl ' 'S4\.dt\.phz ' 'S4\.amp\.spze ' 'S4\.ctl\.phz ' 'M1X\.sp\.phi20\.zlog ' 'M1X\.sp\.phi20\.zenv ' 'M1X\.sp\.phi45\.zlog ' 'M1X\.sp\.phi45\.zenv ' 'M1X\.sp2\.zlog ' 'M1X\.sp2\.zenv ' 'M1X\.ph2\.z '
-expect_green 'S0\.' 'S1\.' 'S2\.T ' 'S3\.T' 'S4\..*T' 'S4\..*spT'
+expect_total_fails 10
+expect_red 'S2\.zlog ' 'S2\.zenv ' 'S3\.z ' 'M1X\.sp\.phi20\.zlog ' 'M1X\.sp\.phi20\.zenv ' 'M1X\.sp\.phi45\.zlog ' 'M1X\.sp\.phi45\.zenv ' 'M1X\.sp2\.zlog ' 'M1X\.sp2\.zenv ' 'M1X\.ph2\.z '
+# Round 7: these must red through the numeric comparator, NOT the accessor
+# refusal — a field-less fabrication red through the refusal arm and left
+# 12 checks' truth wiring unexecuted by any plant.
+grep '^FAIL ' "$OUT" | grep -q 'refused' && { echo "FAIL: Q8 reds must use the numeric arm, found a refusal"; exit 1; }
+expect_green 'S0\.' 'S1\.' 'S2\.T ' 'S3\.T' 'S4\.' '\.nr ' '\.nf '
 echo "PASS: Q8 red pattern exact"
 
 echo "--- Q9: sim dataset broadly poisoned -> parity + every sim-graded mode (16) ---"
@@ -147,6 +151,13 @@ expect_red 'S3\.z ' 'S3\.z\.nr ' 'S4\.dt\.phz ' 'S4\.amp\.phz ' 'S4\.ctl\.phz ' 
 expect_green 'S2\.' 'S3\.T' 'S4\..*phT' 'M1X\.sp'
 echo "PASS: Q14 red pattern exact (round-6: consumer read sites go through identity accessors; q14 exercises as_zl's refusal arm every run)"
 
+echo "--- Q15: SP-side zeta slots SWAPPED (q14's dual) -> the sp zeta accessor + pin set (16) ---"
+run_plant q15
+expect_total_fails 16
+expect_red 'S2\.zlog ' 'S2\.zenv ' 'S2\.zlog\.nr ' 'S2\.zenv\.nf ' 'S4\.dt\.spzl ' 'S4\.dt\.spze ' 'S4\.amp\.spzl ' 'S4\.amp\.spze ' 'S4\.ctl\.spzl ' 'S4\.ctl\.spze ' 'M1X\.sp\.phi20\.zlog ' 'M1X\.sp\.phi20\.zenv ' 'M1X\.sp\.phi45\.zlog ' 'M1X\.sp\.phi45\.zenv ' 'M1X\.sp2\.zlog ' 'M1X\.sp2\.zenv '
+expect_green 'S3\.' 'S4\..*ph' 'S4\..*spT ' 'M1X\.ph2'
+echo "PASS: Q15 red pattern exact (the only plant driving as_ze's refusal arm with a real wrong-estimator result; round-7's dual to q14)"
+
 # ------------------------------------------------------------------
 # Manifest enforcement (same rules as test_planted.sh): identity over
 # name + tolerance token; plantable coverage; structural exclusion.
@@ -169,4 +180,4 @@ done < <(grep -v '^#' tests/sim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 14 rung-1 plants flip exactly their declared checks"
+echo "PASS: all 15 rung-1 plants flip exactly their declared checks"

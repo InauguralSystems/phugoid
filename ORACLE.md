@@ -582,7 +582,7 @@ lists are the assertions in the harness.
 | Q5 | thrust term dropped | 18: S1 (all), S2 (all incl. the 2 SP ζ identity pins), S3 (the three tolerance checks — the period identity pins keep their bins), 5 S4 spillovers |
 | Q6 | grading timeline dilated ×1.02 (dt handed to the sim-signal estimators only) | exactly the 3 sim period checks; ζ green (dilation preserves ζ); S4 green (both sides dilated) |
 | Q7 | M1X generator time-dilated ×1.05 (P4's shape) | exactly the 5 bridge period checks |
-| Q8 | every graded ζ replaced by 0.05 after the estimator | 22: every ζ check, ζ identity pin, and S4 ζ row — the field-less replacement dict now also trips the identity accessors on the S4 rerun reads (comparator validation: every graded ζ is > tolerance from 0.05; the same replacement proves the ζ pins and accessor arms can fail) |
+| Q8 | every graded ζ replaced by 0.05 after the estimator, identity field CARRIED | exactly the 10 ζ checks, through the NUMERIC arm — enforced by a no-refusals assertion in the harness. History: the round-6 field-less replacement red through the accessors' refusal arm instead, leaving 12 checks' truth wiring unexecuted by any plant; round-7 review demonstrated a truth-argument self-compare mutation surviving where pre-accessor Q8 had caught it. Carrying the field restores the numeric path; the accessor/null arms belong to Q12–Q15. |
 | Q9 | sim dataset copy broadly poisoned (C_Lα, C_D, C_mq, C_Lq, C_L, W, g scaled — rung-0 P8's shape, for S0 coverage) | 16: S0 all plantable entries except the Q1/Q2-only a21-fold slot, S2 (all), S3 (the three tolerance checks — the identity pins keep their bins); S1 GREEN — the trim solver correctly finds the poisoned model's own equilibrium, which is the point of S1 |
 | Q10 | the RE-RUN side of every S4 grading corrupted (dt ×1.02, ζ ×1.03) after the base gradings are banked | exactly the 18 S4 comparators — which stay green under every model-side plant (both sides move together) and so need their own comparator-validation plant |
 | Q11 | the period_dft RESULT corrupted (T ×1.01, k+1) through a wrapper on the true DFT call site (rung-0 P10's estimator-wiring class) | exactly the 4 Td checks: S3.Tdft, S3.Tdft.k, M1X.ph2.Tdft, M1X.ph2.Tdft.k. History: round-1 blind review aliased `period_dft` → `period_peaks` at the grading call site and the whole suite stayed green (every other plant reds the two period estimators together, so nothing separated the "independent" pair — five checks were silent duplicates). The first fix claimed the wrapper itself was the defense ("under an alias Q11 flips nothing"); round-2 review refuted it by aliasing INSIDE the wrapper argument — Q11's result-corruption fired identically because the estimators agree within tolerance, and v0.41.0's silent-null missing-field access (W4) meant copying `res.k` off a peaks result tripped nothing. The load-bearing defense is therefore the two **k-pins** (`check_exact` on the DFT's spectral bin, a field only the real DFT produces): under ANY alias k is null and the CLEAN run goes red — verified against both review mutations. Q11's remaining job is proving the four Td checks can fail. |
@@ -612,8 +612,11 @@ ACCESSOR (`as_td`/`as_tp`/`as_zl`/`as_ze`) that refuses unless the
 result carries its own estimator's identity field, so a cross-wired read
 reds its check on the clean run via the refusal arm (both round-6
 mutations verified caught). Accessor refusal arms are exercised every
-planted run: Q12/Q13 for the period pair, Q14 and Q8's field-less
-replacement dict for the ζ pair. **Declared residual depth limit:** a
+planted run: Q12/Q13 for the period pair, Q14/Q15 for the ζ pair (Q15,
+the SP-side slot swap, is round-7's addition — and Q8/Q10's fabricated
+dicts deliberately CARRY the identity fields so those plants keep
+validating the numeric comparator rather than being absorbed by the
+accessors; see the Q8 row). **Declared residual depth limit:** a
 simultaneous accessor-gut plus row-alias double mutation on the M1X sp
 rows survives (single mutations of either kind are caught); double-fault
 depth is beyond the rung-1 armor bar by decision, recorded here so a
@@ -621,12 +624,14 @@ later rung can revisit rather than rediscover.
 
 | Q14 | the ζ-slot alias: `zeta_envelope` in grade_ph's log-decrement slot (the two agree within tolerance on the phugoid, so only the identity machinery can see it) | 6: S3.z + S3.z.nr + the three S4 phz rows + M1X.ph2.z, all through `as_zl`'s refusal arm and the nr pin's null arm — the accessor-era plant added with the round-6 read-site fix. |
 
+| Q15 | the SP-side ζ slots SWAPPED (envelope in the log-decrement slot and vice versa) — q14's dual | 16: the S2 ζ rows and pins, the six S4 sp ζ rows, and the six M1X sp ζ rows, all through the accessor refusal / null arms. The only plant driving `as_ze`'s refusal arm with a real wrong-estimator result. |
+
 Observer plants o1/o2 are declared in the O section and enforced by
 `tests/test_observer.sh`.
 
 ## Exit gate for rung 1
 
-1. All S, M1X and O checks green (64 + 11, populations pinned); all fourteen
+1. All S, M1X and O checks green (64 + 11, populations pinned); all fifteen
    Q plants and both o plants red in exactly the declared way; rung-0
    suite untouched and green.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds,
