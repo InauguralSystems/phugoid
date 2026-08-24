@@ -89,13 +89,15 @@ if plant == "p4":
 # Tolerance-boundary plants (round-22): a slack added to the EXECUTED
 # tolerance at a comparison call site decouples it from the printed token,
 # and the existing plants displace by 5%+, so any widening smaller than
-# that slid under every gate. These displace JUST OUTSIDE the two tightest
-# arms, pinning each effective tolerance from above.
+# that slid under every gate. These displace JUST OUTSIDE (~1.1x) the two
+# tightest arms, pinning each effective tolerance from above — round-25
+# measured the original 2.0x/1.4x factors leaving a sub-1.4x widening
+# window, the same quantization vice round-16 fixed for the probe pairs.
 if plant == "p13":
-    detune is 1.002
+    detune is 1.0011
 zeta_gen_scale is 1.0
 if plant == "p14":
-    zeta_gen_scale is 1.007
+    zeta_gen_scale is 1.0055
 # p16 displaces the M0.gen CHECKED VALUE by just outside its 1e-9 arm —
 # round-23 found this was the one comparison arm without a displacement
 # plant at its own scale (P12 displaces at order-1, so a 3e7x executed-
@@ -103,7 +105,7 @@ if plant == "p14":
 # a real 0.001-rad wiring fault back through).
 gen_id_scale is 1.0
 if plant == "p16":
-    gen_id_scale is 1.000000003
+    gen_id_scale is 1.0000000011
 
 # name, zeta, wn, phi, dc, dt, n, dft_T_reltol, zeta_reltol, peaks_T_reltol
 # The peaks tolerance (0.1%) is deliberately tighter than the estimator's

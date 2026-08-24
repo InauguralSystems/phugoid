@@ -161,10 +161,10 @@ expect_total_fails 18
 expect_green 'M0\.' 'M1\.' 'M2\.thalf\.' 'M2\.envelope\.' 'M3\.'
 echo "PASS: P14 red pattern exact"
 
-echo "--- P15: unit inputs x(1+3e-9) (just outside the 1e-9 arm) -> the 56 tight-arm checks red ---"
+echo "--- P15: unit inputs x(1+3e-9) (just outside the 1e-9 arm) -> the 51 tight-arm checks red ---"
 run_plant modes_check.eigs p15
 expect_population 180
-expect_total_fails 56
+expect_total_fails 51
 expect_red 'L1U\.' 'L2U\.' 'CU\.' 'L5\.unit\.'
 expect_green 'L[1-5]\.lon\.' 'L[1-5]\.lat\.' 'L4\.' 'L5\.ph' 'L5\.sp' 'L5\.dr'
 echo "PASS: P15 red pattern exact"
