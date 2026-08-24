@@ -19,7 +19,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 OUT="$(mktemp)"
-trap 'rm -f "$OUT"' EXIT
+WORK="$(mktemp -d)"
+trap 'rm -f "$OUT"; rm -rf "$WORK"' EXIT
 
 run_plant() {
     local prog="$1" plant="$2"
@@ -27,6 +28,8 @@ run_plant() {
         echo "FAIL: plant $plant did not make $prog exit nonzero — the checker cannot fail"
         exit 1
     fi
+    # accumulate the red-set union for the manifest coverage assertion
+    grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_${prog%%.eigs}" || true
 }
 
 # Every plant run must still execute the full pinned check population —
@@ -116,4 +119,51 @@ expect_red 'M3\.refuse\.peaks ' 'M3\.refuse\.dft ' 'M3\.refuse\.logdec ' 'M3\.re
 expect_green 'M1\.' 'M2\.'
 echo "PASS: P7 red pattern exact"
 
-echo "PASS: all 7 plants flip exactly their declared checks"
+echo "--- P8: every input poisoned -> every data-derived check red (75), structural + pub-literal green ---"
+run_plant modes_check.eigs p8
+expect_population 105
+expect_total_fails 75
+expect_red 'L1\.lon\.' 'L1\.lat\.' 'L2\.lon\.a11 ' 'L2\.lat\.a11 ' 'L3\.lon\.' 'L3\.lat\.' 'L4\.chain\.' 'L5\.unit\.'
+expect_green 'L4\.(solver|exact)\.'
+echo "PASS: P8 red pattern exact"
+
+echo "--- P9: solver roots nudged 3e-8 -> exactly the 12 exact-arm checks red ---"
+run_plant modes_check.eigs p9
+expect_population 105
+expect_total_fails 12
+expect_red 'L4\.exact\.lon\.resid' 'L4\.exact\.lon\.vieta' 'L4\.exact\.lat\.resid' 'L4\.exact\.lat\.vieta'
+expect_green 'L[1235]\.' 'L4\.chain\.' 'L4\.solver\.'
+echo "PASS: P9 red pattern exact"
+
+# ------------------------------------------------------------------
+# Manifest enforcement (round-4 review): (a) the unplanted check-name set
+# must EQUAL tests/check_manifest.txt exactly — identity, not count, so a
+# deleted check hidden by a double-counted one cannot keep the pin green;
+# (b) every plantable name must appear in some plant's red set — a check
+# outside every red set has never been shown able to fail; (c) a
+# structural name in a red set means the exemption list is stale.
+echo "--- manifest: identity + full red-set coverage ---"
+"$EIGS" tests/modes_check.eigs > "$WORK/clean_modes" 2>&1 || { echo "FAIL: unplanted modes_check nonzero"; exit 1; }
+"$EIGS" tests/measure_check.eigs > "$WORK/clean_measure" 2>&1 || { echo "FAIL: unplanted measure_check nonzero"; exit 1; }
+grep -E '^(PASS|FAIL) ' "$WORK/clean_modes" | awk '{print $2}' | sort > "$WORK/names_modes"
+grep -E '^(PASS|FAIL) ' "$WORK/clean_measure" | awk '{print $2}' | sort > "$WORK/names_measure"
+grep '^modes ' tests/check_manifest.txt | awk '{print $2}' | sort > "$WORK/man_modes"
+grep '^measure ' tests/check_manifest.txt | awk '{print $2}' | sort > "$WORK/man_measure"
+diff -u "$WORK/man_modes" "$WORK/names_modes" > /dev/null || { echo "FAIL: modes check-name set drifted from manifest"; diff "$WORK/man_modes" "$WORK/names_modes" || true; exit 1; }
+diff -u "$WORK/man_measure" "$WORK/names_measure" > /dev/null || { echo "FAIL: measure check-name set drifted from manifest"; diff "$WORK/man_measure" "$WORK/names_measure" || true; exit 1; }
+sort -u "$WORK/red_modes_check" > "$WORK/redu_modes" 2>/dev/null || : > "$WORK/redu_modes"
+sort -u "$WORK/red_measure_check" > "$WORK/redu_measure" 2>/dev/null || : > "$WORK/redu_measure"
+BAD=0
+while read -r kind name klass; do
+    case "$kind" in modes) U="$WORK/redu_modes";; measure) U="$WORK/redu_measure";; *) continue;; esac
+    if [ "$klass" = plantable ] && ! grep -qx "$name" "$U"; then
+        echo "FAIL: plantable check '$name' never went red under any plant"; BAD=1
+    fi
+    if [ "$klass" = structural ] && grep -qx "$name" "$U"; then
+        echo "FAIL: structural check '$name' went red — exemption list is stale"; BAD=1
+    fi
+done < <(grep -v '^#' tests/check_manifest.txt)
+[ "$BAD" -eq 0 ] || exit 1
+echo "PASS: manifest identity holds; all plantable checks proven able to fail"
+
+echo "PASS: all 9 plants flip exactly their declared checks"

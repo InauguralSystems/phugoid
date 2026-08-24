@@ -2,7 +2,7 @@
 # For every tolerance arm: a value JUST INSIDE must pass and a value JUST
 # OUTSIDE must fail. A widened (or narrowed) tolerance flips one of these.
 # Run from the repo root: eigenscript tests/comparator_check.eigs
-# Population pinned at exactly 12.
+# Population pinned at exactly 13.
 
 load_file of "tests/checklib.eigs"
 
@@ -34,13 +34,14 @@ expect of ["rel.5pct.inside", rel_tol_ok of [10.499, 10.0, 0.05], 1]
 expect of ["rel.5pct.outside", rel_tol_ok of [10.501, 10.0, 0.05], 0]
 
 # abs rule at the solver-exactness scale
-expect of ["abs.inside", abs_tol_ok of [0.9e-10, 0.0, 1e-10], 1]
-expect of ["abs.outside", abs_tol_ok of [1.1e-10, 0.0, 1e-10], 0]
+expect of ["abs.inside", abs_tol_ok of [0.9e-10, 0.0, exact_tol of null], 1]
+expect of ["abs.outside", abs_tol_ok of [1.1e-10, 0.0, exact_tol of null], 0]
+expect of ["abs.exact_tol_pinned", exact_tol of null, 1e-10]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 12:
-    print of f"FAIL harness: expected exactly 12 checks, ran {checks_run}"
+if checks_run != 13:
+    print of f"FAIL harness: expected exactly 13 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

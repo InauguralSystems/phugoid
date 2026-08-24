@@ -2,7 +2,7 @@
 # L1..L5 oracle checks (ORACLE.md) against the published Caughey values.
 # Green means: the full chain from nondimensional coefficients to mode
 # quantities reproduces every printed value within the stated tolerances,
-# and exactly 101 checks ran (the pinned population — fewer means a
+# and exactly 105 checks ran (the pinned population — fewer means a
 # silently-skipped section, which is a harness failure, not a pass).
 set -euo pipefail
 

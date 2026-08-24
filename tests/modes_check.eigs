@@ -1,6 +1,6 @@
 # modes_check.eigs — the L1..L5 oracle checks from ORACLE.md.
 # Run from the repo root:  eigenscript tests/modes_check.eigs [plant]
-# where plant is one of p1 p2 p3 p6 (see the planted-fault matrix).
+# where plant is one of p1 p2 p3 p6 p8 p9 (see the planted-fault matrix).
 # Prints one PASS/FAIL line per check, then CHECKS_RUN / FAILURES totals;
 # exits nonzero on any failure. A zero-check run is itself a failure
 # (mechanical-gates: a checker that examined nothing must not print OK).
@@ -44,14 +44,14 @@ define check_solver_exact(tag, coeffs, roots) as:
     # Rounding-free solver checks: per-root residual, plus Vieta sum/product.
     for i in range of (len of roots):
         local resid is cmag of (poly4_eval of [coeffs, roots[i]])
-        check_abs of [f"L4.exact.{tag}.resid{i}", resid, 0.0, 1e-10]
+        check_abs of [f"L4.exact.{tag}.resid{i}", resid, 0.0, exact_tol of null]
     local rsum is [0.0, 0.0]
     local rprod is [1.0, 0.0]
     for i in range of (len of roots):
         rsum is cadd of [rsum, roots[i]]
         rprod is cmul of [rprod, roots[i]]
-    check_abs of [f"L4.exact.{tag}.vieta_sum", cmag of (cadd of [rsum, [coeffs[0], 0.0]]), 0.0, 1e-10]
-    check_abs of [f"L4.exact.{tag}.vieta_prod", cmag of (csub of [rprod, [coeffs[3], 0.0]]), 0.0, 1e-10]
+    check_abs of [f"L4.exact.{tag}.vieta_sum", cmag of (cadd of [rsum, [coeffs[0], 0.0]]), 0.0, exact_tol of null]
+    check_abs of [f"L4.exact.{tag}.vieta_prod", cmag of (csub of [rprod, [coeffs[3], 0.0]]), 0.0, exact_tol of null]
 
 # Durand-Kerner iteration budget — plant p3 guts the solver by giving it
 # zero iterations, so it returns its initial guesses.
@@ -64,6 +64,42 @@ data is b747_approach of null
 # Plant p1: Cma sign flipped in the dataset before anything is derived.
 if plant == "p1":
     data.lon.Cma is 0.0 - data.lon.Cma
+
+# Plant p8: EVERY input poisoned — nonzero values scaled, zeros made
+# nonzero, inertias scaled unevenly so the ix/iz ratios move, theta0 tilted.
+# Exists to prove every data-derived check can fail: round-4 review found
+# 57 of the pinned checks (the whole lateral chain among them) outside
+# every plant's red set, so hardcoding them vacuous survived the matrix.
+if plant == "p8":
+    data.lon.CL is data.lon.CL * 2.0
+    data.lon.CD is data.lon.CD * 2.0
+    data.lon.CLa is data.lon.CLa * 2.0
+    data.lon.CDa is data.lon.CDa * 2.0
+    data.lon.Cma is data.lon.Cma * 2.0
+    data.lon.CLadot is data.lon.CLadot * 2.0
+    data.lon.Cmadot is data.lon.Cmadot * 2.0
+    data.lon.CLq is data.lon.CLq * 2.0
+    data.lon.Cmq is data.lon.Cmq * 2.0
+    data.lon.CLu is 0.5
+    data.lon.CDu is 0.5
+    data.lon.Cmu is 0.5
+    data.lat.Cyb is data.lat.Cyb * 2.0
+    data.lat.Cyp is 0.5
+    data.lat.Cyr is 0.5
+    data.lat.Clb is data.lat.Clb * 2.0
+    data.lat.Clp is data.lat.Clp * 2.0
+    data.lat.Clr is data.lat.Clr * 2.0
+    data.lat.Cnb is data.lat.Cnb * 2.0
+    data.lat.Cnp is data.lat.Cnp * 2.0
+    data.lat.Cnr is data.lat.Cnr * 2.0
+    data.cond.u0 is data.cond.u0 * 1.15
+    data.cond.g is data.cond.g * 1.1
+    data.cond.rho is data.cond.rho * 1.2
+    data.cond.Iy is data.cond.Iy * 1.3
+    data.cond.Ix is data.cond.Ix * 1.3
+    data.cond.Iz is data.cond.Iz * 1.3
+    data.cond.Ixz is data.cond.Ixz * 2.0
+    data.cond.theta0 is 0.2
 
 # ---------------------------------------------------------------- L1
 
@@ -164,6 +200,16 @@ if plant == "p2":
     pub_cp_lat[0] is pub_cp_lat[0] * 1.01
 
 rts_pub_lon is dk_roots of [pub_cp_lon, dk_iters]
+
+# Plant p9: every solver root nudged by 3e-8 before the exact checks. The
+# resulting residuals/Vieta errors land INSIDE (1e-10, 1e-6) — the band no
+# natural run produces (Durand-Kerner residuals jump from ~1e-6 straight to
+# ~1e-11 between iterations 5 and 6) — so a call-site tolerance widened to
+# 1e-6 turns this plant green and the planted matrix catches it (round-4
+# review widened an inline call-site copy 10,000x with nothing noticing).
+if plant == "p9":
+    for i in range of 4:
+        rts_pub_lon[i] is cadd of [rts_pub_lon[i], [3e-8, 0.0]]
 check_solver_exact of ["lon", pub_cp_lon, rts_pub_lon]
 s_lon is modes_of of (rts_pub_lon)
 if (len of s_lon.osc) == 2:
@@ -178,6 +224,9 @@ else:
     fail_missing of ["L4.solver.lon.sp.im", "expected 2 oscillatory pairs"]
 
 rts_pub_lat is dk_roots of [pub_cp_lat, dk_iters]
+if plant == "p9":
+    for i in range of 4:
+        rts_pub_lat[i] is cadd of [rts_pub_lat[i], [3e-8, 0.0]]
 check_solver_exact of ["lat", pub_cp_lat, rts_pub_lat]
 s_lat is modes_of of (rts_pub_lat)
 if (len of s_lat.osc) == 1 and (len of s_lat.reals) == 2:
@@ -229,10 +278,13 @@ else:
 # deleted the wn-sort and the whole suite stayed green: Durand-Kerner
 # happens to emit the pairs already ordered, so the ordering contract was
 # resting on accident.
-u_osc is modes_of of ([[0.0 - 0.5, 0.7], [0.0 - 0.5, 0.0 - 0.7], [0.0 - 0.002, 0.13], [0.0 - 0.002, 0.0 - 0.13]])
+unit_scale is 1.0
+if plant == "p8":
+    unit_scale is 1.1
+u_osc is modes_of of ([[(0.0 - 0.5) * unit_scale, 0.7 * unit_scale], [(0.0 - 0.5) * unit_scale, (0.0 - 0.7) * unit_scale], [(0.0 - 0.002) * unit_scale, 0.13 * unit_scale], [(0.0 - 0.002) * unit_scale, (0.0 - 0.13) * unit_scale]])
 check_abs of ["L5.unit.osc_sorted_low", u_osc.osc[0].im, 0.13, 1e-12]
 check_abs of ["L5.unit.osc_sorted_high", u_osc.osc[1].im, 0.7, 1e-12]
-u_re is modes_of of ([[0.0 - 1.2, 0.0], [0.0 - 0.05, 0.0]])
+u_re is modes_of of ([[(0.0 - 1.2) * unit_scale, 0.0], [(0.0 - 0.05) * unit_scale, 0.0]])
 check_abs of ["L5.unit.reals_sorted_low", u_re.reals[0].re, 0.0 - 0.05, 1e-12]
 check_abs of ["L5.unit.reals_sorted_high", u_re.reals[1].re, 0.0 - 1.2, 1e-12]
 

@@ -171,18 +171,35 @@ to work.
 | P5 | the ζ result is replaced by a constant 0.05 after the estimator runs (validates the comparator; estimator-wiring faults are covered by the mutation requirement below) | M2 ζ checks (all grid ζ values are >5% away from 0.05 by construction) |
 | P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A31/A32/A33), L3, L4 phugoid/sp |
 | P7 | every refusal result forced to ok=1 before its check | all 8 M3 refusal checks, nothing else |
+| P8 | every dataset input poisoned (nonzero values scaled, zeros made nonzero, inertias scaled unevenly, θ₀ tilted, unit-check root lists scaled) | every data-derived check — 75 of 105 — leaving green only the pub-literal solver/exact checks (P2/P3's territory) and the structural constants |
+| P9 | every solver root nudged by 3·10⁻⁸ before the exact-arm checks, putting residual/Vieta errors inside (10⁻¹⁰, 10⁻⁶) — a band no natural run produces (DK residuals jump ~10⁻⁶ → ~10⁻¹¹ between iterations 5 and 6) | exactly the 12 L4.exact checks; a call-site tolerance widened to 10⁻⁶ turns this plant green and is caught |
 
 `tests/test_planted.sh` asserts each plant's **full** measured red set —
 the exact total FAIL count, one representative per family, and green-side
 exclusions — because round-3 review showed that subset assertions let 26
 checks be hardcoded vacuous with the matrix still green.
 
+**Manifest rule (round-4):** `tests/check_manifest.txt` lists every check
+NAME with a coverage class, and `test_planted.sh` enforces (a) the unplanted
+name set equals the manifest exactly — identity, not count, because round-4
+review deleted one check and double-counted another under an intact
+population pin; (b) every `plantable` name appears in the red-set union
+across all plants — round-4 found 57 checks (the entire lateral chain among
+them) outside every red set, so hardcoding them vacuous survived the matrix;
+(c) a `structural` name (a builder constant no data plant can move, e.g. the
+θ̇ row `[0,0,1,0]` — 10 entries) must never redden, or the exemption is
+stale. Regenerating the manifest requires a written justification here.
+
 Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
 `modes_check.eigs` runs exactly 105 checks; `measure_check.eigs` exactly 44;
-`comparator_check.eigs` exactly 12.
+`comparator_check.eigs` exactly 13. Check *identities* are pinned by the
+manifest rule above. The residual/Vieta "exact" tolerance is a named
+constant in `tests/checklib.eigs` (`exact_tol`), value-pinned by the
+comparator self-test — round-4 review widened an inline call-site copy
+10,000× with nothing noticing.
 
 Two further round-3 lessons live in the checks: `modes_of`'s sort branches
 are exercised with hand-ordered inputs (`L5.unit.*` — the ordering contract
@@ -205,6 +222,6 @@ a top-severity finding.
 
 ## Exit gate for rung 0
 
-1. All L and M checks green, all seven plants red in exactly the declared way.
+1. All L and M checks green, all nine plants red in exactly the declared way.
 2. Blind-critic rounds dry (two consecutive rounds with no actionable gap).
 3. CI green on the pushed repo (devcontainer, pinned EIGS_REF=v0.41.0).

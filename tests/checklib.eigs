@@ -22,6 +22,12 @@ define rel_tol_ok(ours, truth, reltol) as:
         return 1
     return 0
 
+# The residual/Vieta "exact" tolerance, named here so call sites cannot
+# drift from the self-tested value (round-4 review widened an inline 1e-10
+# call-site literal 10,000x and nothing noticed).
+define exact_tol as:
+    return 1e-10
+
 define abs_tol_ok(ours, printed, abstol) as:
     if (abs of (ours - printed)) <= abstol:
         return 1
