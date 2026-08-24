@@ -66,8 +66,8 @@ define period_peaks(signal, dt) as:
     return {"ok": 1, "T": total / count, "n_peaks": len of pks}
 
 # Period from the DFT magnitude peak with parabolic sub-bin interpolation
-# on log-magnitude. Refuses when the window holds fewer than 3 cycles
-# (peak bin < 3), where the bin resolution cannot support the estimate.
+# on log-magnitude. Refuses when no resolvable spectral peak sits at 3+
+# cycles, where the bin resolution cannot support the estimate.
 # The signal is Hann-windowed first: with a rectangular window the leakage
 # skirt is phase-dependent and biased the estimate past 1% at off-grid
 # phases/window lengths (found by blind review, round 1 — see ORACLE.md M1).
@@ -82,17 +82,23 @@ define period_dft(signal, dt) as:
         append of [win, d[i] * w]
     local spec is engineering.dft of (win)
     local mag is engineering.magnitude_spectrum of (spec)
-    local kbest is 1
+    # Peak = the largest LOCAL maximum over k in [2, half-1]. The decaying
+    # envelope leaks a monotone low-frequency skirt from bin 1 that can
+    # exceed the mode peak at moderate damping (measured at zeta=0.30,
+    # phi=1.5: skirt 2.25 vs mode 1.80, round-3 review) — but the skirt has
+    # no local max, the mode does. Global-peak picking answered the skirt's
+    # bin or falsely refused; local-max picking finds the mode.
+    local kbest is 0
     local mbest is 0.0
     local half is floor of (n / 2)
-    local k is 1
-    loop while k <= half:
-        if mag[k] > mbest:
+    local k is 2
+    loop while k < half:
+        if mag[k] > mag[k - 1] and mag[k] > mag[k + 1] and mag[k] > mbest:
             mbest is mag[k]
             kbest is k
         k is k + 1
     if kbest < 3:
-        return {"ok": 0, "reason": "fewer than 3 cycles in window"}
+        return {"ok": 0, "reason": "no resolvable spectral peak at 3+ cycles"}
     local off is 0.0
     if kbest >= 1 and kbest < half:
         local la is log of (mag[kbest - 1] + 1e-300)

@@ -101,22 +101,29 @@ t½_roll=0.563 s, t½_spiral=14.93 s. Same per-value rule.
 ### M1 — period estimators on synthetic signals
 
 Two independent estimators (peak-spacing with parabolic refinement;
-Hann-windowed DFT peak with sub-bin interpolation via `lib/engineering.dft`)
-on synthetic damped sinusoids `e^(−ζωn t)·cos(ωd t + φ)` with known truth,
-over a grid covering the published regimes: ζ ∈ {0.013, 0.107, 0.30}, phases
-φ ∈ {0, 1.0, 2.0, 4.5}, a DC offset case, and an off-grid window length
-(n=360). Pass: measured T within **1%** of truth for ζ ≤ 0.11, **2%** at
-ζ = 0.30 (both estimators).
+Hann-windowed DFT with the peak taken as the largest LOCAL spectral maximum,
+sub-bin interpolated, via `lib/engineering.dft`) on synthetic damped
+sinusoids `e^(−ζωn t)·cos(ωd t + φ)` with known truth, over a grid covering
+the published regimes: ζ ∈ {0.013, 0.107, 0.30}, phases φ ∈ {0, 1.0, 2.0,
+4.5} at ζ = 0.107 and φ ∈ {0, 1.5, 2.5} at ζ = 0.30, a DC offset case, and
+an off-grid window length (n=360). Pass: measured T within **1%** of truth
+for ζ ≤ 0.11, **2%** at ζ = 0.30 (both estimators).
 
-*History (both bought by measurement, 2026-08-23):* the first DFT
+*History (all bought by measurement, 2026-08-23):* the first DFT
 implementation used a rectangular window; it carried a −4.0% image-leakage
 bias at ζ = 0.30, and round-1 blind review then demonstrated it breaking the
 1% claim *inside* the stated regime at off-grid phases (+1.09% at φ=4.5) and
 window lengths (−1.33% at n=360) — the original grid's two phases sat in
 good pockets, so the written claim was wider than the tested claim. The
-Hann window fixed both (worst off-grid error 0.043%; ζ = 0.30 bias +0.23%),
-and the off-grid phase/window rows are now permanent grid rows so the claim
-and the test cover the same space.
+Hann window fixed both (worst off-grid error 0.043%; ζ = 0.30 bias +0.23%).
+Round-3 review then found the same claim-wider-than-grid vice one regime
+over: at ζ = 0.30 with φ ∈ {1.5, 2.5, 5.0} the *global*-peak picker falsely
+REFUSED ("fewer than 3 cycles" with 6.07 cycles in window) because the
+decaying envelope's monotone leakage skirt at bin 1 (mag 2.25) beat the mode
+peak at bin 6 (mag 1.80). The picker now takes the largest LOCAL spectral
+maximum — a skirt has no local max, a mode does — measured to 0.25% worst
+across the full phase sweep at ζ = 0.30 with every refusal pin intact. Each
+review round's breaking phases became permanent grid rows.
 
 ### M2 — damping estimators on synthetic signals
 
@@ -160,16 +167,28 @@ to work.
 | P1 | Cmα sign flipped in the checker's in-memory dataset before derivation | L1 (Mw), L2, L3, L4, L5 longitudinal chain |
 | P2 | lateral quartic coefficient c1 perturbed +1% before rooting | L4 lateral root match |
 | P3 | root finder gutted (returns its initial guesses) | L4 both |
-| P4 | synthetic generator detuned: time-dilated so period is +5% vs declared truth (ζ preserved) | M1: all checks, both estimators |
+| P4 | synthetic generator detuned: time-dilated so period AND decay rates are +5% vs declared truth (ζ preserved) | M1: all checks, both estimators; M2 t½ both |
 | P5 | the ζ result is replaced by a constant 0.05 after the estimator runs (validates the comparator; estimator-wiring faults are covered by the mutation requirement below) | M2 ζ checks (all grid ζ values are >5% away from 0.05 by construction) |
-| P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A32/A33), L3, L4 phugoid/sp |
+| P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A31/A32/A33), L3, L4 phugoid/sp |
+| P7 | every refusal result forced to ok=1 before its check | all 8 M3 refusal checks, nothing else |
+
+`tests/test_planted.sh` asserts each plant's **full** measured red set —
+the exact total FAIL count, one representative per family, and green-side
+exclusions — because round-3 review showed that subset assertions let 26
+checks be hardcoded vacuous with the matrix still green.
 
 Additional harness rule (mechanical-gates): every test script counts the
 checks it executed and **fails unless the count equals its declared, pinned
 population** (the check set is fixed, so the pin is exact, not a floor), so a
 broken loader or a silently-skipped section cannot print an OK. Pinned:
-`modes_check.eigs` runs exactly 101 checks; `measure_check.eigs` exactly 38;
+`modes_check.eigs` runs exactly 105 checks; `measure_check.eigs` exactly 44;
 `comparator_check.eigs` exactly 12.
+
+Two further round-3 lessons live in the checks: `modes_of`'s sort branches
+are exercised with hand-ordered inputs (`L5.unit.*` — the ordering contract
+had been riding on Durand-Kerner's accidental output order), and θ₀ is
+actually read by the A-matrix builders (gravity terms and the φ̇ row) so a
+corrupted trim pitch fails L2 instead of passing silently as a dead value.
 
 The comparator tolerances themselves live in one place
 (`tests/checklib.eigs`) and are boundary-self-tested by
@@ -186,6 +205,6 @@ a top-severity finding.
 
 ## Exit gate for rung 0
 
-1. All L and M checks green, all six plants red in exactly the declared way.
+1. All L and M checks green, all seven plants red in exactly the declared way.
 2. Blind-critic rounds dry (two consecutive rounds with no actionable gap).
 3. CI green on the pushed repo (devcontainer, pinned EIGS_REF=v0.41.0).

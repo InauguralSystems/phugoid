@@ -1,10 +1,11 @@
 # measure_check.eigs — the M1..M3 estimator checks from ORACLE.md, on
 # synthetic signals with known truth.
 # Run from the repo root:  eigenscript tests/measure_check.eigs [plant]
-# where plant is p4 (generator detuned +5% in period vs declared truth) or
-# p5 (damping estimate replaced by a constant 0.05).
+# where plant is p4 (generator time-dilated +5% vs declared truth, decay
+# rates included), p5 (damping estimate replaced by a constant 0.05), or
+# p7 (every refusal result forced to ok=1).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 38.
+# failure; the check population is pinned at exactly 44.
 
 load_file of "measure.eigs"
 load_file of "tests/checklib.eigs"
@@ -25,6 +26,14 @@ define check_rel(name, ours, truth, reltol) as:
     else:
         failures is failures + 1
         print of f"FAIL {name} ours={ours} truth={truth} reltol={reltol}"
+
+# Plant p7 forces every refusal result to ok=1 — it must redden all eight
+# M3 checks and nothing else (round-3 review gutted check_refused itself
+# and the suite stayed green; now the planted matrix exercises it).
+define force_ok_if_p7(res) as:
+    if plant == "p7":
+        return {"ok": 1}
+    return res
 
 define check_refused(name, res) as:
     checks_run is checks_run + 1
@@ -69,7 +78,11 @@ if plant == "p4":
 # 1% guarantee: it pins the parabolic peak refinement, whose removal was
 # measured at +0.33% error (round-2 review found the 1% checks let that
 # mutation survive) while the refined estimator measures <= 0.043%.
-cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.05, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.05, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.05, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.05, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.05, 0.001]]
+cases is [["ph_phase0", 0.013, 0.134, 0.0, 0.0, 1.0, 470, 0.01, 0.05, 0.001], ["ph_phase1", 0.013, 0.134, 1.0, 0.0, 1.0, 470, 0.01, 0.05, 0.001], ["dr_phase0", 0.107, 0.7477, 0.0, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_phase1", 0.107, 0.7477, 1.0, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_dc", 0.107, 0.7477, 0.0, 2.0, 0.2, 430, 0.01, 0.05, 0.001], ["mid_z30", 0.30, 1.0, 0.0, 0.0, 0.1, 400, 0.02, 0.05, 0.001], ["dr_phi2", 0.107, 0.7477, 2.0, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_phi45", 0.107, 0.7477, 4.5, 0.0, 0.2, 430, 0.01, 0.05, 0.001], ["dr_n360", 0.107, 0.7477, 0.0, 0.0, 0.2, 360, 0.01, 0.05, 0.001], ["z30_phi15", 0.30, 1.0, 1.5, 0.0, 0.1, 400, 0.02, 0.05, 0.001], ["z30_phi25", 0.30, 1.0, 2.5, 0.0, 0.1, 400, 0.02, 0.05, 0.001]]
+# The z30_phi15/z30_phi25 rows exist because round-3 review demonstrated
+# the global-peak DFT falsely REFUSING at zeta=0.30 off-grid phases (the
+# envelope leakage skirt beat the mode peak) — the zeta=0.30 claim is now
+# tested across phase, on the local-max picker that fixed it.
 # The dr_phi2/dr_phi45/dr_n360 rows exist because round-1 blind review
 # demonstrated the unwindowed DFT breaking its 1% claim exactly at off-grid
 # phases and window lengths — the grid now covers the space the claim spans.
@@ -99,10 +112,13 @@ unobserved:
     check_result of ["M2.envelope.heavy", rh, "zeta", 0.6255, 0.10]
 
     # Aperiodic decays at the published roll and spiral rates (ORACLE M2).
-    local roll_sig is gen_exp of [1.2308, 0.01, 500]
+    # gen_exp divided by detune: plant p4 dilates the decay too, so the
+    # M2.thalf checks are provably capable of failing (round-3 review found
+    # no plant could redden them).
+    local roll_sig is gen_exp of [1.2308 / detune, 0.01, 500]
     local r1 is t_half_exp of [roll_sig, 0.01]
     check_result of ["M2.thalf.roll", r1, "t_half", 0.563155, 0.02]
-    local spiral_sig is gen_exp of [0.04641, 0.25, 500]
+    local spiral_sig is gen_exp of [0.04641 / detune, 0.25, 500]
     local r2 is t_half_exp of [spiral_sig, 0.25]
     check_result of ["M2.thalf.spiral", r2, "t_half", 14.9346, 0.02]
 
@@ -110,28 +126,28 @@ unobserved:
     # review demonstrated the unpinned ones surviving a gutting mutation).
     # A window holding under one cycle:
     local shortsig is gen_osc of [0.107, 0.7477, 0.0, 0.0, 0.2, 25, 1.0]
-    check_refused of ["M3.refuse.peaks", period_peaks of [shortsig, 0.2]]
-    check_refused of ["M3.refuse.dft", period_dft of [shortsig, 0.2]]
-    check_refused of ["M3.refuse.logdec", zeta_logdec of [shortsig, 0.2]]
+    check_refused of ["M3.refuse.peaks", force_ok_if_p7 of (period_peaks of [shortsig, 0.2])]
+    check_refused of ["M3.refuse.dft", force_ok_if_p7 of (period_dft of [shortsig, 0.2])]
+    check_refused of ["M3.refuse.logdec", force_ok_if_p7 of (zeta_logdec of [shortsig, 0.2])]
     # The DFT's declared 3-cycle boundary itself: ~2.5 cycles must refuse.
     local sig25 is gen_osc of [0.107, 0.7477, 0.0, 0.0, 0.2, 105, 1.0]
-    check_refused of ["M3.refuse.dft_2cycles", period_dft of [sig25, 0.2]]
+    check_refused of ["M3.refuse.dft_2cycles", force_ok_if_p7 of (period_dft of [sig25, 0.2])]
     # The DFT's minimum-length path.
     local sig6 is gen_osc of [0.107, 0.7477, 0.0, 0.0, 0.2, 6, 1.0]
-    check_refused of ["M3.refuse.dft_short", period_dft of [sig6, 0.2]]
+    check_refused of ["M3.refuse.dft_short", force_ok_if_p7 of (period_dft of [sig6, 0.2])]
     # Envelope fit on a truncated heavy-damping window (< 3 spans).
     local htrunc is gen_osc of [0.6255, 0.882, 0.0, 0.0, 0.05, 150, 1.0]
-    check_refused of ["M3.refuse.envelope", zeta_envelope of [htrunc, 0.05]]
+    check_refused of ["M3.refuse.envelope", force_ok_if_p7 of (zeta_envelope of [htrunc, 0.05])]
     # Exponential fit: too few samples, and a growing (non-decaying) signal.
     local tiny is gen_exp of [1.2308, 0.01, 5]
-    check_refused of ["M3.refuse.thalf_short", t_half_exp of [tiny, 0.01]]
+    check_refused of ["M3.refuse.thalf_short", force_ok_if_p7 of (t_half_exp of [tiny, 0.01])]
     local growing is gen_exp of [0.0 - 1.0, 0.01, 100]
-    check_refused of ["M3.refuse.thalf_growing", t_half_exp of [growing, 0.01]]
+    check_refused of ["M3.refuse.thalf_growing", force_ok_if_p7 of (t_half_exp of [growing, 0.01])]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 38:
-    print of f"FAIL harness: expected exactly 38 checks, ran {checks_run}"
+if checks_run != 44:
+    print of f"FAIL harness: expected exactly 44 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

@@ -20,6 +20,6 @@ if ! "$EIGS" tests/modes_check.eigs > "$OUT" 2>&1; then
     tail -3 "$OUT"
     exit 1
 fi
-grep -q '^CHECKS_RUN 101$' "$OUT" || { echo "FAIL: check population not 101"; tail -3 "$OUT"; exit 1; }
+grep -q '^CHECKS_RUN 105$' "$OUT" || { echo "FAIL: check population not 105"; tail -3 "$OUT"; exit 1; }
 grep -q '^FAILURES 0$' "$OUT" || { echo "FAIL: failures reported"; grep '^FAIL' "$OUT"; exit 1; }
-echo "PASS: 101/101 oracle checks green"
+echo "PASS: 105/105 oracle checks green"

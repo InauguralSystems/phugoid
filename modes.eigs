@@ -59,17 +59,24 @@ define dim_derivs_lat(data) as:
 # ---------------------------------------------------------------- L2
 
 define a_lon(d, cond) as:
-    # Zwdot folding in the w-row; Mwdot folding in the q-row (theta0 = 0).
+    # Zwdot folding in the w-row; Mwdot folding in the q-row. theta0 enters
+    # the gravity column (-g*cos(theta0) in the u-row, -g*sin(theta0)/(1-Zwdot)
+    # in the w-row) — it is READ from the dataset, not assumed zero, so a
+    # corrupted trim pitch moves the matrix and the L2 checks catch it
+    # (round-3 review demonstrated theta0 as a dead value nothing verified).
     local zdenom is 1.0 - d.Zwdot
     local a21 is d.Zu / zdenom
     local a22 is d.Zw / zdenom
     local a23 is (d.Zq + cond.u0) / zdenom
-    return [[d.Xu, d.Xw, 0.0, 0.0 - cond.g], [a21, a22, a23, 0.0], [d.Mu + d.Mwdot * a21, d.Mw + d.Mwdot * a22, d.Mq + d.Mwdot * a23, 0.0], [0.0, 0.0, 1.0, 0.0]]
+    local a24 is (0.0 - cond.g * (sin of cond.theta0)) / zdenom
+    return [[d.Xu, d.Xw, 0.0, 0.0 - cond.g * (cos of cond.theta0)], [a21, a22, a23, a24], [d.Mu + d.Mwdot * a21, d.Mw + d.Mwdot * a22, d.Mq + d.Mwdot * a23, d.Mwdot * a24], [0.0, 0.0, 1.0, 0.0]]
 
 define a_lat(d, cond) as:
-    # Ixz cross-inertia priming of the L and N rows (theta0 = 0).
+    # Ixz cross-inertia priming of the L and N rows; theta0 enters the
+    # gravity term (g*cos(theta0)) and the phi-dot row (p + tan(theta0)*r).
     local dd is 1.0 - d.ix * d.iz
-    return [[d.Yv, d.Yp, cond.g, d.Yr - cond.u0], [(d.Lv + d.ix * d.Nv) / dd, (d.Lp + d.ix * d.Np) / dd, 0.0, (d.Lr + d.ix * d.Nr) / dd], [0.0, 1.0, 0.0, 0.0], [(d.Nv + d.iz * d.Lv) / dd, (d.Np + d.iz * d.Lp) / dd, 0.0, (d.Nr + d.iz * d.Lr) / dd]]
+    local tth is (sin of cond.theta0) / (cos of cond.theta0)
+    return [[d.Yv, d.Yp, cond.g * (cos of cond.theta0), d.Yr - cond.u0], [(d.Lv + d.ix * d.Nv) / dd, (d.Lp + d.ix * d.Np) / dd, 0.0, (d.Lr + d.ix * d.Nr) / dd], [0.0, 1.0, 0.0, tth], [(d.Nv + d.iz * d.Lv) / dd, (d.Np + d.iz * d.Lp) / dd, 0.0, (d.Nr + d.iz * d.Lr) / dd]]
 
 # ---------------------------------------------------------------- L3
 

@@ -2,8 +2,16 @@
 # The planted-fault matrix (ORACLE.md): each plant must flip EXACTLY the
 # declared check subset to FAIL while everything else stays green. A checker
 # that has never failed has not been shown to work; a plant that flips
-# nothing fails this harness itself. The expected-red patterns below were
-# measured on 2026-08-23 and are asserted, not assumed.
+# nothing fails this harness itself.
+#
+# Round-3 review demonstrated that asserting only a SUBSET of each plant's
+# red pattern lets whole check families be made vacuous undetected (26 of
+# the pinned checks could be hardcoded to pass and this script still said
+# OK). So every plant now asserts its FULL measured red set: the exact
+# total fail count AND one representative per family, plus the green-side
+# exclusions. The counts below were measured on 2026-08-23; a drift in any
+# of them is a real change in the checkers' discriminating power and must
+# be re-justified, not silently re-pinned.
 set -euo pipefail
 
 EIGS="${EIGENSCRIPT:-eigenscript}"
@@ -12,8 +20,6 @@ cd "$ROOT"
 
 OUT="$(mktemp)"
 trap 'rm -f "$OUT"' EXIT
-
-fails() { grep -c '^FAIL ' "$OUT" || true; }
 
 run_plant() {
     local prog="$1" plant="$2"
@@ -29,58 +35,85 @@ expect_population() {
     grep -q "^CHECKS_RUN $1\$" "$OUT" || { echo "FAIL: plant run population != $1"; exit 1; }
 }
 
-echo "--- P1: Cma sign flip -> longitudinal chain red, lateral+solver green ---"
+expect_total_fails() {
+    local want="$1" got
+    got=$(grep -c '^FAIL ' "$OUT" || true)
+    [ "$got" -eq "$want" ] || { echo "FAIL: expected exactly $want FAIL lines, got $got"; grep '^FAIL ' "$OUT"; exit 1; }
+}
+
+expect_red() {
+    local pat
+    for pat in "$@"; do
+        grep -Eq "^FAIL $pat" "$OUT" || { echo "FAIL: expected red family '$pat' did not flip"; grep '^FAIL ' "$OUT" || true; exit 1; }
+    done
+}
+
+expect_green() {
+    local pat
+    for pat in "$@"; do
+        if grep '^FAIL ' "$OUT" | grep -Eq "$pat"; then
+            echo "FAIL: family '$pat' flipped but should stay green"; grep '^FAIL ' "$OUT"; exit 1
+        fi
+    done
+}
+
+echo "--- P1: Cma sign flip -> full longitudinal chain red (15), rest green ---"
 run_plant modes_check.eigs p1
-expect_population 101
-grep -q '^FAIL L1\.lon\.Mw ' "$OUT" || { echo "FAIL: P1 did not flip L1.lon.Mw"; exit 1; }
-if grep '^FAIL ' "$OUT" | grep -q '\.lat\.'; then echo "FAIL: P1 leaked into lateral checks"; exit 1; fi
-if grep '^FAIL ' "$OUT" | grep -Eq 'L4\.(solver|exact)\.'; then echo "FAIL: P1 leaked into solver-alone checks"; exit 1; fi
-echo "PASS: P1 red pattern exact ($(fails) longitudinal fails)"
+expect_population 105
+expect_total_fails 15
+expect_red 'L1\.lon\.Mw ' 'L2\.lon\.' 'L3\.lon\.' 'L4\.chain\.lon\.ph' 'L4\.chain\.lon\.sp' 'L5\.ph\.' 'L5\.sp\.'
+expect_green '\.lat\.' 'L4\.(solver|exact)\.' 'L5\.unit\.'
+echo "PASS: P1 red pattern exact"
 
-echo "--- P2: lateral quartic c1 +1% -> only solver-alone lateral red ---"
+echo "--- P2: lateral quartic c1 +1% -> only solver-alone lateral red (3) ---"
 run_plant modes_check.eigs p2
-expect_population 101
-grep -q '^FAIL L4\.solver\.lat\.dr' "$OUT" || { echo "FAIL: P2 did not flip the Dutch-roll match"; exit 1; }
-BAD=$(grep '^FAIL ' "$OUT" | grep -cv '^FAIL L4\.solver\.lat\.' || true)
-[ "$BAD" -eq 0 ] || { echo "FAIL: P2 flipped checks outside L4.solver.lat"; grep '^FAIL ' "$OUT"; exit 1; }
-echo "PASS: P2 red pattern exact ($(fails) solver-lat fails)"
+expect_population 105
+expect_total_fails 3
+expect_red 'L4\.solver\.lat\.dr' 'L4\.solver\.lat\.roll'
+expect_green 'L[123]\.' 'L4\.chain\.' 'L4\.exact\.' 'L4\.solver\.lon\.' 'L5\.'
+echo "PASS: P2 red pattern exact"
 
-echo "--- P3: solver gutted -> all root-dependent checks red, L1-L3 green ---"
+echo "--- P3: solver gutted -> every root-dependent check red (40), L1-L3 + unit green ---"
 run_plant modes_check.eigs p3
-expect_population 101
-grep -q '^FAIL L4\.' "$OUT" || { echo "FAIL: P3 did not flip L4"; exit 1; }
-grep -q '^FAIL L5\.' "$OUT" || { echo "FAIL: P3 did not flip L5"; exit 1; }
-if grep -Eq '^FAIL L[123]\.' "$OUT"; then echo "FAIL: P3 leaked into pre-root checks"; exit 1; fi
-echo "PASS: P3 red pattern exact ($(fails) root-dependent fails)"
+expect_population 105
+expect_total_fails 40
+expect_red 'L4\.chain\.lon\.' 'L4\.chain\.lat\.' 'L4\.solver\.lon\.' 'L4\.solver\.lat\.' 'L4\.exact\.lon\.' 'L4\.exact\.lat\.' 'L5\.ph\.' 'L5\.sp\.' 'L5\.dr\.' 'L5\.roll\.' 'L5\.spiral\.'
+expect_green 'L[123]\.' 'L5\.unit\.'
+echo "PASS: P3 red pattern exact"
 
-echo "--- P6: Mwdot folding dropped -> longitudinal A/quartic/roots red ---"
+echo "--- P6: Mwdot folding dropped -> longitudinal A/quartic/roots red (12), L1 + lat green ---"
 run_plant modes_check.eigs p6
-expect_population 101
-grep -q '^FAIL L2\.lon\.a33 ' "$OUT" || { echo "FAIL: P6 did not flip A33"; exit 1; }
-grep -q '^FAIL L2\.lon\.a32 ' "$OUT" || { echo "FAIL: P6 did not flip A32"; exit 1; }
-if grep '^FAIL ' "$OUT" | grep -q '\.lat\.'; then echo "FAIL: P6 leaked into lateral checks"; exit 1; fi
-if grep -q '^FAIL L1\.' "$OUT"; then echo "FAIL: P6 flipped L1 (plant applied too early)"; exit 1; fi
-if grep '^FAIL ' "$OUT" | grep -Eq 'L4\.(solver|exact)\.'; then echo "FAIL: P6 leaked into solver-alone checks"; exit 1; fi
-echo "PASS: P6 red pattern exact ($(fails) longitudinal fails)"
+expect_population 105
+expect_total_fails 12
+expect_red 'L2\.lon\.a31 ' 'L2\.lon\.a32 ' 'L2\.lon\.a33 ' 'L3\.lon\.' 'L4\.chain\.lon\.' 'L5\.ph\.' 'L5\.sp\.'
+expect_green 'L1\.' '\.lat\.' 'L4\.(solver|exact)\.' 'L5\.unit\.'
+echo "PASS: P6 red pattern exact"
 
-echo "--- P4: generator time-dilated +5% -> period checks red, damping green ---"
+echo "--- P4: generator time-dilated +5% -> all period + t_half checks red (24), damping green ---"
 run_plant measure_check.eigs p4
-expect_population 38
-PEAKS=$(grep -c '^FAIL M1\.peaks\.' "$OUT" || true)
-[ "$PEAKS" -eq 9 ] || { echo "FAIL: P4 flipped $PEAKS/9 peak-spacing checks"; exit 1; }
-DFT=$(grep -c '^FAIL M1\.dft\.' "$OUT" || true)
-[ "$DFT" -eq 9 ] || { echo "FAIL: P4 flipped $DFT/9 DFT checks"; exit 1; }
-if grep -Eq '^FAIL M[23]\.' "$OUT"; then echo "FAIL: P4 leaked into damping/honesty checks"; exit 1; fi
-echo "PASS: P4 red pattern exact ($(fails) period fails)"
+expect_population 44
+expect_total_fails 24
+expect_red 'M1\.peaks\.' 'M1\.dft\.' 'M2\.thalf\.roll' 'M2\.thalf\.spiral'
+[ "$(grep -c '^FAIL M1\.peaks\.' "$OUT")" -eq 11 ] || { echo "FAIL: P4 peaks count != 11"; exit 1; }
+[ "$(grep -c '^FAIL M1\.dft\.' "$OUT")" -eq 11 ] || { echo "FAIL: P4 dft count != 11"; exit 1; }
+expect_green 'M2\.logdec\.' 'M2\.envelope\.' 'M3\.'
+echo "PASS: P4 red pattern exact"
 
-echo "--- P5: damping estimate replaced by constant 0.05 -> all zeta checks red ---"
+echo "--- P5: damping estimate replaced by constant 0.05 -> all zeta checks red (12) ---"
 run_plant measure_check.eigs p5
-expect_population 38
-ZL=$(grep -c '^FAIL M2\.logdec\.' "$OUT" || true)
-[ "$ZL" -eq 9 ] || { echo "FAIL: P5 flipped $ZL/9 log-decrement checks"; exit 1; }
-grep -q '^FAIL M2\.envelope\.heavy ' "$OUT" || { echo "FAIL: P5 did not flip the envelope check"; exit 1; }
-if grep -Eq '^FAIL (M1|M3)\.' "$OUT"; then echo "FAIL: P5 leaked into period/honesty checks"; exit 1; fi
-if grep -q '^FAIL M2\.thalf\.' "$OUT"; then echo "FAIL: P5 leaked into aperiodic checks"; exit 1; fi
-echo "PASS: P5 red pattern exact ($(fails) damping fails)"
+expect_population 44
+expect_total_fails 12
+expect_red 'M2\.logdec\.' 'M2\.envelope\.heavy '
+[ "$(grep -c '^FAIL M2\.logdec\.' "$OUT")" -eq 11 ] || { echo "FAIL: P5 logdec count != 11"; exit 1; }
+expect_green 'M1\.' 'M2\.thalf\.' 'M3\.'
+echo "PASS: P5 red pattern exact"
 
-echo "PASS: all 6 plants flip exactly their declared checks"
+echo "--- P7: refusal results forced to ok=1 -> all 8 M3 checks red, rest green ---"
+run_plant measure_check.eigs p7
+expect_population 44
+expect_total_fails 8
+expect_red 'M3\.refuse\.peaks ' 'M3\.refuse\.dft ' 'M3\.refuse\.logdec ' 'M3\.refuse\.dft_2cycles ' 'M3\.refuse\.dft_short ' 'M3\.refuse\.envelope ' 'M3\.refuse\.thalf_short ' 'M3\.refuse\.thalf_growing '
+expect_green 'M1\.' 'M2\.'
+echo "PASS: P7 red pattern exact"
+
+echo "PASS: all 7 plants flip exactly their declared checks"
