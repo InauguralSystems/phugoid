@@ -97,11 +97,11 @@ expect_red 'M1X\.sp\.phi20\.T ' 'M1X\.sp\.phi45\.T ' 'M1X\.sp2\.T ' 'M1X\.ph2\.T
 expect_green 'S[0-4]\.' 'M1X\..*z'
 echo "PASS: Q7 red pattern exact"
 
-echo "--- Q8: graded zeta replaced by 0.05 -> the 10 zeta checks + the 3 zeta identity pins (whole-dict replacement drops n_ratios/n_fit) ---"
+echo "--- Q8: graded zeta replaced by 0.05 -> every zeta check, pin, and S4 zeta row (the identity accessors refuse the field-less dict) ---"
 run_plant q8
-expect_total_fails 13
-expect_red 'S2\.zlog ' 'S2\.zenv ' 'S2\.zlog\.nr ' 'S2\.zenv\.nf ' 'S3\.z ' 'S3\.z\.nr ' 'M1X\.sp\.phi20\.zlog ' 'M1X\.sp\.phi20\.zenv ' 'M1X\.sp\.phi45\.zlog ' 'M1X\.sp\.phi45\.zenv ' 'M1X\.sp2\.zlog ' 'M1X\.sp2\.zenv ' 'M1X\.ph2\.z '
-expect_green 'S0\.' 'S1\.' 'S2\.T' 'S3\.T' 'S4\.'
+expect_total_fails 22
+expect_red 'S2\.zlog ' 'S2\.zenv ' 'S2\.zlog\.nr ' 'S2\.zenv\.nf ' 'S3\.z ' 'S3\.z\.nr ' 'S4\.dt\.spzl ' 'S4\.dt\.phz ' 'S4\.amp\.spze ' 'S4\.ctl\.phz ' 'M1X\.sp\.phi20\.zlog ' 'M1X\.sp\.phi20\.zenv ' 'M1X\.sp\.phi45\.zlog ' 'M1X\.sp\.phi45\.zenv ' 'M1X\.sp2\.zlog ' 'M1X\.sp2\.zenv ' 'M1X\.ph2\.z '
+expect_green 'S0\.' 'S1\.' 'S2\.T ' 'S3\.T' 'S4\..*T' 'S4\..*spT'
 echo "PASS: Q8 red pattern exact"
 
 echo "--- Q9: sim dataset broadly poisoned -> parity + every sim-graded mode (16) ---"
@@ -128,17 +128,24 @@ echo "PASS: Q11 red pattern exact (rounds 1-2: the anti-alias defense is the k-p
 
 echo "--- Q12: the Td slot fed by period_peaks (the rounds-1/2 alias, installed as a plant) -> exactly the 2 k-pins ---"
 run_plant q12
-expect_total_fails 2
-expect_red 'S3\.Tdft\.k ' 'M1X\.ph2\.Tdft\.k '
-expect_green 'S3\.Tdft ' 'S3\.Tpeaks ' 'S4\.' 'S[0-2]\.' 'M1X\.sp'
+expect_total_fails 7
+expect_red 'S3\.Tdft ' 'S3\.Tdft\.k ' 'S4\.dt\.phTd ' 'S4\.amp\.phTd ' 'S4\.ctl\.phTd ' 'M1X\.ph2\.Tdft ' 'M1X\.ph2\.Tdft\.k '
+expect_green 'S3\.Tpeaks ' 'S4\..*phTp ' 'S[0-2]\.' 'M1X\.sp'
 echo "PASS: Q12 red pattern exact (drives a null through check_exact's rejection arm every run — round-3 review widened that arm to tolerate null and nothing executed it)"
 
 echo "--- Q13: the Tp slot fed by period_dft (round-5's MIRROR alias, installed as a plant) -> exactly the 2 n-pins ---"
 run_plant q13
-expect_total_fails 2
-expect_red 'S3\.Tpeaks\.n ' 'M1X\.ph2\.Tpeaks\.n '
-expect_green 'S3\.Tpeaks ' 'S3\.Tdft ' 'S4\.' 'S[0-2]\.' 'M1X\.sp'
+expect_total_fails 7
+expect_red 'S3\.Tpeaks ' 'S3\.Tpeaks\.n ' 'S4\.dt\.phTp ' 'S4\.amp\.phTp ' 'S4\.ctl\.phTp ' 'M1X\.ph2\.Tpeaks ' 'M1X\.ph2\.Tpeaks\.n '
+expect_green 'S3\.Tdft ' 'S4\..*phTd ' 'S[0-2]\.' 'M1X\.sp'
 echo "PASS: Q13 red pattern exact (rounds 1-4 hardened only the Td slot; the n_extrema pins are the Tp dual, differing 10 vs 8 per the round-4 one-literal lesson)"
+
+echo "--- Q14: zeta-slot alias (envelope in the log-decrement slot) -> the zl accessor + pin set (6) ---"
+run_plant q14
+expect_total_fails 6
+expect_red 'S3\.z ' 'S3\.z\.nr ' 'S4\.dt\.phz ' 'S4\.amp\.phz ' 'S4\.ctl\.phz ' 'M1X\.ph2\.z '
+expect_green 'S2\.' 'S3\.T' 'S4\..*phT' 'M1X\.sp'
+echo "PASS: Q14 red pattern exact (round-6: consumer read sites go through identity accessors; q14 exercises as_zl's refusal arm every run)"
 
 # ------------------------------------------------------------------
 # Manifest enforcement (same rules as test_planted.sh): identity over
@@ -162,4 +169,4 @@ done < <(grep -v '^#' tests/sim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 13 rung-1 plants flip exactly their declared checks"
+echo "PASS: all 14 rung-1 plants flip exactly their declared checks"

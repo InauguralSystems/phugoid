@@ -40,7 +40,7 @@ Rung 1 (shipped 2026-08-24) is the first model, graded by rung 0:
   solved trim must match the rung-0 A matrix entry-by-entry (S0), and its
   free responses grade to the chain's mode quantities: phugoid T within
   0.03% measured, ζ within 0.2%; short period T within 0.17%, ζ within
-  0.15% (arms in ORACLE.md, thirteen-plant fault matrix in
+  0.15% (arms in ORACLE.md, fourteen-plant fault matrix in
   `tests/test_sim_planted.sh`).
 - **`tests/observer_check.eigs`** — the observer's verdicts graded against
   the same physics: 8 agreement pins, and 3 pinned *divergences* — the
@@ -57,7 +57,7 @@ bash tests/test_modes.sh       # 180 chain checks vs published values
 bash tests/test_measure.sh     # 126 estimator checks vs synthetic truth
 bash tests/test_planted.sh     # 18 plants must each flip exactly their checks
 bash tests/test_sim.sh         # 64 rung-1 model checks vs the rung-0 chain
-bash tests/test_sim_planted.sh # 13 rung-1 plants, exact red sets + manifest
+bash tests/test_sim_planted.sh # 14 rung-1 plants, exact red sets + manifest
 bash tests/test_observer.sh    # 11 observer-verdict checks + 2 plants
 ```
 
