@@ -625,6 +625,7 @@ later rung can revisit rather than rediscover.
 | Q14 | the ζ-slot alias: `zeta_envelope` in grade_ph's log-decrement slot (the two agree within tolerance on the phugoid, so only the identity machinery can see it) | 6: S3.z + S3.z.nr + the three S4 phz rows + M1X.ph2.z, all through `as_zl`'s refusal arm and the nr pin's null arm — the accessor-era plant added with the round-6 read-site fix. |
 
 | Q15 | the SP-side ζ slots SWAPPED (envelope in the log-decrement slot and vice versa) — q14's dual | 16: the S2 ζ rows and pins, the six S4 sp ζ rows, and the six M1X sp ζ rows, all through the accessor refusal / null arms. The only plant driving `as_ze`'s refusal arm with a real wrong-estimator result. |
+| Q16 | every check_below/check_relabs value displaced 1.1× its own site's executed tolerance (structural S0 sites exempt, cross-checked by the manifest's never-red rule) | 16: the 5 S1 + 11 plantable S0 checks. Added at rung-2 round 1, which found the executed comparator tolerance unpinned across 6 orders in the rung-2 twin — rung-0's P15/P17 class, inherited by both rungs at once. |
 
 Observer plants o1/o2 are declared in the O section and enforced by
 `tests/test_observer.sh`.
@@ -654,7 +655,7 @@ reds, so rung 2 should re-measure it when the model grows.
 
 ## Exit gate for rung 1
 
-1. All S, M1X and O checks green (64 + 11, populations pinned); all fifteen
+1. All S, M1X and O checks green (64 + 11, populations pinned); all sixteen
    Q plants and both o plants red in exactly the declared way; rung-0
    suite untouched and green.
 
@@ -731,7 +732,12 @@ control columns); T3.ctl scales all of them ×1.5.
   showed a 9-half-life window's tail drowning in any contaminant, see
   M2X); spiral t½ within **1%** (measured +0.002%). Plus the three
   identity pins: Tdft.k = 5, Tpeaks.n = 11, z.nr = 9 (the 45 s / 0.2 s
-  window; all values distinct from every rung-1 site).
+  window). The one-literal rule holds WITHIN this rung's shared call
+  path (T2's bin 5 vs M2X's bin 6); T2's k = 5 does repeat rung-1's
+  S3 value across programs — safe, because a producer-level forgery in
+  the shared measure.eigs still reds the k = 4 and k = 6 windows, but
+  the first draft of this sentence claimed distinctness from every
+  rung-1 site, which was false (round-1 review).
 - **T3 (15):** dt halved < 0.1%; amplitude halved < 0.5%; ALL six
   control derivatives ×1.5 < 0.2% — for all five graded quantities.
 - **M2X (11):** single-mode DR in a DELIBERATELY different window (52 s →
@@ -813,7 +819,13 @@ t½→1.0 with fields carried (7, numeric arm asserted), R9 broad poison
 incl. C_yp/C_yr made nonzero and θ₀ tilted (15), R10 rerun-side
 corruption (all 15 T3, numeric arm asserted), R11/R12/R13 the Td/Tp/ζ
 slot aliases (8 each: pins + accessor-refused rows), R14 t½ result
-×1.05 (4: exactly the aperiodic rows).
+×1.05 (4: exactly the aperiodic rows), R15 every check_below/
+check_relabs value displaced 1.1× its OWN site's executed tolerance,
+structural sites exempt (17: the 6 T1 + 11 plantable T0 — added after
+round-1 review widened check_below's executed bound ×10⁶ with every
+suite green, rung-0's P15/P17 executed-tolerance class; the same fix
+went to rung 1 as Q16, whose S1/S0 comparators had the identical
+unpinned shape).
 
 ## Exit gate for rung 2
 

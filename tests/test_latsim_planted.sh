@@ -155,6 +155,13 @@ expect_red 'T2\.roll\.th ' 'T2\.spiral\.th ' 'M2X\.rollc\.th ' 'M2X\.spiralc\.th
 expect_green 'T2\.dr\.' 'T3\.' 'M2X\.dr' 'M2X\.drs'
 echo "PASS: R14 red pattern exact"
 
+echo "--- R15: every check_below/check_relabs value displaced 1.1x its own executed tolerance -> the 6 T1 + 11 plantable T0 checks (17) ---"
+run_plant r15
+expect_total_fails 17
+expect_red 'T1\.res\.' 'T1\.hold\.' 'T0\.a11 ' 'T0\.a12 ' 'T0\.a13 ' 'T0\.a14 ' 'T0\.a21 ' 'T0\.a22 ' 'T0\.a24 ' 'T0\.a34 ' 'T0\.a41 ' 'T0\.a42 ' 'T0\.a44 '
+expect_green 'T0\.a23 ' 'T0\.a31 ' 'T0\.a32 ' 'T0\.a33 ' 'T0\.a43 ' 'T2\.' 'T3\.' 'M2X\.'
+echo "PASS: R15 red pattern exact (round-1 review: check_below's executed tolerance was widenable x1e6 with every suite green; this pins each comparator at its own scale — rung-0's P15/P17 class inherited)"
+
 # ------------------------------------------------------------------
 echo "--- manifest: identity + full red-set coverage + class vocabulary ---"
 "$EIGS" tests/latsim_check.eigs > "$WORK/clean_lat" 2>&1 || { echo "FAIL: unplanted latsim_check nonzero"; exit 1; }
@@ -176,4 +183,4 @@ done < <(grep -v '^#' tests/latsim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 14 rung-2 plants flip exactly their declared checks"
+echo "PASS: all 15 rung-2 plants flip exactly their declared checks"

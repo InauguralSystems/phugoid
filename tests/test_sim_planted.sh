@@ -163,6 +163,13 @@ expect_red 'S2\.zlog ' 'S2\.zenv ' 'S2\.zlog\.nr ' 'S2\.zenv\.nf ' 'S4\.dt\.spzl
 expect_green 'S3\.' 'S4\..*ph' 'S4\..*spT ' 'M1X\.ph2'
 echo "PASS: Q15 red pattern exact (the only plant driving as_ze's refusal arm with a real wrong-estimator result; round-7's dual to q14)"
 
+echo "--- Q16: every check_below/check_relabs value displaced 1.1x its own executed tolerance -> the 5 S1 + 11 plantable S0 checks (16) ---"
+run_plant q16
+expect_total_fails 16
+expect_red 'S1\.res\.' 'S1\.hold\.' 'S0\.a11 ' 'S0\.a12 ' 'S0\.a13 ' 'S0\.a14 ' 'S0\.a21 ' 'S0\.a22 ' 'S0\.a23 ' 'S0\.a24 ' 'S0\.a31 ' 'S0\.a32 ' 'S0\.a33 '
+expect_green 'S0\.a34 ' 'S0\.a4' 'S[2-4]\.' 'M1X\.'
+echo "PASS: Q16 red pattern exact (found at rung-2 round 1: the executed comparator tolerance was unpinned — rung-0's P15/P17 class, now inherited by both rungs)"
+
 # ------------------------------------------------------------------
 # Manifest enforcement (same rules as test_planted.sh): identity over
 # name + tolerance token; plantable coverage; structural exclusion.
@@ -190,4 +197,4 @@ done < <(grep -v '^#' tests/sim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 15 rung-1 plants flip exactly their declared checks"
+echo "PASS: all 16 rung-1 plants flip exactly their declared checks"

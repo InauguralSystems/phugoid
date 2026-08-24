@@ -38,11 +38,29 @@ define check_rel(name, ours, truth, reltol) as:
         failures is failures + 1
         print of f"FAIL {name} reltol={reltol} ours={ours} truth={truth}"
 
+# Plant q16 (found at rung-2 round 1, applied here too): every
+# check_below/check_relabs value displaced 1.1x its OWN site's executed
+# tolerance — a widened executed bound lets the displacement pass and
+# q16's exact count breaks. Structural S0 sites exempt (the manifest's
+# never-red rule cross-checks this list: a missed name reds under q16
+# and the harness fails loudly).
+define q16_exempt(name) as:
+    for nm in ["S0.a34", "S0.a41", "S0.a42", "S0.a43", "S0.a44"]:
+        if nm == name:
+            return 1
+    return 0
+
 # S0's mixed arm: relative for the real entries, absolute for the entries
 # the rung-0 A zeroes by assuming trim at exactly alpha = 0 (ours sits at
 # the small alpha that closes the dataset's 0.03% CL gap; see ORACLE.md).
 define check_relabs(name, ours, ref, reltol, abstol) as:
     checks_run is checks_run + 1
+    if plant == "q16":
+        if (q16_exempt of (name)) == 0:
+            local eff is reltol * (abs of ref)
+            if abstol > eff:
+                eff is abstol
+            ours is ours + 1.1 * eff
     local diff is abs of (ours - ref)
     local ok is 0
     if diff <= reltol * (abs of ref):
@@ -68,6 +86,8 @@ define check_exact(name, val, want) as:
 
 define check_below(name, val, bound) as:
     checks_run is checks_run + 1
+    if plant == "q16":
+        val is (abs of val) + 1.1 * bound
     if (abs of val) <= bound:
         print of f"PASS {name} below={bound} val={val}"
     else:
