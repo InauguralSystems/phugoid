@@ -269,7 +269,19 @@ define grade_ph(uwin, dt, simflag) as:
     if plant == "q10" and rerun_phase == 1 and simflag == 1:
         if z.ok == 1:
             z is {"ok": 1, "zeta": z.zeta * 1.03}
-    return {"Tp": period_peaks of [uwin, gdt], "Td": wrap_dft of (period_dft of [uwin, gdt]), "z": z}
+    # Plant q12 IS the round-1/2 alias, permanently installed as a plant:
+    # the Td slot fed by period_peaks instead of period_dft. Only the two
+    # k-pins must red (the T values agree within tolerance — that
+    # agreement is what made the alias invisible in rounds 1-2). This
+    # drives a NULL through check_exact's rejection arm on every planted
+    # run: round-3 review widened check_exact to tolerate null ("W4
+    # defensive handling") and all three suites stayed green — the
+    # anti-alias defense could be re-disabled by a one-line edit nothing
+    # executed.
+    local td_raw is period_dft of [uwin, gdt]
+    if plant == "q12":
+        td_raw is period_peaks of [uwin, gdt]
+    return {"Tp": period_peaks of [uwin, gdt], "Td": wrap_dft of (td_raw), "z": z}
 
 base_sp is grade_sp of [run_sp of [2.0, 0.02, 1, tr], 0.02, 1]
 base_ph is grade_ph of [run_ph of [0.005, 0.05, 20, tr], 1.0, 1]

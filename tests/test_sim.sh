@@ -4,7 +4,7 @@
 # trim is a true equilibrium through the integrator, the SP-subspace IC
 # and elevator-pulse runs grade to the chain's mode quantities inside the
 # declared arms, the dt/amplitude/control invariances hold, the estimator
-# bridge is valid in the sim's regimes, and exactly 57 checks ran.
+# bridge is valid in the sim's regimes, and exactly 59 checks ran.
 set -euo pipefail
 
 EIGS="${EIGENSCRIPT:-eigenscript}"
