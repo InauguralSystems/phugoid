@@ -86,6 +86,16 @@ define gen_exp(sigma, dt, n) as:
 detune is 1.0
 if plant == "p4":
     detune is 1.05
+# Tolerance-boundary plants (round-22): a slack added to the EXECUTED
+# tolerance at a comparison call site decouples it from the printed token,
+# and the existing plants displace by 5%+, so any widening smaller than
+# that slid under every gate. These displace JUST OUTSIDE the two tightest
+# arms, pinning each effective tolerance from above.
+if plant == "p13":
+    detune is 1.002
+zeta_gen_scale is 1.0
+if plant == "p14":
+    zeta_gen_scale is 1.007
 
 # name, zeta, wn, phi, dc, dt, n, dft_T_reltol, zeta_reltol, peaks_T_reltol
 # The peaks tolerance (0.1%) is deliberately tighter than the estimator's
@@ -146,7 +156,7 @@ unobserved:
             gen_dc is 0.0
         local zeta is c[1]
         local wn is c[2]
-        local sig is gen_osc of [zeta, wn, gen_phi, gen_dc, c[5], c[6], detune]
+        local sig is gen_osc of [zeta * zeta_gen_scale, wn, gen_phi, gen_dc, c[5], c[6], detune]
         check_tight of [f"M0.gen.{name}", sig[0], c[4] + (cos of c[3])]
         local t_true is 2.0 * (pi of null) / (wn * (sqrt of (1.0 - zeta * zeta)))
         local dt is c[5]
@@ -205,7 +215,7 @@ unobserved:
     local roll8 is gen_exp of [1.2308 / detune, 0.05, 8]
     local r4 is t_half_exp of [roll8, 0.05]
     check_result of ["M2.thalf.roll8", r4, "t_half", 0.563155, 0.02]
-    local span2 is gen_osc of [0.107, 0.7477, 0.0, 0.0, 0.2, 66, detune]
+    local span2 is gen_osc of [0.107 * zeta_gen_scale, 0.7477, 0.0, 0.0, 0.2, 66, detune]
     local r5 is zeta_logdec of [span2, 0.2]
     check_result of ["M2.logdec.minspans", r5, "zeta", 0.107, 0.005]
     # Amplitude 5.0, not 1.0: every other exponential row has ln(A)=0, so

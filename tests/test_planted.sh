@@ -145,6 +145,30 @@ expect_red 'M1\.dft\.'
 expect_green 'M1\.peaks\.' 'M2\.' 'M3\.'
 echo "PASS: P10 red pattern exact"
 
+echo "--- P13: time dilation x1.002 (just outside the 0.1% arm) -> exactly the 18 peaks checks red ---"
+run_plant measure_check.eigs p13
+expect_population 92
+expect_total_fails 18
+[ "$(grep -c '^FAIL M1\.peaks\.' "$OUT")" -eq 18 ] || { echo "FAIL: P13 peaks count != 18"; exit 1; }
+expect_green 'M0\.' 'M1\.dft\.' 'M2\.' 'M3\.'
+echo "PASS: P13 red pattern exact"
+
+echo "--- P14: zeta inflated x1.007 (just outside the 0.5% arm) -> exactly the 18 logdec checks red ---"
+run_plant measure_check.eigs p14
+expect_population 92
+expect_total_fails 18
+[ "$(grep -c '^FAIL M2\.logdec\.' "$OUT")" -eq 18 ] || { echo "FAIL: P14 logdec count != 18"; exit 1; }
+expect_green 'M0\.' 'M1\.' 'M2\.thalf\.' 'M2\.envelope\.' 'M3\.'
+echo "PASS: P14 red pattern exact"
+
+echo "--- P15: unit inputs x(1+3e-9) (just outside the 1e-9 arm) -> the 56 tight-arm checks red ---"
+run_plant modes_check.eigs p15
+expect_population 180
+expect_total_fails 56
+expect_red 'L1U\.' 'L2U\.' 'CU\.' 'L5\.unit\.'
+expect_green 'L[1-5]\.lon\.' 'L[1-5]\.lat\.' 'L4\.' 'L5\.ph' 'L5\.sp' 'L5\.dr'
+echo "PASS: P15 red pattern exact"
+
 echo "--- P12: generator phase+dc zeroed -> the 10 nonzero-wiring M0.gen checks red ---"
 run_plant measure_check.eigs p12
 expect_population 92
@@ -205,4 +229,4 @@ done < <(grep -v '^#' tests/check_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 12 plants flip exactly their declared checks"
+echo "PASS: all 15 plants flip exactly their declared checks"

@@ -295,6 +295,8 @@ define check_tight(name, ours, want) as:
         print of f"FAIL {name} reltol={tt} ours={ours} want={want}"
 
 synth is {"cond": {"u0": 250.0, "rho": 0.002, "S": 5000.0, "cbar": 25.0, "b": 190.0, "W": 500000.0, "g": 32.174, "theta0": 0.2, "Iy": 30000000.0, "Ix": 14000000.0, "Iz": 44000000.0, "Ixz": 0.0 - 2000000.0}, "lon": {"CL": 1.1, "CD": 0.2, "CLa": 5.0, "CDa": 0.7, "Cma": 0.0 - 1.5, "CLadot": 6.0, "Cmadot": 0.0 - 3.0, "CLq": 5.5, "Cmq": 0.0 - 21.0, "CLu": 0.3, "CDu": 0.11, "Cmu": 0.07}, "lat": {"Cyb": 0.0 - 0.9, "Cyp": 0.15, "Cyr": 0.25, "Clb": 0.0 - 0.2, "Clp": 0.0 - 0.5, "Clr": 0.12, "Cnb": 0.16, "Cnp": 0.0 - 0.13, "Cnr": 0.0 - 0.35}}
+if plant == "p15":
+    synth.cond.u0 is synth.cond.u0 * 1.000000003
 if plant == "p8":
     synth.cond.u0 is synth.cond.u0 * 1.15
     synth.cond.theta0 is 0.4
@@ -371,6 +373,12 @@ check_tight of ["L2U.lat.a44", SB[3][3], 0.0 - 0.1894955065359477]
 unit_scale is 1.0
 if plant == "p8":
     unit_scale is 1.1
+# Plant p15 (round-22): a slack added to the EXECUTED tight tolerance at a
+# call site decouples it from the printed token; the existing plants
+# displace by percent scale, so sub-percent widenings slid under. p15
+# displaces every unit-family input by 1+3e-9 — just outside the 1e-9 arm.
+if plant == "p15":
+    unit_scale is 1.000000003
 unit_scale2 is unit_scale
 
 # ----------------------- CU unit (complex helpers, direct coverage)
@@ -385,6 +393,8 @@ unit_scale2 is unit_scale
 cu is 1.0
 if plant == "p8":
     cu is 1.1
+if plant == "p15":
+    cu is 1.000000003
 check_tight of ["CU.cadd.re", (cadd of [[3.0 * cu, 4.0 * cu], [1.0, 2.0]])[0], 4.0]
 check_tight of ["CU.cadd.im", (cadd of [[3.0 * cu, 4.0 * cu], [1.0, 2.0]])[1], 6.0]
 check_tight of ["CU.csub.re", (csub of [[3.0 * cu, 4.0 * cu], [1.0, 2.0]])[0], 2.0]
