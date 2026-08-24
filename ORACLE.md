@@ -185,7 +185,7 @@ on pure decays with the published roll/spiral rates.
 (a) the span-AVERAGING inside both period and damping estimators,
 (b) the parabolic AMPLITUDE refinement in `find_extrema`, and
 (c) the amplitude floors (`1e-3` in `find_peaks`, `1e-6·hmax` in
-`half_spans`) and the `abs` in `sig_absmax` — round 9 removed all three
+`half_spans`, `1e-9·m` in `t_half_exp`) and the `abs` in `sig_absmax` — rounds 9-10 removed all four
 all-green on clean synthetics. Removing any of these moves clean-signal
 errors 10–50× but keeps them ≤ 0.03%, far under any honest tolerance.
 All earn their keep on noisy signals, which enter the grid at rung 1; pin
@@ -237,9 +237,10 @@ to work.
 | P4 | synthetic generator detuned: time-dilated so period AND decay rates are +5% vs declared truth (ζ preserved) | M1: all checks, both estimators; M2 t½ both |
 | P5 | the ζ result is replaced by a constant 0.05 after the estimator runs (validates the comparator; estimator-wiring faults are covered by the mutation requirement below) | M2 ζ checks (all grid ζ values are >5% away from 0.05 by construction) |
 | P6 | folding dropped: Mẇ terms omitted from longitudinal A | L2 (A31/A32/A33), L3, L4 phugoid/sp |
-| P7 | every refusal result forced to ok=1 before its check | all 8 M3 refusal checks, nothing else |
+| P7 | every refusal result forced to ok=1 before its check | all 9 M3 refusal checks, nothing else |
 | P8 | every dataset input poisoned (nonzero values scaled, zeros made nonzero, inertias scaled unevenly, θ₀ tilted, unit-check root lists scaled) | every data-derived check — 133 of 177 (the synthetic unit dataset and the CU/stability unit inputs are poisoned too) — leaving green only the pub-literal solver/exact checks (P2/P3's territory) and the structural constants |
 | P10 | every DFT result forced into a refusal before its check | the 14 M1.dft checks, red THROUGH the refusal arm of `check_result` — which round-8 review gutted to print PASS with nothing noticing (no clean run or plant had ever driven a refusal through it) |
+| P11 | `comparator_check.eigs p11`: the `expect()` helper fed two deliberately-wrong pairs | both must FAIL — round-10 review gutted `expect()` to a tautology and every gate stayed green; with it vacuous, a 2× rel-tolerance widening in checklib slipped every remaining gate |
 | P9 | every solver root nudged by 3·10⁻⁸ before the exact-arm checks, putting residual/Vieta errors inside (10⁻¹⁰, 10⁻⁶) — a band no natural run produces (DK residuals jump ~10⁻⁶ → ~10⁻¹¹ between iterations 5 and 6) | exactly the 12 L4.exact checks; a call-site tolerance widened to 10⁻⁶ turns this plant green and is caught |
 
 `tests/test_planted.sh` asserts each plant's **full** measured red set —
@@ -290,6 +291,6 @@ a top-severity finding.
 
 ## Exit gate for rung 0
 
-1. All L and M checks green, all ten plants red in exactly the declared way.
+1. All L and M checks green, all eleven plants red in exactly the declared way.
 2. Blind-critic rounds dry (two consecutive rounds with no actionable gap).
 3. CI green on the pushed repo (devcontainer, pinned EIGS_REF=v0.41.0).

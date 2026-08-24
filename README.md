@@ -28,7 +28,7 @@ There is deliberately **no flight model yet**. Rung 0 is the grader:
   synthetic truth, with every refusal path pinned — the estimators must
   *refuse* rather than answer when a window can't support the estimate.
 - **`ORACLE.md`** — the quality bar itself: published numbers, stated
-  tolerances (with written justifications for every widening), a ten-plant
+  tolerances (with written justifications for every widening), an eleven-plant
   fault matrix proving each checker can fail, and a boundary self-test of
   the comparators so a widened tolerance cannot pass silently.
 
@@ -39,7 +39,7 @@ bash tests/test_lint.sh        # every .eigs lints clean (planted-fault validate
 bash tests/test_comparator.sh  # 13 tolerance boundary self-tests
 bash tests/test_modes.sh       # 177 chain checks vs published values
 bash tests/test_measure.sh     # 54 estimator checks vs synthetic truth
-bash tests/test_planted.sh     # 10 plants must each flip exactly their checks
+bash tests/test_planted.sh     # 11 plants must each flip exactly their checks
 ```
 
 Requires `eigenscript` on PATH (or `EIGENSCRIPT=/path/to/binary`), pinned in

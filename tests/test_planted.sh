@@ -144,6 +144,14 @@ expect_red 'M1\.dft\.'
 expect_green 'M1\.peaks\.' 'M2\.' 'M3\.'
 echo "PASS: P10 red pattern exact"
 
+echo "--- P11: expect() fed two deliberately-wrong pairs -> both must FAIL ---"
+run_plant comparator_check.eigs p11
+expect_population 15
+expect_total_fails 2
+expect_red 'cal\.must_fail_ne ' 'cal\.must_fail_zero '
+expect_green 'pub\.' 'rel\.' 'abs\.'
+echo "PASS: P11 red pattern exact"
+
 # ------------------------------------------------------------------
 # Manifest enforcement (round-4 review): (a) the unplanted check-name set
 # must EQUAL tests/check_manifest.txt exactly — identity, not count, so a
@@ -175,4 +183,4 @@ done < <(grep -v '^#' tests/check_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 10 plants flip exactly their declared checks"
+echo "PASS: all 11 plants flip exactly their declared checks"
