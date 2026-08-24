@@ -226,6 +226,21 @@ define grade_sp(wwin, dt, simflag) as:
             ze is {"ok": 1, "zeta": ze.zeta * 1.03}
     return {"T": period_peaks of [wwin, gdt], "zl": zl, "ze": ze}
 
+# Plant q11 corrupts ONLY the period_dft result (x1.01), through this
+# wrapper on the true DFT call — the estimator-WIRING plant (rung-0
+# P10's class). Round-1 blind review aliased period_dft -> period_peaks
+# at this call site and the ENTIRE suite stayed green: every other
+# plant's red set has Tpeaks and Tdft co-occurring, so nothing separated
+# the two "independent" estimators and five checks were silent
+# duplicates. Under an aliased wiring this wrapper never runs, q11 flips
+# nothing, and the planted harness fails loudly ("plant did not make
+# sim_check exit nonzero").
+define wrap_dft(res) as:
+    if plant == "q11":
+        if res.ok == 1:
+            return {"ok": 1, "T": res.T * 1.01, "k": res.k}
+    return res
+
 define grade_ph(uwin, dt, simflag) as:
     local gdt is dt
     if simflag == 1:
@@ -236,7 +251,7 @@ define grade_ph(uwin, dt, simflag) as:
     if plant == "q10" and rerun_phase == 1 and simflag == 1:
         if z.ok == 1:
             z is {"ok": 1, "zeta": z.zeta * 1.03}
-    return {"Tp": period_peaks of [uwin, gdt], "Td": period_dft of [uwin, gdt], "z": z}
+    return {"Tp": period_peaks of [uwin, gdt], "Td": wrap_dft of (period_dft of [uwin, gdt]), "z": z}
 
 base_sp is grade_sp of [run_sp of [2.0, 0.02, 1, tr], 0.02, 1]
 base_ph is grade_ph of [run_ph of [0.005, 0.05, 20, tr], 1.0, 1]

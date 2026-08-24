@@ -119,6 +119,13 @@ expect_red 'S4\.dt\.' 'S4\.amp\.' 'S4\.ctl\.'
 expect_green 'S[0-3]\.' 'M1X\.'
 echo "PASS: Q10 red pattern exact"
 
+echo "--- Q11: period_dft result corrupted x1.01 at its true call site -> exactly the 2 base DFT checks ---"
+run_plant q11
+expect_total_fails 2
+expect_red 'S3\.Tdft ' 'M1X\.ph2\.Tdft '
+expect_green 'S3\.Tpeaks ' 'S4\.' 'S[0-2]\.' 'M1X\.sp'
+echo "PASS: Q11 red pattern exact (round-1 review: aliasing period_dft -> period_peaks survived every other plant; under that alias q11 flips nothing and run_plant fails)"
+
 # ------------------------------------------------------------------
 # Manifest enforcement (same rules as test_planted.sh): identity over
 # name + tolerance token; plantable coverage; structural exclusion.
@@ -141,4 +148,4 @@ done < <(grep -v '^#' tests/sim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 10 rung-1 plants flip exactly their declared checks"
+echo "PASS: all 11 rung-1 plants flip exactly their declared checks"

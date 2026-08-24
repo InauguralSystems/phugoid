@@ -569,13 +569,14 @@ lists are the assertions in the harness.
 | Q8 | every graded ζ replaced by 0.05 after the estimator | exactly the 10 ζ checks (comparator validation; every graded ζ is > tolerance from 0.05) |
 | Q9 | sim dataset copy broadly poisoned (C_Lα, C_D, C_mq, C_Lq, C_L, W, g scaled — rung-0 P8's shape, for S0 coverage) | 16: S0 all plantable entries except the Q1/Q2-only a21-fold slot, S2 (all), S3 (all); S1 GREEN — the trim solver correctly finds the poisoned model's own equilibrium, which is the point of S1 |
 | Q10 | the RE-RUN side of every S4 grading corrupted (dt ×1.02, ζ ×1.03) after the base gradings are banked | exactly the 18 S4 comparators — which stay green under every model-side plant (both sides move together) and so need their own comparator-validation plant |
+| Q11 | the period_dft RESULT ×1.01, through a wrapper on the true DFT call site (rung-0 P10's estimator-wiring class) | exactly S3.Tdft + M1X.ph2.Tdft. Added after round-1 blind review aliased `period_dft` → `period_peaks` at the grading call site and the whole suite stayed green — every other plant's red set has the two period estimators co-occurring, so nothing separated the "independent" pair and five checks were silent duplicates. Under an aliased wiring the wrapper never runs, Q11 flips nothing, and the harness fails loudly. |
 
 Observer plants o1/o2 are declared in the O section and enforced by
 `tests/test_observer.sh`.
 
 ## Exit gate for rung 1
 
-1. All S, M1X and O checks green (57 + 11, populations pinned); all ten
+1. All S, M1X and O checks green (57 + 11, populations pinned); all eleven
    Q plants and both o plants red in exactly the declared way; rung-0
    suite untouched and green.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds,
