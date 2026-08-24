@@ -1,0 +1,37 @@
+load_file of "data/b747_approach.eigs"
+load_file of "modes.eigs"
+load_file of "latsim.eigs"
+
+data is b747_approach of null
+P is lat_params of [data, lat_ctl_nominal of null]
+d is dim_derivs_lat of (data)
+A is a_lat of [d, data.cond]
+q4 is charpoly4 of (A)
+roots is dk_roots of [q4, 60]
+mm is modes_of of (roots)
+dr is mm.osc[0]
+spiral is mm.reals[0]
+roll is mm.reals[1]
+nosched is [[1e9, 0.0, 0.0]]
+
+# spiral-pure replay at 1 s cadence (tau=21.5 s: same-sign contracting steps)
+ics is lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "spiral", [0.0, 0.0, 1.0, 0.0], 2, 0.05]
+recs is lat_run of [ics, nosched, 0.05, 1200, 20, P, "rk4"]
+x is 0.0
+i is 0
+loop while i < (len of recs.t):
+    x is recs.phi[i] + 0.0
+    if i == 15 or i == 30 or i == 50:
+        print of f"SPIRAL t={recs.t[i]} phi={recs.phi[i]} report={report of x}"
+    i is i + 1
+
+# roll replay at 0.2 s cadence (window 2 s = 3.6 t-half: contraction fast enough?)
+icr is lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "roll", [0.0, 1.0, 0.0, 0.0], 1, 0.1]
+recr is lat_run of [icr, nosched, 0.02, 125, 10, P, "rk4"]
+z is 0.0
+i is 0
+loop while i < (len of recr.t):
+    z is recr.p[i] + 0.0
+    if i == 6 or i == 12:
+        print of f"ROLL2 t={recr.t[i]} p={recr.p[i]} report={report of z}"
+    i is i + 1

@@ -1,0 +1,13 @@
+# is how==0 the level set or the #915 gate?
+a is 0.0
+i is 0
+loop while i < 30:
+    a is 279.0 + i * 3.0 + 0.0
+    i is i + 1
+print of f"asym-growing: how={how is a} why={why is a}"
+b is 5.0 + 0.0
+print of f"b(+5): why={why is b}"
+b is 0.0 - 5.0 + 0.0
+print of f"b(-5): why={why is b} how={how is b}"
+b is 2.5 + 0.0
+print of f"b(2.5): why={why is b} how={how is b}"

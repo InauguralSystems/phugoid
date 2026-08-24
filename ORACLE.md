@@ -657,6 +657,172 @@ reds, so rung 2 should re-measure it when the model grows.
 1. All S, M1X and O checks green (64 + 11, populations pinned); all fifteen
    Q plants and both o plants red in exactly the declared way; rung-0
    suite untouched and green.
+
+---
+
+# Rung 2 — the lateral 3-DOF model: three timescales, and the level-set stress
+
+Written before the model, per the grader-first rule. The rung-0 lateral
+chain (L1–L5: Dutch roll −0.08066 ± 0.7433i, roll −1.2308, spiral
+−0.04641) is the reference; the rung-0 estimator grid is ALREADY validated
+in exactly these regimes (the `dr_*` rows are the Dutch-roll parameters;
+the M2 aperiodic rows are the published roll/spiral rates) — rung 0
+anticipated this rung. The genuinely new stress is the proposal's: every
+lateral state oscillates symmetrically about ZERO, where
+`entropy_of_num` is blind by construction (H(x) = H(−x)), so the observer
+verdicts must ride the #294 value channel; and one binding (φ) carries
+THREE timescales (roll t½ 0.56 s, DR T 8.45 s, spiral t½ 14.9 s).
+
+## The pipeline under test
+
+```
+nonlinear lateral 3-DOF (latsim.eigs), longitudinal state frozen at trim
+  → symmetric-flight trim = the origin, exactly            (T1)
+  → numerical Jacobian at the origin vs the rung-0 a_lat   (T0)
+  → mode-pure annihilator ICs (Cayley–Hamilton products):
+      DR-pure  → v(t) → T (both period estimators), ζ      (T2.dr)
+      roll-pure → p(t) → t½ by exponential fit             (T2.roll)
+      spiral-pure → φ(t) → t½ by exponential fit           (T2.spiral)
+  → invariances: dt, amplitude, control-derivative scaling (T3)
+  → M2X bridge: the estimators in rung-2's exact windows,
+    single-mode and mixed                                  (M2X)
+  → observer verdicts incl. the level-set pins             (O2)
+```
+
+The excitation design inherits rung 1's measured lesson directly: control
+inputs co-excite modes whose timescales defeat the estimator floors, so
+precision grading uses mode-pure ICs built from pinned chain quantities —
+here the full annihilator products (the lateral quartic factors as
+DR-quadratic × roll × spiral; killing two factors leaves the third's
+subspace). A rudder-doublet run exists for the OBSERVER layer (the
+product-shaped multi-timescale signal), not for precision grading.
+
+## The model contract
+
+`deriv_lat` over [v, p, φ, r] with the longitudinal state frozen at the
+rung-1 trim (u = u₀, w = 0, θ = θ₀ — the standard decoupled lateral
+model; full coupling is rung 3): coefficients linear in (β, pb/2V, rb/2V,
+δa, δr); gravity enters as g·sinφ·cosθ₀; the Ixz cross-inertia handled
+EXACTLY by solving the coupled moment pair (Ix·ṗ − Ixz·ṙ = L,
+Iz·ṙ − Ixz·ṗ = N — algebraically identical to the chain's primed
+ix/iz/(1−ix·iz) form, verified by hand before coding); φ̇ = p + tanθ₀·r.
+Its Jacobian at the origin must equal `a_lat` entry-by-entry. Aileron/
+rudder derivatives are nominal and excitation-only (the dataset has no
+control columns); T3.ctl scales all of them ×1.5.
+
+## Checks and tolerances (claims written first; measurements recorded after)
+
+- **T0 (16):** rel 10⁻⁶ / abs 10⁻⁸ — far tighter than drafted, because
+  the exact-origin trim removes every rung-1 offset mechanism: measured
+  worst discrepancy on the first run was **2.2·10⁻¹⁶** (machine epsilon;
+  the model is exactly linear at h-scale perturbations about the origin),
+  so the arms sit 7+ orders above any libm delta while catching faults at
+  their own scale. Structural (zero/unit on BOTH sides by construction,
+  no data fault can move either): a23, a31, a32, a33, a43. a12 and a34
+  are zero only because the DATA has C_yp = 0 and θ₀ = 0 — R9 poisons
+  both, so they are plantable.
+- **T1 (6):** all four residuals at the origin ≤ 10⁻¹² (measured exactly
+  0 — symmetric flight IS the trim, identically); 60 s hold:
+  max |v|, max |p| ≤ 10⁻⁹.
+- **T2 (8):** DR T within **1%** by both estimators (measured −0.002% /
+  −0.10%), ζ within **2%** (measured +0.008%); roll t½ within **1%**
+  (tightened from the drafted 2%; measured +0.10% — the grading window is
+  2.5 s ≈ 3.5 half-lives, shortened from a 5 s draft after the bridge
+  showed a 9-half-life window's tail drowning in any contaminant, see
+  M2X); spiral t½ within **1%** (measured +0.002%). Plus the three
+  identity pins: Tdft.k = 5, Tpeaks.n = 11, z.nr = 9 (the 45 s / 0.2 s
+  window; all values distinct from every rung-1 site).
+- **T3 (15):** dt halved < 0.1%; amplitude halved < 0.5%; ALL six
+  control derivatives ×1.5 < 0.2% — for all five graded quantities.
+- **M2X (11):** single-mode DR in a DELIBERATELY different window (52 s →
+  6.15 cycles → bin 6, one-literal rule) with its own k/n/nr pins
+  (6, 12, 10); DR + spiral-drift contaminant (amplitude 5% — the
+  baseline shape the span estimators claim immunity to, and deliver:
+  ζ measured +0.46% under it); roll decay + DR contaminant at 10⁻³
+  (measured: at 5·10⁻³ over a 5 s window the tail drowned and t½ read
+  −4.9% — the 2.5 s window plus measured-scale contaminant keeps the
+  bridge inside the sim regime, the rung-1 sp2 discipline); spiral +
+  DR contaminant.
+- **Identity armor, inherited:** the DR trio reuses the rung-1 identity
+  fields/pins/accessors (k, n_extrema, n_ratios — distinct pinned values
+  from rung 1's sites, per the one-literal rule). Roll and spiral are
+  graded by the SAME estimator (t_half_exp) against truths 26× apart, so
+  a row swap reds numerically and no identity field exists or is needed;
+  cross-kind rewires red via field mismatch. Alias plants replicate the
+  rung-1 set for the DR slots only.
+
+## O2 — observer verdicts (the rung's reason to exist)
+
+Written-first physics truths, graded as `agree`/`divergence` rows like
+rung 1:
+
+All measured 2026-08-24; 13 checks in `tests/observer_lat_check.eigs`
+(8 agree, 5 divergence):
+
+- **The level-set pair (the headline, agree-class):** on the DR replay at
+  1 s cadence (v swinging ±5 through zero), `report of v` reads
+  **oscillating** at all three probe points — the #294 value channel
+  handling exactly the motion the entropy channel cannot see. The
+  blindness itself is pinned via the MIRROR identity, not prose: a
+  +5 → −5 assignment registers `why == 0` exactly (zero entropy change
+  across a full reversal, H(x) = H(−x)), while the 5 → 2.5 control row
+  registers |why| ≈ 0.21 — proving the instrument is alive, so the zero
+  is the identity, not a dead probe. (The first draft planned to pin
+  `how is v == 0`; probing showed `how`'s semantics don't isolate the
+  identity — the mirror pair does, cleanly.)
+- **The unit triplet (divergence-class — G5, the rung's NEW upstream
+  finding, EigenScript#1045):** one physical trajectory (the spiral-pure
+  bank-angle decay, still halving every 15 s at the probe) replayed in
+  radians reads `converged`, and in degrees or milliradians reads
+  `moving` — `rel = Δv/(1+|v|)` degenerates to an absolute deadband
+  below |v| ≈ 1, making verdicts depend on the binding's unit. The
+  proposal predicted level-set blindness would be the lateral rung's
+  stress; the measured surprise one layer deeper is that the VALUE
+  channel has its own sub-unit degeneracy.
+- **The window-vs-timescale pair (G4's fast side):** the roll decay
+  (t½ = 0.56 s) reads `stable` mid-decay at 0.02 s cadence (window spans
+  0.36 t½ — `improving`'s contraction test cannot fire; divergence) and
+  `improving` correctly at 0.2 s cadence (window ≈ 3.6 t½; agree).
+  With G4's slow side, the pair says verdict correctness is
+  window-to-timescale relative in both directions.
+- **φ carries three timescales** (rudder-doublet run): `oscillating`
+  during the DR phase (agree ×2); the sub-milliradian spiral tail reads
+  `converged` while still actively decaying (divergence — G5's
+  small-magnitude corollary).
+- Observer plants: o1 (frozen replay → the 10 motion-expecting checks)
+  and o2 (an UNEQUAL-magnitude alternation → the 7 non-oscillating
+  pins). o2 deliberately differs from rung 1's: a pure ±A alternation is
+  entropy-invisible by the very identity being pinned, so the magnitudes
+  must differ for the mirror-flip pin to red (measured before pinning).
+
+## Rung-2 planted-fault matrix
+
+Same rules (exact red sets, full 56-check population every run, manifest
+identity + class vocabulary, no-refusals guards on the fabricating
+plants R8/R10 from the FIRST commit — rung 1's rounds 7–8 lessons are
+load-bearing here, not relearned). Fourteen plants, red sets measured
+2026-08-24 and asserted exactly in `tests/test_latsim_planted.sh`:
+R1 C_nβ ×1.05 (5: weathercock rows + DR periods + spiral), R2 Ixz
+dropped (10: every primed row + DR + roll — the lateral fold-drop),
+R3 Euler (4: DR ζ, roll t½, their dt-invariances), R4 all states offset
+from the origin (16: T1 complete + parity + spillovers), R5 C_lβ ×1.3
+(8: dihedral — spiral, DR, roll, and a DFT bin flip), R6 grading-dt
+×1.02 (4: the periods AND both t½ — t_half scales with dt; ζ green),
+R7 M2X generator dilation (8, incl. the bridge count pins), R8 ζ→0.05 /
+t½→1.0 with fields carried (7, numeric arm asserted), R9 broad poison
+incl. C_yp/C_yr made nonzero and θ₀ tilted (15), R10 rerun-side
+corruption (all 15 T3, numeric arm asserted), R11/R12/R13 the Td/Tp/ζ
+slot aliases (8 each: pins + accessor-refused rows), R14 t½ result
+×1.05 (4: exactly the aperiodic rows).
+
+## Exit gate for rung 2
+
+1. All T, M2X and O2 checks green (populations pinned); every plant red
+   in exactly the declared way; rung-0 AND rung-1 suites untouched and
+   green.
+2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds —
+   the rung-1 cap, with the identity armor arriving pre-built this time.
+3. CI green on the pushed branch.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds,
    whichever first — the rung-0 armor level was grader-appropriate and is
    deliberately NOT the per-rung bar here (hq proposal, 2026-08-24).

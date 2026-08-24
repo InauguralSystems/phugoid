@@ -1,0 +1,374 @@
+# latsim_check.eigs — the rung-2 T0..T3 + M2X checks from ORACLE.md.
+# Run from the repo root:  eigenscript tests/latsim_check.eigs [plant]
+# Plants (ORACLE.md rung-2 matrix): r1 Cnb x1.05 in the SIM's dataset
+# copy, r2 Ixz dropped in the sim copy (the lateral fold-drop), r3
+# integrator RK4 -> Euler, r4 origin/state offset, r5 Clb x1.3 (dihedral
+# -> spiral), r6 grading-dt dilation x1.02, r7 M2X generator dilation
+# x1.05, r8 zeta/t_half constant-replace (identity fields carried,
+# numeric arm asserted), r9 dataset broad-poison incl. theta0 tilt, r10
+# rerun-side corruption, r11/r12/r13 the DR alias plants, r14 t_half
+# result corruption. Population pinned at exactly 60.
+#
+# The rung-1 armor arrives PRE-BUILT (rounds 1-8 lessons, not relearned):
+# identity pins with distinct values per site, read-site accessors,
+# alias plants driving every refusal/null arm, no-refusals guards on the
+# fabricating plants, manifest identity + class vocabulary.
+# The chain reference is ALWAYS computed from a clean dataset copy.
+
+load_file of "data/b747_approach.eigs"
+load_file of "modes.eigs"
+load_file of "latsim.eigs"
+load_file of "measure.eigs"
+load_file of "tests/checklib.eigs"
+
+cli is args of null
+plant is ""
+if (len of cli) > 0:
+    plant is cli[0]
+
+checks_run is 0
+failures is 0
+
+define check_rel(name, ours, truth, reltol) as:
+    checks_run is checks_run + 1
+    if (rel_tol_ok of [ours, truth, reltol]) == 1:
+        print of f"PASS {name} reltol={reltol} ours={ours} truth={truth}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} reltol={reltol} ours={ours} truth={truth}"
+
+define check_relabs(name, ours, ref, reltol, abstol) as:
+    checks_run is checks_run + 1
+    local diff is abs of (ours - ref)
+    local ok is 0
+    if diff <= reltol * (abs of ref):
+        ok is 1
+    if diff <= abstol:
+        ok is 1
+    if ok == 1:
+        print of f"PASS {name} relabs={reltol}|{abstol} ours={ours} ref={ref}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} relabs={reltol}|{abstol} ours={ours} ref={ref}"
+
+define check_exact(name, val, want) as:
+    checks_run is checks_run + 1
+    if val == want:
+        print of f"PASS {name} exact={want} val={val}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} exact={want} val={val}"
+
+define check_below(name, val, bound) as:
+    checks_run is checks_run + 1
+    if (abs of val) <= bound:
+        print of f"PASS {name} below={bound} val={val}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} below={bound} val={val}"
+
+define check_result(name, res, field, truth, reltol) as:
+    if res.ok == 1:
+        check_rel of [name, res[field], truth, reltol]
+    else:
+        checks_run is checks_run + 1
+        failures is failures + 1
+        print of f"FAIL {name} reltol={reltol} estimator refused: {res.reason}"
+
+# Read-site identity accessors (rung-1 rounds 6-7, load-bearing here from
+# the first commit). t_half_exp needs none: it is the only aperiodic
+# estimator (no same-kind pair), the roll/spiral truths sit 26x apart so
+# a row swap reds numerically, and cross-kind rewires red via field
+# mismatch.
+define as_td(res) as:
+    if res.ok == 1:
+        if res.k == null:
+            return {"ok": 0, "reason": "not a DFT result (identity field k missing)"}
+    return res
+
+define as_tp(res) as:
+    if res.ok == 1:
+        if res.n_extrema == null:
+            return {"ok": 0, "reason": "not an extrema result (n_extrema missing)"}
+    return res
+
+define as_zl(res) as:
+    if res.ok == 1:
+        if res.n_ratios == null:
+            return {"ok": 0, "reason": "not a log-decrement result (n_ratios missing)"}
+    return res
+
+# Plant r8: graded zeta -> 0.05 (n_ratios carried: the fabrication must
+# red through the NUMERIC arm, rung-1 round-7's rule) and t_half -> 1.0
+# (between the two truths, > tolerance from both).
+define mangle_z(res) as:
+    if plant == "r8":
+        if res.ok == 1:
+            return {"ok": 1, "zeta": 0.05, "n_ratios": res.n_ratios}
+    return res
+
+define mangle_th(res) as:
+    if plant == "r8":
+        if res.ok == 1:
+            return {"ok": 1, "t_half": 1.0}
+    return res
+
+# Plant r14: the t_half RESULT x1.05 through the wrapper on the true call
+# site (proves the roll/spiral rows can fail at their own scale).
+define wrap_th(res) as:
+    if plant == "r14":
+        if res.ok == 1:
+            return {"ok": 1, "t_half": res.t_half * 1.05}
+    return res
+
+# Plant r6: dt handed to the sim-signal estimators dilated (periods AND
+# t_half scale with it; zeta is dilation-invariant).
+define est_dt(dt) as:
+    if plant == "r6":
+        return dt * 1.02
+    return dt
+
+# ------------------------------------------------------------ references
+data_ref is b747_approach of null
+d_ref is dim_derivs_lat of (data_ref)
+A_ref is a_lat of [d_ref, data_ref.cond]
+q4_ref is charpoly4 of (A_ref)
+roots_ref is dk_roots of [q4_ref, 60]
+mm_ref is modes_of of (roots_ref)
+dr_ref is mm_ref.osc[0]
+spiral_ref is mm_ref.reals[0]
+roll_ref is mm_ref.reals[1]
+
+# ------------------------------------------------------------ sim params
+define make_lat_P(ctl) as:
+    local dcopy is b747_approach of null
+    if plant == "r1":
+        dcopy.lat.Cnb is dcopy.lat.Cnb * 1.05
+    if plant == "r5":
+        dcopy.lat.Clb is dcopy.lat.Clb * 1.3
+    if plant == "r9":
+        dcopy.lat.Cyb is dcopy.lat.Cyb * 1.1
+        dcopy.lat.Clp is dcopy.lat.Clp * 1.2
+        dcopy.lat.Cnr is dcopy.lat.Cnr * 1.3
+        dcopy.lat.Clr is dcopy.lat.Clr * 1.4
+        dcopy.lat.Cnp is dcopy.lat.Cnp * 1.2
+        dcopy.lat.Cyp is 0.1
+        dcopy.lat.Cyr is 0.2
+        dcopy.cond.Ix is dcopy.cond.Ix * 1.05
+        dcopy.cond.theta0 is 0.05
+    local P is lat_params of [dcopy, ctl]
+    if plant == "r2":
+        P.Ixz is 0.0
+    return P
+
+method is "rk4"
+if plant == "r3":
+    method is "euler"
+
+P0 is make_lat_P of (lat_ctl_nominal of null)
+
+# Plant r4: every run's initial state (and the T1 probe point) offset
+# from the origin — the lateral analog of rung-1's trim-offset plant.
+define plant_state(s) as:
+    if plant == "r4":
+        return [s[0] + 0.5, s[1] + 0.02, s[2] + 0.05, s[3]]
+    return s
+
+origin is plant_state of ([0.0, 0.0, 0.0, 0.0])
+nosched is [[1e9, 0.0, 0.0]]
+
+# ------------------------------------------------------------ T1 — trim
+# Symmetric flight IS the trim, exactly: at the origin every coefficient
+# and the gravity term vanish identically, so the residual bound is
+# 1e-12, not a solver tolerance.
+res0 is deriv_lat of [origin, 0.0, 0.0, P0]
+check_below of ["T1.res.vdot", res0[0], 1e-12]
+check_below of ["T1.res.pdot", res0[1], 1e-12]
+check_below of ["T1.res.phidot", res0[2], 1e-12]
+check_below of ["T1.res.rdot", res0[3], 1e-12]
+
+hold is lat_run of [origin, nosched, 0.05, 1200, 1, P0, method]
+hmax_v is 0.0
+hmax_p is 0.0
+i is 0
+loop while i < (len of hold.t):
+    local dv is abs of hold.v[i]
+    if dv > hmax_v:
+        hmax_v is dv
+    local dp is abs of hold.p[i]
+    if dp > hmax_p:
+        hmax_p is dp
+    i is i + 1
+check_below of ["T1.hold.v", hmax_v, 1e-9]
+check_below of ["T1.hold.p", hmax_p, 1e-9]
+
+# ------------------------------------------------------------ T0 — parity
+J is lat_jacobian of [origin, 0.0, 0.0, P0]
+# The lateral trim is the EXACT origin (no rung-1 trim-offset mechanism):
+# measured worst discrepancy on the first run was 2.2e-16 — machine
+# epsilon — so the arms are rel 1e-6 / abs 1e-8, 7+ orders above any libm
+# delta while catching any real fault at its own scale. Zeros that are
+# zero by CONSTRUCTION on both sides (moment rows' phi column, the
+# phi-dot row's v/phi columns and its unit p entry) are manifest class
+# structural; a12 (Cyp) and a34 (tan theta0) are zero only because the
+# DATA has Cyp = 0 and theta0 = 0, so r9's poison reaches them.
+for rr in range of 4:
+    for cc in range of 4:
+        check_relabs of [f"T0.a{rr + 1}{cc + 1}", J[rr][cc], A_ref[rr][cc], 1e-6, 1e-8]
+
+# ------------------------------------------------------------ runs
+define run_dr(vamp, dt, decim, P) as:
+    local ic is plant_state of (lat_mode_ic of [A_ref, dr_ref.re, dr_ref.im, roll_ref.re, spiral_ref.re, "dr", [1.0, 0.0, 0.0, 0.0], 0, vamp])
+    local rec is lat_run of [ic, nosched, dt, floor of (45.0 / dt), decim, P, method]
+    return rec.v
+
+define run_roll(pamp, dt, decim, P) as:
+    local ic is plant_state of (lat_mode_ic of [A_ref, dr_ref.re, dr_ref.im, roll_ref.re, spiral_ref.re, "roll", [0.0, 1.0, 0.0, 0.0], 1, pamp])
+    local rec is lat_run of [ic, nosched, dt, floor of (2.5 / dt), decim, P, method]
+    return rec.p
+
+define run_spiral(phiamp, dt, decim, P) as:
+    local ic is plant_state of (lat_mode_ic of [A_ref, dr_ref.re, dr_ref.im, roll_ref.re, spiral_ref.re, "spiral", [0.0, 0.0, 1.0, 0.0], 2, phiamp])
+    local rec is lat_run of [ic, nosched, dt, floor of (60.0 / dt), decim, P, method]
+    return rec.phi
+
+rerun_phase is 0
+
+define grade_dr(vwin, dt, simflag) as:
+    local gdt is dt
+    if simflag == 1:
+        gdt is est_dt of (dt)
+        if plant == "r10" and rerun_phase == 1:
+            gdt is gdt * 1.02
+    local zl is mangle_z of (zeta_logdec of [vwin, gdt])
+    if plant == "r10" and rerun_phase == 1 and simflag == 1:
+        if zl.ok == 1:
+            zl is {"ok": 1, "zeta": zl.zeta * 1.03, "n_ratios": zl.n_ratios}
+    local td_raw is period_dft of [vwin, gdt]
+    if plant == "r11":
+        td_raw is period_peaks of [vwin, gdt]
+    local tp_raw is period_peaks of [vwin, gdt]
+    if plant == "r12":
+        tp_raw is period_dft of [vwin, gdt]
+    if plant == "r13":
+        zl is zeta_envelope of [vwin, gdt]
+    return {"Tp": tp_raw, "Td": td_raw, "zl": zl}
+
+define grade_th(sig, dt, simflag) as:
+    local gdt is dt
+    if simflag == 1:
+        gdt is est_dt of (dt)
+        if plant == "r10" and rerun_phase == 1:
+            gdt is gdt * 1.02
+    local th is mangle_th of (wrap_th of (t_half_exp of [sig, gdt]))
+    if plant == "r10" and rerun_phase == 1 and simflag == 1:
+        if th.ok == 1:
+            th is {"ok": 1, "t_half": th.t_half * 1.03}
+    return th
+
+base_dr is grade_dr of [run_dr of [5.0, 0.02, 10, P0], 0.2, 1]
+base_roll is grade_th of [run_roll of [0.1, 0.02, 1, P0], 0.02, 1]
+base_spiral is grade_th of [run_spiral of [0.05, 0.05, 10, P0], 0.5, 1]
+
+# ------------------------------------------------------------ T2
+check_result of ["T2.dr.Tpeaks", as_tp of (base_dr.Tp), "T", dr_ref.T, 0.01]
+check_result of ["T2.dr.Tdft", as_td of (base_dr.Td), "T", dr_ref.T, 0.01]
+check_result of ["T2.dr.z", as_zl of (base_dr.zl), "zeta", dr_ref.zeta, 0.02]
+check_result of ["T2.roll.th", base_roll, "t_half", roll_ref.t_half, 0.01]
+check_result of ["T2.spiral.th", base_spiral, "t_half", spiral_ref.t_half, 0.01]
+# Identity pins (values distinct from every rung-1 site and each other,
+# per the one-literal rule): the 45 s / 0.2 s DR window holds 5.3 cycles
+# -> bin 5, 11 extrema, 9 usable ratios.
+check_exact of ["T2.dr.Tdft.k", base_dr.Td.k, 5]
+check_exact of ["T2.dr.Tpeaks.n", base_dr.Tp.n_extrema, 11]
+check_exact of ["T2.dr.z.nr", base_dr.zl.n_ratios, 9]
+
+rerun_phase is 1
+
+# ------------------------------------------------------------ T3
+define inv_set(tag, gdr, groll, gspiral, tol) as:
+    check_result of [f"T3.{tag}.drTp", as_tp of (gdr.Tp), "T", base_dr.Tp.T, tol]
+    check_result of [f"T3.{tag}.drTd", as_td of (gdr.Td), "T", base_dr.Td.T, tol]
+    check_result of [f"T3.{tag}.drz", as_zl of (gdr.zl), "zeta", base_dr.zl.zeta, tol]
+    check_result of [f"T3.{tag}.rollth", groll, "t_half", base_roll.t_half, tol]
+    check_result of [f"T3.{tag}.spiralth", gspiral, "t_half", base_spiral.t_half, tol]
+
+dt_dr is grade_dr of [run_dr of [5.0, 0.01, 20, P0], 0.2, 1]
+dt_roll is grade_th of [run_roll of [0.1, 0.01, 2, P0], 0.02, 1]
+dt_spiral is grade_th of [run_spiral of [0.05, 0.025, 20, P0], 0.5, 1]
+inv_set of ["dt", dt_dr, dt_roll, dt_spiral, 0.001]
+
+amp_dr is grade_dr of [run_dr of [2.5, 0.02, 10, P0], 0.2, 1]
+amp_roll is grade_th of [run_roll of [0.05, 0.02, 1, P0], 0.02, 1]
+amp_spiral is grade_th of [run_spiral of [0.025, 0.05, 10, P0], 0.5, 1]
+inv_set of ["amp", amp_dr, amp_roll, amp_spiral, 0.005]
+
+ctl2 is lat_ctl_nominal of null
+ctl2.Clda is ctl2.Clda * 1.5
+ctl2.Cnda is ctl2.Cnda * 1.5
+ctl2.Cyda is ctl2.Cyda * 1.5
+ctl2.Cydr is ctl2.Cydr * 1.5
+ctl2.Cldr is ctl2.Cldr * 1.5
+ctl2.Cndr is ctl2.Cndr * 1.5
+Pctl is make_lat_P of (ctl2)
+ctl_dr is grade_dr of [run_dr of [5.0, 0.02, 10, Pctl], 0.2, 1]
+ctl_roll is grade_th of [run_roll of [0.1, 0.02, 1, Pctl], 0.02, 1]
+ctl_spiral is grade_th of [run_spiral of [0.05, 0.05, 10, Pctl], 0.5, 1]
+inv_set of ["ctl", ctl_dr, ctl_roll, ctl_spiral, 0.002]
+
+# ------------------------------------------------------------ M2X
+# The bridge: rung-0's estimators are already grid-validated at EXACTLY
+# these mode parameters (the dr_* rows and the published roll/spiral
+# aperiodic rows); M2X re-validates them in rung-2's own windows and in
+# the mixed-mode shapes the sim signals actually carry. Contaminant
+# amplitudes are set ~4x above the measured sim-signal impurities
+# (annihilator ICs are mode-pure to root precision; the residual is
+# nonlinear re-injection at the 1e-4 relative scale).
+define gen_two2(s1, w1, a1, p1, s2, w2, a2, p2, dt, n) as:
+    local det is 1.0
+    if plant == "r7":
+        det is 1.05
+    local out is []
+    for i in range of n:
+        local t is i * dt * det
+        append of [out, a1 * (exp of (s1 * t)) * (cos of (w1 * t + p1)) + a2 * (exp of (s2 * t)) * (cos of (w2 * t + p2))]
+    return out
+
+# single-mode DR in a DELIBERATELY different window (52 s -> 6.15 cycles
+# -> bin 6; the one-literal rule vs T2's bin 5)
+m_dr is gen_two2 of [dr_ref.re, dr_ref.im, 1.0, 0.8, 0.0, 1.0, 0.0, 0.0, 0.2, 260]
+g_dr is grade_dr of [m_dr, 0.2, 0]
+check_result of ["M2X.dr.Tpeaks", as_tp of (g_dr.Tp), "T", dr_ref.T, 0.01]
+check_result of ["M2X.dr.Tdft", as_td of (g_dr.Td), "T", dr_ref.T, 0.01]
+check_result of ["M2X.dr.z", as_zl of (g_dr.zl), "zeta", dr_ref.zeta, 0.02]
+check_exact of ["M2X.dr.Tdft.k", g_dr.Td.k, 6]
+check_exact of ["M2X.dr.Tpeaks.n", g_dr.Tp.n_extrema, 12]
+check_exact of ["M2X.dr.z.nr", g_dr.zl.n_ratios, 10]
+
+# DR + spiral-drift contaminant in the T2 window (spiral decay riding
+# under the oscillation — the baseline shape the estimators claim
+# immunity to)
+m_drs is gen_two2 of [dr_ref.re, dr_ref.im, 1.0, 0.8, spiral_ref.re, 0.0, 0.05, 0.0, 0.2, 226]
+g_drs is grade_dr of [m_drs, 0.2, 0]
+check_result of ["M2X.drs.Tpeaks", as_tp of (g_drs.Tp), "T", dr_ref.T, 0.01]
+check_result of ["M2X.drs.Tdft", as_td of (g_drs.Td), "T", dr_ref.T, 0.01]
+check_result of ["M2X.drs.z", as_zl of (g_drs.zl), "zeta", dr_ref.zeta, 0.02]
+
+# roll decay + DR contaminant (the roll window sees ~0.6 DR cycles as a
+# slow additive wave); spiral decay + DR contaminant (dead by mid-window
+# but present early)
+m_roll is gen_two2 of [roll_ref.re, 0.0, 1.0, 0.0, dr_ref.re, dr_ref.im, 0.001, 1.1, 0.02, 126]
+g_roll is grade_th of [m_roll, 0.02, 0]
+check_result of ["M2X.rollc.th", g_roll, "t_half", roll_ref.t_half, 0.01]
+m_sp is gen_two2 of [spiral_ref.re, 0.0, 1.0, 0.0, dr_ref.re, dr_ref.im, 0.005, 2.3, 0.5, 121]
+g_sp is grade_th of [m_sp, 0.5, 0]
+check_result of ["M2X.spiralc.th", g_sp, "t_half", spiral_ref.t_half, 0.01]
+
+# ------------------------------------------------------------ population
+print of f"CHECKS_RUN {checks_run}"
+print of f"FAILURES {failures}"
+if checks_run != 56:
+    print of f"FAIL harness: expected exactly 56 checks, ran {checks_run}"
+    exit of 1
+if failures > 0:
+    exit of 1

@@ -1,0 +1,48 @@
+load_file of "data/b747_approach.eigs"
+load_file of "modes.eigs"
+load_file of "latsim.eigs"
+
+data is b747_approach of null
+P is lat_params of [data, lat_ctl_nominal of null]
+d is dim_derivs_lat of (data)
+A is a_lat of [d, data.cond]
+q4 is charpoly4 of (A)
+roots is dk_roots of [q4, 60]
+mm is modes_of of (roots)
+dr is mm.osc[0]
+spiral is mm.reals[0]
+roll is mm.reals[1]
+nosched is [[1e9, 0.0, 0.0]]
+
+# DR replay at 1 s cadence
+ic is lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "dr", [1.0, 0.0, 0.0, 0.0], 0, 5.0]
+rec is lat_run of [ic, nosched, 0.02, 2250, 50, P, "rk4"]
+x is 0.0
+i is 0
+loop while i < (len of rec.t):
+    x is rec.v[i] + 0.0
+    if i == 15 or i == 30 or i == 44:
+        print of f"DR t={rec.t[i]} v={rec.v[i]} report={report of x} how={how is x} why={why is x}"
+    i is i + 1
+
+# rudder doublet -> phi three-timescale, 1 s cadence
+sched is [[1.0, 0.0, 0.03], [2.0, 0.0, 0.0 - 0.03], [1e9, 0.0, 0.0]]
+recd is lat_run of [[0.0, 0.0, 0.0, 0.0], sched, 0.02, 3000, 50, P, "rk4"]
+y is 0.0
+i is 0
+loop while i < (len of recd.t):
+    y is recd.phi[i] + 0.0
+    if i == 10 or i == 20 or i == 35 or i == 55:
+        print of f"PHI t={recd.t[i]} phi={recd.phi[i]} report={report of y}"
+    i is i + 1
+
+# roll decay replay at 0.02 s cadence
+icr is lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "roll", [0.0, 1.0, 0.0, 0.0], 1, 0.1]
+recr is lat_run of [icr, nosched, 0.02, 125, 1, P, "rk4"]
+z is 0.0
+i is 0
+loop while i < (len of recr.t):
+    z is recr.p[i] + 0.0
+    if i == 30 or i == 125:
+        print of f"ROLL t={recr.t[i]} p={recr.p[i]} report={report of z}"
+    i is i + 1

@@ -1,0 +1,44 @@
+load_file of "data/b747_approach.eigs"
+load_file of "modes.eigs"
+load_file of "latsim.eigs"
+load_file of "measure.eigs"
+
+data is b747_approach of null
+P is lat_params of [data, lat_ctl_nominal of null]
+d is dim_derivs_lat of (data)
+A is a_lat of [d, data.cond]
+q4 is charpoly4 of (A)
+roots is dk_roots of [q4, 60]
+mm is modes_of of (roots)
+dr is mm.osc[0]
+spiral is mm.reals[0]
+roll is mm.reals[1]
+
+nosched is [[1e9, 0.0, 0.0]]
+
+# DR-pure: v-amp 5 ft/s, 45 s at dt 0.02, decim 10 (0.2 s cadence like the grid)
+icd is lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "dr", [1.0, 0.0, 0.0, 0.0], 0, 5.0]
+print of f"dr ic={icd}"
+recd is lat_run of [icd, nosched, 0.02, 2250, 10, P, "rk4"]
+vwin is recd.v
+rT is period_peaks of [vwin, 0.2]
+rD is period_dft of [vwin, 0.2]
+rz is zeta_logdec of [vwin, 0.2]
+print of f"DR truth T={dr.T} zeta={dr.zeta}"
+print of f"  Tpeaks={rT}"
+print of f"  Tdft={rD}"
+print of f"  zeta={rz}"
+
+# roll-pure: p-amp 0.1 rad/s, 5 s at dt 0.02
+icr is lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "roll", [0.0, 1.0, 0.0, 0.0], 1, 0.1]
+print of f"roll ic={icr}"
+recr is lat_run of [icr, nosched, 0.02, 250, 1, P, "rk4"]
+rt is t_half_exp of [recr.p, 0.02]
+print of f"roll truth th={roll.t_half}  measured={rt}"
+
+# spiral-pure: phi-amp 0.05 rad, 60 s at dt 0.05, decim 10
+ics is lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "spiral", [0.0, 0.0, 1.0, 0.0], 2, 0.05]
+print of f"spiral ic={ics}"
+recs is lat_run of [ics, nosched, 0.05, 1200, 10, P, "rk4"]
+st is t_half_exp of [recs.phi, 0.5]
+print of f"spiral truth th={spiral.t_half}  measured={st}"

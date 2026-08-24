@@ -48,6 +48,21 @@ Rung 1 (shipped 2026-08-24) is the first model, graded by rung 0:
   `diverging` on its quarter-cycles (GAPS.md G4, the first measured
   instance of the proposal's two-timescale prediction).
 
+Rung 2 (shipped 2026-08-24) is the lateral model — three timescales and
+the level-set stress:
+
+- **`latsim.eigs`** — the lateral 3-DOF (exact Ixz-coupled moments,
+  exact-origin trim, mode-pure annihilator ICs via Cayley–Hamilton).
+  Jacobian parity vs the rung-0 lateral A measured at machine epsilon;
+  Dutch roll T within 0.1%, ζ 0.01%; roll and spiral t½ within 0.1%.
+- **`tests/observer_lat_check.eigs`** — the level-set grading: the value
+  channel correctly reads zero-symmetric motion the entropy channel is
+  provably blind to (the mirror pin: a +5 → −5 assignment registers
+  `why == 0` exactly), and the rung's new find — **verdicts are
+  unit-dependent below |v| ≈ 1** (the same still-decaying bank angle
+  reads `converged` in radians, `moving` in degrees; GAPS.md G5,
+  EigenScript#1045).
+
 ## Run it
 
 ```sh
@@ -59,6 +74,9 @@ bash tests/test_planted.sh     # 18 plants must each flip exactly their checks
 bash tests/test_sim.sh         # 64 rung-1 model checks vs the rung-0 chain
 bash tests/test_sim_planted.sh # 15 rung-1 plants, exact red sets + manifest
 bash tests/test_observer.sh    # 11 observer-verdict checks + 2 plants
+bash tests/test_latsim.sh      # 56 rung-2 model checks vs the rung-0 chain
+bash tests/test_latsim_planted.sh # 14 rung-2 plants, exact red sets + manifest
+bash tests/test_observer_lat.sh   # 13 rung-2 observer checks + 2 plants
 ```
 
 Requires `eigenscript` on PATH (or `EIGENSCRIPT=/path/to/binary`), pinned in
@@ -70,7 +88,7 @@ CI at the version in `.devcontainer/Dockerfile`.
 |---|---|---|
 | 0 | Oracle before code: dataset, mode predictions, measurement scripts | done |
 | 1 | Longitudinal 3-DOF, trimmed; elevator pulse → phugoid, SP-subspace IC → short period, graded against rung 0; observer verdicts graded second | **done** |
-| 2 | Lateral 3-DOF: Dutch roll, spiral, roll subsidence (the level-set/value-channel stress) | — |
+| 2 | Lateral 3-DOF: Dutch roll, spiral, roll subsidence via mode-pure annihilator ICs; the level-set/value-channel stress graded | **done** |
 | 3 | 6-DOF + control tapes, byte-exact replay gate | — |
 | 4 | The swarm: N aircraft, three-arm observer cost curve (ceiling/disciplined/floor), VM-vs-AOT | — |
 

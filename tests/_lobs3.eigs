@@ -1,0 +1,31 @@
+load_file of "data/b747_approach.eigs"
+load_file of "modes.eigs"
+load_file of "latsim.eigs"
+
+data is b747_approach of null
+P is lat_params of [data, lat_ctl_nominal of null]
+d is dim_derivs_lat of (data)
+A is a_lat of [d, data.cond]
+q4 is charpoly4 of (A)
+roots is dk_roots of [q4, 60]
+mm is modes_of of (roots)
+dr is mm.osc[0]
+spiral is mm.reals[0]
+roll is mm.reals[1]
+nosched is [[1e9, 0.0, 0.0]]
+
+ics is lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "spiral", [0.0, 0.0, 1.0, 0.0], 2, 0.05]
+recs is lat_run of [ics, nosched, 0.05, 1200, 20, P, "rk4"]
+
+# SAME physics, three unit scales for phi: radians, degrees, milliradians
+rad is 0.0
+deg is 0.0
+mrad is 0.0
+i is 0
+loop while i < (len of recs.t):
+    rad is recs.phi[i] + 0.0
+    deg is recs.phi[i] * 57.29577951308232 + 0.0
+    mrad is recs.phi[i] * 1000.0 + 0.0
+    if i == 30 or i == 50:
+        print of f"t={recs.t[i]} rad={report of rad} deg={report of deg} mrad={report of mrad}"
+    i is i + 1
