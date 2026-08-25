@@ -78,7 +78,50 @@ echo "--- ap_profile (C6: observer read-path cost) ---"
 # declared 1.94-2.13 window) and adding three more copies of it (+75%,
 # ratio -> 2.91) both left the pin matching and the whole suite green.
 # A hit count cannot pin a zero-hit read, so the read POPULATION is pinned
-# structurally instead, against the source.
+# structurally too, against the source.
+#
+# Round-7 review then showed BOTH of those layers bind something other
+# than the executed loop body, and that round 6 fixed only run_read while
+# run_write and run_floor kept the counter-only pin (the repo's own
+# twin-the-fix rule, broken by the fix for the finding that motivated it):
+#   * deleting TWO of run_floor's four per-frame writes left `floor 120000`
+#     matching, collapsed the floor 45%, and turned write/floor from 1.44
+#     into 2.59 -- round 5's defect through the other door, halving the
+#     WORK instead of the count;
+#   * moving the zero-hit read OUT of run_read's loop and into run_write
+#     left SITES=4 and the hit total matching, at ratio 1.70;
+#   * `if not (oscillating of q):` adds a read the anchored grep cannot
+#     see at all -- as can `elif`, `while`, and `x is converged of u`.
+# So the measured loop bodies are pinned by IDENTITY, the way every other
+# tolerance argument in this repo is. Comment and blank lines are stripped
+# first (they do not change the work); anything else that edits a measured
+# body fails loudly and demands a re-measure. The site grep below survives
+# as a CROSS-CHECK, not as the pin.
+body_hash() {
+    awk -v fn="define $1(" '
+        index($0, fn) == 1 { inbody = 1; next }
+        inbody && /^[^[:space:]]/ { inbody = 0 }
+        inbody { line = $0; sub(/^[[:space:]]+/, "", line)
+                 if (line != "" && substr(line, 1, 1) != "#") print $0 }
+    ' tests/ap_profile.eigs | md5sum | cut -c1-12
+}
+body_lines() {
+    awk -v fn="define $1(" '
+        index($0, fn) == 1 { inbody = 1; next }
+        inbody && /^[^[:space:]]/ { inbody = 0 }
+        inbody { line = $0; sub(/^[[:space:]]+/, "", line)
+                 if (line != "" && substr(line, 1, 1) != "#") n++ }
+        END { print n + 0 }
+    ' tests/ap_profile.eigs
+}
+# A body that hashed to nothing would pass vacuously, so each body's line
+# count is pinned alongside its identity (the repo's no-vacuous-check rule).
+for spec in "run_read:c96261f002fb:21" "run_write:0bacadcc97cc:12" "run_floor:e90a67de0235:13"; do
+    fn=${spec%%:*}; rest=${spec#*:}; want=${rest%%:*}; wantn=${rest##*:}
+    got=$(body_hash "$fn"); gotn=$(body_lines "$fn")
+    [ "$gotn" = "$wantn" ] || { echo "FAIL: $fn's measured body is $gotn lines, declared $wantn — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure all three variants and re-pin"; exit 1; }
+    [ "$got" = "$want" ]   || { echo "FAIL: $fn's measured body changed (identity $got, declared $want) — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure all three variants and re-pin"; exit 1; }
+done
 DECL_SITES=4
 [ "$DECL_SITES" = "4" ] || { echo "FAIL: DECL_SITES is $DECL_SITES, declared 4 — the read population is DATA and gets the same identity pin the bounds do"; exit 1; }
 SITES=$(grep -c '^[[:space:]]*if \(oscillating\|converged\|stable\|diverging\|improving\|equilibrium\) of ' tests/ap_profile.eigs)
@@ -101,7 +144,20 @@ echo "PASS: read path dominates at ${RATIO}x — #915's write-path gate cannot h
 # nobody reads and the "78% reads / 22% writes" split is unsupported.
 WF=$(awk -v w="$W" -v f="$F" 'BEGIN{ if (f<=0) f=0.001; printf "%.2f", w/f }')
 echo "write/floor ratio = ${WF}  (bound: > ${WF_BOUND})"
-check_ratio write/floor "$WF" "$WF_BOUND" || { echo "FAIL: observed writes now cost no more than the unobserved floor (${WF}) — re-measure and re-justify the 78/22 split"; exit 1; }
+# Round-7 review measured write/floor = 0.98 on UNMUTATED code while
+# tests/test_ap_planted.sh ran concurrently — one observation, not
+# reproducible with CPU spinners, but enough to show this ratio can be
+# deflated toward 1.0 by load the same way read/write is inflated by it
+# (3.38 measured). A fault is deterministic and a loaded runner is not, so
+# a first failure re-measures once and the SECOND reading decides. Both
+# planted faults below are verified to still red through this path.
+if ! check_ratio write/floor "$WF" "$WF_BOUND"; then
+    echo "NOTE: write/floor ${WF} <= ${WF_BOUND} on the first reading — re-measuring once (a loaded runner deflates this ratio; a real regression will not)"
+    W=$(med write); F=$(med floor)
+    WF=$(awk -v w="$W" -v f="$F" 'BEGIN{ if (f<=0) f=0.001; printf "%.2f", w/f }')
+    echo "write/floor ratio = ${WF}  (re-measured, decisive)"
+    check_ratio write/floor "$WF" "$WF_BOUND" || { echo "FAIL: observed writes now cost no more than the unobserved floor (${WF} on both readings) — re-measure and re-justify the 78/22 split"; exit 1; }
+fi
 echo "PASS: observed write path costs ${WF}x the unobserved floor"
 
 # PLANTED FAULT for this gate (rungs 0-2 refuse to ship a gate never shown

@@ -1015,7 +1015,11 @@ first gain tried during design did exactly that — phugoid ζ went to
   **rung 1's S0 arms, not rung 2's** — corrected after measurement: this
   is the longitudinal plant, whose trim sits at a small non-zero α, so
   the entries that are structurally zero in the chain matrix are
-  O(u₀·α_trim) here (worst 0.0143 at a13 = −w_trim, at every gain). Rung
+  O(u₀·α_trim) here (worst **0.01405** at a13 = −w_trim; rung 1's
+  sibling row reads 0.01428 — a DIFFERENT number, and the first draft
+  published rung 1's here. C0 is built at kq=0.5 only, so
+  gain-independence is structural — `B[0] = 0` makes `A_cl[0][2]`
+  gain-free — and is asserted by no shipped check). Rung
   2 reached machine epsilon only because its lateral trim is the exact
   origin. Arms: rel 3·10⁻³ with per-entry absolute arms as in rung 1.
   This pins that the controller's linearization is the matrix the
@@ -1072,8 +1076,22 @@ cadences `C5.sp.{c010,c020}`.
   read at all — deleting it (−25% of the read path, ratio 1.98 → 1.67,
   outside this very window) and adding three more copies (+75%, → 2.91)
   both left the pin matching and the suite green. The four read sites are
-  now pinned structurally against the source, and `READ_SITES` is
-  published in the variant's own output as `read 133286 480000`. Both bounds are
+  also counted against the source, and `READ_SITES` is published in the
+  variant's own output as `read 133286 480000`. Round 7 then showed both
+  of those layers bind something other than the executed loop body, and
+  that round 6 fixed only `run_read` while its two siblings kept the
+  counter-only pin — the repo's own twin-the-fix rule (mechanical-gates
+  §94) broken by the fix for the finding that motivated it. Deleting TWO
+  of `run_floor`'s four per-frame writes left `floor 120000` matching,
+  collapsed the floor 45%, and turned write/floor from 1.44 into **2.59**
+  (the published 78/22 split silently becoming 67/33); moving the
+  zero-hit read out of the measured loop, and adding a fifth read spelled
+  `if not (oscillating of q):`, both evaded the site grep entirely. The
+  three measured bodies are now pinned by IDENTITY (comment- and
+  blank-stripped hash plus line count, so a body that hashed to nothing
+  cannot pass vacuously); the grep survives as a cross-check. Verified:
+  all three round-7 mutants and an equal-line-count constant swap fail
+  loudly, a comment-only edit does not. Both bounds are
   single-sourced constants shared with their planted faults, after round
   4 found that editing a gate's literal alone left its own fault citing
   the old value and the suite green. The gate takes **median of 5**, not 3 —
@@ -1193,7 +1211,7 @@ For a sub-unit channel like pitch rate the band is absolute
 excitation rather than on the dynamics.
 
 That is G5's third independent sighting and the first where it changes
-what an actuator does. Pinned as `C5.p4.a0{20,30,35,40}.{osc,horizon}` —
+what an actuator does. Pinned as `C5.p4.a0{20,30,35,40}.{osc,horizon,onset}` — twelve rows,
 four rows spanning the ramp plus the clean zero, all sited MID-ramp
 rather than at the saturated end, since a row at saturation (uamp 0.5:
 horizon 78 against a last read of 79) flips by one under any perturbing

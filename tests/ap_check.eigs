@@ -222,8 +222,11 @@ check_below of ["C1.hold.q", hmax_q, 1e-9]
 # ------------------------------------------------------- C0: closed-loop parity
 # Per-entry absolute arms inherited from rung-1's S0: the longitudinal
 # trim sits at a small non-zero alpha, so entries that are structurally
-# zero in the chain matrix are O(u0*alpha_trim) here (a13 = -w_trim, the
-# 0.0143 measured in rung 1 and again at every gain in rung 3).
+# zero in the chain matrix are O(u0*alpha_trim) here (a13 = -w_trim,
+# 0.01405 in rung 3 -- rung 1's sibling row reads 0.01428, a different
+# number the first draft of this comment copied across). Gain-independence
+# is structural (B[0] = 0 leaves A_cl[0][2] gain-free), not measured: the
+# 16 C0 rows are all built at kq=0.5.
 Jcl is cl_jacobian of [tr.state, tr.de, eff_gain of (0.5), tr.P]
 Acl_ref is a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]]
 c0_abs is [[0.001, 0.001, 0.03, 0.001], [0.001, 0.001, 0.001, 0.004], [1e-5, 1e-6, 0.001, 1e-5], [0.001, 0.001, 0.001, 0.001]]
