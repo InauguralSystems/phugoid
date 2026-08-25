@@ -237,7 +237,11 @@ for r in range of 4:
 # ------------------------------------------------------------ runs
 # S2: SP-subspace IC free response (chain-built, mode-pure; see sim.eigs
 # sp_subspace_ic). w-channel, window [0, 16 s], cadence 0.02 s.
-define run_sp(wamp, dt, decim, trx) as:
+# Graded runs emit their executed call-site parameters as ROW tokens
+# (rung-2 round 7: run-argument vacuities are P12-class — a rerun whose
+# dt is silently not halved never enters an expected truth).
+define run_sp(rn, wamp, dt, decim, trx) as:
+    print of f"ROW {rn} params={wamp}|{dt}|{decim}"
     local ic is sp_subspace_ic of [A_ref, ph_ref.re, ph_ref.im, trx.state, wamp]
     local rec is sim_run of [ic, [[1e9, trx.de]], dt, floor of (16.0 / dt), decim, trx.P, method]
     local wwin is []
@@ -250,7 +254,8 @@ define run_sp(wamp, dt, decim, trx) as:
 # S3: elevator pulse (+de_off for 20 s, back to trim) -> free phugoid about
 # the ORIGINAL trim. u-channel from t = 45 s (the pulse-edge SP is dead:
 # e^(-0.5515*25) ~ 1e-6), cadence 1.0 s, 280 s total.
-define run_ph(de_off, dt, decim, trx) as:
+define run_ph(rn, de_off, dt, decim, trx) as:
+    print of f"ROW {rn} params={de_off}|{dt}|{decim}"
     local sched is [[20.0, trx.de + de_off], [1e9, trx.de]]
     local rec is sim_run of [trx.state, sched, dt, floor of (280.0 / dt), decim, trx.P, method]
     local uwin is []
@@ -349,8 +354,8 @@ define grade_ph(uwin, dt, simflag) as:
         z is mangle_z of (zeta_envelope of [uwin, gdt])
     return {"Tp": tp_raw, "Td": wrap_dft of (td_raw), "z": z}
 
-base_sp is grade_sp of [run_sp of [2.0, 0.02, 1, tr], 0.02, 1]
-base_ph is grade_ph of [run_ph of [0.005, 0.05, 20, tr], 1.0, 1]
+base_sp is grade_sp of [run_sp of ["S2.run", 2.0, 0.02, 1, tr], 0.02, 1]
+base_ph is grade_ph of [run_ph of ["S3.run", 0.005, 0.05, 20, tr], 1.0, 1]
 
 # Read-site identity accessors (round 6): the slot-identity pins guard
 # the grading helpers, but every CONSUMER read of a paired-estimator
@@ -428,13 +433,42 @@ define inv_pair(tag, gsp, gph, sp_tol, ph_tol) as:
     check_result of [f"S4.{tag}.phz", as_zl of (gph.z), "zeta", base_ph.z.zeta, ph_tol]
 
 # dt halved (recording cadence preserved via doubled decimation)
-dt_sp is grade_sp of [run_sp of [2.0, 0.01, 2, tr], 0.02, 1]
-dt_ph is grade_ph of [run_ph of [0.005, 0.025, 40, tr], 1.0, 1]
+# Plants q20/q21: the DT-rerun (q20) or AMP-rerun (q21) gradings alone
+# corrupted (gdt x1.02, zeta x1.03) — separators for cross-rerun row
+# swaps between agreeing gradings (rung-2 round 7's class; self-compares
+# are q10's).
+define sep_z(res, pl) as:
+    if plant == pl:
+        if res.ok == 1:
+            if res.n_ratios != null:
+                return {"ok": 1, "zeta": res.zeta * 1.03, "n_ratios": res.n_ratios}
+            if res.n_fit != null:
+                return {"ok": 1, "zeta": res.zeta * 1.03, "n_fit": res.n_fit}
+    return res
+
+dtg_sp is 0.02
+dtg_ph is 1.0
+if plant == "q20":
+    dtg_sp is 0.0204
+    dtg_ph is 1.02
+dt_sp is grade_sp of [run_sp of ["S4.dt.sp.run", 2.0, 0.01, 2, tr], dtg_sp, 1]
+dt_sp.zl is sep_z of [dt_sp.zl, "q20"]
+dt_sp.ze is sep_z of [dt_sp.ze, "q20"]
+dt_ph is grade_ph of [run_ph of ["S4.dt.ph.run", 0.005, 0.025, 40, tr], dtg_ph, 1]
+dt_ph.z is sep_z of [dt_ph.z, "q20"]
 inv_pair of ["dt", dt_sp, dt_ph, 0.001, 0.001]
 
 # excitation amplitude halved
-amp_sp is grade_sp of [run_sp of [1.0, 0.02, 1, tr], 0.02, 1]
-amp_ph is grade_ph of [run_ph of [0.0025, 0.05, 20, tr], 1.0, 1]
+ampg_sp is 0.02
+ampg_ph is 1.0
+if plant == "q21":
+    ampg_sp is 0.0204
+    ampg_ph is 1.02
+amp_sp is grade_sp of [run_sp of ["S4.amp.sp.run", 1.0, 0.02, 1, tr], ampg_sp, 1]
+amp_sp.zl is sep_z of [amp_sp.zl, "q21"]
+amp_sp.ze is sep_z of [amp_sp.ze, "q21"]
+amp_ph is grade_ph of [run_ph of ["S4.amp.ph.run", 0.0025, 0.05, 20, tr], ampg_ph, 1]
+amp_ph.z is sep_z of [amp_ph.z, "q21"]
 inv_pair of ["amp", amp_sp, amp_ph, 0.005, 0.005]
 
 # nominal control derivatives are excitation-only: Cmde x1.5 re-trims and
@@ -443,8 +477,8 @@ ctl2 is ctl_nominal of null
 ctl2.Cmde is ctl2.Cmde * 1.5
 ctl2.CLde is ctl2.CLde * 1.5
 tr2 is make_trim of (ctl2)
-ctl_sp is grade_sp of [run_sp of [2.0, 0.02, 1, tr2], 0.02, 1]
-ctl_ph is grade_ph of [run_ph of [0.005, 0.05, 20, tr2], 1.0, 1]
+ctl_sp is grade_sp of [run_sp of ["S4.ctl.sp.run", 2.0, 0.02, 1, tr2], 0.02, 1]
+ctl_ph is grade_ph of [run_ph of ["S4.ctl.ph.run", 0.005, 0.05, 20, tr2], 1.0, 1]
 inv_pair of ["ctl", ctl_sp, ctl_ph, 0.002, 0.002]
 
 # ------------------------------------------------------------ M1X

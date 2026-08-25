@@ -568,7 +568,7 @@ large alternation — reddens those 5), together covering all 11.
 
 Run by `tests/test_sim_planted.sh`, same rules as rung 0: each plant flips
 EXACTLY its declared red set (full count + representatives + green-side
-exclusions), every plant run executes the full pinned 64-check population,
+exclusions), every plant run executes the full pinned 76-check population,
 manifest identity (name + tolerance token) + plantable coverage enforced
 against `tests/sim_manifest.txt`. Red sets measured 2026-08-24; the exact
 lists are the assertions in the harness.
@@ -639,7 +639,8 @@ and confirmed deriv() correct). Round 8's closure audit, recorded per the
 evidence-of-absence rule:
 
 **Certified:** the published chain and estimator grids (rung 0, intact);
-S0–S4 + M1X with the 15-plant matrix, slot-identity pins, read-site
+S0–S4 + M1X with the plant matrix (15 at rung-1 closure, since grown by
+the rung-2 loop's cross-rung fixes to 20), slot-identity pins, read-site
 accessors (all four refusal arms plant-driven), no-refusals numeric-arm
 guards on Q8 and Q10, manifest identity + class-vocabulary enforcement;
 the observer layer with both o-plants; CI green on every round's push.
@@ -655,7 +656,7 @@ reds, so rung 2 should re-measure it when the model grows.
 
 ## Exit gate for rung 1
 
-1. All S, M1X and O checks green (64 + 11, populations pinned); all seventeen
+1. All S, M1X and O checks green (76 + 11, populations pinned); all twenty
    Q plants and both o plants red in exactly the declared way; rung-0
    suite untouched and green.
 
@@ -849,7 +850,16 @@ the ctl period rows — round-6 review rewired those rows to the
 mode-pure run's agreeing results and every suite stayed green; the
 row-rewire class needs a RUN-SEPARATING plant, since identity pins
 read the source object, not the row's wiring, and the ζ row already
-had its separator in R4), R15 every check_below/
+had its separator in R4), R20 the M2X.drs grading alone corrupted (3:
+exactly the drs rows — round 7 fed them from the agreeing single-mode
+grading; r7/r17 corrupt both generators together, so the mixed/pure
+pair needed its own separator), R21 the dt-rerun gradings alone
+corrupted (5: exactly the T3.dt rows — round 7's cross-rerun swap:
+self-compares are caught by R10, dt↔amp swaps by this plant, ctl↔other
+swaps by R19; the same round extended the ROW-token mechanism to every
+graded RUN's call-site parameters — a rerun whose dt is silently not
+halved is the round-3 P12 class again, and the manifest row identity
+now sees it in both rungs — with rung-1 twins Q20/Q21), R15 every check_below/
 check_relabs value displaced 1.1× its OWN site's executed tolerance,
 structural sites exempt (17: the 6 T1 + 11 plantable T0 — added after
 round-1 review widened check_below's executed bound ×10⁶ with every

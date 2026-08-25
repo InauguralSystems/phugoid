@@ -178,6 +178,20 @@ grep '^FAIL ' "$OUT" | grep -q 'refused' && { echo "FAIL: Q17 reds must use the 
 expect_green 'S0\.' 'S1\.' '\.k ' '\.n ' '\.nr ' '\.nf '
 echo "PASS: Q17 red pattern exact (rung-2 round 2's find, applied to both rungs)"
 
+echo "--- Q20: the dt-rerun gradings alone corrupted -> exactly the 6 S4.dt rows ---"
+run_plant q20
+expect_total_fails 6
+expect_red 'S4\.dt\.spT ' 'S4\.dt\.spzl ' 'S4\.dt\.spze ' 'S4\.dt\.phTp ' 'S4\.dt\.phTd ' 'S4\.dt\.phz '
+expect_green 'S4\.amp\.' 'S4\.ctl\.' 'S[0-3]\.' 'M1X\.'
+echo "PASS: Q20 red pattern exact (rung-2 round 7's cross-rerun swap class, rung-1 twin)"
+
+echo "--- Q21: the amp-rerun gradings alone corrupted -> exactly the 6 S4.amp rows ---"
+run_plant q21
+expect_total_fails 6
+expect_red 'S4\.amp\.spT ' 'S4\.amp\.spzl ' 'S4\.amp\.spze ' 'S4\.amp\.phTp ' 'S4\.amp\.phTd ' 'S4\.amp\.phz '
+expect_green 'S4\.dt\.' 'S4\.ctl\.' 'S[0-3]\.' 'M1X\.'
+echo "PASS: Q21 red pattern exact (separates amp from the agreeing ctl/base gradings)"
+
 echo "--- Q18: the generator BODY corrupted (a1 nudged 1.1e-9, contaminant dropped, one sample short) -> exactly the 12 wiring identities ---"
 run_plant q18
 expect_total_fails 12
@@ -219,4 +233,4 @@ done < <(grep -v '^#' tests/sim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 18 rung-1 plants flip exactly their declared checks"
+echo "PASS: all 20 rung-1 plants flip exactly their declared checks"

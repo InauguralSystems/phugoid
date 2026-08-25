@@ -184,6 +184,20 @@ expect_red 'T2\.ctl\.Tpeaks ' 'T2\.ctl\.Tdft '
 expect_green 'T2\.dr\.' 'T2\.ctl\.z ' 'T3\.' 'M2X\.'
 echo "PASS: R19 red pattern exact (round-6 review rewired the ctl period rows to the mode-pure run's results; this is the plant that separates the two runs, so a rewired row goes green here and the count breaks)"
 
+echo "--- R20: the M2X.drs grading alone corrupted -> exactly the 3 drs rows ---"
+run_plant r20
+expect_total_fails 3
+expect_red 'M2X\.drs\.Tpeaks ' 'M2X\.drs\.Tdft ' 'M2X\.drs\.z '
+expect_green 'M2X\.dr\.' 'T[0-3]\.' 'M2X\.rollc' 'M2X\.spiralc'
+echo "PASS: R20 red pattern exact (round-7 review fed the drs rows from the agreeing single-mode grading; this separates the pair)"
+
+echo "--- R21: the dt-rerun gradings alone corrupted -> exactly the 5 T3.dt rows ---"
+run_plant r21
+expect_total_fails 5
+expect_red 'T3\.dt\.drTp ' 'T3\.dt\.drTd ' 'T3\.dt\.drz ' 'T3\.dt\.rollth ' 'T3\.dt\.spiralth '
+expect_green 'T3\.amp\.' 'T3\.ctl\.' 'T2\.' 'M2X\.'
+echo "PASS: R21 red pattern exact (round-7: a T3 row fed the wrong rerun's agreeing grading survived every symmetric plant; self-compares are r10's, cross-rerun swaps are this plant's)"
+
 echo "--- R16: every check_rel value displaced 1.1x its own executed rel arm, direction of the honest discrepancy -> all 31 tolerance rows ---"
 run_plant r16
 expect_total_fails 31
@@ -220,4 +234,4 @@ done < <(grep -v '^#' tests/latsim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 19 rung-2 plants flip exactly their declared checks"
+echo "PASS: all 21 rung-2 plants flip exactly their declared checks"

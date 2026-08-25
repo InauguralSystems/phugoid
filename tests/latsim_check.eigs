@@ -274,17 +274,25 @@ for rr in range of 4:
         check_relabs of [f"T0.a{rr + 1}{cc + 1}", J[rr][cc], A_ref[rr][cc], 1e-6, 1e-8]
 
 # ------------------------------------------------------------ runs
-define run_dr(vamp, dt, decim, P) as:
+# Each graded RUN emits its executed call-site parameters as a ROW token
+# too (round 7: a rerun whose dt was silently NOT halved — or any
+# run-argument vacuity — never enters an expected truth, the same
+# P12-class hole as the round-3 contaminants; the manifest's row
+# identity is the only thing that can see it).
+define run_dr(rn, vamp, dt, decim, P) as:
+    print of f"ROW {rn} params={vamp}|{dt}|{decim}"
     local ic is plant_state of (lat_mode_ic of [A_ref, dr_ref.re, dr_ref.im, roll_ref.re, spiral_ref.re, "dr", [1.0, 0.0, 0.0, 0.0], 0, vamp])
     local rec is lat_run of [ic, nosched, dt, floor of (45.0 / dt), decim, P, method]
     return rec.v
 
-define run_roll(pamp, dt, decim, P) as:
+define run_roll(rn, pamp, dt, decim, P) as:
+    print of f"ROW {rn} params={pamp}|{dt}|{decim}"
     local ic is plant_state of (lat_mode_ic of [A_ref, dr_ref.re, dr_ref.im, roll_ref.re, spiral_ref.re, "roll", [0.0, 1.0, 0.0, 0.0], 1, pamp])
     local rec is lat_run of [ic, nosched, dt, floor of (2.5 / dt), decim, P, method]
     return rec.p
 
-define run_spiral(phiamp, dt, decim, P) as:
+define run_spiral(rn, phiamp, dt, decim, P) as:
+    print of f"ROW {rn} params={phiamp}|{dt}|{decim}"
     local ic is plant_state of (lat_mode_ic of [A_ref, dr_ref.re, dr_ref.im, roll_ref.re, spiral_ref.re, "spiral", [0.0, 0.0, 1.0, 0.0], 2, phiamp])
     local rec is lat_run of [ic, nosched, dt, floor of (60.0 / dt), decim, P, method]
     return rec.phi
@@ -360,9 +368,9 @@ if plant == "r19":
     ctl_gdt is 0.2 * 1.02
 base_cg is grade_dr of [base_ctl.rwin, ctl_gdt, 1]
 
-base_dr is grade_dr of [run_dr of [5.0, 0.02, 10, P0], 0.2, 1]
-base_roll is grade_th of [run_roll of [0.1, 0.02, 1, P0], 0.02, 1]
-base_spiral is grade_th of [run_spiral of [0.05, 0.05, 10, P0], 0.5, 1]
+base_dr is grade_dr of [run_dr of ["T2.dr.run", 5.0, 0.02, 10, P0], 0.2, 1]
+base_roll is grade_th of [run_roll of ["T2.roll.run", 0.1, 0.02, 1, P0], 0.02, 1]
+base_spiral is grade_th of [run_spiral of ["T2.spiral.run", 0.05, 0.05, 10, P0], 0.5, 1]
 
 # ------------------------------------------------------------ T2
 check_result of ["T2.dr.Tpeaks", as_tp of (base_dr.Tp), "T", dr_ref.T, 0.01]
@@ -401,14 +409,35 @@ define inv_set(tag, gdr, groll, gspiral, tol) as:
     check_result of [f"T3.{tag}.rollth", groll, "t_half", base_roll.t_half, tol]
     check_result of [f"T3.{tag}.spiralth", gspiral, "t_half", base_spiral.t_half, tol]
 
-dt_dr is grade_dr of [run_dr of [5.0, 0.01, 20, P0], 0.2, 1]
-dt_roll is grade_th of [run_roll of [0.1, 0.01, 2, P0], 0.02, 1]
-dt_spiral is grade_th of [run_spiral of [0.05, 0.025, 20, P0], 0.5, 1]
+# Plant r21: the DT-rerun gradings alone corrupted (gdt x1.02, zeta and
+# t-half x1.03) — the separator between the dt reruns and their
+# agreeing amp/base siblings (round 7: a T3 row fed the WRONG rerun's
+# grading survives every symmetric plant; self-compares are caught by
+# r10, cross-rerun swaps need a one-sided plant).
+define sep_dt_z(res) as:
+    if plant == "r21":
+        if res.ok == 1:
+            if res.n_ratios != null:
+                return {"ok": 1, "zeta": res.zeta * 1.03, "n_ratios": res.n_ratios}
+            return {"ok": 1, "t_half": res.t_half * 1.03}
+    return res
+
+dtg_dr is 0.2
+dtg_roll is 0.02
+dtg_spiral is 0.5
+if plant == "r21":
+    dtg_dr is 0.204
+    dtg_roll is 0.0204
+    dtg_spiral is 0.51
+dt_dr is grade_dr of [run_dr of ["T3.dt.dr.run", 5.0, 0.01, 20, P0], dtg_dr, 1]
+dt_dr.zl is sep_dt_z of (dt_dr.zl)
+dt_roll is sep_dt_z of (grade_th of [run_roll of ["T3.dt.roll.run", 0.1, 0.01, 2, P0], dtg_roll, 1])
+dt_spiral is sep_dt_z of (grade_th of [run_spiral of ["T3.dt.spiral.run", 0.05, 0.025, 20, P0], dtg_spiral, 1])
 inv_set of ["dt", dt_dr, dt_roll, dt_spiral, 0.001]
 
-amp_dr is grade_dr of [run_dr of [2.5, 0.02, 10, P0], 0.2, 1]
-amp_roll is grade_th of [run_roll of [0.05, 0.02, 1, P0], 0.02, 1]
-amp_spiral is grade_th of [run_spiral of [0.025, 0.05, 10, P0], 0.5, 1]
+amp_dr is grade_dr of [run_dr of ["T3.amp.dr.run", 2.5, 0.02, 10, P0], 0.2, 1]
+amp_roll is grade_th of [run_roll of ["T3.amp.roll.run", 0.05, 0.02, 1, P0], 0.02, 1]
+amp_spiral is grade_th of [run_spiral of ["T3.amp.spiral.run", 0.025, 0.05, 10, P0], 0.5, 1]
 inv_set of ["amp", amp_dr, amp_roll, amp_spiral, 0.005]
 
 # ctl invariance on the CONTROL-EXCITED run (round 5: the old rows
@@ -496,7 +525,17 @@ check_exact of ["M2X.dr.z.nr", g_dr.zl.n_ratios, 10]
 # immunity to)
 m_drs is gen_two2 of ["M2X.drs", dr_ref.re, dr_ref.im, 1.0, 0.8, spiral_ref.re, 0.0, 0.05, 0.0, 0.2, 226]
 check_genrow of ["M2X.drs", m_drs, dr_ref.re, dr_ref.im, 1.0, 0.8, spiral_ref.re, 0.0, 0.05, 0.0, 0.2, 226]
-g_drs is grade_dr of [m_drs, 0.2, 0]
+# Plant r20: the M2X.drs GRADING alone corrupted (gdt x1.02, zeta x1.03)
+# — the separator between the mixed-mode rows and the agreeing
+# single-mode g_dr (round 7 fed the drs rows from g_dr and every suite
+# stayed green: r7/r17 corrupt both generators together).
+drs_gdt is 0.2
+if plant == "r20":
+    drs_gdt is 0.204
+g_drs is grade_dr of [m_drs, drs_gdt, 0]
+if plant == "r20":
+    if g_drs.zl.ok == 1:
+        g_drs.zl is {"ok": 1, "zeta": g_drs.zl.zeta * 1.03, "n_ratios": g_drs.zl.n_ratios}
 check_result of ["M2X.drs.Tpeaks", as_tp of (g_drs.Tp), "T", dr_ref.T, 0.01]
 check_result of ["M2X.drs.Tdft", as_td of (g_drs.Td), "T", dr_ref.T, 0.01]
 check_result of ["M2X.drs.z", as_zl of (g_drs.zl), "zeta", dr_ref.zeta, 0.02]
