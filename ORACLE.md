@@ -1058,7 +1058,7 @@ because those rungs graded verdicts as their deliverable); here the
 distinction lives in each pin's own comment, and the DIVERGENT ones —
 verdicts that contradict physics — are `C5.p1.inner.{diverging,converged}`
 (a decaying mode reported as diverging half the time) and the blind
-cadences `C5.sp.{c010,c020}`.
+cadences `C5.sp.{c010,c020,c040,c102}` (round 18: this enumeration was written at round 5 and never grew when rounds 15 and 17 added two more blind rows).
 - **C5 — the three pre-registered predictions** (below). Since round 12
   the inner verdict stream is pinned for run STRUCTURE as well as content
   (`runs = 37`, `maxrun = 260`) — and since round 16 for order proper.
@@ -1087,8 +1087,17 @@ cadences `C5.sp.{c010,c020}`.
   rather than a period invariant. A wrong plant (−9%) cancelled a wrong
   fraction (+11%) into an agreement that looked exact. `maxrun` is an order
   FINGERPRINT and is labelled as one. What genuinely ties to the physics is
-  `runs`: the predicate flips 4× per period, so 4 × 400 s / 46.918 s = 34.1
-  transitions plus 3 start-up runs = 37 — verified against the segment
+  `runs`. **Round 18 corrected the decomposition, which was itself two
+  cancelling errors** — the same pattern round 13 condemned, inside round
+  13's own replacement sentence. Published: "4 × 400 s / 46.918 s = 34.1
+  transitions plus 3 start-up runs = 37". That charges the non-cyclic
+  start-up window to the 4-per-period law (+1.08) and omits the
+  `runs = transitions + 1` term (−1.00), netting +0.08 onto 37.10. There
+  are also **four** start-up segments, not three — `stable:9`,
+  `equilibrium:1`, `diverging:32`, `converged:211` (253 samples = 12.65 s);
+  the 211-sample `converged` run belonged to no cycle and was named
+  nowhere. Correct: 3 start-up transitions + 4 × (400 − 12.65) / 46.918 =
+  33.02 cyclic transitions + 1 = **37.02**. Verified against the segment
   dump: the first cycle is 260+220+198+260 = 938 against T/dt = 938.35, and
   later cycles sum to 939 — agreement to within a sample, not exact.
   **Round 14 deleted a second false clause from this same sentence.** Round
@@ -1310,7 +1319,9 @@ than one that does not:
 
   The two edges have different causes: below, too little of a fold in the
   window to classify; above, the G5 horizon — by the time the window fills
-  (9 cadences) the mode is under the deadband. Prediction 3 and the horizon
+  (10 reads; the window is 10 deltas, so it is full at read index 9, at
+  10·cadence·dt — which is how the table above computes 4.2 s at cadence
+  21) the mode is under the deadband. Prediction 3 and the horizon
   law were written up as separate findings and they meet here. All four
   edge rows are now pinned, so no windowing change can restore the monotone
   "fast = blind, slow = too late" story — the same defect round 2 closed
@@ -1319,7 +1330,15 @@ than one that does not:
   (t ≥ 4.2 s for a mode gone by ~5 s; at the earliest sighted cadence the
   latency is still ~2.3 decay constants). Detection latency and phase lag
   are the same quantity, so a windowed verdict cannot act on a well-damped
-  transient. The complement holds
+  transient. **Prediction 3's PHUGOID half was asserted and never measured
+  until round 18.** The claim is that no single cadence serves both modes;
+  only the SP side had been swept. Measured, the phugoid is blind at every
+  cadence inside the SP's sighted band and first sighted at a 3.70 s
+  interval, so the two bands are DISJOINT and the pre-registered claim is
+  confirmed on both sides — now shipped as `C5.ph.{p040,p100}.osc = 0`.
+  Note "visibility starts near HALF a period" does NOT generalise: the
+  phugoid's lower edge is a 37 s window span against T = 46.9 s, i.e. 0.79
+  of a period. The complement holds
   too: the lightly-damped phugoid (ζ = 0.036, ringing for many periods)
   IS actionable — 56 of 80 reads at a matched cadence.
 
@@ -1364,7 +1383,12 @@ For a sub-unit channel like pitch rate the band is absolute
 excitation rather than on the dynamics.
 
 That is G5's third independent sighting and the first where it changes
-what an actuator does. Pinned as `C5.p4.a0{20,30,35,40}.{osc,horizon,onset}` — twelve rows,
+what an actuator does. Pinned as `C5.p4.a0{20,30,35,40}` over eight field names — 25 rows, not
+the "twelve" this sentence claimed until round 18. That figure was exactly
+true at round 7 and then went stale three times over: round 14 deleted
+a020's two `-1` rows as vacuous, and rounds 14/15/17 added `runs`, `oidx`,
+`conv`, `stable`, `equil` and `cidx`. Every row family now applies to all
+four ramp rows including the clean-zero one,
 four rows spanning the ramp plus the clean zero, all sited MID-ramp
 rather than at the saturated end, since a row at saturation (uamp 0.5:
 horizon 78 against a last read of 79) flips by one under any perturbing
@@ -1422,18 +1446,18 @@ measured one.)
 
 | Plant | Injected into | Reds |
 |---|---|---|
-| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 52 |
-| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 51 |
-| s3 | Euler instead of RK4 | 27 |
-| s4 | trim offset by 0.01 rad | 68 |
+| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 55 |
+| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 54 |
+| s3 | Euler instead of RK4 | 30 |
+| s4 | trim offset by 0.01 rad | 71 |
 | s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
 | s6 | grading-dt dilation (estimator side only) | 6 |
-| s7 | verdict stream frozen — supervisory layer inert | 47 |
+| s7 | verdict stream frozen — supervisory layer inert | 53 |
 | s8 | ζ/T constant-replaced with the identity field carried | 13 |
-| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 54 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 57 |
 | s10 | dt-rerun grading separator | 1 |
 | s11 | ζ estimator slot alias | 16 |
-| s12 | verdicts forced to `oscillating` — the dual of s7 | 53 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 61 |
 | s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
 | s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
@@ -1488,7 +1512,7 @@ pre-registered clause.
 
 ## Exit gate for rung 3
 
-1. All C checks green (107, population pinned); every one of the 16
+1. All C checks green (116, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
    all FOUR of its planted faults (one per arm);
    rungs 0–2 suites untouched and green.

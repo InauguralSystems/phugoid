@@ -10,7 +10,7 @@
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 107.
+# Population pinned at exactly 116.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -574,6 +574,19 @@ for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c040", 20, 0
     if cs[2] > 0:
         check_exact of [f"C5.sp.{cs[0]}.at", first_osc of (rec), cs[3]]
 
+# C5.P3b — the PHUGOID half of prediction 3, which the rung asserted and
+# never measured until round 18. The claim is that no single cadence
+# serves both modes; the SP half was swept, the phugoid half was not.
+# Measured: the phugoid is blind at every cadence inside the SP's sighted
+# band (0.42-1.00 s) and first sighted at 3.70 s -- so the two bands are
+# DISJOINT and the pre-registered claim is confirmed on both sides.
+# Note the SP table's "visibility starts near HALF a period" does NOT
+# generalise: the phugoid's lower edge is a window span of 37 s against
+# T = 46.9 s, i.e. 0.79 of a period.
+for pc in [["p040", 8], ["p100", 20]]:
+    local prec is sup_run of [f"C5.ph.{pc[0]}.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, pc[1], tr.P, method, freeze]
+    check_exact of [f"C5.ph.{pc[0]}.osc", osc_count of (prec), 0]
+
 # C4 — the POSITIVE control: a persistent regime IS actionable. The
 # phugoid at a matched cadence yields sustained oscillating verdicts.
 ph_rec is sup_run of ["C4.ph.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 50, 100, tr.P, method, freeze]
@@ -698,10 +711,26 @@ check_exact of ["C4.ph.first_engaged", first_engaged of (ph_rec), 19]
 # the saturation boundary — a row there (uamp 0.5: horizon 78 against a
 # last read of 79) flips by one under any perturbing plant, which is
 # brittleness rather than signal.
-for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0, 0, 0, 0], ["a030", 0.3, 23, 38, 9, 12, 554, 42, 9, 6], ["a040", 0.4, 40, 58, 9, 15, 1376, 21, 12, 7], ["a035", 0.35, 34, 53, 9, 16, 1053, 27, 9, 10]]:
+for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0, 71, 9, 0, 3124], ["a030", 0.3, 23, 38, 9, 12, 554, 42, 9, 6, 2447], ["a040", 0.4, 40, 58, 9, 15, 1376, 21, 12, 7, 1449], ["a035", 0.35, 34, 53, 9, 16, 1053, 27, 9, 10, 1772]]:
     local icr is mode_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 0, ramp[1]]
     local rc is sup_run of [f"C5.p4.{ramp[0]}.run", icr, tr.de, eff_gain of (0.5), 0.05, 8000, 100, 100, tr.P, method, freeze]
     check_exact of [f"C5.p4.{ramp[0]}.osc", osc_count of (rc), ramp[2]]
+    # The distribution and its order checksum apply to EVERY row, including
+    # the clean-zero one. Round 18: rounds 14, 15 and 17 each added rows
+    # inside the `ramp[2] > 0` guard below, so a020 was skipped every time
+    # -- while round 17's comment and commit both said "all four rows get
+    # it in one pass". Three of four. Relabelling a020's whole stream to
+    # `diverging` (a healthy decaying mode reported as amplifying -- this
+    # rung's own headline defect) passed 107/107 and all 16 plants; the
+    # same mutation on a030 reds four checks. Sixth twinning miss, so these
+    # sit OUTSIDE the guard where they cannot be missed again.
+    check_exact of [f"C5.p4.{ramp[0]}.conv", verdict_count of [rc, "converged"], ramp[7]]
+    check_exact of [f"C5.p4.{ramp[0]}.stable", verdict_count of [rc, "stable"], ramp[8]]
+    # a020's equilibrium count is 0 and no plant can move it -- declared
+    # `structural` in the manifest, the class C0.a41-a44 and the `.reads`
+    # rows already use, rather than left as a plantable that never reds.
+    check_exact of [f"C5.p4.{ramp[0]}.equil", verdict_count of [rc, "equilibrium"], ramp[9]]
+    check_exact of [f"C5.p4.{ramp[0]}.cidx", verdict_idxsum of [rc, "converged"], ramp[10]]
     if ramp[2] > 0:
         check_exact of [f"C5.p4.{ramp[0]}.horizon", last_osc of (rc), ramp[3]]
         check_exact of [f"C5.p4.{ramp[0]}.onset", first_osc of (rc), ramp[4]]
@@ -716,14 +745,11 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0, 0, 0, 0], ["a030", 0.3
         # round 4 and C4.ph since round 13. Round 17 found this the last
         # stream set without it -- the fifth twinning miss in the loop, so
         # all four rows get it in one pass rather than one per round.
-        check_exact of [f"C5.p4.{ramp[0]}.conv", verdict_count of [rc, "converged"], ramp[7]]
-        check_exact of [f"C5.p4.{ramp[0]}.stable", verdict_count of [rc, "stable"], ramp[8]]
-        check_exact of [f"C5.p4.{ramp[0]}.equil", verdict_count of [rc, "equilibrium"], ramp[9]]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 107:
-    print of f"FAIL harness: expected exactly 107 checks, ran {checks_run}"
+if checks_run != 116:
+    print of f"FAIL harness: expected exactly 116 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1
