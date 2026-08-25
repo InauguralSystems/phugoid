@@ -1134,15 +1134,26 @@ cadences `C5.sp.{c010,c020}`.
   module (`tests/ap_profile_noread.eigs`) an observed scalar write is
   **indistinguishable from the unobserved floor** — noread/floor measured
   0.88, 1.04, 1.11, 1.21, 0.88 across five n=5 rounds, i.e. 1.0 within
-  noise — which is what the withdrawn probe reported; the +44% is EigenScript#915's arming penalty, which is
-  module-granular — one verdict read anywhere in a file, even inside a
-  function that is never called, re-arms bookkeeping for every assignment
-  in it (GAPS.md **G7**, upstreamed as EigenScript#1046, measured at ~42% on a
-  dead read). So the split is roughly **94% reads / 6% writes**, with the
-  arming penalty sitting inside what was called "writes". This makes the
-  rung's upstream argument stronger: #915's gate cannot help an autopilot
-  not merely because reads dominate, but because the consumer's reads
-  disarm the write optimisation for their whole module.
+  noise — which is what the withdrawn probe reported.
+  The +44% is EigenScript#915's arming penalty, and round 10 published the
+  wrong MECHANISM for it — "module-granular" — which round 11 refuted from
+  the source and the runtime. `obs_needed` is a single flag on `EigsState`
+  (`src/eigenscript.h:561`), set in `compile_ast` and documented there as
+  monotonic. So arming is **process-wide**: a verdict read in a dead
+  function, in a *different file*, or even a bare string constant
+  `"report"` arms bookkeeping for every assignment in every module of the
+  program (GAPS.md **G7**, upstreamed as EigenScript#1046 — whose first
+  version carried round 10's wrong granularity and a workaround, "split
+  reads into their own module", that is measurably ineffective).
+  Decomposed across five n=5 rounds: reads-direct **75–89%**, arming
+  **3–21%**, intrinsic write cost **indistinguishable from zero** (−10% to
+  +22%, straddling it). Effectively all of the observer cost is
+  attributable to reads, directly or through arming — not the 22%
+  "writes" first published, and not the "94/6" round 10 replaced it with,
+  which was itself derived rather than measured. This makes the rung's
+  upstream argument stronger: #915's gate cannot help an autopilot not
+  merely because reads dominate, but because one read anywhere in the
+  program disarms the write optimisation everywhere in it.
   The gate asserts all three ratios plus the ceiling (so `floor` and
   `noread` are load-bearing rather than numbers nobody reads), and each
   arm carries a planted fault proving it can reject. `write/noread` is the
@@ -1201,9 +1212,14 @@ than one that does not:
   and off 17 times is not "holds". A control consumer needs a debounce
   the predicates do not provide. Pinned as `C5.p2.sup.toggles = 17`,
   `C4.ph.osc = 56`, and — since the layer's actual output is the
-  actuator timeline — `C4.ph.first_engaged = 19` (recorded at decim 50
-  against cadence 100, so it is an independent read rather than an alias
-  of the verdict onset). (These are the
+  actuator timeline — `C4.ph.first_engaged = 19`. Round 4 justified that
+  row as "recorded at decim 50 against cadence 100, so it is an
+  independent read rather than an alias of the verdict onset"; round 11
+  showed the arithmetic does not support it — with `cadence/decim = 2`
+  exactly, 19 is the identity `2·onset + 1` = 2·9+1. The row still earns
+  its place, but for a different reason than the one published: it is the
+  only row that proves the gain reaches `rec.engaged` at all, and plants
+  s7 and s12 red it. (These are the
   round-1 re-measurements on the corrected IC; the first draft published
   59 and 15 from the looping trajectory.)
 - **Prediction 3 — CONFIRMED, and stronger than stated.** For the short

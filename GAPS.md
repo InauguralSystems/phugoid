@@ -148,47 +148,75 @@ relying on field access erroring. Likely intended fail-soft semantics
 checkers keep the pattern: pin a field only via a comparison a null
 cannot pass.
 
-### G7 — #915's write-path gate arms per MODULE, and a single verdict read defeats it
-Found at rung-3 blind-critic round 10, 2026-08-25, `eigenscript` v0.41.0.
-Upstreamed as **EigenScript#1046**.
-EigenScript#915's optimisation makes observed *scalar writes* nearly free.
-The arming is module-granular: **one predicate read anywhere in a module —
-including in a function that is never called — re-arms full entropy
-bookkeeping for every assignment in that module.**
+### G7 — #915's write-path gate arms PROCESS-WIDE and monotonically; a bare string arms it
+Found at rung-3 blind-critic round 10, corrected at round 11, 2026-08-25,
+`eigenscript` v0.41.0 / EigenScript@301026d. Upstreamed as
+**EigenScript#1046**.
 
-Minimal reproduction. A write loop of 200k frames, alone in its module,
-against the same module plus a dead four-line function. n=5 medians, three
-independent rounds:
+Round 10 measured the effect and published the wrong mechanism ("arms per
+module"). Round 11 refuted it from the source and the runtime. The truth
+is broader:
 
-| module | 1 | 2 | 3 |
+`obs_needed` is **one flag on `EigsState`** (`src/eigenscript.h:561`), set
+in `compile_ast` (`src/compiler.c:3717`) and documented there as
+*"Monotonic: a later unit that reads the observer turns it on for good."*
+There is no per-module arming to make finer — there is a single
+process-wide bit. So:
+
+**One verdict read anywhere in the process — in a dead function, in a
+different file, in an eagerly-resolved `load_file` target
+(`obs_gate_resolve_static_loads`), or as a bare string constant — arms
+entropy bookkeeping for every assignment in every module of that program.**
+
+Reproduction. `wlib.eigs` is a 200k-frame observed write loop containing
+no observer construct of any kind. It is loaded from four different mains.
+n=5 medians, two rounds, plus the gate's own verdict:
+
+| main | `EIGS_OBS_GATE_STATS` for wlib | 1 | 2 |
 |---|---|---|---|
-| write loop alone | 0.163 | 0.150 | 0.149 |
-| + a never-called `if oscillating of z:` | 0.217 | 0.222 | 0.213 |
-| + a never-called `if z > 0.0:` (control) | 0.169 | 0.156 | 0.145 |
+| A: loads wlib only | `unobserved` | 0.153 | 0.151 |
+| B: loads a **different file** holding a never-called `if oscillating of z:` | **`observed`** | 0.219 | 0.219 |
+| C: same, but `if z > 0.0:` (control) | `unobserved` | 0.155 | 0.154 |
+| D: `msg is "report"` at module level, no observer construct at all | **`observed`** | 0.223 | 0.223 |
 
-The predicate read costs ~42% on code that never runs it; the numeric
-comparison in the same position costs nothing.
+Row B is the refutation of "per-module": a read-free module compiles as
+`observed` because a *different file* held a dead read. Row D is the wider
+trigger: `const_pool_names_observer` scans the constant pool for bare
+names, so a string literal `"report"` costs +48% on a program that uses no
+observer feature.
 
 Consequences measured in this repo's own C6 gate (`tests/test_ap_profile.sh`):
 - `write/floor` was read as "observed writes cost +44% over the unobserved
-  floor". It is not measuring intrinsic write cost at all. Neutering only
-  the four predicate reads inside `run_read` — a function the `write`
-  variant never enters — drops it from ~1.45 to ~1.03.
+  floor". It is not measuring intrinsic write cost. Neutering only the four
+  predicate reads inside `run_read` — a function the `write` variant never
+  enters, identical line count so parse and layout costs are held fixed —
+  drops it from ~1.45 to ~1.03, and forcing the gate open for both files
+  (`EIGS_OBS_FORCE=1`) collapses the differential entirely (write/noread
+  1.09, 0.91), proving the two workloads are equivalent and the spread is
+  all arming.
 - Against a read-free control module (`tests/ap_profile_noread.eigs`),
-  `noread/floor` measures **1.07**: an observed scalar write really is
-  ~free, as the pre-rung-3 probe reported. Rung 3's round-1 review
-  withdrew that claim as unreproducible. **The claim was true and the
-  withdrawal was wrong** — nobody had identified the regime variable.
-- So of this shape's observer cost, the intrinsic write share is a few
-  percent, not the 22% published; most of the "write" cost is this
-  arming penalty. Pinned live as `write/noread > 1.15` with a planted
-  fault, so the day upstream makes arming per-binding, C6 fails and says
-  to re-attribute and close G7.
+  `noread/floor` is **1.0 within noise** (1.02–1.11 quiet across ten n=5
+  rounds): an observed scalar write really is ~free, as the pre-rung-3
+  probe reported. Rung 3's round-1 review withdrew that claim as
+  unreproducible. **The claim was true and the withdrawal was wrong** —
+  nobody had identified the regime variable.
+- Decomposing this shape's observer cost across five n=5 rounds:
+  reads-direct **75–89%**, arming **3–21%**, and intrinsic write cost
+  **indistinguishable from zero** (−10% to +22%, straddling it). So ~all of
+  it is attributable to reads, directly or through arming — not the 22%
+  "writes" first published.
+- Pinned live as `write/noread > 1.15` with a planted fault, so the day
+  upstream scopes arming, C6 fails and says to re-attribute and close G7.
+
+What a fix has to cover, which is more than "make it per-binding": the
+single `EigsState` bit, `obs_gate_resolve_static_loads`'s eager
+resolution, the always-conservative `OP_IMPORT` path, and the constant-pool
+name scan. Splitting observer-reading code into its own module — round
+10's suggested workaround, and what EigenScript#1046 originally
+recommended — **does not work**; row B measures it not working.
 
 This strengthens rung 3's upstream argument rather than weakening it: the
 reason #915's gate cannot help an autopilot is not only that reads
-dominate, but that the consumer's reads *disarm the write optimisation for
-the whole module they live in*. `unobserved:` is the existing workaround
-and is what rung 3's `sup_run` already does; the gap is that a consumer
-which legitimately reads verdicts pays on every unrelated assignment in
-the same file.
+dominate, but that a single read anywhere in the program disarms the write
+optimisation everywhere. `unobserved:` remains the workaround, and is what
+rung 3's `sup_run` already does.

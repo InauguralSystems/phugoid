@@ -11,17 +11,23 @@
 # property of the runtime. Measured 2026-08-25 on the dev box, n=5 medians
 # over this program's 120k frames: read 0.501s, write 0.243s, floor 0.169s.
 #   read/write  = 2.06   -> the bound below is 1.5 (~23% margin)
-#   write/floor = 1.44   -> the observed WRITE path is not free either
-#   of the 0.332s of observer cost, 78% is reads and 22% is writes
-# CORRECTION, TWICE. An earlier probe reported "observed scalar writes are
-# essentially free (0.31s vs a 0.30s floor)". Round 1 could not reproduce
-# it here (writes measured +44% over the floor) and withdrew it. Round 10
-# showed the WITHDRAWAL was the error: against a read-free module an
-# observed write is indistinguishable from the unobserved floor
-# (noread/floor 0.88-1.21 across five rounds, i.e. 1.0 within noise). The +44% is #915's
-# module-granular arming penalty, not write cost — GAPS.md G7. Two correct
-# measurements in different regimes, and the regime variable went unnamed
-# for six rounds.
+#   write/floor = 1.44   -> NOT intrinsic write cost; see below
+# CORRECTION, TWICE OVER. An earlier probe reported "observed scalar writes
+# are essentially free (0.31s vs a 0.30s floor)". Round 1 could not
+# reproduce it here (writes measured +44% over the floor) and withdrew it.
+# Round 10 showed the WITHDRAWAL was the error: against a read-free module
+# an observed write is indistinguishable from the unobserved floor
+# (noread/floor 1.02-1.11 quiet). The +44% is #915's arming penalty, not
+# write cost. Round 10 then published the wrong MECHANISM for that penalty
+# ("per-module"), and round 11 refuted it from the source and the runtime:
+# `obs_needed` is one monotonic flag on EigsState, so arming is
+# PROCESS-WIDE -- a verdict read in a dead function, in a different file,
+# or as a bare string constant `"report"` arms bookkeeping for every
+# assignment in every module. GAPS.md G7, EigenScript#1046. Decomposed:
+# reads-direct 75-89%, arming 3-21%, intrinsic writes indistinguishable
+# from zero. Three correct measurements in different regimes; the regime
+# variable went unnamed for six rounds and the mechanism was invented
+# twice.
 set -euo pipefail
 EIGS="${EIGENSCRIPT:-eigenscript}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -76,9 +82,12 @@ WF_CEIL=3.0
 # `write/floor` does not isolate the observed write path at all -- neutering
 # only the four predicate reads inside run_read, a function the `write`
 # variant never enters, drops write/floor from ~1.45 to ~1.03. #915's gate
-# arms per MODULE, so one verdict read anywhere in the file re-arms entropy
-# bookkeeping for every assignment in it. This bound is the penalty itself,
-# measured against a module that is read-free by construction.
+# arms PROCESS-WIDE and monotonically, so one verdict read anywhere in the
+# program re-arms entropy bookkeeping for every assignment in it. This
+# bound is the penalty itself, measured against a separate program that is
+# read-free by construction. What the file pin has to defend for that
+# control is "reader-opcode-free AND reader-NAME-free" -- the gate also
+# scans the constant pool, so a bare string `"report"` arms it.
 WA_BOUND=1.15
 
 # The bounds are DATA and get the manifest treatment every tolerance
