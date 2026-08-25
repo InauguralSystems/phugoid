@@ -186,6 +186,13 @@ echo "--- manifest: identity + full red-set coverage ---"
 grep -E '^(PASS|FAIL) ' "$WORK/clean_sim" | awk '{print $2, $3}' | sort > "$WORK/names_sim"
 grep '^sim ' tests/sim_manifest.txt | awk '{print $2, $4}' | sort > "$WORK/man_sim"
 diff -u "$WORK/man_sim" "$WORK/names_sim" > /dev/null || { echo "FAIL: sim check-name set drifted from manifest"; diff "$WORK/man_sim" "$WORK/names_sim" || true; exit 1; }
+# Bridge-row generator parameters are identity-checked too (rung-0's
+# round-20 rowparams class, inherited at rung-2 round 3: a zeroed
+# contaminant amplitude never enters any expected truth, so only the
+# emitted-args identity can see it).
+grep '^ROW ' "$WORK/clean_sim" | awk '{print $2, $3}' | sort > "$WORK/rows_sim"
+grep '^rowparams ' tests/sim_manifest.txt | awk '{print $2, $3}' | sort > "$WORK/man_rows_sim"
+diff -u "$WORK/man_rows_sim" "$WORK/rows_sim" > /dev/null || { echo "FAIL: bridge-row parameter set drifted from manifest"; diff "$WORK/man_rows_sim" "$WORK/rows_sim" || true; exit 1; }
 sort -u "$WORK/red_union" > "$WORK/redu_sim"
 BAD=0
 while read -r kind name klass tolspec; do

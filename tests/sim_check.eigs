@@ -453,7 +453,12 @@ inv_pair of ["ctl", ctl_sp, ctl_ph, 0.002, 0.002]
 # windows/cadences the sim grading uses — the zeta = 0.6255 regime the
 # rung-0 M1 grid never covered, and the mixed-mode reality the grid's
 # single-mode rows never posed.
-define gen_two(s1, w1, a1, p1, s2, w2, a2, p2, dt, n) as:
+# ROW tokens: the executed generator arguments, identity-checked against
+# the manifest's rowparams lines (added at rung-2 round 3, which zeroed
+# a bridge contaminant with every suite green — P12-class parameters
+# never enter any expected truth, so only an emission identity sees them).
+define gen_two(rowname, s1, w1, a1, p1, s2, w2, a2, p2, dt, n) as:
+    print of f"ROW {rowname} params={s1}|{w1}|{a1}|{p1}|{s2}|{w2}|{a2}|{p2}|{dt}|{n}"
     local det is 1.0
     if plant == "q7":
         det is 1.05
@@ -472,7 +477,7 @@ ph_w is ph_ref.im
 # on the excluded edge sample, phi=0) hit the estimator's edge refusal,
 # already pinned at rung 0 (M3) — measured 2026-08-24, first harness run.
 for pcase in [["phi20", 2.0], ["phi45", 4.5]]:
-    local sig is gen_two of [sp_ref.re, sp_w, 1.0, pcase[1], 0.0, 1.0, 0.0, 0.0, 0.02, 800]
+    local sig is gen_two of [f"M1X.sp.{pcase[0]}", sp_ref.re, sp_w, 1.0, pcase[1], 0.0, 1.0, 0.0, 0.0, 0.02, 800]
     local g is grade_sp of [sig, 0.02, 0]
     check_result of [f"M1X.sp.{pcase[0]}.T", as_tp of (g.T), "T", sp_ref.T, 0.01]
     check_result of [f"M1X.sp.{pcase[0]}.zlog", as_zl of (g.zl), "zeta", sp_ref.zeta, 0.02]
@@ -487,7 +492,7 @@ for pcase in [["phi20", 2.0], ["phi45", 4.5]]:
 # the bridge bounds the sim regime with margin, not an arbitrary stress;
 # the contaminant is NOT raised to manufacture a rounder margin because
 # ~3.6e-4 extrapolates to -0.8% T error against the 1% arm.
-sp2 is gen_two of [sp_ref.re, sp_w, 1.0, 4.5, ph_ref.re, ph_w, 0.0002, 1.5, 0.02, 800]
+sp2 is gen_two of ["M1X.sp2", sp_ref.re, sp_w, 1.0, 4.5, ph_ref.re, ph_w, 0.0002, 1.5, 0.02, 800]
 g2 is grade_sp of [sp2, 0.02, 0]
 check_result of ["M1X.sp2.T", as_tp of (g2.T), "T", sp_ref.T, 0.01]
 check_result of ["M1X.sp2.zlog", as_zl of (g2.zl), "zeta", sp_ref.zeta, 0.02]
@@ -501,7 +506,7 @@ check_result of ["M1X.sp2.zenv", as_ze of (g2.ze), "zeta", sp_ref.zeta, 0.02]
 # site satisfied both pins and survived the full planted matrix. With the
 # bins different, no single literal passes both — a forger has to compute
 # the argmax, i.e. re-implement the DFT peak picker.
-ph2 is gen_two of [ph_ref.re, ph_w, 1.0, 0.7, 2.0 * ph_ref.re, 2.0 * ph_w, 0.01, 2.1, 1.0, 190]
+ph2 is gen_two of ["M1X.ph2", ph_ref.re, ph_w, 1.0, 0.7, 2.0 * ph_ref.re, 2.0 * ph_w, 0.01, 2.1, 1.0, 190]
 g3 is grade_ph of [ph2, 1.0, 0]
 check_result of ["M1X.ph2.Tpeaks", as_tp of (g3.Tp), "T", ph_ref.T, 0.005]
 check_result of ["M1X.ph2.Tdft", as_td of (g3.Td), "T", ph_ref.T, 0.005]

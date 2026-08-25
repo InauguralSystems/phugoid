@@ -365,7 +365,14 @@ inv_set of ["ctl", ctl_dr, ctl_roll, ctl_spiral, 0.002]
 # amplitudes are set ~4x above the measured sim-signal impurities
 # (annihilator ICs are mode-pure to root precision; the residual is
 # nonlinear re-injection at the 1e-4 relative scale).
-define gen_two2(s1, w1, a1, p1, s2, w2, a2, p2, dt, n) as:
+# Each bridge row emits its EXECUTED generator arguments as a ROW token,
+# identity-checked against the manifest's rowparams lines (rung-0's
+# round-20 class, inherited after round-3 review zeroed the drs
+# contaminant — a P12-class parameter that never enters any expected
+# truth — and every suite stayed green: the mixed-mode rows, the
+# bridge's reason to exist, could be silently decontaminated).
+define gen_two2(rowname, s1, w1, a1, p1, s2, w2, a2, p2, dt, n) as:
+    print of f"ROW {rowname} params={s1}|{w1}|{a1}|{p1}|{s2}|{w2}|{a2}|{p2}|{dt}|{n}"
     local det is 1.0
     if plant == "r7":
         det is 1.05
@@ -377,7 +384,7 @@ define gen_two2(s1, w1, a1, p1, s2, w2, a2, p2, dt, n) as:
 
 # single-mode DR in a DELIBERATELY different window (52 s -> 6.15 cycles
 # -> bin 6; the one-literal rule vs T2's bin 5)
-m_dr is gen_two2 of [dr_ref.re, dr_ref.im, 1.0, 0.8, 0.0, 1.0, 0.0, 0.0, 0.2, 260]
+m_dr is gen_two2 of ["M2X.dr", dr_ref.re, dr_ref.im, 1.0, 0.8, 0.0, 1.0, 0.0, 0.0, 0.2, 260]
 g_dr is grade_dr of [m_dr, 0.2, 0]
 check_result of ["M2X.dr.Tpeaks", as_tp of (g_dr.Tp), "T", dr_ref.T, 0.01]
 check_result of ["M2X.dr.Tdft", as_td of (g_dr.Td), "T", dr_ref.T, 0.01]
@@ -389,7 +396,7 @@ check_exact of ["M2X.dr.z.nr", g_dr.zl.n_ratios, 10]
 # DR + spiral-drift contaminant in the T2 window (spiral decay riding
 # under the oscillation — the baseline shape the estimators claim
 # immunity to)
-m_drs is gen_two2 of [dr_ref.re, dr_ref.im, 1.0, 0.8, spiral_ref.re, 0.0, 0.05, 0.0, 0.2, 226]
+m_drs is gen_two2 of ["M2X.drs", dr_ref.re, dr_ref.im, 1.0, 0.8, spiral_ref.re, 0.0, 0.05, 0.0, 0.2, 226]
 g_drs is grade_dr of [m_drs, 0.2, 0]
 check_result of ["M2X.drs.Tpeaks", as_tp of (g_drs.Tp), "T", dr_ref.T, 0.01]
 check_result of ["M2X.drs.Tdft", as_td of (g_drs.Td), "T", dr_ref.T, 0.01]
@@ -398,10 +405,10 @@ check_result of ["M2X.drs.z", as_zl of (g_drs.zl), "zeta", dr_ref.zeta, 0.02]
 # roll decay + DR contaminant (the roll window sees ~0.6 DR cycles as a
 # slow additive wave); spiral decay + DR contaminant (dead by mid-window
 # but present early)
-m_roll is gen_two2 of [roll_ref.re, 0.0, 1.0, 0.0, dr_ref.re, dr_ref.im, 0.001, 1.1, 0.02, 126]
+m_roll is gen_two2 of ["M2X.rollc", roll_ref.re, 0.0, 1.0, 0.0, dr_ref.re, dr_ref.im, 0.001, 1.1, 0.02, 126]
 g_roll is grade_th of [m_roll, 0.02, 0]
 check_result of ["M2X.rollc.th", g_roll, "t_half", roll_ref.t_half, 0.01]
-m_sp is gen_two2 of [spiral_ref.re, 0.0, 1.0, 0.0, dr_ref.re, dr_ref.im, 0.005, 2.3, 0.5, 121]
+m_sp is gen_two2 of ["M2X.spiralc", spiral_ref.re, 0.0, 1.0, 0.0, dr_ref.re, dr_ref.im, 0.005, 2.3, 0.5, 121]
 g_sp is grade_th of [m_sp, 0.5, 0]
 check_result of ["M2X.spiralc.th", g_sp, "t_half", spiral_ref.t_half, 0.01]
 

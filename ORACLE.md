@@ -838,7 +838,14 @@ single-site ×10 executed widening survived every suite; the direction
 rule is rung-0 P18's, added after the same round measured a rung-1 site
 whose honest offset absorbed 6% of an always-positive displacement's
 margin; rung 1 got the twin as Q17, 36 rows). All three comparators in
-both rungs are now pinned at 1.1× their executed scale.
+both rungs are now pinned at 1.1× their executed scale. Round 3 then
+zeroed the M2X.drs contaminant with every suite green — bridge
+contaminant amplitudes are P12-class parameters (they never enter any
+expected truth, so no tolerance arm can see them) — and rung-0's
+round-20 ROWPARAMS class was inherited: every bridge generator call in
+BOTH rungs now emits its executed arguments as a `ROW` token,
+identity-checked against the manifest's `rowparams` lines (verified:
+the zeroed contaminant now fails the row-identity diff).
 
 ## Exit gate for rung 2
 
