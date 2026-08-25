@@ -7,8 +7,9 @@
 # poison, s10 rerun-side corruption, s11/s12 estimator slot aliases,
 # s10 dt-rerun grading separator, s11 zeta slot alias, s12 verdicts
 # forced to `oscillating` (the dual of s7),
-# s13 comparator displacement (below/relabs), s14 check_rel displacement.
-# Population pinned at exactly 56.
+# s13 comparator displacement (below/relabs), s14 check_rel displacement,
+# s15 the phugoid DFT slot aliased to period_peaks (makes as_td live).
+# Population pinned at exactly 67.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -101,6 +102,12 @@ define check_result(name, res, field, truth, reltol) as:
         print of f"FAIL {name} reltol={reltol} estimator refused: {res.reason}"
 
 # Read-site identity accessors (rung-1 rounds 6-7).
+define as_td(res) as:
+    if res.ok == 1:
+        if res.k == null:
+            return {"ok": 0, "reason": "not a DFT result (identity field k missing)"}
+    return res
+
 define as_tp(res) as:
     if res.ok == 1:
         if res.n_extrema == null:
@@ -275,6 +282,15 @@ check_result of ["C3.dt.T", as_tp of (dtG.T), "T", base.k050.T.T, 0.001]
 check_result of ["C3.dt.zlog", as_zl of (dtG.zl), "zeta", base.k050.zl.zeta, 0.001]
 check_result of ["C3.dt.zenv", as_ze of (dtG.ze), "zeta", base.k050.ze.zeta, 0.001]
 
+# AMPLITUDE invariance (declared in the bar, missing from the first
+# draft — round-1 review). The graded quantities must be properties of
+# the MODE, not of how hard it was excited: halving the excitation must
+# move them < 0.5%.
+ampG is grade_cl of ["C3.amp.run", 0.5, 0.05, 0.02, 1, 0.02, 800]
+check_result of ["C3.amp.T", as_tp of (ampG.T), "T", base.k050.T.T, 0.005]
+check_result of ["C3.amp.zlog", as_zl of (ampG.zl), "zeta", base.k050.zl.zeta, 0.005]
+check_result of ["C3.amp.zenv", as_ze of (ampG.ze), "zeta", base.k050.ze.zeta, 0.005]
+
 # GAIN-USE witness: the measured zeta must MOVE with kq, in the predicted
 # direction and by the predicted amount. Without this, a controller whose
 # gain never reaches the dynamics (plant s2) passes every C2 row, because
@@ -343,7 +359,45 @@ if plant == "s12":
 
 pk05 is predicted of (0.5)
 ic_sp is sp_subspace_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[0].re, pk05.osc[0].im, tr.state, 0.1]
-ic_ph is sp_subspace_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 5.0]
+# The phugoid IC is normalised on u, the channel the phugoid actually
+# carries. The first draft normalised on w (inheriting rung-1's helper,
+# which is correct for the w-dominant short period) and, because the
+# phugoid's w is ~1/930 of its u, scaled the eigenvector ~930x: the
+# "phugoid" run pitched 97 deg nose-down and looped the aircraft 7 times
+# with airspeed swinging negative, on a linear-aero model valid near
+# Mach 0.25. Round-1 review caught it; C2.ph below now PROVES the run is
+# the mode it is named after, and the ROW token carries the IC so any
+# change to the excitation breaks manifest identity.
+ic_ph is mode_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 0, 2.0]
+
+# C2.ph — the phugoid IC, graded at FIXED gain against the phugoid
+# prediction. Without this the supervisory rows are named after a mode
+# nothing verifies they contain.
+ph_fixed is cl_run of ["C2.ph.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 20, tr.P, method]
+ph_u is []
+i is 0
+loop while i < (len of ph_fixed.t):
+    append of [ph_u, ph_fixed.u[i] - tr.state[0]]
+    i is i + 1
+ph_gdt is est_dt of (1.0)
+ph_T is mangle_T of (period_peaks of [ph_u, ph_gdt])
+ph_z is mangle_z of (zeta_logdec of [ph_u, ph_gdt])
+ph_Td is period_dft of [ph_u, ph_gdt]
+if plant == "s15":
+    ph_Td is period_peaks of [ph_u, ph_gdt]
+check_result of ["C2.ph.T", as_tp of (ph_T), "T", pk05.osc[0].T, 0.01]
+check_result of ["C2.ph.Tdft", as_td of (ph_Td), "T", pk05.osc[0].T, 0.01]
+check_result of ["C2.ph.zlog", as_zl of (ph_z), "zeta", pk05.osc[0].zeta, 0.05]
+check_exact of ["C2.ph.Tdft.k", ph_Td.k, 8]
+
+define verdict_count(rec, want) as:
+    local n is 0
+    local i is 0
+    loop while i < (len of rec.verdict):
+        if rec.verdict[i] == want:
+            n is n + 1
+        i is i + 1
+    return n
 
 define osc_count(rec) as:
     local n is 0
@@ -365,7 +419,7 @@ for cs in [["c010", 5, 0], ["c020", 10, 0], ["c050", 25, 1], ["c100", 50, 1]]:
 # phugoid at a matched cadence yields sustained oscillating verdicts.
 ph_rec is sup_run of ["C4.ph.run", ic_ph, tr.de, 0.5, 0.05, 8000, 100, 100, tr.P, method, freeze]
 check_exact of ["C4.ph.reads", ph_rec.reads, 80]
-check_exact of ["C4.ph.osc", osc_count of (ph_rec), 59]
+check_exact of ["C4.ph.osc", osc_count of (ph_rec), 56]
 ph_frac_ok is 0
 if osc_count of (ph_rec) > 40:
     ph_frac_ok is 1
@@ -386,6 +440,16 @@ inner is sup_run of ["C5.p1.inner.run", ic_ph, tr.de, 0.5, 0.05, 8000, 100, 1, t
 check_exact of ["C5.p1.inner.reads", inner.reads, 8000]
 check_exact of ["C5.p1.inner.osc", osc_count of (inner), 0]
 check_exact of ["C5.p1.inner.engagements", inner.toggles, 0]
+# The ACTUATOR is silent; the OBSERVER is loud and wrong. On a smoothly
+# DECAYING phugoid, sampled at inner-loop rate, the classifier never once
+# says `oscillating` — it alternates between `diverging` (3934 of 8000,
+# 49%) and `converged` (4056), because a window spanning 1% of a cycle
+# sees a locally monotone slice of a sinusoid and calls it a trend. An
+# autopilot acting on this would command corrective action against a
+# healthy decaying mode half the time. "Blind" understates it: the
+# verdicts are confidently wrong, not absent.
+check_exact of ["C5.p1.inner.diverging", verdict_count of [inner, "diverging"], 3934]
+check_exact of ["C5.p1.inner.converged", verdict_count of [inner, "converged"], 4056]
 # And the supervisory layer does NOT hold cleanly either: it sees the
 # regime (59 of 80 reads) but the engagement flickers 15 times in one
 # phugoid episode, because the raw verdict carries no hysteresis at the
@@ -393,12 +457,27 @@ check_exact of ["C5.p1.inner.engagements", inner.toggles, 0]
 # predicates do not provide. Toggles are counted INSIDE the run at the
 # moment the gain changes — reading the decimated `engaged` record
 # undercounted them (the instrument, not the physics).
-check_exact of ["C5.p2.sup.toggles", ph_rec.toggles, 15]
+check_exact of ["C5.p2.sup.toggles", ph_rec.toggles, 17]
+
+# C5.P4 — the DEADBAND CLIFF. Same mode, same persistence, same cadence:
+# only the excitation amplitude varies. Across a 16x range (uamp 0.5..8)
+# the verdict fraction is FLAT at 56-57/80 — so above the deadband,
+# persistence is indeed the governing variable. Below it the layer does
+# not degrade gracefully, it goes silent: at uamp 0.2 (|q|max 1.3e-3
+# rad/s) the observer reports zero oscillating verdicts and the damper
+# never engages. That is EigenScript#1045's absolute sub-unit deadband
+# demonstrated inside a control loop, with a sharp threshold rather than
+# a gradient — the third independent sighting of G5 and the first where
+# it changes what an actuator does.
+for cliff in [["hi", 0.5, 56], ["lo", 0.2, 0]]:
+    local icc is mode_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 0, cliff[1]]
+    local rc is sup_run of [f"C5.p4.{cliff[0]}.run", icc, tr.de, 0.5, 0.05, 8000, 100, 100, tr.P, method, freeze]
+    check_exact of [f"C5.p4.{cliff[0]}.osc", osc_count of (rc), cliff[2]]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 56:
-    print of f"FAIL harness: expected exactly 56 checks, ran {checks_run}"
+if checks_run != 67:
+    print of f"FAIL harness: expected exactly 67 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

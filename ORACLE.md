@@ -1030,7 +1030,8 @@ first gain tried during design did exactly that — phugoid ζ went to
   **1%**, ζ within **2%**, plus the identity pins (k/n_extrema/n_ratios,
   values distinct per site per the one-literal rule).
 - **C3 — invariances (9):** dt halved < 0.1%; excitation amplitude halved
-  < 0.5%; and a **gain-USE witness** — the measured ζ must MOVE with kq
+  < 0.5% (declared here and MISSING from the first draft — added at
+  round 1); and a **gain-USE witness** — the measured ζ must MOVE with kq
   in the predicted direction and magnitude (rung-2 round-8's lesson: an
   invariance row is only a test if the varied parameter reaches the
   dynamics; here the gain is the parameter, so its effect is the pin).
@@ -1044,7 +1045,16 @@ first gain tried during design did exactly that — phugoid ζ went to
   2026-08-25 before this rung: **0.70 µs/read**, read path = 64% of a
   write+read workload, and observed *scalar* writes ≈ free (0.31 s vs a
   0.30 s fully-unobserved floor over 200k frames, n=5 medians). The gate
-  is a ceiling, not a target: a regression past it is a FAIL. Shipped as
+  is a ceiling, not a target: a regression past it is a FAIL. **Numbers
+  corrected at round 1** — n=5 medians on the shipped program (120k
+  frames): read 0.501 s, write 0.243 s, floor 0.169 s, so read/write =
+  2.06 and write/floor = 1.44. Of the 0.332 s of observer cost, **78% is
+  reads and 22% is writes**. The earlier ad-hoc probe's claim that
+  "observed scalar writes are essentially free (0.31 vs a 0.30 floor)"
+  does NOT reproduce and is withdrawn: writes cost +44% over the floor.
+  The gate asserts both ratios (so `floor` is load-bearing rather than a
+  number nobody reads) and carries a planted fault proving the bound can
+  reject. Shipped as
   `tests/ap_profile.eigs` + `tests/test_ap_profile.sh`, gating the
   read/write RATIO (measured 2.09–2.8×, bound 1.5×) rather than a wall
   time, because absolute budgets flake on shared CI runners while the
@@ -1078,11 +1088,17 @@ refutations are the rung's main result.** Recorded here in full, since a
 pre-registered prediction that survives contact unchanged teaches less
 than one that does not:
 
-- **Prediction 1 (inner-loop chatter) — WRONG.** At inner-loop rate the
-  10-sample window spans 0.5 s against a 51 s mode — 1% of a cycle — so
-  the classifier is not noisy, it is **blind**: 0 `oscillating` verdicts
-  in 8000 reads, 0 engagements, the damper never acts at all. The failure
-  mode is silence, not chatter. Pinned as `C5.p1.inner.*`.
+- **Prediction 1 (inner-loop chatter) — WRONG, and "blind" understated
+  it.** At inner-loop rate the 10-sample window spans 1% of a cycle, and
+  on a smoothly DECAYING phugoid the classifier never once says
+  `oscillating` (0 of 8000 reads). But it is not silent — it alternates
+  between **`diverging` (3934, 49%)** and **`converged` (4056, 51%)**,
+  because a window that short sees a locally monotone slice of a sinusoid
+  and calls it a trend. The ACTUATOR is silent (0 engagements, since only
+  `oscillating` triggers it); the OBSERVER is loud and wrong. An autopilot
+  acting on this would command corrective action against a healthy
+  decaying mode half the time. Pinned as `C5.p1.inner.{osc,diverging,
+  converged,engagements}`.
 - **Prediction 2 (supervisory holds cleanly) — HALF WRONG.** Supervision
   does act on a persistent regime (59 `oscillating` verdicts in 80 reads
   on the phugoid at a matched cadence), but the engagement **flickers 15
@@ -1097,9 +1113,61 @@ than one that does not:
   Detection latency and phase lag are the same quantity, so a windowed
   verdict cannot act on a well-damped transient. The complement holds
   too: the lightly-damped phugoid (ζ = 0.036, ringing for many periods)
-  IS actionable at 74–88% of reads. **The design law: verdict-driven
-  supervision is usable exactly when the regime persists for more than
-  ~1–2 observation windows.**
+  IS actionable — 56 of 80 reads at a matched cadence.
+
+**The design law, corrected at round 1 — it takes TWO conditions, and the
+first draft named only one.** Round-1 review swept the excitation
+amplitude and found the verdict fraction moving, which looked like a
+refutation of the persistence law. Re-measured on a physically valid
+trajectory (see the IC correction below), the truth is sharper than
+either version:
+
+| phugoid excitation | Δθ₀ | \|q\|max (rad/s) | oscillating / 80 |
+|---|---|---|---|
+| uamp 8.0 | −23.0° | 5.6e-2 | 57 |
+| uamp 4.0 | −11.5° | 2.7e-2 | 56 |
+| uamp 2.0 | −5.7° | 1.3e-2 | 56 |
+| uamp 1.0 | −2.9° | 6.4e-3 | 56 |
+| uamp 0.5 | −1.4° | 3.2e-3 | 56 |
+| **uamp 0.2** | **−0.6°** | **1.3e-3** | **0** |
+
+Across a **16× amplitude range the fraction is flat** — so above the
+deadband, persistence is indeed the governing variable. Below it there is
+no graceful degradation: the layer goes **completely silent** at a sharp
+threshold between \|q\| ≈ 3.2e-3 and 1.3e-3 rad/s. So:
+
+> **A verdict is actionable iff (a) the regime persists beyond ~1–2
+> observation windows, AND (b) the observed channel's motion clears the
+> deadband — which, for a sub-unit channel like pitch rate, is an
+> ABSOLUTE threshold (EigenScript#1045), so it depends on the unit and
+> the excitation rather than on the dynamics.**
+
+That is G5's third independent sighting and the first where it changes
+what an actuator does. Pinned as `C5.p4.{hi,lo}.osc`.
+
+## The round-1 correction: the phugoid IC was flying loops
+
+Recorded because it invalidated the first version of every headline
+number. `sp_subspace_ic` (rung 1) normalises the excitation on the **w**
+channel — correct for the w-dominant short period it was written for.
+Rung 3 reused it for the PHUGOID, whose w component is ~1/930 of its u,
+so demanding a 5 ft/s w-displacement scaled the eigenvector ~930×: the
+"phugoid episode" started 97° nose-down and flew **7 complete pitch
+loops**, with airspeed swinging from −9 to 714 ft/s on a linear-aero
+model valid near Mach 0.25. Nothing in the rung could see it — the
+supervisory rows graded no mode quantity, and the excitation amplitude
+appeared in no ROW token.
+
+Three fixes, all inherited from lessons rungs 1–2 had already paid for:
+`mode_ic` now takes a scale CHANNEL (rung 2's `lat_mode_ic` had this
+from the start — the twin was never applied to rung 1's helper); the ROW
+token carries the whole initial condition, so any change to the
+excitation breaks manifest identity; and **C2.ph grades the supervisory
+IC at fixed gain against the phugoid prediction** (T +0.036%, ζ −0.16%),
+so the run is now proven to be the mode it is named after. On the
+corrected trajectory every qualitative finding survived — the numbers
+moved (osc 59→56, toggles 15→17) but blindness, flicker and the cadence
+law all held.
 
 ## Rung-3 planted-fault matrix
 
@@ -1119,8 +1187,9 @@ displaced past its bound.
 
 ## Exit gate for rung 3
 
-1. All C checks green (56, population pinned); every one of the 14
-   plants red in exactly the declared way; the C6 ratio gate green;
+1. All C checks green (67, population pinned); every one of the 15
+   plants red in exactly the declared way; the C6 gate green including
+   its own planted fault;
    rungs 0–2 suites untouched and green.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds.
 3. CI green on the pushed branch.

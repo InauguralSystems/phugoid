@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The rung-3 planted-fault matrix (ORACLE.md): each s-plant must flip
 # EXACTLY its declared red set, every plant run executes the full pinned
-# 56-check population, and the manifest rules hold (identity incl.
+# 67-check population, and the manifest rules hold (identity incl.
 # tolerance tokens and ROW parameters; every plantable name in some red
 # set; structural names in none; unknown class tokens FAIL).
 set -euo pipefail
@@ -15,7 +15,7 @@ run_plant() {
         echo "FAIL: plant $1 did not make ap_check exit nonzero — the checker cannot fail"; exit 1
     fi
     grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 56$' "$OUT" || { echo "FAIL: plant $1 run population != 56"; exit 1; }
+    grep -q '^CHECKS_RUN 67$' "$OUT" || { echo "FAIL: plant $1 run population != 67"; exit 1; }
 }
 expect_total_fails() {
     got=$(grep -c '^FAIL ' "$OUT" || true)
@@ -26,25 +26,25 @@ expect_green() { for pat in "$@"; do if grep '^FAIL ' "$OUT" | grep -Eq "$pat"; 
 no_refusals() { grep '^FAIL ' "$OUT" | grep -q 'refused' && { echo "FAIL: $1 reds must use the numeric arm, found a refusal"; exit 1; }; return 0; }
 
 echo "--- S1: gain sign flipped -> pitch rows + every zeta + the gain witnesses (21) ---"
-run_plant s1; expect_total_fails 21
-expect_red 'C0\.a23 ' 'C0\.a33 ' 'C2\.k050\.T ' 'C2\.k100\.zlog ' 'C3\.gain\.use ' 'C3\.gain\.dir '
+run_plant s1; expect_total_fails 26
+expect_red 'C0\.a23 ' 'C0\.a33 ' 'C2\.k050\.T ' 'C2\.k100\.zlog ' 'C3\.gain\.use ' 'C3\.gain\.dir ' 'C2\.ph\.Tdft\.k ' 'C3\.amp\.zenv '
 expect_green 'C1\.'
 echo "PASS: S1 red pattern exact"
 
 echo "--- S2: gain never reaches the dynamics (inert controller) -> 22 ---"
-run_plant s2; expect_total_fails 22
-expect_red 'C3\.gain\.use ' 'C3\.gain\.dir ' 'C3\.lin\.shrinks ' 'C2\.k100\.T '
+run_plant s2; expect_total_fails 27
+expect_red 'C3\.gain\.use ' 'C3\.gain\.dir ' 'C3\.lin\.shrinks ' 'C2\.k100\.T ' 'C2\.ph\.T ' 'C3\.amp\.zenv '
 expect_green 'C1\.'
 echo "PASS: S2 red pattern exact"
 
 echo "--- S3: integrator RK4 -> Euler -> periods + dt invariance + supervisory toggles (7) ---"
-run_plant s3; expect_total_fails 7
-expect_red 'C2\.k025\.T ' 'C2\.k050\.T ' 'C2\.k100\.T ' 'C3\.dt\.T ' 'C3\.dt\.zlog ' 'C3\.dt\.zenv ' 'C5\.p2\.sup\.toggles '
+run_plant s3; expect_total_fails 10
+expect_red 'C2\.k025\.T ' 'C2\.k050\.T ' 'C2\.k100\.T ' 'C3\.dt\.T ' 'C3\.dt\.zlog ' 'C3\.dt\.zenv ' 'C2\.ph\.zlog ' 'C5\.p4\.hi\.osc '
 expect_green 'C0\.' 'C1\.'
 echo "PASS: S3 red pattern exact"
 
 echo "--- S4: trim offset -> C1 + parity + every graded mode (36) ---"
-run_plant s4; expect_total_fails 36
+run_plant s4; expect_total_fails 42
 expect_red 'C1\.res\.' 'C1\.hold\.' 'C0\.a13 ' 'C2\.k025\.T ' 'C3\.gain\.use ' 'C5\.sp\.c050\.osc '
 echo "PASS: S4 red pattern exact"
 
@@ -55,27 +55,27 @@ expect_green 'C0\.' 'C1\.' 'C2\.' 'C4\.' 'C5\.'
 echo "PASS: S5 red pattern exact"
 
 echo "--- S6: grading dt dilated x1.02 -> the 3 period rows + the linearity witness (4) ---"
-run_plant s6; expect_total_fails 4
-expect_red 'C2\.k025\.T ' 'C2\.k050\.T ' 'C2\.k100\.T ' 'C3\.lin\.shrinks '
-expect_green 'C0\.' 'C1\.' 'C2\..*zlog' 'C4\.' 'C5\.sp'
+run_plant s6; expect_total_fails 6
+expect_red 'C2\.k025\.T ' 'C2\.k050\.T ' 'C2\.k100\.T ' 'C3\.lin\.shrinks ' 'C2\.ph\.T ' 'C2\.ph\.Tdft '
+expect_green 'C0\.' 'C1\.' 'C2\.k025\.zlog' 'C4\.' 'C5\.sp'
 echo "PASS: S6 red pattern exact"
 
 echo "--- S7: verdict stream frozen to 'stable' (supervisory inert) -> 5 ---"
-run_plant s7; expect_total_fails 5
-expect_red 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C4\.ph\.sustained ' 'C5\.p2\.sup\.toggles '
+run_plant s7; expect_total_fails 8
+expect_red 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C4\.ph\.sustained ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.hi\.osc '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S7 red pattern exact"
 
 echo "--- S8: zeta->0.05 and T->5.0 with identity carried -> the 12 numeric rows ---"
-run_plant s8; expect_total_fails 12
-expect_red 'C2\.k025\.T ' 'C2\.k100\.zenv ' 'C3\.gain\.use ' 'C3\.lin\.shrinks '
+run_plant s8; expect_total_fails 14
+expect_red 'C2\.k025\.T ' 'C2\.k100\.zenv ' 'C3\.gain\.use ' 'C3\.lin\.shrinks ' 'C2\.ph\.T ' 'C2\.ph\.zlog '
 no_refusals S8
 expect_green 'C0\.' 'C1\.' '\.n ' '\.nr ' '\.nf ' 'C4\.' 'C5\.'
 echo "PASS: S8 red pattern exact"
 
 echo "--- S9: dataset broadly poisoned -> parity + graded modes + verdicts (21) ---"
-run_plant s9; expect_total_fails 21
-expect_red 'C0\.a11 ' 'C0\.a33 ' 'C2\.k050\.zlog ' 'C3\.gain\.use ' 'C4\.ph\.osc '
+run_plant s9; expect_total_fails 27
+expect_red 'C0\.a11 ' 'C0\.a33 ' 'C2\.k050\.zlog ' 'C3\.gain\.use ' 'C4\.ph\.osc ' 'C2\.ph\.Tdft ' 'C5\.p4\.hi\.osc '
 expect_green 'C1\.'
 echo "PASS: S9 red pattern exact"
 
@@ -86,14 +86,14 @@ expect_green 'C0\.' 'C1\.' 'C2\.' 'C4\.' 'C5\.'
 echo "PASS: S10 red pattern exact"
 
 echo "--- S11: zeta slots swapped -> the zeta rows and their identity pins (14) ---"
-run_plant s11; expect_total_fails 14
-expect_red 'C2\.k025\.zl\.nr ' 'C2\.k025\.ze\.nf ' 'C2\.k100\.zlog ' 'C3\.dt\.zenv '
-expect_green 'C0\.' 'C1\.' 'C2\..*\.T ' 'C4\.' 'C5\.'
+run_plant s11; expect_total_fails 16
+expect_red 'C2\.k025\.zl\.nr ' 'C2\.k025\.ze\.nf ' 'C2\.k100\.zlog ' 'C3\.dt\.zenv ' 'C3\.amp\.zlog '
+expect_green 'C0\.' 'C1\.' 'C2\.k025\.T ' 'C4\.' 'C5\.'
 echo "PASS: S11 red pattern exact"
 
 echo "--- S12: verdicts forced to 'oscillating' (the dual of S7) -> 8 ---"
-run_plant s12; expect_total_fails 8
-expect_red 'C5\.sp\.c010\.osc ' 'C5\.sp\.c020\.osc ' 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C5\.p1\.inner\.osc ' 'C5\.p1\.inner\.engagements ' 'C5\.p2\.sup\.toggles '
+run_plant s12; expect_total_fails 12
+expect_red 'C5\.sp\.c010\.osc ' 'C5\.sp\.c020\.osc ' 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C5\.p1\.inner\.osc ' 'C5\.p1\.inner\.engagements ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.hi\.osc ' 'C5\.p4\.lo\.osc ' 'C5\.p1\.inner\.diverging ' 'C5\.p1\.inner\.converged '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S12 red pattern exact"
 
@@ -104,11 +104,17 @@ expect_green 'C0\.a41 ' 'C0\.a42 ' 'C0\.a43 ' 'C0\.a44 ' 'C2\.' 'C3\.' 'C4\.' 'C
 echo "PASS: S13 red pattern exact"
 
 echo "--- S14: check_rel values displaced 1.1x their executed arm -> the 13 tolerance rows ---"
-run_plant s14; expect_total_fails 13
-expect_red 'C2\.k025\.T ' 'C2\.k100\.zenv ' 'C3\.dt\.T ' 'C3\.gain\.use '
+run_plant s14; expect_total_fails 19
+expect_red 'C2\.k025\.T ' 'C2\.k100\.zenv ' 'C3\.dt\.T ' 'C3\.amp\.T ' 'C3\.gain\.use ' 'C2\.ph\.Tdft '
 no_refusals S14
 expect_green 'C0\.' 'C1\.' '\.n ' '\.nr ' '\.nf ' 'C4\.' 'C5\.'
 echo "PASS: S14 red pattern exact"
+
+echo "--- S15: the phugoid DFT slot aliased to period_peaks -> exactly the 2 Tdft rows ---"
+run_plant s15; expect_total_fails 2
+expect_red 'C2\.ph\.Tdft ' 'C2\.ph\.Tdft\.k '
+expect_green 'C2\.ph\.T ' 'C2\.ph\.zlog ' 'C0\.' 'C1\.' 'C3\.' 'C4\.' 'C5\.'
+echo "PASS: S15 red pattern exact (round-1 review: as_td/as_tp were dead armor with only one period estimator; the phugoid window supports a DFT, so the accessors are now live)"
 
 # ------------------------------------------------------------------
 echo "--- manifest: identity + rowparams + coverage + class vocabulary ---"
@@ -129,4 +135,4 @@ while read -r kind name klass tolspec; do
 done < <(grep -v '^#' tests/ap_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
-echo "PASS: all 14 rung-3 plants flip exactly their declared checks"
+echo "PASS: all 15 rung-3 plants flip exactly their declared checks"

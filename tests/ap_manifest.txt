@@ -1,14 +1,3 @@
-# ap_manifest.txt — every check name in ap_check.eigs with its
-# planted-fault coverage class and tolerance token (rules as in
-# sim_manifest.txt / latsim_manifest.txt, enforced by test_ap_planted.sh).
-# Structural entries (written justification, ORACLE.md rung-3 C0/C4):
-#   C0.a41..a44 — the theta-dot row [0,0,1,0], a builder constant no
-#     data plant can move (same exemption as rungs 1 and 2).
-#   C4.ph.reads, C5.p1.inner.reads — read COUNTS derived only from
-#     call-site literals (nsteps / cadence). No data plant can move
-#     them; they are pinned instead by the ROW token identity, which
-#     carries those same literals.
-# Regenerate only with a written justification in ORACLE.md.
 ap C1.res.udot plantable below=1e-09
 ap C1.res.wdot plantable below=1e-09
 ap C1.res.qdot plantable below=1e-11
@@ -51,29 +40,44 @@ ap C2.k100.ze.nf plantable exact=3
 ap C3.dt.T plantable reltol=0.001
 ap C3.dt.zlog plantable reltol=0.001
 ap C3.dt.zenv plantable reltol=0.001
+ap C3.amp.T plantable reltol=0.005
+ap C3.amp.zlog plantable reltol=0.005
+ap C3.amp.zenv plantable reltol=0.005
 ap C3.gain.use plantable reltol=0.05
 ap C3.gain.dir plantable exact=1
 ap C3.lin.shrinks plantable exact=1
+ap C2.ph.T plantable reltol=0.01
+ap C2.ph.Tdft plantable reltol=0.01
+ap C2.ph.zlog plantable reltol=0.05
+ap C2.ph.Tdft.k plantable exact=8
 ap C5.sp.c010.osc plantable exact=0
 ap C5.sp.c020.osc plantable exact=0
 ap C5.sp.c050.osc plantable exact=1
 ap C5.sp.c100.osc plantable exact=1
 ap C4.ph.reads structural exact=80
-ap C4.ph.osc plantable exact=59
+ap C4.ph.osc plantable exact=56
 ap C4.ph.sustained plantable exact=1
 ap C5.p1.inner.reads structural exact=8000
 ap C5.p1.inner.osc plantable exact=0
 ap C5.p1.inner.engagements plantable exact=0
-ap C5.p2.sup.toggles plantable exact=15
-rowparams C1.hold.run params=0|0.05|1|1200
-rowparams C2.k025.run params=0.25|0.02|1|800
-rowparams C2.k050.run params=0.5|0.02|1|800
-rowparams C2.k100.run params=1|0.02|1|800
-rowparams C3.dt.run params=0.5|0.01|2|1600
-rowparams C3.lin.run params=1|0.02|1|800
-rowparams C5.sp.c010.run params=0.5|0.02|25|5|1500
-rowparams C5.sp.c020.run params=0.5|0.02|25|10|1500
-rowparams C5.sp.c050.run params=0.5|0.02|25|25|1500
-rowparams C5.sp.c100.run params=0.5|0.02|25|50|1500
-rowparams C4.ph.run params=0.5|0.05|100|100|8000
-rowparams C5.p1.inner.run params=0.5|0.05|100|1|8000
+ap C5.p1.inner.diverging plantable exact=3934
+ap C5.p1.inner.converged plantable exact=4056
+ap C5.p2.sup.toggles plantable exact=17
+ap C5.p4.hi.osc plantable exact=56
+ap C5.p4.lo.osc plantable exact=0
+rowparams C1.hold.run params=0|0.05|1|1200|279.09999958677514|-0.015187564279792735|0|-5.441621027333612e-05
+rowparams C2.k025.run params=0.25|0.02|1|800|279.07785528763605|-0.11518756427979274|0.0017430759622298027|-0.0014838271908876762
+rowparams C2.k050.run params=0.5|0.02|1|800|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C2.k100.run params=1|0.02|1|800|279.07732823694823|-0.11518756427979274|0.00241258481309172|-0.0015334273886992624
+rowparams C3.dt.run params=0.5|0.01|2|1600|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C3.amp.run params=0.5|0.02|1|800|279.0888805741536|-0.06518756427979273|0.000977449583953899|-0.0007750394957458047
+rowparams C3.lin.run params=1|0.02|1|800|279.09546531680974|-0.035187564279792735|0.000482516962618344|-0.00035021844595852137
+rowparams C2.ph.run params=0.5|0.05|20|8000|281.09999958677514|-0.3116147043325656|-0.0011099813433539088|-0.10030128636266476
+rowparams C5.sp.c010.run params=0.5|0.02|25|5|1500|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C5.sp.c020.run params=0.5|0.02|25|10|1500|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C5.sp.c050.run params=0.5|0.02|25|25|1500|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C5.sp.c100.run params=0.5|0.02|25|50|1500|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C4.ph.run params=0.5|0.05|100|100|8000|281.09999958677514|-0.3116147043325656|-0.0011099813433539088|-0.10030128636266476
+rowparams C5.p1.inner.run params=0.5|0.05|100|1|8000|281.09999958677514|-0.3116147043325656|-0.0011099813433539088|-0.10030128636266476
+rowparams C5.p4.hi.run params=0.5|0.05|100|100|8000|279.59999958677514|-0.08929434929298595|-0.0002774953358384772|-0.02511613374837119
+rowparams C5.p4.lo.run params=0.5|0.05|100|100|8000|279.29999958677513|-0.044830278285070024|-0.00011099813433539088|-0.01007910322551248

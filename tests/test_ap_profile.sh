@@ -8,11 +8,15 @@
 #
 # The gate is a RATIO with margin, not an absolute time: absolute budgets
 # are unreliable on shared CI runners, whereas the read/write ratio is a
-# property of the runtime. Measured 2026-08-25 on the dev box: read 0.87s,
-# write 0.31s, floor 0.30s over 200k frames (n=5 medians) — ratio 2.8.
-# The bound below is 1.5, roughly half the measured ratio, so it fails
-# loudly if the read path stops dominating (e.g. if reads become O(1))
-# without flaking on runner noise.
+# property of the runtime. Measured 2026-08-25 on the dev box, n=5 medians
+# over this program's 120k frames: read 0.501s, write 0.243s, floor 0.169s.
+#   read/write  = 2.06   -> the bound below is 1.5 (27% margin)
+#   write/floor = 1.44   -> the observed WRITE path is not free either
+#   of the 0.332s of observer cost, 78% is reads and 22% is writes
+# CORRECTION (round-1 review): an earlier ad-hoc probe reported "observed
+# scalar writes are essentially free (0.31s vs a 0.30s floor)". That does
+# NOT reproduce on the shipped program — writes cost +44% over the floor.
+# The number published first was wrong; these are the ones this gate uses.
 set -euo pipefail
 EIGS="${EIGENSCRIPT:-eigenscript}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -46,3 +50,22 @@ awk -v x="$RATIO" 'BEGIN{ exit !(x > 1.5) }' || {
     echo "      ORACLE.md's C6 numbers, and re-justify the bound."
     exit 1; }
 echo "PASS: read path dominates at ${RATIO}x — #915's write-path gate cannot help this shape"
+
+# The observed WRITE path must cost something too, or `floor` is a number
+# nobody reads and the "78% reads / 22% writes" split is unsupported.
+WF=$(awk -v w="$W" -v f="$F" 'BEGIN{ if (f<=0) f=0.001; printf "%.2f", w/f }')
+echo "write/floor ratio = ${WF}  (bound: > 1.15)"
+awk -v x="$WF" 'BEGIN{ exit !(x > 1.15) }' || { echo "FAIL: observed writes now cost no more than the unobserved floor (${WF}) — re-measure and re-justify the 78/22 split"; exit 1; }
+echo "PASS: observed write path costs ${WF}x the unobserved floor"
+
+# PLANTED FAULT for this gate (rungs 0-2 refuse to ship a gate never shown
+# able to fail). Feed the bound a ratio built from the write variant on
+# BOTH sides — what the measurement would look like if reads became free —
+# and require the bound to reject it. This validates the bound logic, which
+# is the part that could silently accept anything; the variants themselves
+# are validated by having just been run above.
+PLANTED=$(awk -v r="$W" -v w="$W" 'BEGIN{ printf "%.2f", r/w }')
+if awk -v x="$PLANTED" 'BEGIN{ exit !(x > 1.5) }'; then
+    echo "FAIL: the C6 bound accepted a planted ratio of ${PLANTED} — this gate cannot fail"; exit 1
+fi
+echo "PASS: C6 planted fault rejected (ratio ${PLANTED} <= 1.5)"

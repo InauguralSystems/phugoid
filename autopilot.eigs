@@ -110,7 +110,7 @@ define cl_euler_step(s, dt, de_trim, kq, P) as:
 # Closed-loop run at a FIXED gain. rn is the row name whose executed
 # parameters are emitted for manifest identity (rung-2 round-7 rule).
 define cl_run(rn, state0, de_trim, kq, dt, nsteps, decim, P, method) as:
-    print of f"ROW {rn} params={kq}|{dt}|{decim}|{nsteps}"
+    print of f"ROW {rn} params={kq}|{dt}|{decim}|{nsteps}|{state0[0]}|{state0[1]}|{state0[2]}|{state0[3]}"
     local s is [state0[0], state0[1], state0[2], state0[3]]
     local rec is {"t": [], "u": [], "w": [], "q": [], "th": []}
     append of [rec.t, 0.0]
@@ -145,7 +145,7 @@ define cl_run(rn, state0, de_trim, kq, dt, nsteps, decim, P, method) as:
 # oscillating verdicts, could never be shown able to fail).
 # `method` selects the integrator, as in cl_run.
 define sup_run(rn, state0, de_trim, kq, dt, nsteps, decim, cadence, P, method, freeze) as:
-    print of f"ROW {rn} params={kq}|{dt}|{decim}|{cadence}|{nsteps}"
+    print of f"ROW {rn} params={kq}|{dt}|{decim}|{cadence}|{nsteps}|{state0[0]}|{state0[1]}|{state0[2]}|{state0[3]}"
     local s is [state0[0], state0[1], state0[2], state0[3]]
     local rec is {"t": [], "q": [], "engaged": [], "verdict": [], "reads": 0, "toggles": 0}
     local gain is 0.0

@@ -58,13 +58,17 @@ a closed-loop autopilot, with the observer as its supervisory layer:
   to 0.15–0.64%, and the whole grading apparatus transferred with no new
   oracle code.
 - **The observer in the loop.** Two of three pre-registered predictions
-  were **refuted**, which is the rung's main result: at inner-loop rate
-  the observer is not noisy but *blind* (0 oscillating verdicts in 8000
-  reads — the window spans 1% of a cycle), and supervision does not hold
-  cleanly but *flickers* (15 engage/disengage toggles in one phugoid
-  episode, for want of hysteresis). The design law that survives: a
-  windowed verdict is actionable only for regimes persisting longer than
-  ~1–2 observation windows.
+  were **refuted**, which is the rung's main result. At inner-loop rate
+  the observer is not noisy — but neither is it merely blind: on a
+  smoothly *decaying* phugoid it never says `oscillating` (0 of 8000
+  reads) and instead alternates `diverging` (49%) and `converged` (51%),
+  so an autopilot would fight a healthy mode half the time. Supervision
+  does not hold cleanly either; it *flickers* 17 times in one phugoid
+  episode for want of hysteresis. The corrected design law needs two
+  conditions: a verdict is actionable only when the regime persists
+  beyond ~1–2 observation windows **and** the observed channel clears the
+  deadband — the latter a sharp cliff (56 → 0 verdicts) that is
+  EigenScript#1045 changing what an actuator does.
 - **`tests/ap_profile.eigs`** — the observer's READ path, which no
   consumer had put under load, is 2–2.8× the write path on this shape,
   so EigenScript#915's write-path gate cannot help it by construction.
