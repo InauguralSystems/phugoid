@@ -90,7 +90,12 @@ WF_CEIL=3.0
 # arms PER-INTERPRETER-STATE and monotonically, so one verdict read anywhere in the
 # program re-arms entropy bookkeeping for every assignment in it. This
 # bound is the penalty itself, measured against a separate program that is
-# read-free by construction. What the file pin has to defend for that
+# read-free by construction. NOTE (round 15): because noread/floor is ~1.0
+# by construction, write/noread and write/floor are near-duplicates of one
+# measurement, not two independent arms -- they measured 1.42 and 1.40 in
+# the same run. write/noread is kept because it names the regime (its
+# denominator is an UNARMED program, not an unobserved block) and so its
+# failure is diagnostic of the upstream fix; it is not extra coverage. What the file pin has to defend for that
 # control is "reader-opcode-free AND reader-NAME-free" -- the gate also
 # scans the constant pool, so a bare string `"report"` arms it.
 WA_BOUND=1.15

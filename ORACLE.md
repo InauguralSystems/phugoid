@@ -1015,11 +1015,17 @@ first gain tried during design did exactly that — phugoid ζ went to
   **rung 1's S0 arms, not rung 2's** — corrected after measurement: this
   is the longitudinal plant, whose trim sits at a small non-zero α, so
   the entries that are structurally zero in the chain matrix are
-  O(u₀·α_trim) here (worst **0.01405** at a13 = −w_trim; rung 1's
-  sibling row reads 0.01428 — a DIFFERENT number, and the first draft
-  published rung 1's here. C0 is built at kq=0.5 only, so
-  gain-independence is structural — `B[0] = 0` makes `A_cl[0][2]`
-  gain-free — and is asserted by no shipped check). Rung
+  O(u₀·α_trim) here (worst **0.01405** at a13, measured at kq = 0.5).
+  Round 15 corrected two stories attached to that number. It is NOT
+  `−w_trim`: measured, `−w_trim = 0.015188` against `J[0][2] = 0.014054`,
+  7.5% apart, so the identity was an approximation stated as an equality.
+  And `0.01428` is not "rung 1's sibling row" — it is **rung 3's own value
+  at kq = 0**. The residual is linearly gain-DEPENDENT (0.014283, 0.014168,
+  0.014054, 0.013825, 0.013366 at kq = 0, 0.25, 0.5, 1, 2), because
+  `B[0] = 0` makes the *reference* `A_cl[0][2]` gain-free while the
+  measured sim Jacobian moves — the elevator reaches `w` and `q`, which
+  feed `u̇` through the nonlinear aero. C0 runs at kq = 0.5 only, so the
+  residual's gain-dependence is real, small, and unmeasured. Rung
   2 reached machine epsilon only because its lateral trim is the exact
   origin. Arms: rel 3·10⁻³ with per-entry absolute arms as in rung 1.
   This pins that the controller's linearization is the matrix the
@@ -1074,7 +1080,8 @@ cadences `C5.sp.{c010,c020}`.
   FINGERPRINT and is labelled as one. What genuinely ties to the physics is
   `runs`: the predicate flips 4× per period, so 4 × 400 s / 46.918 s = 34.1
   transitions plus 3 start-up runs = 37 — verified against the segment
-  dump, where the cycle is 260+220+198+260 = 938 = T/dt exactly.
+  dump: the first cycle is 260+220+198+260 = 938 against T/dt = 938.35, and
+  later cycles sum to 939 — agreement to within a sample, not exact.
   **Round 14 deleted a second false clause from this same sentence.** Round
   13's replacement added "and it tracks gain across the ramp (kq 0.5 → 35,
   kq 1.0 → 31)", which is refuted by the premise six lines above it: if the
@@ -1228,8 +1235,8 @@ cadences `C5.sp.{c010,c020}`.
    Engagement latency ≈ the window duration; the closed-loop response
    while engaged still matches the C2 predictions.
 3. **No single observation cadence serves both longitudinal modes.**
-   The window is 10 SAMPLES, so seeing an oscillation fold requires the
-   window to span a period — which delays the verdict by half a period.
+   The window is 10 SAMPLES, so the window's SPAN scales with cadence, and
+   the mode is visible only inside a band of spans.
    Short period (T = 9.13 s) and phugoid (T = 46.9 s) differ by 5.1×, so
    the cadence that makes one observable makes the other useless. This is
    G4 escalated from "wrong verdict" to "unsatisfiable requirement", and
@@ -1269,12 +1276,34 @@ than one that does not:
   s7 and s12 red it. (These are the
   round-1 re-measurements on the corrected IC; the first draft published
   59 and 15 from the looping trajectory.)
-- **Prediction 3 — CONFIRMED, and stronger than stated.** For the short
-  period there is no usable cadence at all: 0.1 s and 0.2 s cadences are
-  blind (window < period), 0.5 s and 1 s report exactly once, *after* the
-  mode has decayed (t = 5 s and t = 10 s for a mode that is gone by ~5 s).
-  Detection latency and phase lag are the same quantity, so a windowed
-  verdict cannot act on a well-damped transient. The complement holds
+- **Prediction 3 — CONFIRMED; its stated MECHANISM was refuted at round
+  15.** The conclusion holds: for the short period there is no usable
+  cadence at all. The explanation published with it — "blind because the
+  window is shorter than a period" — was falsified by the rung's own
+  shipped row. `C5.sp.c050` has a window spanning **0.55** of the SP period
+  and reports `oscillating`. Swept, the response is a two-sided BAND, and
+  only the lower edge had ever been published:
+
+  | cadence | window span | span / T_sp | verdict |
+  |---|---|---|---|
+  | 0.4 s (`c040`) | 4 s | 0.43 | blind — last blind |
+  | 0.44 s (`c044`) | 4.4 s | 0.47 | **sighted** — visibility starts near HALF a period |
+  | 0.5 s (`c050`) | 5 s | 0.55 | sighted |
+  | 1.0 s (`c100`) | 10 s | 1.08 | sighted — last sighted |
+  | 1.2 s (`c120`) | 12 s | 1.29 | blind again — unpublished until round 15 |
+
+  The two edges have different causes: below, too little of a fold in the
+  window to classify; above, the G5 horizon — by the time the window fills
+  (9 cadences) the mode is under the deadband. Prediction 3 and the horizon
+  law were written up as separate findings and they meet here. All four
+  edge rows are now pinned, so no windowing change can restore the monotone
+  "fast = blind, slow = too late" story — the same defect round 2 closed
+  for `C5.p4`'s ramp, recurring in the neighbouring table.
+  The sighted rows all report exactly once, *after* the mode has decayed
+  (t ≥ 4.4 s for a mode gone by ~5 s; at the earliest sighted cadence the
+  latency is still ~1.9 decay constants). Detection latency and phase lag
+  are the same quantity, so a windowed verdict cannot act on a well-damped
+  transient. The complement holds
   too: the lightly-damped phugoid (ζ = 0.036, ringing for many periods)
   IS actionable — 56 of 80 reads at a matched cadence.
 
@@ -1380,15 +1409,15 @@ measured one.)
 | s1 | gain sign flipped (the design error the chain caught before any sim ran) | 43 |
 | s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 43 |
 | s3 | Euler instead of RK4 | 21 |
-| s4 | trim offset by 0.01 rad | 57 |
+| s4 | trim offset by 0.01 rad | 60 |
 | s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
 | s6 | grading-dt dilation (estimator side only) | 6 |
-| s7 | verdict stream frozen — supervisory layer inert | 34 |
+| s7 | verdict stream frozen — supervisory layer inert | 36 |
 | s8 | ζ/T constant-replaced with the identity field carried | 13 |
-| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 45 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 46 |
 | s10 | dt-rerun grading separator | 1 |
 | s11 | ζ estimator slot alias | 16 |
-| s12 | verdicts forced to `oscillating` — the dual of s7 | 38 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 42 |
 | s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
 | s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
@@ -1397,6 +1426,15 @@ measured one.)
 C6's FOUR planted faults live in `tests/test_ap_profile.sh` — one per arm
 (read/write floor, write/floor floor, write/floor ceiling, write/noread
 floor) — and are counted separately; they are not part of this 16.
+
+**Two arms, one measurement (round 15).** Since `noread/floor` is ~1.0 by
+construction, `write/noread` and `write/floor` are near-duplicates — 1.42
+and 1.40 in the same run, same bound, both faults at ratio 1.00.
+`write/noread` earns its place by naming the regime (its denominator is an
+unarmed *program*, not an `unobserved:` block), so its failure is the
+diagnostic that says "upstream scoped the arming, re-attribute and close
+G7". It is not extra coverage, and the four-arm count should not be read
+as four independent facts.
 
 **Instrument confound in the read/write split (round 14).** `run_read`
 executes 133,286 more observed assignments than `run_write` — the `hits`
@@ -1437,7 +1475,7 @@ pre-registered clause.
 
 ## Exit gate for rung 3
 
-1. All C checks green (92, population pinned); every one of the 16
+1. All C checks green (96, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
    all FOUR of its planted faults (one per arm);
    rungs 0–2 suites untouched and green.

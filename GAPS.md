@@ -163,15 +163,26 @@ Consequences measured in this repo's own C6 gate (`tests/test_ap_profile.sh`):
   all arming.
 - Against a read-free control module (`tests/ap_profile_noread.eigs`),
   `noread/floor` is **1.0 within noise** (1.02–1.11 quiet across ten n=5
-  rounds): an observed scalar write really is ~free, as the pre-rung-3
-  probe reported. Rung 3's round-1 review withdrew that claim as
-  unreproducible. **The claim was true and the withdrawal was wrong** —
-  nobody had identified the regime variable.
-- Decomposing this shape's observer cost across five n=5 rounds:
-  reads-direct **75–89%**, arming **3–21%**, and intrinsic write cost
-  **indistinguishable from zero** (−10% to +22%, straddling it). So ~all of
-  it is attributable to reads, directly or through arming — not the 22%
-  "writes" first published.
+  rounds). In a program with NO verdict read anywhere, an observed scalar
+  write really is ~free — which is what the pre-rung-3 probe reported, and
+  rung 3's round-1 review withdrew it as unreproducible. **The claim was
+  true in its regime and the withdrawal was wrong**; nobody had identified
+  the regime variable. It does not generalise to a program that reads
+  verdicts, which is the case that matters for a consumer.
+- Attribution, corrected twice more since this entry was written. The
+  "intrinsic write cost is indistinguishable from zero" framing is
+  CIRCULAR: `noread` and `floor` are both states in which the entropy walk
+  does not run (an unarmed program, and an `unobserved:` block), so their
+  ratio is a tautology of the definition, not a measurement about writes.
+  Stated correctly for a program that reads verdicts at all — which an
+  autopilot does — the split is **reads-direct ~75% and observed-write
+  bookkeeping ~25%**, and #915 elides the 25% only where no read exists
+  anywhere. The instrument is not clean either: `run_read` executes 133,286
+  more observed assignments than `run_write`, so the numerator contains
+  write cost; a confound-free variant reads 76.7/23.3 against the shipped
+  formula's 81.6/18.4. Read it as "roughly three-quarters", not to a digit.
+  What does NOT survive is the 22% "writes" first published, or the "94/6"
+  that briefly replaced it.
 - Pinned live as `write/noread > 1.15` with a planted fault, so the day
   upstream scopes arming, C6 fails and says to re-attribute and close G7.
 

@@ -10,7 +10,7 @@
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 92.
+# Population pinned at exactly 96.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -222,11 +222,14 @@ check_below of ["C1.hold.q", hmax_q, 1e-9]
 # ------------------------------------------------------- C0: closed-loop parity
 # Per-entry absolute arms inherited from rung-1's S0: the longitudinal
 # trim sits at a small non-zero alpha, so entries that are structurally
-# zero in the chain matrix are O(u0*alpha_trim) here (a13 = -w_trim,
-# 0.01405 in rung 3 -- rung 1's sibling row reads 0.01428, a different
-# number the first draft of this comment copied across). Gain-independence
-# is structural (B[0] = 0 leaves A_cl[0][2] gain-free), not measured: the
-# 16 C0 rows are all built at kq=0.5.
+# zero in the chain matrix are O(u0*alpha_trim) here: a13 = 0.01405 at
+# kq=0.5. Round 15 corrected two stories about that number. It is NOT
+# -w_trim (0.015188 vs 0.014054, 7.5% apart -- an approximation stated as
+# an identity), and 0.01428 is not rung 1's sibling row, it is rung 3's own
+# value at kq=0. The residual is gain-DEPENDENT (0.014283 -> 0.013366 over
+# kq 0..2): B[0]=0 leaves the REFERENCE gain-free, but the measured sim
+# Jacobian moves because the elevator reaches w and q, which feed udot
+# through the nonlinear aero. All 16 C0 rows run at kq=0.5.
 Jcl is cl_jacobian of [tr.state, tr.de, eff_gain of (0.5), tr.P]
 Acl_ref is a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]]
 c0_abs is [[0.001, 0.001, 0.03, 0.001], [0.001, 0.001, 0.001, 0.004], [1e-5, 1e-6, 0.001, 1e-5], [0.001, 0.001, 0.001, 0.001]]
@@ -418,7 +421,8 @@ check_exact of ["C2.ph.Tdft.k", ph_Td.k, 8]
 # runs IS tied to the physics: the predicate flips 4x per period, so over
 # 400 s of flight at T = 46.918s that is 4*400/46.918 = 34.1 transitions,
 # plus the 3 start-up runs (stable 9, equilibrium 1, diverging 32) = 37 --
-# and the cycle dump is 260+220+198+260 = 938 = T/dt exactly.
+# and the first cycle dumps 260+220+198+260 = 938 against T/dt = 938.35
+# (later cycles sum to 939 -- a sample, not exact).
 # It does NOT track the gain. Round 13 claimed it did; round 14 measured
 # eff_gain 0.5 -> 2.0 leaving all nine inner rows bit-identical, and s1/s2
 # red zero of them. kq is provably INERT on this row, which is the
@@ -449,6 +453,22 @@ define verdict_runs(rec) as:
 # wrong fraction (+11%).
 # So maxrun is an order FINGERPRINT, not a derived quantity. The physics
 # tie lives on verdict_runs above, where the arithmetic actually holds.
+# An ORDER checksum that a reversal cannot fix: the sum of the indices at
+# which the stream says `oscillating`. Round 14 pinned C5.p4's interiors
+# with runs+maxrun; round 15 measured that neither binds them -- maxrun on
+# those rows is just the post-horizon converged tail (41/26/21 = 79 minus
+# the horizon), and run COUNT is reversal-invariant by construction, so
+# reversing every verdict strictly between onset and horizon passed 92/92,
+# all 16 plants and the manifest. This does bind: reversal moves it.
+define verdict_oidx(rec) as:
+    local t is 0
+    local i is 0
+    loop while i < (len of rec.verdict):
+        if rec.verdict[i] == "oscillating":
+            t is t + i
+        i is i + 1
+    return t
+
 define verdict_maxrun(rec) as:
     local best is 0
     local cur is 0
@@ -509,13 +529,27 @@ define osc_count(rec) as:
     return n
 
 # C5.P3 — the cadence sweep on the SHORT PERIOD: no cadence both sees the
-# fold and reports in time. Fast cadences are blind (window < period);
-# slow ones report after the mode is over.
+# fold and reports in time. The response is a two-sided BAND, and round 15
+# refuted the mechanism this comment used to state ("requires the window to
+# span a period"): the shipped c050 row is itself the counter-example, at
+# window span 0.547 of the SP period, sighted. Measured edges, SP T = 9.268s
+# at dt = 0.02, window = 10 samples so span = 10*cadence*dt:
+#   cad 20 (span 0.43 T)  blind      <- lower edge, last blind
+#   cad 22 (span 0.47 T)  SIGHTED    <- visibility starts near HALF a period
+#   cad 50 (span 1.08 T)  sighted    <- upper edge, last sighted
+#   cad 60 (span 1.29 T)  blind      <- the G5 horizon: by the time the
+#                                       window fills, the mode is under the
+#                                       deadband
+# The two edges have DIFFERENT causes -- too little of a fold to see, then
+# too late to matter -- and the upper one was published nowhere until
+# round 15. Both are pinned below so no windowing change can restore the
+# monotone "fast = blind, slow = too late" story, which is the same defect
+# round 2 closed for C5.p4's ramp.
 # The `.at` row is the point of prediction 3: a COUNT of 1 is equally
 # consistent with "reported once, far too late" and "reported instantly".
 # Only the read index distinguishes them — read 9 x the cadence gives the
 # t = 5 s and t = 10 s the bar publishes, against a mode gone by ~5 s.
-for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c050", 25, 1, 9], ["c100", 50, 1, 9]]:
+for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c040", 20, 0, 0.0 - 1.0], ["c044", 22, 1, 9], ["c050", 25, 1, 9], ["c100", 50, 1, 9], ["c120", 60, 0, 0.0 - 1.0]]:
     local rec is sup_run of [f"C5.sp.{cs[0]}.run", ic_sp, tr.de, eff_gain of (0.5), 0.02, 1500, 25, cs[1], tr.P, method, freeze]
     check_exact of [f"C5.sp.{cs[0]}.osc", osc_count of (rec), cs[2]]
     # Round 14: first_osc/last_osc return -1 IFF osc_count == 0, so a `.at`
@@ -637,7 +671,7 @@ check_exact of ["C4.ph.first_engaged", first_engaged of (ph_rec), 19]
 # the saturation boundary — a row there (uamp 0.5: horizon 78 against a
 # last read of 79) flips by one under any perturbing plant, which is
 # brittleness rather than signal.
-for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0], ["a030", 0.3, 23, 38, 9, 12, 41], ["a040", 0.4, 40, 58, 9, 15, 21], ["a035", 0.35, 34, 53, 9, 16, 26]]:
+for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0], ["a030", 0.3, 23, 38, 9, 12, 554], ["a040", 0.4, 40, 58, 9, 15, 1376], ["a035", 0.35, 34, 53, 9, 16, 1053]]:
     local icr is mode_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 0, ramp[1]]
     local rc is sup_run of [f"C5.p4.{ramp[0]}.run", icr, tr.de, eff_gain of (0.5), 0.05, 8000, 100, 100, tr.P, method, freeze]
     check_exact of [f"C5.p4.{ramp[0]}.osc", osc_count of (rc), ramp[2]]
@@ -646,16 +680,16 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0], ["a030", 0.3, 23, 38,
         check_exact of [f"C5.p4.{ramp[0]}.onset", first_osc of (rc), ramp[4]]
         # ...and the INTERIOR, which onset+horizon+count leave free: the
         # verdicts between them can be permuted with all three matching.
-        # Round 12 gave this twin to C5.p1.inner and round 13 to C4.ph;
-        # round 14 found the third stream in the same class still without
-        # it. Twinned now rather than one stream per round.
+        # Round 14 reached for runs+maxrun here; round 15 showed neither
+        # binds an interior (maxrun on these rows is the post-horizon tail,
+        # and run COUNT is reversal-invariant). verdict_oidx does.
         check_exact of [f"C5.p4.{ramp[0]}.runs", verdict_runs of (rc), ramp[5]]
-        check_exact of [f"C5.p4.{ramp[0]}.maxrun", verdict_maxrun of (rc), ramp[6]]
+        check_exact of [f"C5.p4.{ramp[0]}.oidx", verdict_oidx of (rc), ramp[6]]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 92:
-    print of f"FAIL harness: expected exactly 92 checks, ran {checks_run}"
+if checks_run != 96:
+    print of f"FAIL harness: expected exactly 96 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1
