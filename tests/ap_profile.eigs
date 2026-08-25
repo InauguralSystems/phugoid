@@ -46,7 +46,7 @@ define run_read(n) as:
         if diverging of th:
             hits is hits + 1
         i is i + 1
-    return hits
+    print of f"read {hits} {i * READ_SITES}"
 
 define run_write(n) as:
     local u is 0.0
@@ -60,7 +60,7 @@ define run_write(n) as:
         q is 0.01 * (sin of (i * 0.03))
         th is 0.02 * (cos of (i * 0.02))
         i is i + 1
-    return i
+    print of f"write {i}"
 
 define run_floor(n) as:
     local u is 0.0
@@ -75,11 +75,18 @@ define run_floor(n) as:
             q is 0.01 * (sin of (i * 0.03))
             th is 0.02 * (cos of (i * 0.02))
             i is i + 1
-    return i
+    print of f"floor {i}"
 
+# Each variant PRINTS ITS OWN LINE, from its own loop counter. Round 8
+# found the call site the last unpinned surface: `run_floor of (0)` left
+# every pin matching (body hash, line count, site count, `floor 120000`
+# via `0 + N`) while the measured "unobserved floor" became 0.008 s of
+# interpreter startup and write/floor reported 28.75 instead of 1.44. A
+# token computed at the call site can be fabricated there; one printed by
+# the loop that earned it cannot.
 if mode == "read":
-    print of f"read {run_read of (N)} {N * READ_SITES}"
+    run_read of (N)
 elif mode == "write":
-    print of f"write {run_write of (N)}"
+    run_write of (N)
 else:
-    print of f"floor {run_floor of (N)}"
+    run_floor of (N)

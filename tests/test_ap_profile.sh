@@ -46,6 +46,13 @@ med() {  # median of 5 wall-clock seconds for one variant. Round-2 review
 # validates it must share the constant.
 RW_BOUND=1.5
 WF_BOUND=1.15
+# A CEILING on write/floor, added at round 8. The read/write ratio
+# deliberately has none (load INFLATES it -- 3.38 measured on unmutated
+# code), but load DEFLATES write/floor (0.98 measured at round 7), so a
+# ceiling here cannot flake in the direction load pushes. It catches the
+# floor collapsing, which is how every fabrication of this ratio so far
+# has presented.
+WF_CEIL=3.0
 
 # The bounds are DATA and get the manifest treatment every tolerance
 # argument in this repo gets. Round-5 review widened both literals
@@ -55,6 +62,7 @@ WF_BOUND=1.15
 # and the value itself was free. A bound-derived plant cannot fix this
 # (it tracks the widening); the declared value has to be pinned.
 [ "$RW_BOUND" = "1.5" ]  || { echo "FAIL: RW_BOUND is $RW_BOUND, declared 1.5 — a widened bound must be re-justified in ORACLE.md, not edited in place"; exit 1; }
+[ "$WF_CEIL" = "3.0" ]   || { echo "FAIL: WF_CEIL is $WF_CEIL, declared 3.0 — a widened bound must be re-justified in ORACLE.md, not edited in place"; exit 1; }
 [ "$WF_BOUND" = "1.15" ] || { echo "FAIL: WF_BOUND is $WF_BOUND, declared 1.15 — a widened bound must be re-justified in ORACLE.md, not edited in place"; exit 1; }
 
 # check_ratio <label> <value> <bound> -> 0 if value > bound
@@ -74,8 +82,8 @@ echo "--- ap_profile (C6: observer read-path cost) ---"
 # The hit total is not enough on its own. Round-6 review measured the
 # per-predicate split -- osc(u)=0, conv(w)=11563, stable(q)=65157,
 # div(th)=56566 -- so `oscillating of u` contributes NOTHING to 133286.
-# Deleting it (read path -25%, ratio 1.98 -> 1.67, outside ORACLE.md's own
-# declared 1.94-2.13 window) and adding three more copies of it (+75%,
+# Deleting it (read path -25%, ratio 1.98 -> 1.67, below anything measured
+# on unmutated code) and adding three more copies of it (+75%,
 # ratio -> 2.91) both left the pin matching and the whole suite green.
 # A hit count cannot pin a zero-hit read, so the read POPULATION is pinned
 # structurally too, against the source.
@@ -89,14 +97,15 @@ echo "--- ap_profile (C6: observer read-path cost) ---"
 #     into 2.59 -- round 5's defect through the other door, halving the
 #     WORK instead of the count;
 #   * moving the zero-hit read OUT of run_read's loop and into run_write
-#     left SITES=4 and the hit total matching, at ratio 1.70;
+#     left the site count and the hit total matching, at ratio 1.70;
 #   * `if not (oscillating of q):` adds a read the anchored grep cannot
 #     see at all -- as can `elif`, `while`, and `x is converged of u`.
 # So the measured loop bodies are pinned by IDENTITY, the way every other
 # tolerance argument in this repo is. Comment and blank lines are stripped
 # first (they do not change the work); anything else that edits a measured
-# body fails loudly and demands a re-measure. The site grep below survives
-# as a CROSS-CHECK, not as the pin.
+# body fails loudly and demands a re-measure. Note the strip is by LINE: a
+# comment appended to a code line still reds the gate. That is the
+# fail-safe direction, but it is not what "comments are ignored" implies.
 body_hash() {
     awk -v fn="define $1(" '
         index($0, fn) == 1 { inbody = 1; next }
@@ -116,19 +125,33 @@ body_lines() {
 }
 # A body that hashed to nothing would pass vacuously, so each body's line
 # count is pinned alongside its identity (the repo's no-vacuous-check rule).
-for spec in "run_read:c96261f002fb:21" "run_write:0bacadcc97cc:12" "run_floor:e90a67de0235:13"; do
+for spec in "run_read:d2e2942f112e:21" "run_write:514b678f699a:12" "run_floor:82a98c4d1216:13"; do
     fn=${spec%%:*}; rest=${spec#*:}; want=${rest%%:*}; wantn=${rest##*:}
     got=$(body_hash "$fn"); gotn=$(body_lines "$fn")
     [ "$gotn" = "$wantn" ] || { echo "FAIL: $fn's measured body is $gotn lines, declared $wantn — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure all three variants and re-pin"; exit 1; }
     [ "$got" = "$want" ]   || { echo "FAIL: $fn's measured body changed (identity $got, declared $want) — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure all three variants and re-pin"; exit 1; }
 done
-DECL_SITES=4
-[ "$DECL_SITES" = "4" ] || { echo "FAIL: DECL_SITES is $DECL_SITES, declared 4 — the read population is DATA and gets the same identity pin the bounds do"; exit 1; }
-SITES=$(grep -c '^[[:space:]]*if \(oscillating\|converged\|stable\|diverging\|improving\|equilibrium\) of ' tests/ap_profile.eigs)
-[ "$SITES" = "$DECL_SITES" ] || { echo "FAIL: tests/ap_profile.eigs has $SITES predicate read sites, declared $DECL_SITES — the read path's population changed, so the ratio measures a different workload than ORACLE.md publishes"; exit 1; }
-"$EIGS" tests/ap_profile.eigs read  | grep -q '^read 133286 480000$'  || { echo "FAIL: read variant did not execute its declared work (expect 'read 133286 480000')";  "$EIGS" tests/ap_profile.eigs read;  exit 1; }
-"$EIGS" tests/ap_profile.eigs write | grep -q '^write 120000$' || { echo "FAIL: write variant did not execute its declared work (expect 'write 120000')"; "$EIGS" tests/ap_profile.eigs write; exit 1; }
-"$EIGS" tests/ap_profile.eigs floor | grep -q '^floor 120000$' || { echo "FAIL: floor variant did not execute its declared work (expect 'floor 120000')"; "$EIGS" tests/ap_profile.eigs floor; exit 1; }
+# Round 8 retired the site grep that round 6 added: any read added to or
+# removed from a measured loop already changes that loop's body hash, so
+# the grep caught nothing the hashes miss and could only false-alarm on a
+# module-level predicate read. One layer, not two.
+#
+# The variants print their OWN line now, from their own loop counters, and
+# the whole output is matched EXACTLY rather than grepped. Round 8 found
+# the call site to be the last unpinned surface: `run_floor of (0)` kept
+# every layer matching -- body hash, line count, site count, and
+# `floor 120000` via `0 + N` -- while the measured floor collapsed to
+# 0.008 s of interpreter startup and write/floor reported 28.75 against a
+# published 1.44, fabricating the exact 78/22 split the bound exists to
+# support. An exact match also rejects a fabricated extra line, which
+# `grep -q` would have accepted.
+expect_out() {
+    got=$("$EIGS" tests/ap_profile.eigs "$1")
+    [ "$got" = "$2" ] || { echo "FAIL: $1 variant did not execute its declared work"; echo "  expected: $2"; echo "  got:      $got"; exit 1; }
+}
+expect_out read  "read 133286 480000"
+expect_out write "write 120000"
+expect_out floor "floor 120000"
 R=$(med read); W=$(med write); F=$(med floor)
 echo "read=${R}s  write=${W}s  floor=${F}s  (120k frames, median of 5)"
 RATIO=$(awk -v r="$R" -v w="$W" 'BEGIN{ if (w<=0) w=0.001; printf "%.2f", r/w }')
@@ -158,6 +181,7 @@ if ! check_ratio write/floor "$WF" "$WF_BOUND"; then
     echo "write/floor ratio = ${WF}  (re-measured, decisive)"
     check_ratio write/floor "$WF" "$WF_BOUND" || { echo "FAIL: observed writes now cost no more than the unobserved floor (${WF} on both readings) — re-measure and re-justify the 78/22 split"; exit 1; }
 fi
+awk -v x="$WF" -v c="$WF_CEIL" 'BEGIN{ exit !(x < c) }' || { echo "FAIL: write/floor is ${WF}, above the ${WF_CEIL} ceiling — the unobserved floor has collapsed (it is the denominator), so this is a measurement fault, not a speedup"; exit 1; }
 echo "PASS: observed write path costs ${WF}x the unobserved floor"
 
 # PLANTED FAULT for this gate (rungs 0-2 refuse to ship a gate never shown

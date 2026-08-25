@@ -1032,8 +1032,12 @@ first gain tried during design did exactly that — phugoid ζ went to
   SP-subspace free response of the CLOSED loop, graded by rung-0's
   estimators against the predicted A_cl eigenvalues above: T within
   **1%**, ζ within **2%**, plus the identity pins (k/n_extrema/n_ratios,
-  values distinct per site per the one-literal rule).
-- **C3 — invariances (9):** dt halved < 0.1%; excitation amplitude halved
+  values distinct per site per the one-literal rule). `C2.ph.zlog`, the
+  separate phugoid-IC row, ships a **5%** ζ arm — the phugoid's log
+  decrement is read off a longer, softer envelope than the three kq rows'
+  — and residual 0.16%, so the arm is loose but not load-bearing. It was
+  declared nowhere until round 8 found it.
+- **C3 — invariances (8):** dt halved < 0.1%; excitation amplitude halved
   < 0.5% (declared here and MISSING from the first draft — added at
   round 1); and a **gain-USE witness** — the measured ζ must MOVE with kq
   in the predicted direction and magnitude (rung-2 round-8's lesson: an
@@ -1061,12 +1065,14 @@ cadences `C5.sp.{c010,c020}`.
   frames): read 0.501 s, write 0.243 s, floor 0.169 s, so read/write =
   2.06 and write/floor = 1.44; repeated runs land in **1.95–2.13** for
   read/write — the first draft's "2.09–2.8×" was falsified at round 4 and
-  round 5 measured 1.94 on a quiet box, so the reproduction window is
-  **1.94–2.13** and the margin over the 1.5 bound is ~23%, not 27%. Both
+  round 5 measured 1.94 on a quiet box. Round 8 then measured **1.81** on a
+  quiet box, below that floor, so the honest reproduction spread across
+  ~20 whole-gate runs here is **1.75–2.50**, plus 3.38 under concurrent
+  load. The margin over the 1.5 bound is ~17% at the low end. Both
   bound literals are identity-pinned against their declared values, and
   each variant's EXECUTED work is pinned too (round 5 halved the floor
   variant's loop and the gate reported a greener ratio while every suite
-  stayed green). The 1.94–2.13 window is a REPRODUCTION note, not an arm —
+  stayed green). That spread is a REPRODUCTION note, not an arm —
   the gate has no ceiling, deliberately: a concurrent-load run on this box
   measured read/write = 3.38 on unmutated code, so a ratio ceiling would
   flake on a shared runner. What pins the workload instead is the read
@@ -1083,15 +1089,19 @@ cadences `C5.sp.{c010,c020}`.
   counter-only pin — the repo's own twin-the-fix rule (mechanical-gates
   §94) broken by the fix for the finding that motivated it. Deleting TWO
   of `run_floor`'s four per-frame writes left `floor 120000` matching,
-  collapsed the floor 45%, and turned write/floor from 1.44 into **2.59**
-  (the published 78/22 split silently becoming 67/33); moving the
+  collapsed the floor 45%, and turned write/floor from 1.44 into **2.59**,
+  taking the published 78/22 read/write split with it (round 8 re-measured
+  the mutant at 57/43 rather than the 67/33 first recorded — a DERIVED
+  number that was never itself measured); moving the
   zero-hit read out of the measured loop, and adding a fifth read spelled
   `if not (oscillating of q):`, both evaded the site grep entirely. The
   three measured bodies are now pinned by IDENTITY (comment- and
   blank-stripped hash plus line count, so a body that hashed to nothing
   cannot pass vacuously); the grep survives as a cross-check. Verified:
   all three round-7 mutants and an equal-line-count constant swap fail
-  loudly, a comment-only edit does not. Both bounds are
+  loudly; a FULL-LINE comment inside a measured body does not (a comment
+  appended to a code line does red the gate — fail-safe, and round 8
+  corrected the claim, which had been stated unscoped). Both bounds are
   single-sourced constants shared with their planted faults, after round
   4 found that editing a gate's literal alone left its own fault citing
   the old value and the suite green. The gate takes **median of 5**, not 3 —
@@ -1105,7 +1115,7 @@ cadences `C5.sp.{c010,c020}`.
   number nobody reads) and carries a planted fault proving the bound can
   reject. Shipped as
   `tests/ap_profile.eigs` + `tests/test_ap_profile.sh`, gating the
-  read/write RATIO (measured 1.94–2.13×, bound 1.5×) rather than a wall
+  read/write RATIO (measured 1.75–2.50×, bound 1.5×) rather than a wall
   time, because absolute budgets flake on shared CI runners while the
   ratio is a property of the runtime. If reads are ever made O(1) the
   gate fails BY DESIGN and says so in its own failure message — that is
@@ -1259,13 +1269,35 @@ tokens on every generator AND graded run, USE witnesses on every varied
 parameter, displacement plants at 1.1× executed tolerance for all three
 comparators, no-refusals guards on fabricating plants, manifest identity
 + class vocabulary). Plants planned, red sets measured then pinned:
-s1 gain sign flipped, s2 B column zeroed (controller inert — the rung-1
-inert-obstacle class), s3 Euler, s4 trim offset, s5 gain-USE vacuity
-(rerun built at the base gain), s6 grading-dt dilation, s7 verdict stream
-frozen (supervisory layer inert), s8 ζ/T constant-replace with identity
-carried, s9 broad dataset poison, s10 rerun-side corruption, s11–s13 the
-estimator slot aliases, s14 comparator displacement, s15 read-path budget
-displaced past its bound.
+The SHIPPED matrix, with red counts measured from
+`eigenscript tests/ap_check.eigs <plant>` — rung 2's convention, which
+this section's first draft did not follow. (Round-8 review: the list here
+was the *planned* one and had gone wrong for five plants — s5, s12 and
+s13 were mis-described, s15 as written did not exist, and s16 was missing
+while the exit gate counted 16. A planned list left in place reads as a
+measured one.)
+
+| Plant | Injected into | Reds |
+|---|---|---|
+| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 33 |
+| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 35 |
+| s3 | Euler instead of RK4 | 15 |
+| s4 | trim offset by 0.01 rad | 50 |
+| s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
+| s6 | grading-dt dilation (estimator side only) | 6 |
+| s7 | verdict stream frozen — supervisory layer inert | 21 |
+| s8 | ζ/T constant-replaced with the identity field carried | 13 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 33 |
+| s10 | dt-rerun grading separator | 1 |
+| s11 | ζ estimator slot alias | 16 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 29 |
+| s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
+| s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
+| s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
+| s16 | its mirror — the extrema slot fed by the DFT (makes `as_tp` live) | 1 |
+
+C6's two planted faults live in `tests/test_ap_profile.sh` and are counted
+separately; they are not part of this 16.
 
 ## Exit gate for rung 3
 
