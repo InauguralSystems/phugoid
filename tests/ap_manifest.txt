@@ -66,6 +66,8 @@ ap C5.ph.p045.conv plantable exact=520
 ap C5.ph.p045.stable plantable exact=9
 ap C5.ph.p045.equil plantable exact=0
 ap C5.ph.p045.improving plantable exact=0
+ap C5.ph.p045.runs plantable exact=35
+ap C5.ph.p045.maxrun plantable exact=33
 ap C5.ph.p045.didx plantable exact=163742
 ap C5.ph.p100.osc plantable exact=0
 ap C5.ph.p100.reads structural exact=400
@@ -74,6 +76,8 @@ ap C5.ph.p100.conv plantable exact=101
 ap C5.ph.p100.stable plantable exact=58
 ap C5.ph.p100.equil plantable exact=91
 ap C5.ph.p100.improving plantable exact=30
+ap C5.ph.p100.runs plantable exact=91
+ap C5.ph.p100.maxrun plantable exact=17
 ap C5.ph.p100.didx plantable exact=23583
 ap C4.ph.reads structural exact=80
 ap C4.ph.osc plantable exact=56
@@ -151,3 +155,39 @@ rowparams C5.p4.a020.run params=0.5|0.05|100|100|8000|279.29999958677513|-0.0448
 rowparams C5.p4.a030.run params=0.5|0.05|100|100|8000|279.39999958677515|-0.05965163528770866|-0.0001664972015030863|-0.01509144673313205
 rowparams C5.p4.a040.run params=0.5|0.05|100|100|8000|279.4999995867751|-0.0744729922903473|-0.00022199626867078177|-0.02010379024075162
 rowparams C5.p4.a035.run params=0.5|0.05|100|100|8000|279.44999958677516|-0.06706231378902798|-0.000194246735086934|-0.01759761848694183
+# streamfam — the row-family x verdict-stream coverage matrix (round 20).
+# Eight consecutive review rounds found the SAME defect: a row family added
+# to one verdict stream and not its siblings, five times inside the fix for
+# the previous round's finding, twice with accompanying text asserting the
+# fix was complete. Advice did not stop it, so it becomes a gate: every
+# stream that emits verdicts must have a line here, and every family it
+# declares must have its rows present in the manifest above. A stream added
+# without a line fails loudly -- which is exactly the eight-times failure.
+# Absences must be justified in the line, not left silent.
+streamfam C5.p1.inner  dist=diverging,converged,stable,equilibrium idx=didx runs=yes maxrun=yes
+streamfam C4.ph        dist=stable,moving idx=oidx runs=yes maxrun=yes
+streamfam C5.ph.p045   dist=div,conv,stable,equil,improving idx=didx runs=yes maxrun=yes
+streamfam C5.ph.p100   dist=div,conv,stable,equil,improving idx=didx runs=yes maxrun=yes
+streamfam C5.p4.a020   dist=conv,stable,equil     idx=cidx runs=equiv maxrun=equiv
+streamfam C5.p4.a030   dist=conv,stable,equil     idx=cidx,oidx runs=yes maxrun=justified
+streamfam C5.p4.a035   dist=conv,stable,equil     idx=cidx,oidx runs=yes maxrun=justified
+streamfam C5.p4.a040   dist=conv,stable,equil     idx=cidx,oidx runs=yes maxrun=justified
+streamfam C5.sp.c010   dist=none idx=none runs=none maxrun=none
+streamfam C5.sp.c020   dist=none idx=none runs=none maxrun=none
+streamfam C5.sp.c040   dist=none idx=none runs=none maxrun=none
+streamfam C5.sp.c042   dist=none idx=none runs=none maxrun=none
+streamfam C5.sp.c050   dist=none idx=none runs=none maxrun=none
+streamfam C5.sp.c100   dist=none idx=none runs=none maxrun=none
+streamfam C5.sp.c102   dist=none idx=none runs=none maxrun=none
+streamfam C1.hold      dist=none idx=none runs=none maxrun=none
+# The cl_run rows below emit no verdicts at all -- they are graded
+# trajectories, not observer streams -- so every family is legitimately
+# `none`. They are listed because the gate enumerates from ROW tokens, and
+# a stream silently absent from this file is the failure it exists to stop.
+streamfam C2.k025      dist=none idx=none runs=none maxrun=none
+streamfam C2.k050      dist=none idx=none runs=none maxrun=none
+streamfam C2.k100      dist=none idx=none runs=none maxrun=none
+streamfam C2.ph        dist=none idx=none runs=none maxrun=none
+streamfam C3.amp       dist=none idx=none runs=none maxrun=none
+streamfam C3.dt        dist=none idx=none runs=none maxrun=none
+streamfam C3.lin       dist=none idx=none runs=none maxrun=none

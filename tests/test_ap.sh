@@ -15,6 +15,6 @@ echo "--- ap_check (C0..C5) ---"
 if ! "$EIGS" tests/ap_check.eigs > "$OUT" 2>&1; then
     echo "FAIL: ap_check exited nonzero"; grep '^FAIL' "$OUT" || true; tail -3 "$OUT"; exit 1
 fi
-grep -q '^CHECKS_RUN 130$' "$OUT" || { echo "FAIL: check population not 130"; tail -3 "$OUT"; exit 1; }
+grep -q '^CHECKS_RUN 134$' "$OUT" || { echo "FAIL: check population not 134"; tail -3 "$OUT"; exit 1; }
 grep -q '^FAILURES 0$' "$OUT" || { echo "FAIL: failures reported"; grep '^FAIL' "$OUT"; exit 1; }
-echo "PASS: 130/130 rung-3 checks green"
+echo "PASS: 134/134 rung-3 checks green"

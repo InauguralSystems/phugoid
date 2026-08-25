@@ -1339,11 +1339,16 @@ than one that does not:
   holds on both sides — shipped as `C5.ph.{p045,p100}`. **"Blind" is the
   wrong word**, as this rung's own prediction-1 write-up says: the observer
   is not silent, it is loud and wrong. At 1 Hz — the literal case G4 /
-  EigenScript#1044 is built on — the phugoid yields SIX verdict classes and
+  EigenScript#1044 is built on — the phugoid yields FIVE verdict classes and
   **120 `diverging` reads on a healthy decaying mode**, which strengthens
-  prediction 3. Round 19 also found the rung's *sixth* verdict class,
-  `improving` (30 reads at 1 Hz), pinned nowhere — the fifth, `moving`,
-  arrived the same way at round 13. Both rows now carry a closed
+  prediction 3. Round 19 also found `improving` (30 reads at 1 Hz)
+  pinned nowhere. Round 20 corrected the count in both directions: the
+  runtime's numeric `report` vocabulary is exactly SEVEN
+  (`obs_num_report` — oscillating, diverging, improving, converged,
+  equilibrium, stable, moving), so `improving` is the seventh class and
+  `moving` (round 13, "a FIFTH verdict class") the sixth. The rung now
+  exhibits all seven. The "six classes at 1 Hz" figure counted six pinned
+  ROWS, one of which is a zero. Both rows now carry a closed
   distribution and an order checksum; round 18 shipped them pinning only
   `osc = 0`, so relabelling the whole stream to `diverging` — the exact
   mutation round 18 had just closed on a020 — passed 116/116 and every
@@ -1468,16 +1473,16 @@ measured one.)
 |---|---|---|
 | s1 | gain sign flipped (the design error the chain caught before any sim ran) | 55 |
 | s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 54 |
-| s3 | Euler instead of RK4 | 39 |
-| s4 | trim offset by 0.01 rad | 83 |
+| s3 | Euler instead of RK4 | 41 |
+| s4 | trim offset by 0.01 rad | 85 |
 | s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
 | s6 | grading-dt dilation (estimator side only) | 6 |
-| s7 | verdict stream frozen — supervisory layer inert | 63 |
+| s7 | verdict stream frozen — supervisory layer inert | 67 |
 | s8 | ζ/T constant-replaced with the identity field carried | 13 |
-| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 66 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 69 |
 | s10 | dt-rerun grading separator | 1 |
 | s11 | ζ estimator slot alias | 16 |
-| s12 | verdicts forced to `oscillating` — the dual of s7 | 71 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 75 |
 | s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
 | s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
@@ -1506,6 +1511,27 @@ session, and the shipped formula's own run-to-run spread is 74–82%. The
 published ~75/25 survives, but the instrument is not clean and the number
 should be read as "roughly three-quarters", not to a digit.
 
+**The twinning failure became a GATE (round 20).** Eight consecutive
+rounds found the same defect — a row family added to one verdict stream
+and not its siblings — five of them inside the fix for the previous
+round's finding, and twice with accompanying text asserting the fix was
+complete. Prose did not stop it. `tests/ap_manifest.txt` now carries a
+`streamfam` matrix declaring, per stream, which row families it has and
+why any are absent; `tests/test_ap_planted.sh` enumerates the streams from
+their ROW tokens and fails if one has no line, or if a declared family's
+rows are missing. Validated with three planted faults: a new undeclared
+stream, a deleted family row, and a vacuous stream list. The third caught
+a real bug in the gate itself — under `set -e` an empty `grep` aborted
+before the vacuity check could speak.
+Absences are declared, not silent: `C5.sp.*` carry no families (disclosed
+in known-unexercised (e)), `C5.p4.a020` is `equiv` for `runs`/`maxrun`
+(proved), and the `C2/C3` rows emit no verdicts at all.
+It also made an inconsistency visible that no round had named: the same
+family is spelled three ways across streams (`diverging`/`div`,
+`converged`/`conv`, `equilibrium`/`equil`). The gate declares actual
+suffixes rather than papering over it; normalising the spellings would
+churn ~20 pins and is deferred, not forgotten.
+
 **Margin note (round 12).** Two arms ship with sub-15% headroom on a
 shared runner: `write/floor` (bound 1.15, measured 0.98 once under load at
 round 7) and `write/noread` (bound 1.15, measured 1.21–1.59). Each gets
@@ -1532,7 +1558,7 @@ pre-registered clause.
 
 ## Exit gate for rung 3
 
-1. All C checks green (130, population pinned); every one of the 16
+1. All C checks green (134, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
    all FOUR of its planted faults (one per arm);
    rungs 0–2 suites untouched and green.

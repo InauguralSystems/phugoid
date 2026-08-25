@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The rung-3 planted-fault matrix (ORACLE.md): each s-plant must flip
 # EXACTLY its declared red set, every plant run executes the full pinned
-# 130-check population, and the manifest rules hold (identity incl.
+# 134-check population, and the manifest rules hold (identity incl.
 # tolerance tokens and ROW parameters; every plantable name in some red
 # set; structural names in none; unknown class tokens FAIL).
 set -euo pipefail
@@ -15,7 +15,7 @@ run_plant() {
         echo "FAIL: plant $1 did not make ap_check exit nonzero — the checker cannot fail"; exit 1
     fi
     grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 130$' "$OUT" || { echo "FAIL: plant $1 run population != 130"; exit 1; }
+    grep -q '^CHECKS_RUN 134$' "$OUT" || { echo "FAIL: plant $1 run population != 134"; exit 1; }
 }
 expect_total_fails() {
     got=$(grep -c '^FAIL ' "$OUT" || true)
@@ -39,13 +39,13 @@ expect_green 'C1\.'
 echo "PASS: S2 red pattern exact"
 
 echo "--- S3: integrator RK4 -> Euler -> periods + dt invariance + supervisory toggles ---"
-run_plant s3; expect_total_fails 39
+run_plant s3; expect_total_fails 41
 expect_red 'C2\.k025\.T ' 'C2\.k050\.T ' 'C2\.k100\.T ' 'C3\.dt\.T ' 'C3\.dt\.zlog ' 'C3\.dt\.zenv ' 'C2\.ph\.zlog ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a035\.horizon '
 expect_green 'C0\.' 'C1\.'
 echo "PASS: S3 red pattern exact"
 
 echo "--- S4: trim offset -> C1 + parity + every graded mode ---"
-run_plant s4; expect_total_fails 83
+run_plant s4; expect_total_fails 85
 expect_red 'C1\.res\.' 'C1\.hold\.' 'C0\.a13 ' 'C2\.k025\.T ' 'C3\.gain\.use ' 'C5\.sp\.c050\.osc '
 echo "PASS: S4 red pattern exact"
 
@@ -62,7 +62,7 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.zlog' 'C4\.' 'C5\.sp'
 echo "PASS: S6 red pattern exact"
 
 echo "--- S7: verdict stream frozen to 'stable' (supervisory inert) ---"
-run_plant s7; expect_total_fails 63
+run_plant s7; expect_total_fails 67
 expect_red 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C4\.ph\.horizon ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a035\.horizon ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.onset ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S7 red pattern exact"
@@ -75,7 +75,7 @@ expect_green 'C0\.' 'C1\.' '\.n ' '\.nr ' '\.nf ' 'C4\.' 'C5\.'
 echo "PASS: S8 red pattern exact"
 
 echo "--- S9: dataset broadly poisoned -> parity + graded modes + verdicts ---"
-run_plant s9; expect_total_fails 66
+run_plant s9; expect_total_fails 69
 expect_red 'C0\.a11 ' 'C0\.a33 ' 'C2\.k050\.zlog ' 'C3\.gain\.use ' 'C4\.ph\.osc ' 'C2\.ph\.Tdft ' 'C5\.p4\.a030\.osc '
 expect_green 'C1\.'
 echo "PASS: S9 red pattern exact"
@@ -93,7 +93,7 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.T ' 'C4\.' 'C5\.'
 echo "PASS: S11 red pattern exact"
 
 echo "--- S12: verdicts forced to 'oscillating' (the dual of S7) ---"
-run_plant s12; expect_total_fails 71
+run_plant s12; expect_total_fails 75
 expect_red 'C5\.sp\.c010\.osc ' 'C5\.sp\.c020\.osc ' 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C5\.p1\.inner\.osc ' 'C5\.p1\.inner\.engagements ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a020\.osc ' 'C5\.p1\.inner\.diverging ' 'C5\.p1\.inner\.converged ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.stable ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S12 red pattern exact"
@@ -124,6 +124,40 @@ expect_green 'C2\.ph\.Tdft ' 'C0\.' 'C1\.' 'C3\.' 'C4\.' 'C5\.'
 echo "PASS: S16 red pattern exact (round-3 review: as_tp was the one accessor with no plant driving its refusal arm — gutting it passed 73/73 and all 15 plants)"
 
 # ------------------------------------------------------------------
+echo "--- streamfam: row-family x verdict-stream coverage (round 20) ---"
+# Eight consecutive rounds found the same defect -- a row family added to
+# one verdict stream and not its siblings, five times inside the fix for
+# the previous round's finding. Advice did not stop it; this does. Every
+# stream that emits a ROW token must have a streamfam line, and every
+# family that line declares must have its rows present in the manifest.
+"$EIGS" tests/ap_check.eigs > "$OUT" 2>&1 || true
+# `|| true`: under `set -e` an empty grep aborts the script before the
+# vacuity check below can speak, so the gate would die with rc=1 and no
+# diagnostic. Fail-safe, but a silent gate is not a gate -- verified by
+# plant.
+STREAMS=$(grep -o '^ROW [A-Za-z0-9_.]*\.run ' "$OUT" | sed 's/^ROW //; s/\.run $//' | sort -u || true)
+[ -n "$STREAMS" ] || { echo "FAIL: streamfam gate found no ROW tokens — the gate would pass vacuously"; exit 1; }
+NSTREAM=0
+for st in $STREAMS; do
+    NSTREAM=$((NSTREAM+1))
+    line=$(grep "^streamfam $st " tests/ap_manifest.txt || true)
+    [ -n "$line" ] || { echo "FAIL: verdict stream '$st' has no streamfam line in tests/ap_manifest.txt — a new stream must declare which row families it carries, and justify any it does not (this gate exists because that was missed eight rounds running)"; exit 1; }
+    for fam in $(echo "$line" | tr ' ' '\n' | grep '=' ); do
+        key=${fam%%=*}; val=${fam#*=}
+        [ "$val" = "none" ] && continue
+        [ "$val" = "equiv" ] && continue
+        [ "$val" = "justified" ] && continue
+        if [ "$key" = "runs" ] || [ "$key" = "maxrun" ]; then
+            grep -q "^ap $st\.$key " tests/ap_manifest.txt || { echo "FAIL: $st declares $key=$val but has no 'ap $st.$key' row in the manifest"; exit 1; }
+            continue
+        fi
+        for f in $(echo "$val" | tr ',' ' '); do
+            grep -q "^ap $st\.$f " tests/ap_manifest.txt || { echo "FAIL: $st declares $key including '$f' but has no 'ap $st.$f' row in the manifest"; exit 1; }
+        done
+    done
+done
+echo "PASS: all $NSTREAM verdict streams declare their row families, and every declared family has its manifest rows"
+
 echo "--- manifest: identity + rowparams + coverage + class vocabulary ---"
 "$EIGS" tests/ap_check.eigs > "$WORK/clean" 2>&1 || { echo "FAIL: unplanted ap_check nonzero"; exit 1; }
 grep -E '^(PASS|FAIL) ' "$WORK/clean" | awk '{print $2, $3}' | sort > "$WORK/names"
