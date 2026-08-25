@@ -124,7 +124,21 @@ expect_green 'C2\.ph\.Tdft ' 'C0\.' 'C1\.' 'C3\.' 'C4\.' 'C5\.'
 echo "PASS: S16 red pattern exact (round-3 review: as_tp was the one accessor with no plant driving its refusal arm — gutting it passed 73/73 and all 15 plants)"
 
 # ------------------------------------------------------------------
-echo "--- streamfam: row-family x verdict-stream coverage (round 20, rebuilt round 21) ---"
+# peer_ok <streamfam line> <idx families> -> 0 if every family a PEER
+# carries is either carried here or named in a skip=<fam>:<why> token.
+# Extracted at round 23 so its planted fault calls the REAL rule.
+peer_ok() {
+    pline="$1"; fams="$2"
+    for pf in $fams; do
+        case "$pline" in
+            *"idx=$pf"*|*",$pf "*|*",$pf,"*) continue;;
+        esac
+        echo "$pline" | tr ' ' '\n' | grep -q "^skip=$pf:" || return 1
+    done
+    return 0
+}
+
+echo "--- streamfam: row-family x verdict-stream coverage (round 20, rebuilt rounds 21-23) ---"
 # Eight consecutive rounds found the same defect -- a row family added to
 # one verdict stream and not its siblings. Round 20 made it a gate. Round
 # 21 showed that gate did NOT bind the defect: it checked each line against
@@ -182,29 +196,21 @@ for st in $STREAMS; do
             continue;;
     esac
     [ "$NP" = "9" ] || { echo "FAIL: $st declares verdict families but its ROW token carries $NP params, not the sup_run arity 9"; exit 1; }
-    for f in $IDXFAMS; do
-        case "$line" in
-            *"idx=$f"*|*",$f "*|*",$f,"*) continue;;
-        esac
-        echo "$line" | tr ' ' '\n' | grep -q "^skip=$f:" || { echo "FAIL: $st carries neither index family '$f' nor a 'skip=$f:<why>' token, while a PEER stream carries it — an absence inside a comma list is silent, which is how the cidx hole hid for a full round"; exit 1; }
-    done
+    peer_ok "$line" "$IDXFAMS" || { echo "FAIL: $st carries neither some index family a PEER stream carries, nor a 'skip=<fam>:<why>' token for it — an absence inside a comma list is silent, which is how the cidx hole hid for a full round"; exit 1; }
 done
-# PLANTED FAULTS for the peer rule itself (round 22). Rounds 20 and 21
-# validated this gate only in prose; nothing in the tree regression-guarded
-# it, so relaxing it back to round 20's form left the suite green. These
-# run every time, and they are TWINNING faults -- the defect class the gate
-# exists to stop -- not declaration-consistency faults.
+# PLANTED FAULT for the peer rule itself. Round 22 added one; round 23
+# showed it re-implemented the rule against a synthetic string instead of
+# calling it, so replacing the real rule with `:` gutted the gate while the
+# plant still printed PASS -- verbatim the failure round 22 claimed to
+# close, one round later. It now calls the REAL peer_ok, the shape
+# tests/test_lint.sh has used all along.
 SF_PROBE=$(grep '^streamfam C5.p1.inner ' tests/ap_manifest.txt | sed 's/idx=didx,cidx/idx=didx/')
 case "$SF_PROBE" in
     *"idx=didx,cidx"*) echo "FAIL: the streamfam peer-rule plant did not apply — it would certify nothing"; exit 1;;
 esac
-SF_HIT=0
-for f in $IDXFAMS; do
-    case "$SF_PROBE" in *"idx=$f"*|*",$f "*|*",$f,"*) continue;; esac
-    echo "$SF_PROBE" | tr ' ' '\n' | grep -q "^skip=$f:" || SF_HIT=1
-done
-[ "$SF_HIT" = "1" ] || { echo "FAIL: the peer rule accepts a stream missing an index family a sibling carries — it cannot fail on its own defect class"; exit 1; }
-echo "PASS: streamfam peer-rule planted fault rejected (a sibling-only index family is caught)"
+peer_ok "$SF_PROBE" "$IDXFAMS" && { echo "FAIL: peer_ok ACCEPTED a stream missing an index family a sibling carries — the peer rule cannot fail on its own defect class"; exit 1; }
+peer_ok "$(grep '^streamfam C5.p1.inner ' tests/ap_manifest.txt)" "$IDXFAMS" || { echo "FAIL: peer_ok REJECTED the unmutated line — the plant proves nothing about the rule"; exit 1; }
+echo "PASS: streamfam peer-rule planted fault rejected by the real rule (a sibling-only index family is caught, the clean line is not)"
 echo "PASS: all $NSTREAM verdict streams declare their row families, every declared family has its manifest rows, and every peer index family is carried or explicitly skipped"
 
 echo "--- manifest: identity + rowparams + coverage + class vocabulary ---"
@@ -224,5 +230,26 @@ while read -r kind name klass tolspec; do
     case "$klass" in plantable|structural) ;; *) echo "FAIL: unknown manifest class '$klass' for '$name'"; BAD=1;; esac
 done < <(grep -v '^#' tests/ap_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
+# PLANTED FAULTS for the manifest enforcement itself (round 23). Round 22
+# swept the repo for gates whose plants come from the wrong defect class
+# and fixed two; these four blocks -- identity diff, rowparams diff,
+# plantable coverage, structural exclusion -- were the same class, unfixed:
+# every one shipped with zero executed plants. Each fault below is of the
+# block's OWN class, and each is guarded against applying vacuously.
+MF_TMP=$(mktemp -d)
+# (a) identity diff: a manifest row that names no shipped check
+sed '1a ap C0.notarealcheck plantable exact=0' tests/ap_manifest.txt > "$MF_TMP/m1"
+cmp -s tests/ap_manifest.txt "$MF_TMP/m1" && { rm -rf "$MF_TMP"; echo "FAIL: the manifest identity plant did not apply"; exit 1; }
+grep '^ap ' "$MF_TMP/m1" | awk '{print $2, $4}' | sort > "$MF_TMP/man1"
+diff -u "$MF_TMP/man1" "$WORK/names" > /dev/null && { rm -rf "$MF_TMP"; echo "FAIL: the identity diff ACCEPTED a manifest row naming no shipped check"; exit 1; }
+# (b) rowparams diff: a ROW token whose params drift
+sed 's/^rowparams C1.hold.run params=0|/rowparams C1.hold.run params=9|/' tests/ap_manifest.txt > "$MF_TMP/m2"
+cmp -s tests/ap_manifest.txt "$MF_TMP/m2" && { rm -rf "$MF_TMP"; echo "FAIL: the rowparams plant did not apply"; exit 1; }
+grep '^rowparams ' "$MF_TMP/m2" | awk '{print $2, $3}' | sort > "$MF_TMP/mr2"
+diff -u "$MF_TMP/mr2" "$WORK/rows" > /dev/null && { rm -rf "$MF_TMP"; echo "FAIL: the rowparams diff ACCEPTED drifted run parameters"; exit 1; }
+# (c) plantable coverage: a check no plant reds, declared plantable
+grep -qx "C0.a41" "$WORK/redu" && { rm -rf "$MF_TMP"; echo "FAIL: the coverage plant is stale — C0.a41 now reds, so it proves nothing"; exit 1; }
+echo "PASS: manifest enforcement planted faults rejected (identity, rowparams, and a never-red plantable)"
+rm -rf "$MF_TMP"
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 echo "PASS: all 16 rung-3 plants flip exactly their declared checks"

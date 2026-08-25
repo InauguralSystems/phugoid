@@ -162,19 +162,26 @@ file_pin() {
     [ "$gotn" = "$3" ] || { echo "FAIL: $1 has $gotn code lines, declared $3 — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure every variant and re-pin"; exit 1; }
     [ "$got"  = "$2" ] || { echo "FAIL: $1 changed (identity $got, declared $2) — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure every variant and re-pin"; exit 1; }
 }
-# PLANTED FAULT for file_pin itself (round 22). C6's four other plants all
-# synthesise a ratio and feed it to the comparator; NONE touches the .eigs
-# files, so the layer that actually stops "the measured workload silently
-# became a different workload" -- the defect rounds 5, 8 and 9 found -- had
-# never been shown able to fail. Round 21's lesson, applied here: plants
-# must come from the defect class the gate exists to stop.
+# PLANTED FAULT for file_pin itself. Round 22 added one; round 23 showed it
+# validated a private COPY of the gate's md5 pipeline against a SECOND
+# hard-coded copy of the hash, so `file_pin() { : ; }` gutted the gate with
+# the plant still printing PASS. It also had no "did the mutation apply"
+# guard and duplicated the constant -- breaking this file's own round-4
+# rule that a gate and its fault must share the constant.
+# The correct shape was already in tests/test_lint.sh: build a dirty input
+# and run the REAL function over it, asserting nonzero.
+PROFILE_HASH=f674b4b84476
+PROFILE_LINES=61
+[ "$PROFILE_HASH" = "f674b4b84476" ] || { echo "FAIL: PROFILE_HASH is $PROFILE_HASH, declared f674b4b84476 — the workload identity is DATA and gets the same identity pin the bounds do"; exit 1; }
 FP_TMP=$(mktemp -d)
 sed 's/^N is 120000$/N is 60000/' tests/ap_profile.eigs > "$FP_TMP/mut.eigs"
-FP_GOT=$(grep -v '^[[:space:]]*#' "$FP_TMP/mut.eigs" | grep -v '^[[:space:]]*$' | md5sum | cut -c1-12)
+cmp -s tests/ap_profile.eigs "$FP_TMP/mut.eigs" && { rm -rf "$FP_TMP"; echo "FAIL: the file_pin plant's mutation did not apply — it would certify nothing"; exit 1; }
+if ( file_pin "$FP_TMP/mut.eigs" "$PROFILE_HASH" "$PROFILE_LINES" ) >/dev/null 2>&1; then
+    rm -rf "$FP_TMP"; echo "FAIL: file_pin ACCEPTED a halved frame count — the workload-identity layer cannot fail"; exit 1
+fi
 rm -rf "$FP_TMP"
-[ "$FP_GOT" != "f674b4b84476" ] || { echo "FAIL: file_pin's identity is blind to halving the frame count — the pin cannot fail"; exit 1; }
-echo "PASS: C6 file_pin planted fault rejected (halved N hashes to $FP_GOT, not f674b4b84476)"
-file_pin tests/ap_profile.eigs        f674b4b84476 61
+echo "PASS: C6 file_pin planted fault rejected (the real file_pin rejects a halved N)"
+file_pin tests/ap_profile.eigs        "$PROFILE_HASH" "$PROFILE_LINES"
 file_pin tests/ap_profile_noread.eigs 743df838d495 15
 # Round 8 retired the site grep that round 6 added: any read added to or
 # removed from a measured loop already changes that loop's body hash, so

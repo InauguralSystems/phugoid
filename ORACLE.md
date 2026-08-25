@@ -1540,7 +1540,17 @@ class — a family on one sibling only, a renamed ROW token, and a dropped
 stream count — plus the original three.
 
 The lesson generalises past this repo: **a gate's planted faults must come
-from the defect class the gate exists to stop.** Round 22 applied it back
+from the defect class the gate exists to stop — and the fault must exercise
+the REAL gate, not a copy of its logic.** Round 23 found the second half
+the hard way: round 22's two new plants each re-implemented their gate's
+logic against a synthetic input, so `file_pin() { : ; }` and `peer_ok() {
+return 0; }` each gutted a gate with its own plant still printing PASS —
+verbatim the failure round 22 had just closed, one round later. Both now
+call the real function over a dirty input and require nonzero, the shape
+`tests/test_lint.sh` had used all along. The `file_pin` plant also gained
+the two guards its sibling had and it lacked: a `cmp -s` check that the
+mutation applied at all, and a single-sourced hash (it had duplicated the
+constant, breaking this file's own round-4 rule). Round 22 applied it back
 across the repo and found two more instances, both now fixed: C6's four
 plants all synthesise a ratio and feed it to the comparator, so `file_pin`
 — the layer that actually stops "the measured workload silently became a
@@ -1591,7 +1601,7 @@ published as a measurement, not asserted; (b) C0's gain-independence is
 structural (`B[0] = 0`), stated but not measured — all 16 C0 rows run at
 kq = 0.5; (c) the C6 absolutes (read/write/floor/noread wall times) are
 context and are asserted nowhere; (d) the shell harnesses' own FAIL
-branches, as in rungs 1 and 2; (e) the interiors of `C5.sp.*` (seven cadence rows, 300/150/75/71/60/30/29 reads) have no order pin — the two `C5.ph.*` rows DO, as of round 19 — round 15's entry said "four rows … short (60 and 30 reads)", which round 16 found stale from its own edit; `c010`'s 300-read interior is not short and its verdict classes are pinned nowhere; (f) **prediction 2's
+branches, as in rungs 1 and 2; (e) the `at`/`onset`, `horizon` and `reads` row families sit outside the streamfam matrix entirely — it peer-compares `idx` families only, so a future stream missing one of those is invisible to the gate (round 23; `C5.sp.*`'s interiors, which this entry described until round 22 pinned them, are now covered); (f) **prediction 2's
 second clause is not measured** — "the closed-loop response while engaged still matches the C2
 predictions" was pre-registered, and no shipped check grades the
 supervisory trajectory against the C2 predictions (`C2.ph` certifies the
