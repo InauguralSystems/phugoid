@@ -732,14 +732,27 @@ control columns); T3.ctl scales all of them ×1.5.
   showed a 9-half-life window's tail drowning in any contaminant, see
   M2X); spiral t½ within **1%** (measured +0.002%). Plus the three
   identity pins: Tdft.k = 5, Tpeaks.n = 11, z.nr = 9 (the 45 s / 0.2 s
-  window). The one-literal rule holds WITHIN this rung's shared call
+  window). Round 5 added **T2.ctl (6)**: the dual-surface doublet — the
+  only run in which the six control derivatives multiply a nonzero
+  deflection — DR graded from its free response against the same chain
+  references (measured −0.02% / +0.14% / +0.15%), the response SIGNS
+  pinned at mid-doublet (C_lδa > 0 ⇒ p > 0; C_nδr < 0 ⇒ r < 0), and
+  max|p| pinned as a gearing regression value. The one-literal rule holds WITHIN this rung's shared call
   path (T2's bin 5 vs M2X's bin 6); T2's k = 5 does repeat rung-1's
   S3 value across programs — safe, because a producer-level forgery in
   the shared measure.eigs still reds the k = 4 and k = 6 windows, but
   the first draft of this sentence claimed distinctness from every
   rung-1 site, which was false (round-1 review).
-- **T3 (15):** dt halved < 0.1%; amplitude halved < 0.5%; ALL six
-  control derivatives ×1.5 < 0.2% — for all five graded quantities.
+- **T3 (14):** dt halved < 0.1% and amplitude halved < 0.5% for all
+  five graded quantities; ctl (all six control derivatives ×1.5) on the
+  CONTROL-EXCITED doublet run: the graded DR moves < 0.2% AND max|p|
+  scales by 1.5 within 2% (the measured gain: 1.5000070). The first
+  draft ran the ctl invariance on the mode-pure IC runs — which never
+  deflect a surface, so all five rows compared bit-identical runs and
+  reversed, 1000×-geared controls shipped green (round-5 review). The
+  aperiodic modes have no ctl rows now BY DECISION: their graded runs
+  are zero-input, so a control invariance there is structurally
+  meaningless — the control path is graded where controls actually act.
 - **M2X (11):** single-mode DR in a DELIBERATELY different window (52 s →
   6.15 cycles → bin 6, one-literal rule) with its own k/n/nr pins
   (6, 12, 10); DR + spiral-drift contaminant (amplitude 5% — the
@@ -811,8 +824,9 @@ All measured 2026-08-24; 13 checks in `tests/observer_lat_check.eigs`
 Same rules (exact red sets, full 56-check population every run, manifest
 identity + class vocabulary, no-refusals guards on the fabricating
 plants R8/R10 from the FIRST commit — rung 1's rounds 7–8 lessons are
-load-bearing here, not relearned). Fourteen plants, red sets measured
-2026-08-24 and asserted exactly in `tests/test_latsim_planted.sh`:
+load-bearing here, not relearned). Eighteen plants (fourteen at first build; R15–R18 added by review
+rounds 1–5), red sets measured 2026-08-24 and asserted exactly in
+`tests/test_latsim_planted.sh`:
 R1 C_nβ ×1.05 (5: weathercock rows + DR periods + spiral), R2 Ixz
 dropped (10: every primed row + DR + roll — the lateral fold-drop),
 R3 Euler (4: DR ζ, roll t½, their dt-invariances), R4 all states offset
@@ -824,7 +838,9 @@ t½→1.0 with fields carried (7, numeric arm asserted), R9 broad poison
 incl. C_yp/C_yr made nonzero and θ₀ tilted (15), R10 rerun-side
 corruption (all 15 T3, numeric arm asserted), R11/R12/R13 the Td/Tp/ζ
 slot aliases (8 each: pins + accessor-refused rows), R14 t½ result
-×1.05 (4: exactly the aperiodic rows), R15 every check_below/
+×1.05 (4: exactly the aperiodic rows), R18 controls reversed/geared
+(3: exactly the sign and amplitude wiring pins — the round-5 class),
+R15 every check_below/
 check_relabs value displaced 1.1× its OWN site's executed tolerance,
 structural sites exempt (17: the 6 T1 + 11 plantable T0 — added after
 round-1 review widened check_below's executed bound ×10⁶ with every
@@ -867,8 +883,4 @@ brittleness band; every other row has ≥4.3× headroom).
    green.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds —
    the rung-1 cap, with the identity armor arriving pre-built this time.
-3. CI green on the pushed branch.
-2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds,
-   whichever first — the rung-0 armor level was grader-appropriate and is
-   deliberately NOT the per-rung bar here (hq proposal, 2026-08-24).
 3. CI green on the pushed branch (devcontainer, EIGS_REF=v0.41.0).

@@ -7,7 +7,8 @@
 # x1.05, r8 zeta/t_half constant-replace (identity fields carried,
 # numeric arm asserted), r9 dataset broad-poison incl. theta0 tilt, r10
 # rerun-side corruption, r11/r12/r13 the DR alias plants, r14 t_half
-# result corruption. Population pinned at exactly 60.
+# result corruption, r15-r18 review-round plants. Population pinned at
+# exactly 73.
 #
 # The rung-1 armor arrives PRE-BUILT (rounds 1-8 lessons, not relearned):
 # identity pins with distinct values per site, read-site accessors,
@@ -206,7 +207,22 @@ method is "rk4"
 if plant == "r3":
     method is "euler"
 
-P0 is make_lat_P of (lat_ctl_nominal of null)
+# Plant r18: control-wiring corruption — aileron reversed and geared x2,
+# rudder yaw reversed (round-5 review shipped a 747 with reversed,
+# 1000x-geared controls through every suite: no graded run deflected a
+# surface, so all six control derivatives multiplied zero everywhere and
+# T3.ctl compared bit-identical runs). The sign/amplitude pins below are
+# what see the wiring; r18 proves they can fail. Applied to the BASE ctl
+# so the x1.5 ctl2 build inherits it and the invariance/gain rows stay
+# green (they measure scaling, not wiring).
+define make_ctl_base as:
+    local c is lat_ctl_nominal of null
+    if plant == "r18":
+        c.Clda is c.Clda * (0.0 - 2.0)
+        c.Cndr is c.Cndr * (0.0 - 1.0)
+    return c
+
+P0 is make_lat_P of (make_ctl_base of null)
 
 # Plant r4: every run's initial state (and the T1 probe point) offset
 # from the origin — the lateral analog of rung-1's trim-offset plant.
@@ -307,6 +323,33 @@ define grade_th(sig, dt, simflag) as:
             th is {"ok": 1, "t_half": th.t_half * 1.03}
     return th
 
+# The graded CONTROL run (round 5): a dual-surface doublet — the only
+# rung-2 run in which the six control derivatives multiply a nonzero
+# deflection. DR graded from the r channel's free response; the p/r
+# probes at t = 0.4 s pin the wiring SIGNS (Clda > 0, da > 0 => p > 0;
+# Cndr < 0, dr > 0 => r < 0); max|p| pins the gearing as a regression
+# value; and T3.ctl compares this run regraded with all six derivatives
+# x1.5 — a REAL excitation-independence measurement plus a measured
+# x1.5 gain, replacing five rows that compared bit-identical
+# zero-deflection runs.
+define run_ctl(P) as:
+    local sched is [[0.6, 0.02, 0.03], [1.2, 0.0 - 0.02, 0.0 - 0.03], [1e9, 0.0, 0.0]]
+    local rec is lat_run of [origin, sched, 0.02, 2250, 10, P, method]
+    local rwin is []
+    local pamp is 0.0
+    local i is 0
+    loop while i < (len of rec.t):
+        if rec.t[i] >= 6.0:
+            append of [rwin, rec.r[i]]
+        local ap is abs of rec.p[i]
+        if ap > pamp:
+            pamp is ap
+        i is i + 1
+    return {"rwin": rwin, "pprobe": rec.p[2], "rprobe": rec.r[2], "pamp": pamp}
+
+base_ctl is run_ctl of (P0)
+base_cg is grade_dr of [base_ctl.rwin, 0.2, 1]
+
 base_dr is grade_dr of [run_dr of [5.0, 0.02, 10, P0], 0.2, 1]
 base_roll is grade_th of [run_roll of [0.1, 0.02, 1, P0], 0.02, 1]
 base_spiral is grade_th of [run_spiral of [0.05, 0.05, 10, P0], 0.5, 1]
@@ -323,6 +366,20 @@ check_result of ["T2.spiral.th", base_spiral, "t_half", spiral_ref.t_half, 0.01]
 check_exact of ["T2.dr.Tdft.k", base_dr.Td.k, 5]
 check_exact of ["T2.dr.Tpeaks.n", base_dr.Tp.n_extrema, 11]
 check_exact of ["T2.dr.z.nr", base_dr.zl.n_ratios, 9]
+check_result of ["T2.ctl.Tpeaks", as_tp of (base_cg.Tp), "T", dr_ref.T, 0.01]
+check_result of ["T2.ctl.Tdft", as_td of (base_cg.Td), "T", dr_ref.T, 0.01]
+check_result of ["T2.ctl.z", as_zl of (base_cg.zl), "zeta", dr_ref.zeta, 0.02]
+psign is 0
+if base_ctl.pprobe > 0.0:
+    psign is 1
+check_exact of ["T2.ctl.psign", psign, 1]
+rsign is 0
+if base_ctl.rprobe < 0.0:
+    rsign is 1
+check_exact of ["T2.ctl.rsign", rsign, 1]
+# gearing regression pin: max|p| of the doublet response, measured
+# 2026-08-24 on the nominal derivatives
+check_rel of ["T2.ctl.pamp", base_ctl.pamp, 0.0038634069669297904, 0.02]
 
 rerun_phase is 1
 
@@ -344,7 +401,12 @@ amp_roll is grade_th of [run_roll of [0.05, 0.02, 1, P0], 0.02, 1]
 amp_spiral is grade_th of [run_spiral of [0.025, 0.05, 10, P0], 0.5, 1]
 inv_set of ["amp", amp_dr, amp_roll, amp_spiral, 0.005]
 
-ctl2 is lat_ctl_nominal of null
+# ctl invariance on the CONTROL-EXCITED run (round 5: the old rows
+# compared mode-pure IC runs that never deflect a surface — bit-identical
+# by construction, a vacuous gate; the aperiodic modes' rows are gone for
+# the same reason and recorded in ORACLE). All six derivatives x1.5: the
+# graded DR must not move, and max|p| must scale by exactly the factor.
+ctl2 is make_ctl_base of null
 ctl2.Clda is ctl2.Clda * 1.5
 ctl2.Cnda is ctl2.Cnda * 1.5
 ctl2.Cyda is ctl2.Cyda * 1.5
@@ -352,10 +414,12 @@ ctl2.Cydr is ctl2.Cydr * 1.5
 ctl2.Cldr is ctl2.Cldr * 1.5
 ctl2.Cndr is ctl2.Cndr * 1.5
 Pctl is make_lat_P of (ctl2)
-ctl_dr is grade_dr of [run_dr of [5.0, 0.02, 10, Pctl], 0.2, 1]
-ctl_roll is grade_th of [run_roll of [0.1, 0.02, 1, Pctl], 0.02, 1]
-ctl_spiral is grade_th of [run_spiral of [0.05, 0.05, 10, Pctl], 0.5, 1]
-inv_set of ["ctl", ctl_dr, ctl_roll, ctl_spiral, 0.002]
+ctl_run is run_ctl of (Pctl)
+ctl_cg is grade_dr of [ctl_run.rwin, 0.2, 1]
+check_result of ["T3.ctl.drTp", as_tp of (ctl_cg.Tp), "T", base_cg.Tp.T, 0.002]
+check_result of ["T3.ctl.drTd", as_td of (ctl_cg.Td), "T", base_cg.Td.T, 0.002]
+check_result of ["T3.ctl.drz", as_zl of (ctl_cg.zl), "zeta", base_cg.zl.zeta, 0.002]
+check_rel of ["T3.ctl.gain", ctl_run.pamp / base_ctl.pamp, 1.5, 0.02]
 
 # ------------------------------------------------------------ M2X
 # The bridge: rung-0's estimators are already grid-validated at EXACTLY
@@ -442,8 +506,8 @@ check_result of ["M2X.spiralc.th", g_sp, "t_half", spiral_ref.t_half, 0.01]
 # ------------------------------------------------------------ population
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 68:
-    print of f"FAIL harness: expected exactly 68 checks, ran {checks_run}"
+if checks_run != 73:
+    print of f"FAIL harness: expected exactly 73 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1
