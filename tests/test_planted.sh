@@ -217,45 +217,38 @@ echo "PASS: P11 red pattern exact"
 # (b) every plantable name must appear in some plant's red set — a check
 # outside every red set has never been shown able to fail; (c) a
 # structural name in a red set means the exemption list is stale.
-echo "--- manifest: identity + full red-set coverage ---"
-"$EIGS" tests/modes_check.eigs > "$WORK/clean_modes" 2>&1 || { echo "FAIL: unplanted modes_check nonzero"; exit 1; }
-"$EIGS" tests/measure_check.eigs > "$WORK/clean_measure" 2>&1 || { echo "FAIL: unplanted measure_check nonzero"; exit 1; }
-# Identity covers name AND the per-site tolerance token (field 3 of every
-# check line): round-11 widened one check's decimals argument 100x and the
-# name-only manifest could not see it — tolerances are data too.
-grep -E '^(PASS|FAIL) ' "$WORK/clean_modes" | awk '{print $2, $3}' | sort > "$WORK/names_modes"
-grep -E '^(PASS|FAIL) ' "$WORK/clean_measure" | awk '{print $2, $3}' | sort > "$WORK/names_measure"
-grep '^modes ' tests/check_manifest.txt | awk '{print $2, $4}' | sort > "$WORK/man_modes"
-grep '^measure ' tests/check_manifest.txt | awk '{print $2, $4}' | sort > "$WORK/man_measure"
-# Grid-row generator parameters are identity-checked too (round-20 swapped
-# a corner row's parameters wholesale under an intact name+tolerance).
-grep '^ROW ' "$WORK/clean_measure" | awk '{print $2, $3}' | sort > "$WORK/rows_measure"
-grep '^rowparams ' tests/check_manifest.txt | awk '{print $2, $3}' | sort > "$WORK/man_rows"
-diff -u "$WORK/man_rows" "$WORK/rows_measure" > /dev/null || { echo "FAIL: grid-row parameter set drifted from manifest"; diff "$WORK/man_rows" "$WORK/rows_measure" || true; exit 1; }
-diff -u "$WORK/man_modes" "$WORK/names_modes" > /dev/null || { echo "FAIL: modes check-name set drifted from manifest"; diff "$WORK/man_modes" "$WORK/names_modes" || true; exit 1; }
-diff -u "$WORK/man_measure" "$WORK/names_measure" > /dev/null || { echo "FAIL: measure check-name set drifted from manifest"; diff "$WORK/man_measure" "$WORK/names_measure" || true; exit 1; }
-sort -u "$WORK/red_modes_check" > "$WORK/redu_modes" 2>/dev/null || : > "$WORK/redu_modes"
-sort -u "$WORK/red_measure_check" > "$WORK/redu_measure" 2>/dev/null || : > "$WORK/redu_measure"
+echo "--- manifest: identity + full red-set coverage + class vocabulary ---"
+. "$(dirname "$0")/manifestlib.sh"
+"$EIGS" tests/modes_check.eigs      > "$WORK/clean_modes" 2>&1      || { echo "FAIL: unplanted modes_check nonzero"; exit 1; }
+"$EIGS" tests/measure_check.eigs    > "$WORK/clean_measure" 2>&1    || { echo "FAIL: unplanted measure_check nonzero"; exit 1; }
 "$EIGS" tests/comparator_check.eigs > "$WORK/clean_comparator" 2>&1 || { echo "FAIL: unplanted comparator_check nonzero"; exit 1; }
+grep -E '^(PASS|FAIL) ' "$WORK/clean_modes"   | awk '{print $2, $3}' | sort > "$WORK/names_modes"
+grep -E '^(PASS|FAIL) ' "$WORK/clean_measure" | awk '{print $2, $3}' | sort > "$WORK/names_measure"
 grep -E '^(PASS|FAIL) ' "$WORK/clean_comparator" | awk 'NF >= 3 {print $2, $3}' | sort > "$WORK/names_comparator"
-grep '^comparator ' tests/check_manifest.txt | awk '{print $2, $4}' | sort > "$WORK/man_comparator"
-diff -u "$WORK/man_comparator" "$WORK/names_comparator" > /dev/null || { echo "FAIL: comparator probe set drifted from manifest"; diff "$WORK/man_comparator" "$WORK/names_comparator" || true; exit 1; }
-BAD=0
-while read -r kind name klass tolspec; do
-    case "$kind" in modes) U="$WORK/redu_modes";; measure) U="$WORK/redu_measure";; *) continue;; esac
-    if [ "$klass" = plantable ] && ! grep -qx "$name" "$U"; then
-        echo "FAIL: plantable check '$name' never went red under any plant"; BAD=1
-    fi
-    if [ "$klass" = structural ] && grep -qx "$name" "$U"; then
-        echo "FAIL: structural check '$name' went red — exemption list is stale"; BAD=1
-    fi
-    # Rung-1 round-8 lesson applied here too: an unknown class token was
-    # silently skipped, exempting a check from coverage with identity
-    # intact. Classes here: plantable/structural plus the rung-0-only
-    # selftest/rowparams (consumed by their own identity gates above).
-    case "$klass" in plantable|structural|selftest|rowparams) ;; *) echo "FAIL: unknown manifest class '$klass' for '$name'"; BAD=1;; esac
-done < <(grep -v '^#' tests/check_manifest.txt)
-[ "$BAD" -eq 0 ] || exit 1
+grep '^ROW ' "$WORK/clean_measure" | awk '{print $2, $3}' | sort > "$WORK/rows_measure"
+sort -u "$WORK/red_modes_check"   > "$WORK/redu_modes"   2>/dev/null || : > "$WORK/redu_modes"
+sort -u "$WORK/red_measure_check" > "$WORK/redu_measure" 2>/dev/null || : > "$WORK/redu_measure"
+
+# Round 25/26: rung 0's seven arms shipped with NO executed plants, and
+# its class arm `continue`d on every kind but modes/measure -- so the 15
+# comparator rows never reached it at all, which is the derived-exemption
+# failure one layer down. One shared implementation now; mf_validate
+# plants each arm against the REAL function, and mf_class rejects an
+# unexpected KIND as well as an unexpected class.
+CK=modes,measure,comparator
+mf_validate tests/check_manifest.txt modes   "$WORK/names_modes"   "$WORK/rows_measure" "$WORK/redu_modes"   "$WORK" "$CK" rowparams plantable structural selftest || exit 1
+mf_validate tests/check_manifest.txt measure "$WORK/names_measure" ""                   "$WORK/redu_measure" "$WORK" "$CK" rowparams plantable structural selftest || exit 1
+echo "PASS: all manifest-enforcement arms rejected an in-class planted fault"
+
+mf_identity   tests/check_manifest.txt modes      "$WORK/names_modes" "$WORK"      || { echo "FAIL: modes check-name set drifted from manifest"; diff "$WORK/_mfi" "$WORK/names_modes" || true; exit 1; }
+mf_identity   tests/check_manifest.txt measure    "$WORK/names_measure" "$WORK"    || { echo "FAIL: measure check-name set drifted from manifest"; diff "$WORK/_mfi" "$WORK/names_measure" || true; exit 1; }
+mf_identity   tests/check_manifest.txt comparator "$WORK/names_comparator" "$WORK" || { echo "FAIL: comparator probe set drifted from manifest"; diff "$WORK/_mfi" "$WORK/names_comparator" || true; exit 1; }
+mf_rowparams  tests/check_manifest.txt "$WORK/rows_measure" "$WORK"                || { echo "FAIL: grid-row parameter set drifted from manifest"; diff "$WORK/_mfr" "$WORK/rows_measure" || true; exit 1; }
+mf_coverage   tests/check_manifest.txt modes   "$WORK/redu_modes"                  || { echo "FAIL: a plantable modes check never went red under any plant"; exit 1; }
+mf_coverage   tests/check_manifest.txt measure "$WORK/redu_measure"                || { echo "FAIL: a plantable measure check never went red under any plant"; exit 1; }
+mf_structural tests/check_manifest.txt modes   "$WORK/redu_modes"                  || { echo "FAIL: a structural modes check went red — exemption list is stale"; exit 1; }
+mf_structural tests/check_manifest.txt measure "$WORK/redu_measure"                || { echo "FAIL: a structural measure check went red — exemption list is stale"; exit 1; }
+mf_class      tests/check_manifest.txt "$CK" rowparams plantable structural selftest || { echo "FAIL: unknown manifest class or kind token"; exit 1; }
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
 echo "PASS: all 18 plants flip exactly their declared checks"

@@ -1583,9 +1583,21 @@ now proved against the manifest's own rows (an absent class must either
 have an `exact=0` row or fall out of a closed distribution; a skipped
 `oidx` on a stream that oscillates must have a position pin), which needed
 `reads` rows on the four ramp streams to make the closure total.
-STILL OPEN, and the honest remaining gap: rungs 0, 1 and 2 carry the same
-manifest-enforcement blocks with **no plants at all** — 17 arms. The
-property above is verified for rung 3 only. The `file_pin` plant also gained
+**CLOSED for all four rungs.** Rungs 0, 1 and 2 carried near-identical
+COPIES of these arms with no plants at all — and four copies of a check is
+itself the defect class this loop kept finding, so the fix is one shared
+implementation (`tests/manifestlib.sh`) with one set of plants, not four
+more copies. `mf_validate` runs an in-class fault against each real arm on
+every suite run. Verified by gutting each of the five arms to `return 0`
+and confirming its plant reds — 15 combinations across the three suites,
+plus a control showing the clean library passes all five.
+Converting them surfaced two defects the copies had hidden: rung 0's class
+arm `continue`d on every kind but two, so its 15 `comparator` rows never
+reached it at all (the derived-exemption failure one layer down, and
+exactly what round 25 predicted); and no copy rejected an unexpected
+manifest KIND, only an unexpected class — a new kind could enter any
+manifest and escape coverage silently. Both now fail loudly, each with its
+own plant. The `file_pin` plant also gained
 the two guards its sibling had and it lacked: a `cmp -s` check that the
 mutation applied at all, and a single-sourced hash (it had duplicated the
 constant, breaking this file's own round-4 rule). Round 22 applied it back
