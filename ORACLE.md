@@ -1477,12 +1477,12 @@ measured one.)
 | s4 | trim offset by 0.01 rad | 133 |
 | s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
 | s6 | grading-dt dilation (estimator side only) | 6 |
-| s7 | verdict stream frozen — supervisory layer inert | 131 |
+| s7 | verdict stream frozen — supervisory layer inert | 132 |
 | s8 | ζ/T constant-replaced with the identity field carried | 13 |
-| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 109 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 110 |
 | s10 | dt-rerun grading separator | 1 |
 | s11 | ζ estimator slot alias | 16 |
-| s12 | verdicts forced to `oscillating` — the dual of s7 | 140 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 141 |
 | s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
 | s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
@@ -1564,7 +1564,28 @@ fire when the arm is gutted.
 Three rounds running, the fix for "the plant does not exercise the gate"
 had that same defect. The property is now checkable rather than asserted:
 every enforcement arm in this rung is a named function with an executed
-in-class plant, and gutting any one of them reds. The `file_pin` plant also gained
+in-class plant, and gutting any one of them reds — round 25 verified that
+for all five independently.
+
+**The geometric reading, which is what terminates the recursion.** Each of
+these layers exists to certify the one below it, and the recurring defect
+was always that the new layer lay *parallel* to the old one rather than
+transverse to it — a plant that re-implements its gate is the same point
+drawn twice, so it has no component along the axis that matters. It looks
+like a layer (it has code, it prints PASS, it could fail in principle) and
+detects nothing. **"Delete the gate and require its plant to red" is the
+transversality measurement**: parallel layers don't move when the thing
+beneath them is removed; transverse ones must. That test is what makes the
+property checkable instead of an assertion, and it is why this stops here
+rather than needing a further layer to certify the certifier. Round 25 also
+made the last DECLARED exemption derivable — `skip=<fam>:<why>` reasons are
+now proved against the manifest's own rows (an absent class must either
+have an `exact=0` row or fall out of a closed distribution; a skipped
+`oidx` on a stream that oscillates must have a position pin), which needed
+`reads` rows on the four ramp streams to make the closure total.
+STILL OPEN, and the honest remaining gap: rungs 0, 1 and 2 carry the same
+manifest-enforcement blocks with **no plants at all** — 17 arms. The
+property above is verified for rung 3 only. The `file_pin` plant also gained
 the two guards its sibling had and it lacked: a `cmp -s` check that the
 mutation applied at all, and a single-sourced hash (it had duplicated the
 constant, breaking this file's own round-4 rule). Round 22 applied it back
@@ -1629,7 +1650,7 @@ pre-registered clause.
 
 ## Exit gate for rung 3
 
-1. All C checks green (212, population pinned); every one of the 16
+1. All C checks green (217, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
    all FIVE of its planted faults (one per arm, plus file_pin's);
    rungs 0–2 suites untouched and green.

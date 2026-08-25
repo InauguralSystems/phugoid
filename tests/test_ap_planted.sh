@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The rung-3 planted-fault matrix (ORACLE.md): each s-plant must flip
 # EXACTLY its declared red set, every plant run executes the full pinned
-# 212-check population, and the manifest rules hold (identity incl.
+# 217-check population, and the manifest rules hold (identity incl.
 # tolerance tokens and ROW parameters; every plantable name in some red
 # set; structural names in none; unknown class tokens FAIL).
 set -euo pipefail
@@ -15,7 +15,7 @@ run_plant() {
         echo "FAIL: plant $1 did not make ap_check exit nonzero — the checker cannot fail"; exit 1
     fi
     grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 212$' "$OUT" || { echo "FAIL: plant $1 run population != 212"; exit 1; }
+    grep -q '^CHECKS_RUN 217$' "$OUT" || { echo "FAIL: plant $1 run population != 217"; exit 1; }
 }
 expect_total_fails() {
     got=$(grep -c '^FAIL ' "$OUT" || true)
@@ -62,7 +62,7 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.zlog' 'C4\.' 'C5\.sp'
 echo "PASS: S6 red pattern exact"
 
 echo "--- S7: verdict stream frozen to 'stable' (supervisory inert) ---"
-run_plant s7; expect_total_fails 131
+run_plant s7; expect_total_fails 132
 expect_red 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C4\.ph\.horizon ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a035\.horizon ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.onset ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S7 red pattern exact"
@@ -75,7 +75,7 @@ expect_green 'C0\.' 'C1\.' '\.n ' '\.nr ' '\.nf ' 'C4\.' 'C5\.'
 echo "PASS: S8 red pattern exact"
 
 echo "--- S9: dataset broadly poisoned -> parity + graded modes + verdicts ---"
-run_plant s9; expect_total_fails 109
+run_plant s9; expect_total_fails 110
 expect_red 'C0\.a11 ' 'C0\.a33 ' 'C2\.k050\.zlog ' 'C3\.gain\.use ' 'C4\.ph\.osc ' 'C2\.ph\.Tdft ' 'C5\.p4\.a030\.osc '
 expect_green 'C1\.'
 echo "PASS: S9 red pattern exact"
@@ -93,7 +93,7 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.T ' 'C4\.' 'C5\.'
 echo "PASS: S11 red pattern exact"
 
 echo "--- S12: verdicts forced to 'oscillating' (the dual of S7) ---"
-run_plant s12; expect_total_fails 140
+run_plant s12; expect_total_fails 141
 expect_red 'C5\.sp\.c010\.osc ' 'C5\.sp\.c020\.osc ' 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C5\.p1\.inner\.osc ' 'C5\.p1\.inner\.engagements ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a020\.osc ' 'C5\.p1\.inner\.diverging ' 'C5\.p1\.inner\.converged ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.stable ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S12 red pattern exact"
@@ -163,7 +163,12 @@ NSTREAM=$(echo "$STREAMS" | grep -c . || true)
 DECL_STREAMS=25
 [ "$DECL_STREAMS" = "25" ] || { echo "FAIL: DECL_STREAMS is $DECL_STREAMS, declared 25 — the stream count is DATA and gets the same identity pin the bounds do"; exit 1; }
 [ "$NSTREAM" = "$DECL_STREAMS" ] || { echo "FAIL: streamfam examined $NSTREAM verdict streams, declared $DECL_STREAMS — a gate that measures fewer streams than yesterday must not print OK"; exit 1; }
-# the union of index families in use anywhere
+# The union of PEER-COMPARED families. Round 25: this was built from
+# `idx=` tokens only, so the position families (at/onset/horizon) sat
+# outside the matrix -- and round 24 shipped a defect straight through that
+# blind spot one round after ORACLE declared it. `at` is now peer-compared
+# for every stream that oscillates, derived from the manifest's own
+# `.osc` row rather than declared.
 IDXFAMS=$(grep '^streamfam ' tests/ap_manifest.txt | tr ' ' '\n' | grep '^idx=' | sed 's/^idx=//' | tr ',' '\n' | grep -v '^none$' | sort -u)
 for st in $STREAMS; do
     line=$(grep "^streamfam $st " tests/ap_manifest.txt || true)
@@ -197,6 +202,44 @@ for st in $STREAMS; do
     esac
     [ "$NP" = "9" ] || { echo "FAIL: $st declares verdict families but its ROW token carries $NP params, not the sup_run arity 9"; exit 1; }
     peer_ok "$line" "$IDXFAMS" || { echo "FAIL: $st carries neither some index family a PEER stream carries, nor a 'skip=<fam>:<why>' token for it — an absence inside a comma list is silent, which is how the cidx hole hid for a full round"; exit 1; }
+    # Every skip must be DERIVABLE from this manifest's own rows, not
+    # asserted in free text. Round 22 made `dist=none` derivable and round
+    # 25 found the same failure mode alive under this token: a
+    # `skip=cidx:no-converged-reads` sitting beside a `conv=157` row passed.
+    for sk in $(echo "$line" | tr ' ' '\n' | grep '^skip='); do
+        fam=${sk#skip=}; fam=${fam%%:*}
+        case "$fam" in
+            didx) CLS=div;    ALT=diverging;;
+            cidx) CLS=conv;   ALT=converged;;
+            oidx) CLS=osc;    ALT=osc;;
+            *) echo "FAIL: $st skips unknown family '$fam'"; exit 1;;
+        esac
+        CNT=$(grep -m1 "^ap $st\.$CLS " tests/ap_manifest.txt | sed 's/.*exact=//' || true)
+        [ -n "$CNT" ] || CNT=$(grep -m1 "^ap $st\.$ALT " tests/ap_manifest.txt | sed 's/.*exact=//' || true)
+        if [ -z "$CNT" ]; then
+            # No row for the class at all. That is derivable IF the stream's
+            # declared distribution CLOSES against its pinned `reads`: a
+            # closed distribution proves every unlisted class is absent.
+            SUMD=0
+            for dc in $(echo "$line" | tr ' ' '\n' | grep '^dist=' | sed 's/^dist=//' | tr ',' ' '); do
+                [ "$dc" = none ] && continue
+                DV=$(grep -m1 "^ap $st\.$dc " tests/ap_manifest.txt | sed 's/.*exact=//' || true)
+                [ -n "$DV" ] || { echo "FAIL: $st declares dist class '$dc' with no manifest row"; exit 1; }
+                SUMD=$((SUMD + DV))
+            done
+            OSCV=$(grep -m1 "^ap $st\.osc " tests/ap_manifest.txt | sed 's/.*exact=//' || echo 0)
+            RD=$(grep -m1 "^ap $st\.reads " tests/ap_manifest.txt | sed 's/.*exact=//' || true)
+            [ -n "$RD" ] || { echo "FAIL: $st skips '$fam' with no $CLS row and no reads row — nothing can derive the skip"; exit 1; }
+            [ $((SUMD + OSCV)) = "$RD" ] || { echo "FAIL: $st skips '$fam' with no $CLS row, and its distribution does NOT close ($SUMD + osc $OSCV != reads $RD) — so nothing proves that class is absent"; exit 1; }
+            CNT=0
+        fi
+        if [ "$fam" = oidx ]; then
+            # osc=0 is vacuous; osc>0 needs a position pin to carry it
+            [ "$CNT" = "0" ] || grep -q "^ap $st\.at " tests/ap_manifest.txt || { echo "FAIL: $st skips oidx with osc=$CNT and has no '.at' row — the sighting's POSITION is pinned by nothing (round 25: p370's single sighting moved 111 s with the whole suite byte-identical)"; exit 1; }
+        else
+            [ "$CNT" = "0" ] || { echo "FAIL: $st skips '$fam' claiming that class is absent, but its manifest row says exact=$CNT — a skip reason must be derivable from the rows, not asserted"; exit 1; }
+        fi
+    done
 done
 # PLANTED FAULT for the peer rule itself. Round 22 added one; round 23
 # showed it re-implemented the rule against a synthetic string instead of

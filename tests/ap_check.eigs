@@ -10,7 +10,7 @@
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 212.
+# Population pinned at exactly 217.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -634,7 +634,7 @@ for cs in [["c010", 5, 0, 0.0 - 1.0, 300, 133, 157, 9, 1, 10, 23694, 21111, 113]
 # These are verdict streams, so they get the full family -- the streamfam
 # gate rejected a `dist=none` declaration for them, which is the gate
 # catching its own author doing the thing it was built to stop.
-for pe in [["p365", 73, 0, 109, 100, 9, 3, 90], ["p370", 74, 1, 108, 75, 32, 9, 51]]:
+for pe in [["p365", 73, 0, 109, 100, 9, 3, 90, 0 - 1], ["p370", 74, 1, 108, 75, 32, 9, 51, 41]]:
     local erec is sup_run of [f"C5.ph.{pe[0]}.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, pe[1], tr.P, method, freeze]
     check_exact of [f"C5.ph.{pe[0]}.osc", osc_count of (erec), pe[2]]
     check_exact of [f"C5.ph.{pe[0]}.reads", len of erec.verdict, pe[3]]
@@ -642,6 +642,18 @@ for pe in [["p365", 73, 0, 109, 100, 9, 3, 90], ["p370", 74, 1, 108, 75, 32, 9, 
     check_exact of [f"C5.ph.{pe[0]}.moving", verdict_count of [erec, "moving"], pe[5]]
     check_exact of [f"C5.ph.{pe[0]}.runs", verdict_runs of (erec), pe[6]]
     check_exact of [f"C5.ph.{pe[0]}.maxrun", verdict_maxrun of (erec), pe[7]]
+    # WHERE it oscillates, not just that it does. Round 25: p370 was the
+    # only one of the rung's eight oscillating-emitting streams with no
+    # position pin, so its single sighting could be transposed 111 s -- from
+    # t = 155.4 s (2.5 phugoid periods after the window fills) to t = 44.4 s
+    # (two reads after) -- with the ENTIRE suite byte-identical. That
+    # inverts this rung's own detection-latency story on the mode it says
+    # IS actionable, and latency is the quantity prediction 3 rests on.
+    # Ninth twinning instance, inside the round that extracted the arms
+    # meant to stop it: the SP loop emits `.at` under exactly this guard
+    # and the phugoid loop written to mirror it did not.
+    if pe[2] > 0:
+        check_exact of [f"C5.ph.{pe[0]}.at", first_osc of (erec), pe[8]]
 
 for pc in [["p045", 9, 888, 359, 520, 9, 0, 0, 163742, 35, 33, 230050], ["p100", 20, 400, 120, 101, 58, 91, 30, 23583, 91, 17, 29322]]:
     local prec is sup_run of [f"C5.ph.{pc[0]}.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, pc[1], tr.P, method, freeze]
@@ -810,6 +822,11 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0, 71, 9, 0, 3124], ["a03
     # rung's own headline defect) passed 107/107 and all 16 plants; the
     # same mutation on a030 reds four checks. Sixth twinning miss, so these
     # sit OUTSIDE the guard where they cannot be missed again.
+    # `reads` closes the distribution, which is what lets the streamfam
+    # gate DERIVE a skip reason instead of taking it on trust. The four
+    # ramp streams were the only ones without it (round 22 flagged the
+    # asymmetry; round 25 needed it to make the derivation total).
+    check_exact of [f"C5.p4.{ramp[0]}.reads", len of rc.verdict, 80]
     check_exact of [f"C5.p4.{ramp[0]}.conv", verdict_count of [rc, "converged"], ramp[7]]
     check_exact of [f"C5.p4.{ramp[0]}.stable", verdict_count of [rc, "stable"], ramp[8]]
     # a020's equilibrium count is 0 and no plant can move it -- declared
@@ -834,8 +851,8 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0, 71, 9, 0, 3124], ["a03
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 212:
-    print of f"FAIL harness: expected exactly 212 checks, ran {checks_run}"
+if checks_run != 217:
+    print of f"FAIL harness: expected exactly 217 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

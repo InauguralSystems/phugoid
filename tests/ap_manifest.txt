@@ -134,6 +134,7 @@ ap C5.ph.p370.moving plantable exact=32
 ap C5.ph.p370.runs plantable exact=9
 ap C5.ph.p370.maxrun plantable exact=51
 ap C5.ph.p370.osc plantable exact=1
+ap C5.ph.p370.at plantable exact=41
 ap C5.ph.p045.osc plantable exact=0
 ap C5.ph.p045.reads structural exact=888
 ap C5.ph.p045.div plantable exact=359
@@ -178,11 +179,13 @@ ap C5.p1.inner.cidx plantable exact=15957354
 ap C5.p1.inner.maxrun plantable exact=260
 ap C5.p2.sup.toggles plantable exact=17
 ap C4.ph.first_engaged plantable exact=19
+ap C5.p4.a020.reads structural exact=80
 ap C5.p4.a020.osc plantable exact=0
 ap C5.p4.a020.conv plantable exact=71
 ap C5.p4.a020.stable plantable exact=9
 ap C5.p4.a020.equil structural exact=0
 ap C5.p4.a020.cidx plantable exact=3124
+ap C5.p4.a030.reads structural exact=80
 ap C5.p4.a030.osc plantable exact=23
 ap C5.p4.a030.horizon plantable exact=38
 ap C5.p4.a030.onset plantable exact=9
@@ -192,6 +195,7 @@ ap C5.p4.a030.stable plantable exact=9
 ap C5.p4.a030.equil plantable exact=6
 ap C5.p4.a030.cidx plantable exact=2447
 ap C5.p4.a030.oidx plantable exact=554
+ap C5.p4.a040.reads structural exact=80
 ap C5.p4.a040.osc plantable exact=40
 ap C5.p4.a040.horizon plantable exact=58
 ap C5.p4.a040.onset plantable exact=9
@@ -201,6 +205,7 @@ ap C5.p4.a040.stable plantable exact=12
 ap C5.p4.a040.equil plantable exact=7
 ap C5.p4.a040.cidx plantable exact=1449
 ap C5.p4.a040.oidx plantable exact=1376
+ap C5.p4.a035.reads structural exact=80
 ap C5.p4.a035.osc plantable exact=34
 ap C5.p4.a035.horizon plantable exact=53
 ap C5.p4.a035.onset plantable exact=9
@@ -247,7 +252,7 @@ rowparams C5.p4.a035.run params=0.5|0.05|100|100|8000|279.44999958677516|-0.0670
 streamfam C5.p1.inner  dist=diverging,converged,stable,equilibrium idx=didx,cidx skip=oidx:osc-is-0-so-vacuous runs=yes maxrun=yes
 streamfam C4.ph        dist=stable,moving idx=oidx skip=cidx:no-converged-reads skip=didx:no-diverging-reads runs=yes maxrun=yes
 streamfam C5.ph.p365   dist=stable,moving idx=none skip=didx:no-diverging-reads skip=cidx:no-converged-reads skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
-streamfam C5.ph.p370   dist=stable,moving idx=none skip=didx:no-diverging-reads skip=cidx:no-converged-reads skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.ph.p370   dist=stable,moving idx=none skip=didx:no-diverging-reads skip=cidx:no-converged-reads skip=oidx:single-sighting-pinned-by-at runs=yes maxrun=yes
 streamfam C5.ph.p045   dist=div,conv,stable,equil,improving idx=didx,cidx skip=oidx:osc-is-0-so-vacuous runs=yes maxrun=yes
 streamfam C5.ph.p100   dist=div,conv,stable,equil,improving idx=didx,cidx skip=oidx:osc-is-0-so-vacuous runs=yes maxrun=yes
 streamfam C5.p4.a020   dist=conv,stable,equil idx=cidx skip=oidx:osc-is-0-so-vacuous skip=didx:no-diverging-reads runs=equiv maxrun=equiv
