@@ -1061,10 +1061,20 @@ cadences `C5.sp.{c010,c020}`.
   plant still reds) turned 37 maximal runs into 4 and left 85/85, all 16
   plants, the manifest and lint green — while "an autopilot would fight a
   healthy mode half the time" silently became "it flips once in 400 s".
-  `maxrun` also ties the alternation to the physics: at dt = 0.05 a quarter
-  of the predicted closed-loop phugoid period (T = 51.438 s) is 257
-  samples, and the longest run measures 260, so a windowing change upstream
-  reds it. This is the repack class round 3 closed for `C5.p4`'s onset and
+  Round 12 justified `maxrun` as "a quarter period — T/4 = 257 samples vs
+  260 measured". **Round 13 refuted that, and it was wrong twice in
+  cancelling directions.** This stream never engages the gain (`.osc` and
+  `.engagements` are both pinned at 0, so `sup_run` holds kq at 0.0 for all
+  8000 steps), so the plant flown is `A`, not `A + B·K` — period 46.918 s,
+  T/4 = 234.6 samples, not 257. And the segments in a cycle are
+  260/220/198/260, so the longest is 0.277 of a period, not 0.25, and it
+  *decays* (260, 258, 256, 254…), making it an initial-condition transient
+  rather than a period invariant. A wrong plant (−9%) cancelled a wrong
+  fraction (+11%) into an agreement that looked exact. `maxrun` is an order
+  FINGERPRINT and is labelled as one. What genuinely ties to the physics is
+  `runs`: the predicate flips 4× per period, so 4 × 400 s / 46.918 s = 34.1
+  transitions plus 3 start-up runs = 37, and it tracks gain across the
+  ramp (kq 0.5 → 35, kq 1.0 → 31). This is the repack class round 3 closed for `C5.p4`'s onset and
   round 4 for `C4.ph`'s horizon, never applied to the one stream that IS
   the result.
 - **C6 — read-path profile (a RATIO gate, not an absolute budget):** the shipped gate asserts
@@ -1152,18 +1162,27 @@ cadences `C5.sp.{c010,c020}`.
   wrong MECHANISM for it — "module-granular" — which round 11 refuted from
   the source and the runtime. `obs_needed` is a single flag on `EigsState`
   (`src/eigenscript.h:561`), set in `compile_ast` and documented there as
-  monotonic. So arming is **process-wide**: a verdict read in a dead
+  monotonic. So arming is scoped to the **interpreter state**: a verdict read in a dead
   function, in a *different file*, or even a bare string constant
   `"report"` arms bookkeeping for every assignment in every module of the
   program (GAPS.md **G7**, upstreamed as EigenScript#1046 — whose first
   version carried round 10's wrong granularity and a workaround, "split
   reads into their own module", that is measurably ineffective).
-  Decomposed across five n=5 rounds: reads-direct **75–89%**, arming
-  **3–21%**, intrinsic write cost **indistinguishable from zero** (−10% to
-  +22%, straddling it). Effectively all of the observer cost is
-  attributable to reads, directly or through arming — not the 22%
-  "writes" first published, and not the "94/6" round 10 replaced it with,
-  which was itself derived rather than measured. This makes the rung's
+  Round 13 then showed the "intrinsic write cost is
+  indistinguishable from zero" framing is **circular**: `noread` and
+  `floor` are BOTH states in which the entropy walk does not run (an
+  unarmed program, and an `unobserved:` block), confirmed by
+  `EIGS_OBS_GATE_STATS` — read/write/floor compile `observed`, `noread`
+  `unobserved`. So `noread − floor ≈ 0` is a tautology of the definition,
+  not a measurement about writes, and it invites exactly the wrong
+  conclusion for a program like `sup_run`. Stated correctly: **for a
+  program that reads verdicts at all — which an autopilot does — the split
+  is reads-direct ~75% and observed-write bookkeeping ~25%** (write 0.231
+  vs floor 0.160), and #915 can elide that 25% only in a program with no
+  reads anywhere, i.e. never here. That is why `sup_run` wraps its
+  integrator in `unobserved:`. The 22% first published and the "94/6" round
+  10 replaced it with were both wrong; this is the third attribution and
+  the first that names its regime. This makes the rung's
   upstream argument stronger: #915's gate cannot help an autopilot not
   merely because reads dominate, but because one read anywhere in the
   program disarms the write optimisation everywhere in it.
@@ -1343,18 +1362,18 @@ measured one.)
 
 | Plant | Injected into | Reds |
 |---|---|---|
-| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 33 |
-| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 35 |
+| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 37 |
+| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 37 |
 | s3 | Euler instead of RK4 | 16 |
 | s4 | trim offset by 0.01 rad | 51 |
 | s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
 | s6 | grading-dt dilation (estimator side only) | 6 |
-| s7 | verdict stream frozen — supervisory layer inert | 23 |
+| s7 | verdict stream frozen — supervisory layer inert | 28 |
 | s8 | ζ/T constant-replaced with the identity field carried | 13 |
-| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 35 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 39 |
 | s10 | dt-rerun grading separator | 1 |
 | s11 | ζ estimator slot alias | 16 |
-| s12 | verdicts forced to `oscillating` — the dual of s7 | 31 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 36 |
 | s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
 | s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
@@ -1379,11 +1398,18 @@ published as a measurement, not asserted; (b) C0's gain-independence is
 structural (`B[0] = 0`), stated but not measured — all 16 C0 rows run at
 kq = 0.5; (c) the C6 absolutes (read/write/floor/noread wall times) are
 context and are asserted nowhere; (d) the shell harnesses' own FAIL
-branches, as in rungs 1 and 2.
+branches, as in rungs 1 and 2; (e) **prediction 2's second clause is not
+measured** — "the closed-loop response while engaged still matches the C2
+predictions" was pre-registered, and no shipped check grades the
+supervisory trajectory against the C2 predictions (`C2.ph` certifies the
+EXCITATION, explicitly, not that run). Round 13 caught it missing from
+both the write-up and this list. It is neither confirmed nor refuted; it
+is UNMEASURED, and rung 3 ships saying so rather than quietly dropping a
+pre-registered clause.
 
 ## Exit gate for rung 3
 
-1. All C checks green (85, population pinned); every one of the 16
+1. All C checks green (90, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
    all FOUR of its planted faults (one per arm);
    rungs 0–2 suites untouched and green.

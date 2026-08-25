@@ -21,11 +21,16 @@
 # write cost. Round 10 then published the wrong MECHANISM for that penalty
 # ("per-module"), and round 11 refuted it from the source and the runtime:
 # `obs_needed` is one monotonic flag on EigsState, so arming is
-# PROCESS-WIDE -- a verdict read in a dead function, in a different file,
+# PER-INTERPRETER-STATE (one per process for the CLI) -- a verdict read
+# in a dead function, in a different file,
 # or as a bare string constant `"report"` arms bookkeeping for every
 # assignment in every module. GAPS.md G7, EigenScript#1046. Decomposed:
-# reads-direct 75-89%, arming 3-21%, intrinsic writes indistinguishable
-# from zero. Three correct measurements in different regimes; the regime
+# Round 13: "intrinsic writes ~0" is CIRCULAR -- noread and floor are both
+# states where the entropy walk does not run, so their ratio is a
+# tautology, not a measurement. For a program that reads verdicts at all
+# (an autopilot does) the split is reads-direct ~75% / observed-write
+# bookkeeping ~25%; #915 elides the 25% only in a program with no reads
+# anywhere. Three correct measurements in different regimes; the regime
 # variable went unnamed for six rounds and the mechanism was invented
 # twice.
 set -euo pipefail
@@ -82,7 +87,7 @@ WF_CEIL=3.0
 # `write/floor` does not isolate the observed write path at all -- neutering
 # only the four predicate reads inside run_read, a function the `write`
 # variant never enters, drops write/floor from ~1.45 to ~1.03. #915's gate
-# arms PROCESS-WIDE and monotonically, so one verdict read anywhere in the
+# arms PER-INTERPRETER-STATE and monotonically, so one verdict read anywhere in the
 # program re-arms entropy bookkeeping for every assignment in it. This
 # bound is the penalty itself, measured against a separate program that is
 # read-free by construction. What the file pin has to defend for that
@@ -185,7 +190,7 @@ check_ratio read/write "$RATIO" "$RW_BOUND" || {
     echo "      If reads were made O(1) this is EXPECTED — re-measure, update"
     echo "      ORACLE.md's C6 numbers, and re-justify the bound."
     exit 1; }
-echo "PASS: the read-bearing program costs ${RATIO}x the write-only one — #915's write-path gate cannot help this shape (attributed: reads-direct 75-89%, arming 3-21%, intrinsic writes ~0 — see GAPS G7)"
+echo "PASS: the read-bearing program costs ${RATIO}x the write-only one — #915's write-path gate cannot help this shape (for a verdict-reading program: reads-direct ~75%, observed-write bookkeeping ~25% — see GAPS G7)"
 
 # The observed WRITE path must cost something too, or `floor` is a number
 # nobody reads and the "78% reads / 22% writes" split is unsupported.
@@ -263,7 +268,7 @@ if ! check_ratio write/noread "$WA" "$WA_BOUND"; then
         echo "      stopped being read-free."
         exit 1; }
 fi
-echo "PASS: C6 process-wide arming penalty present at ${WA}x (G7) — the write cost C6 attributes to writes is mostly this"
+echo "PASS: C6 per-state arming penalty present at ${WA}x (G7) — the write cost C6 attributes to writes is mostly this"
 PLANTED4=$(awk -v w="$W" 'BEGIN{ printf "%.2f", w/w }')
 if check_ratio planted4 "$PLANTED4" "$WA_BOUND"; then
     echo "FAIL: the C6 arming bound accepted a planted ratio of ${PLANTED4} — that bound cannot fail"; exit 1

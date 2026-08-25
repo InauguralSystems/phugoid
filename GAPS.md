@@ -113,7 +113,7 @@ not check, which is recorded here rather than silently patched, because
 the honest fix is upstream.
 Upstreamed as **EigenScript#1047**.
 
-### G7 — #915's write-path gate arms PROCESS-WIDE and monotonically; a bare string arms it
+### G7 — #915's write-path gate arms PER-INTERPRETER-STATE and monotonically; a bare string arms it
 Found at rung-3 blind-critic round 10, corrected at round 11, 2026-08-25,
 `eigenscript` v0.41.0 / EigenScript@301026d. Upstreamed as
 **EigenScript#1046**.
@@ -125,8 +125,10 @@ is broader:
 `obs_needed` is **one flag on `EigsState`** (`src/eigenscript.h:561`), set
 in `compile_ast` (`src/compiler.c:3717`) and documented there as
 *"Monotonic: a later unit that reads the observer turns it on for good."*
-There is no per-module arming to make finer — there is a single
-process-wide bit. So:
+There is no per-module arming to make finer — there is a single bit per
+interpreter state (one per process for the CLI; an embedder running
+several `EigsState`s gets one each, which the header stresses was "a real
+bug when it was not"). So:
 
 **One verdict read anywhere in the process — in a dead function, in a
 different file, in an eagerly-resolved `load_file` target

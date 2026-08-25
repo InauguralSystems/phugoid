@@ -4,7 +4,7 @@
 # The same observed write loop as ap_profile.eigs's `write` variant, in a
 # program that contains NO predicate read and NO observer NAME anywhere.
 # That difference alone is the measurement: EigenScript#915's write-path
-# gate arms PROCESS-WIDE and monotonically -- `obs_needed` is one flag on
+# gate arms PER-INTERPRETER-STATE and monotonically -- `obs_needed` is one flag on
 # EigsState -- so a single verdict read anywhere in the program (a dead
 # function, a different file, an eagerly-resolved load_file target) arms
 # entropy bookkeeping for every assignment in every module. The gate also

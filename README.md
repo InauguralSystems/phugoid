@@ -73,9 +73,10 @@ a closed-loop autopilot, with the observer as its supervisory layer:
   switching off — EigenScript#1045 changing what an actuator does.
 - **`tests/ap_profile.eigs`** — the observer's READ path, which no
   consumer had put under load. The whole read-bearing program costs
-  1.75–2.50× the write-only one on this shape; attributed, reads account for
-  effectively all of the observer cost, directly or through arming. And the rung's second upstream find:
-  EigenScript#915's write-path gate arms **process-wide** and
+  1.75–2.50× the write-only one on this shape; for a program that reads
+  verdicts at all, ~75% of the observer cost is the reads themselves and
+  ~25% is per-assignment write bookkeeping the reads keep armed. And the rung's second upstream find:
+  EigenScript#915's write-path gate arms **per interpreter state** and
   monotonically, so one verdict read anywhere in a program — in a function
   that is never called, in a different file, or as a bare string constant
   — arms bookkeeping for every assignment in every module (+43–49% measured on dead
@@ -112,7 +113,7 @@ bash tests/test_observer.sh    # 11 observer-verdict checks + 2 plants
 bash tests/test_latsim.sh      # 76 rung-2 model checks vs the rung-0 chain
 bash tests/test_latsim_planted.sh # 22 rung-2 plants, exact red sets + manifest
 bash tests/test_observer_lat.sh   # 13 rung-2 observer checks + 2 plants
-bash tests/test_ap.sh          # 85 rung-3 closed-loop checks
+bash tests/test_ap.sh          # 90 rung-3 closed-loop checks
 bash tests/test_ap_planted.sh  # 16 rung-3 plants, exact red sets + manifest
 bash tests/test_ap_profile.sh  # the observer read-path ratio gate
 ```

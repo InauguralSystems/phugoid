@@ -10,7 +10,7 @@
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 85.
+# Population pinned at exactly 90.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -415,6 +415,9 @@ check_exact of ["C2.ph.Tdft.k", ph_Td.k, 8]
 # half the time" silently became "it flips once in 400 s". This is the
 # repack class round 3 closed for C5.p4's onset and round 4 for C4.ph's
 # horizon, never applied to the one stream that is the result.
+# runs IS tied to the physics: the predicate flips 4x per period, so over
+# 400 s of flight at T = 46.918s that is 4*400/46.918 = 34.1 transitions,
+# plus the 3 start-up runs (stable 9, equilibrium 1, diverging 32) = 37.
 define verdict_runs(rec) as:
     local n is 0
     local i is 0
@@ -426,11 +429,19 @@ define verdict_runs(rec) as:
         i is i + 1
     return n
 
-# The LONGEST maximal run, which ties the alternation to the physics: at
-# dt=0.05 a quarter of the predicted closed-loop phugoid period
-# (T = 51.438 s) is 257 samples, and the longest run measures 260. That is
-# the mechanism -- a 10-sample window sees a locally monotone slice of a
-# sinusoid -- expressed as a number a windowing change upstream would red.
+# The LONGEST maximal run. Round 12 published this as "a quarter period:
+# T/4 = 257 samples vs 260 measured". Round 13 refuted it, twice over.
+# (1) This stream never engages the gain -- C5.p1.inner.osc and
+# .engagements are both pinned at 0, so sup_run holds kq at 0.0 for all
+# 8000 steps and the plant flown is A, not A + B*K. Its period is the
+# kq=0 row, T = 46.918s, so T/4 is 234.6 samples, not 257.
+# (2) The segments in a cycle are 260/220/198/260, so the longest is
+# 0.277 of a period, not 0.25 -- and it DECAYS (260, 258, 256, 254...),
+# which makes it an initial-condition transient rather than a period
+# invariant. The published agreement was a wrong plant (-9%) cancelling a
+# wrong fraction (+11%).
+# So maxrun is an order FINGERPRINT, not a derived quantity. The physics
+# tie lives on verdict_runs above, where the arithmetic actually holds.
 define verdict_maxrun(rec) as:
     local best is 0
     local cur is 0
@@ -507,6 +518,22 @@ for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c050", 25, 1
 ph_rec is sup_run of ["C4.ph.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 50, 100, tr.P, method, freeze]
 check_exact of ["C4.ph.reads", ph_rec.reads, 80]
 check_exact of ["C4.ph.osc", osc_count of (ph_rec), 56]
+# Round 13: round 12 pinned the inner stream's ORDER and did not twin it
+# here -- the repo's own twin-the-fix rule, broken again by the fix for
+# the finding that motivated it. Packing ph_rec's 56 `oscillating` verdicts
+# contiguously into 24..79 preserves count AND last index (the only two
+# things read), moves the onset 9 -> 24, removes all intermittency, and
+# left 85/85 and all 16 plants green -- while first_engaged still said 19
+# and toggles still said 17.
+check_exact of ["C4.ph.onset", first_osc of (ph_rec), 9]
+check_exact of ["C4.ph.runs", verdict_runs of (ph_rec), 18]
+check_exact of ["C4.ph.maxrun", verdict_maxrun of (ph_rec), 13]
+# ...and CLOSE the distribution, as `inner`'s has been since round 4. Only
+# the 56 oscillating were pinned, leaving 24 of 80 reads uncategorised --
+# among them a FIFTH verdict class, `moving`, which appeared in no pin, no
+# comment and no manifest row anywhere in the rung. 18 + 56 + 6 = 80.
+check_exact of ["C4.ph.stable", verdict_count of [ph_rec, "stable"], 18]
+check_exact of ["C4.ph.moving", verdict_count of [ph_rec, "moving"], 6]
 # The SATURATED horizon — the whole evidence for "the flat count is the
 # window, not the physics". Round 4 repacked this stream (count, onset,
 # toggles and reads all preserved) to move the horizon 79 -> 64, i.e. a
@@ -605,8 +632,8 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0], ["a030", 0.3, 23, 38, 9], [
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 85:
-    print of f"FAIL harness: expected exactly 85 checks, ran {checks_run}"
+if checks_run != 90:
+    print of f"FAIL harness: expected exactly 90 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1
