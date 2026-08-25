@@ -194,9 +194,13 @@ define sp_subspace_ic(A, ph_re, ph_im, tstate, wamp) as:
 
 # The same construction, but normalised on a CHOSEN channel. Which channel
 # matters enormously: the short period is w-dominant, so scaling its
-# eigenvector to a given w is benign; the phugoid's w is ~1/930 of its u,
-# so demanding a given w multiplies the whole vector by ~930 and flies the
-# aircraft through complete pitch loops. Rung 2's lat_mode_ic already took
+# eigenvector to a given w is benign; the phugoid is u-DOMINANT
+# (|v_u/v_w| = 6.75 on the annihilator column actually used), so
+# normalising it on w over-scales the excitation ~17x and flies the
+# aircraft through complete pitch loops. (The raw column's own
+# normalisation is arbitrary, which is why demanding w = 5.0 landed at a
+# scale factor of 938 — that 938 is a scale, NOT a component ratio, as
+# the first draft of this comment claimed.) Rung 2's lat_mode_ic already took
 # a scale index for exactly this reason; rung 1's helper did not, and rung
 # 3's first draft inherited the gap (found by round-1 review, 2026-08-25:
 # a "phugoid" run that looped 7 times with airspeed swinging negative).

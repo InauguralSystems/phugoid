@@ -10,7 +10,7 @@
 # are unreliable on shared CI runners, whereas the read/write ratio is a
 # property of the runtime. Measured 2026-08-25 on the dev box, n=5 medians
 # over this program's 120k frames: read 0.501s, write 0.243s, floor 0.169s.
-#   read/write  = 2.06   -> the bound below is 1.5 (27% margin)
+#   read/write  = 2.06   -> the bound below is 1.5 (~23% margin)
 #   write/floor = 1.44   -> the observed WRITE path is not free either
 #   of the 0.332s of observer cost, 78% is reads and 22% is writes
 # CORRECTION (round-1 review): an earlier ad-hoc probe reported "observed
@@ -47,15 +47,32 @@ med() {  # median of 5 wall-clock seconds for one variant. Round-2 review
 RW_BOUND=1.5
 WF_BOUND=1.15
 
+# The bounds are DATA and get the manifest treatment every tolerance
+# argument in this repo gets. Round-5 review widened both literals
+# (1.5 -> 1.05, 1.15 -> 1.02) and the suite stayed green, because each
+# bound's planted fault sits at ratio 1.00 — the very bottom of the
+# rejection region — so the entire margin the bound buys was unexercised
+# and the value itself was free. A bound-derived plant cannot fix this
+# (it tracks the widening); the declared value has to be pinned.
+[ "$RW_BOUND" = "1.5" ]  || { echo "FAIL: RW_BOUND is $RW_BOUND, declared 1.5 — a widened bound must be re-justified in ORACLE.md, not edited in place"; exit 1; }
+[ "$WF_BOUND" = "1.15" ] || { echo "FAIL: WF_BOUND is $WF_BOUND, declared 1.15 — a widened bound must be re-justified in ORACLE.md, not edited in place"; exit 1; }
+
 # check_ratio <label> <value> <bound> -> 0 if value > bound
 check_ratio() {
     awk -v x="$2" -v b="$3" 'BEGIN{ exit !(x > b) }'
 }
 
 echo "--- ap_profile (C6: observer read-path cost) ---"
-"$EIGS" tests/ap_profile.eigs read  | grep -q '^read '  || { echo "FAIL: read variant did not run"; exit 1; }
-"$EIGS" tests/ap_profile.eigs write | grep -q '^write ' || { echo "FAIL: write variant did not run"; exit 1; }
-"$EIGS" tests/ap_profile.eigs floor | grep -q '^floor ' || { echo "FAIL: floor variant did not run"; exit 1; }
+# Pin the WORK each variant executes, not merely that it printed. Round-5
+# review halved run_floor's loop: the gate reported "120k frames" while a
+# third of the measurement ran 60k, turned write/floor from 1.51 into
+# 2.52 — a GREENER number — and every suite stayed green, because the
+# greps matched only the line prefix. This is the repo's own rule (a gate
+# that silently measures LESS still prints OK) applied to the one
+# measurement whose executed population was not pinned.
+"$EIGS" tests/ap_profile.eigs read  | grep -q '^read 133286$'  || { echo "FAIL: read variant did not execute its declared work (expect 'read 133286')";  "$EIGS" tests/ap_profile.eigs read;  exit 1; }
+"$EIGS" tests/ap_profile.eigs write | grep -q '^write 120000$' || { echo "FAIL: write variant did not execute its declared work (expect 'write 120000')"; "$EIGS" tests/ap_profile.eigs write; exit 1; }
+"$EIGS" tests/ap_profile.eigs floor | grep -q '^floor 120000$' || { echo "FAIL: floor variant did not execute its declared work (expect 'floor 120000')"; "$EIGS" tests/ap_profile.eigs floor; exit 1; }
 R=$(med read); W=$(med write); F=$(med floor)
 echo "read=${R}s  write=${W}s  floor=${F}s  (120k frames, median of 5)"
 RATIO=$(awk -v r="$R" -v w="$W" 'BEGIN{ if (w<=0) w=0.001; printf "%.2f", r/w }')

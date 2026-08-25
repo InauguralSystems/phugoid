@@ -1038,7 +1038,12 @@ first gain tried during design did exactly that — phugoid ζ went to
 - **C4 — supervisory layer (population pinned in harness):** the damper
   is engaged/disengaged by `report of q`, not by a hand-written trigger.
   Physics truth table written first: engaged during the transient,
-  disengaged once settled. Graded as agree/divergence rows like rungs 1–2.
+  disengaged once settled. Rung 3 ships no `agree`/`divergence` manifest labels (rungs 1–2 used them
+because those rungs graded verdicts as their deliverable); here the
+distinction lives in each pin's own comment, and the DIVERGENT ones —
+verdicts that contradict physics — are `C5.p1.inner.{diverging,converged}`
+(a decaying mode reported as diverging half the time) and the blind
+cadences `C5.sp.{c010,c020}`.
 - **C5 — the three pre-registered predictions** (below).
 - **C6 — read-path profile (a RATIO gate, not an absolute budget):** measured µs per predicate
   read and per frame, with a regression bound. Baseline probe measured
@@ -1049,8 +1054,13 @@ first gain tried during design did exactly that — phugoid ζ went to
   corrected at round 1** — n=5 medians on the shipped program (120k
   frames): read 0.501 s, write 0.243 s, floor 0.169 s, so read/write =
   2.06 and write/floor = 1.44; repeated runs land in **1.95–2.13** for
-  read/write (the first draft's "2.09–2.8×" was falsified by round 4 —
-  the real margin over the 1.5 bound is ~23%, not 27%). Both bounds are
+  read/write — the first draft's "2.09–2.8×" was falsified at round 4 and
+  round 5 measured 1.94 on a quiet box, so the reproduction window is
+  **1.94–2.13** and the margin over the 1.5 bound is ~23%, not 27%. Both
+  bound literals are identity-pinned against their declared values, and
+  each variant's EXECUTED work is pinned too (round 5 halved the floor
+  variant's loop and the gate reported a greener ratio while every suite
+  stayed green). Both bounds are
   single-sourced constants shared with their planted faults, after round
   4 found that editing a gate's literal alone left its own fault citing
   the old value and the suite green. The gate takes **median of 5**, not 3 —
@@ -1064,7 +1074,7 @@ first gain tried during design did exactly that — phugoid ζ went to
   number nobody reads) and carries a planted fault proving the bound can
   reject. Shipped as
   `tests/ap_profile.eigs` + `tests/test_ap_profile.sh`, gating the
-  read/write RATIO (measured 2.09–2.8×, bound 1.5×) rather than a wall
+  read/write RATIO (measured 1.94–2.13×, bound 1.5×) rather than a wall
   time, because absolute budgets flake on shared CI runners while the
   ratio is a property of the runtime. If reads are ever made O(1) the
   gate fails BY DESIGN and says so in its own failure message — that is
@@ -1115,7 +1125,9 @@ than one that does not:
   and off 17 times is not "holds". A control consumer needs a debounce
   the predicates do not provide. Pinned as `C5.p2.sup.toggles = 17`,
   `C4.ph.osc = 56`, and — since the layer's actual output is the
-  actuator timeline — `C4.ph.first_engaged = 9`. (These are the
+  actuator timeline — `C4.ph.first_engaged = 19` (recorded at decim 50
+  against cadence 100, so it is an independent read rather than an alias
+  of the verdict onset). (These are the
   round-1 re-measurements on the corrected IC; the first draft published
   59 and 15 from the looping trajectory.)
 - **Prediction 3 — CONFIRMED, and stronger than stated.** For the short
@@ -1179,8 +1191,14 @@ plant and measures brittleness rather than signal.
 Recorded because it invalidated the first version of every headline
 number. `sp_subspace_ic` (rung 1) normalises the excitation on the **w**
 channel — correct for the w-dominant short period it was written for.
-Rung 3 reused it for the PHUGOID, whose w component is ~1/930 of its u,
-so demanding a 5 ft/s w-displacement scaled the eigenvector ~930×: the
+Rung 3 reused it for the PHUGOID, which is u-dominant (|v_u/v_w| = 6.75
+on the annihilator column used), so normalising on w rather than u
+over-scales the excitation by **~17×**; demanding 5 ft/s of w landed at
+a scale factor of 938 only because the raw column's normalisation is
+arbitrary. (Round-5 review: the first draft called that 938 a component
+ratio — the measured consequences below were right, the stated cause was
+wrong by ~137×. A causal story is a hypothesis however precise it
+sounds.) The
 "phugoid episode" started 97° nose-down and flew **7 complete pitch
 loops**, with airspeed swinging from −9 to 714 ft/s on a linear-aero
 model valid near Mach 0.25. Nothing in the rung could see it — the
