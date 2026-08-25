@@ -10,7 +10,7 @@
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 90.
+# Population pinned at exactly 92.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -417,7 +417,14 @@ check_exact of ["C2.ph.Tdft.k", ph_Td.k, 8]
 # horizon, never applied to the one stream that is the result.
 # runs IS tied to the physics: the predicate flips 4x per period, so over
 # 400 s of flight at T = 46.918s that is 4*400/46.918 = 34.1 transitions,
-# plus the 3 start-up runs (stable 9, equilibrium 1, diverging 32) = 37.
+# plus the 3 start-up runs (stable 9, equilibrium 1, diverging 32) = 37 --
+# and the cycle dump is 260+220+198+260 = 938 = T/dt exactly.
+# It does NOT track the gain. Round 13 claimed it did; round 14 measured
+# eff_gain 0.5 -> 2.0 leaving all nine inner rows bit-identical, and s1/s2
+# red zero of them. kq is provably INERT on this row, which is the
+# refutation itself: osc = 0 means the layer never engages, so the gain is
+# never applied. The .osc and .engagements rows pinned at 0 are the
+# witness; the ROW token's params=0.5 is identity, not use.
 define verdict_runs(rec) as:
     local n is 0
     local i is 0
@@ -511,7 +518,14 @@ define osc_count(rec) as:
 for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c050", 25, 1, 9], ["c100", 50, 1, 9]]:
     local rec is sup_run of [f"C5.sp.{cs[0]}.run", ic_sp, tr.de, eff_gain of (0.5), 0.02, 1500, 25, cs[1], tr.P, method, freeze]
     check_exact of [f"C5.sp.{cs[0]}.osc", osc_count of (rec), cs[2]]
-    check_exact of [f"C5.sp.{cs[0]}.at", first_osc of (rec), cs[3]]
+    # Round 14: first_osc/last_osc return -1 IFF osc_count == 0, so a `.at`
+    # row pinned at -1 cannot fail independently of its `.osc == 0`
+    # sibling -- verified across all 16 plants, where they fire only as a
+    # block under s12. Same criterion round 4 used to delete C3.gain.dir
+    # and C4.ph.sustained. The row is emitted only where it carries
+    # information.
+    if cs[2] > 0:
+        check_exact of [f"C5.sp.{cs[0]}.at", first_osc of (rec), cs[3]]
 
 # C4 — the POSITIVE control: a persistent regime IS actionable. The
 # phugoid at a matched cadence yields sustained oscillating verdicts.
@@ -623,17 +637,25 @@ check_exact of ["C4.ph.first_engaged", first_engaged of (ph_rec), 19]
 # the saturation boundary — a row there (uamp 0.5: horizon 78 against a
 # last read of 79) flips by one under any perturbing plant, which is
 # brittleness rather than signal.
-for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0], ["a030", 0.3, 23, 38, 9], ["a040", 0.4, 40, 58, 9], ["a035", 0.35, 34, 53, 9]]:
+for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0], ["a030", 0.3, 23, 38, 9, 12, 41], ["a040", 0.4, 40, 58, 9, 15, 21], ["a035", 0.35, 34, 53, 9, 16, 26]]:
     local icr is mode_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 0, ramp[1]]
     local rc is sup_run of [f"C5.p4.{ramp[0]}.run", icr, tr.de, eff_gain of (0.5), 0.05, 8000, 100, 100, tr.P, method, freeze]
     check_exact of [f"C5.p4.{ramp[0]}.osc", osc_count of (rc), ramp[2]]
-    check_exact of [f"C5.p4.{ramp[0]}.horizon", last_osc of (rc), ramp[3]]
-    check_exact of [f"C5.p4.{ramp[0]}.onset", first_osc of (rc), ramp[4]]
+    if ramp[2] > 0:
+        check_exact of [f"C5.p4.{ramp[0]}.horizon", last_osc of (rc), ramp[3]]
+        check_exact of [f"C5.p4.{ramp[0]}.onset", first_osc of (rc), ramp[4]]
+        # ...and the INTERIOR, which onset+horizon+count leave free: the
+        # verdicts between them can be permuted with all three matching.
+        # Round 12 gave this twin to C5.p1.inner and round 13 to C4.ph;
+        # round 14 found the third stream in the same class still without
+        # it. Twinned now rather than one stream per round.
+        check_exact of [f"C5.p4.{ramp[0]}.runs", verdict_runs of (rc), ramp[5]]
+        check_exact of [f"C5.p4.{ramp[0]}.maxrun", verdict_maxrun of (rc), ramp[6]]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 90:
-    print of f"FAIL harness: expected exactly 90 checks, ran {checks_run}"
+if checks_run != 92:
+    print of f"FAIL harness: expected exactly 92 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

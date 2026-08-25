@@ -1073,8 +1073,23 @@ cadences `C5.sp.{c010,c020}`.
   fraction (+11%) into an agreement that looked exact. `maxrun` is an order
   FINGERPRINT and is labelled as one. What genuinely ties to the physics is
   `runs`: the predicate flips 4× per period, so 4 × 400 s / 46.918 s = 34.1
-  transitions plus 3 start-up runs = 37, and it tracks gain across the
-  ramp (kq 0.5 → 35, kq 1.0 → 31). This is the repack class round 3 closed for `C5.p4`'s onset and
+  transitions plus 3 start-up runs = 37 — verified against the segment
+  dump, where the cycle is 260+220+198+260 = 938 = T/dt exactly.
+  **Round 14 deleted a second false clause from this same sentence.** Round
+  13's replacement added "and it tracks gain across the ramp (kq 0.5 → 35,
+  kq 1.0 → 31)", which is refuted by the premise six lines above it: if the
+  gain never reaches the dynamics, nothing derived from this trajectory can
+  track it. Measured — quadrupling `eff_gain` to 2.0 leaves every one of
+  the nine `C5.p1.inner` rows bit-identical, and plants s1 (gain sign
+  flipped) and s2 (gain inert) red **zero** of them. Three consecutive
+  rounds got this one pin's justification wrong.
+  What that actually establishes is worth more than the clause it replaces:
+  **`kq` is provably inert on this row**, and its inertness is the
+  refutation itself — `osc = 0` means the supervisory layer never engages,
+  so the gain is never applied. The two rows pinned at 0 (`.osc`,
+  `.engagements`) ARE the witness. The row's ROW token still carries
+  `params=0.5`; it is carried for identity, not because the run uses it,
+  and that is now stated rather than left to look like a USE witness. This is the repack class round 3 closed for `C5.p4`'s onset and
   round 4 for `C4.ph`'s horizon, never applied to the one stream that IS
   the result.
 - **C6 — read-path profile (a RATIO gate, not an absolute budget):** the shipped gate asserts
@@ -1362,18 +1377,18 @@ measured one.)
 
 | Plant | Injected into | Reds |
 |---|---|---|
-| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 37 |
-| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 37 |
-| s3 | Euler instead of RK4 | 16 |
-| s4 | trim offset by 0.01 rad | 51 |
+| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 43 |
+| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 43 |
+| s3 | Euler instead of RK4 | 21 |
+| s4 | trim offset by 0.01 rad | 57 |
 | s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
 | s6 | grading-dt dilation (estimator side only) | 6 |
-| s7 | verdict stream frozen — supervisory layer inert | 28 |
+| s7 | verdict stream frozen — supervisory layer inert | 34 |
 | s8 | ζ/T constant-replaced with the identity field carried | 13 |
-| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 39 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 45 |
 | s10 | dt-rerun grading separator | 1 |
 | s11 | ζ estimator slot alias | 16 |
-| s12 | verdicts forced to `oscillating` — the dual of s7 | 36 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 38 |
 | s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
 | s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
@@ -1382,6 +1397,16 @@ measured one.)
 C6's FOUR planted faults live in `tests/test_ap_profile.sh` — one per arm
 (read/write floor, write/floor floor, write/floor ceiling, write/noread
 floor) — and are counted separately; they are not part of this 16.
+
+**Instrument confound in the read/write split (round 14).** `run_read`
+executes 133,286 more observed assignments than `run_write` — the `hits`
+counter, itself pinned — so `(read − write)`, the numerator of the "~75%",
+contains write cost. A confound-free variant with an identical assignment
+population (bare predicate statements instead of `if …: hits is hits + 1`)
+measures 76.7/23.3 against the shipped formula's 81.6/18.4 in the same
+session, and the shipped formula's own run-to-run spread is 74–82%. The
+published ~75/25 survives, but the instrument is not clean and the number
+should be read as "roughly three-quarters", not to a digit.
 
 **Margin note (round 12).** Two arms ship with sub-15% headroom on a
 shared runner: `write/floor` (bound 1.15, measured 0.98 once under load at
@@ -1398,8 +1423,11 @@ published as a measurement, not asserted; (b) C0's gain-independence is
 structural (`B[0] = 0`), stated but not measured — all 16 C0 rows run at
 kq = 0.5; (c) the C6 absolutes (read/write/floor/noread wall times) are
 context and are asserted nowhere; (d) the shell harnesses' own FAIL
-branches, as in rungs 1 and 2; (e) **prediction 2's second clause is not
-measured** — "the closed-loop response while engaged still matches the C2
+branches, as in rungs 1 and 2; (e) the interiors of `C5.sp.*` (four cadence rows) have no
+`runs`/`maxrun` twin — the three streams that needed one got it at rounds
+12, 13 and 14, and these are short (60 and 30 reads) with `.osc` pinned at
+0 or 1, so there is little interior to permute; (f) **prediction 2's
+second clause is not measured** — "the closed-loop response while engaged still matches the C2
 predictions" was pre-registered, and no shipped check grades the
 supervisory trajectory against the C2 predictions (`C2.ph` certifies the
 EXCITATION, explicitly, not that run). Round 13 caught it missing from
@@ -1409,7 +1437,7 @@ pre-registered clause.
 
 ## Exit gate for rung 3
 
-1. All C checks green (90, population pinned); every one of the 16
+1. All C checks green (92, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
    all FOUR of its planted faults (one per arm);
    rungs 0–2 suites untouched and green.
