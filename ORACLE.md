@@ -1048,7 +1048,12 @@ first gain tried during design did exactly that — phugoid ζ went to
   is a ceiling, not a target: a regression past it is a FAIL. **Numbers
   corrected at round 1** — n=5 medians on the shipped program (120k
   frames): read 0.501 s, write 0.243 s, floor 0.169 s, so read/write =
-  2.06 and write/floor = 1.44. The gate takes **median of 5**, not 3 —
+  2.06 and write/floor = 1.44; repeated runs land in **1.95–2.13** for
+  read/write (the first draft's "2.09–2.8×" was falsified by round 4 —
+  the real margin over the 1.5 bound is ~23%, not 27%). Both bounds are
+  single-sourced constants shared with their planted faults, after round
+  4 found that editing a gate's literal alone left its own fault citing
+  the old value and the suite green. The gate takes **median of 5**, not 3 —
   round-2 review caught an unmutated write/floor pair reading 0.96 under
   median-of-3, which is below the bound; three samples do not insulate a
   20% margin on a shared runner. Of the 0.332 s of observer cost, **78% is
@@ -1211,9 +1216,9 @@ displaced past its bound.
 
 ## Exit gate for rung 3
 
-1. All C checks green (73, population pinned); every one of the 15
+1. All C checks green (83, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
-   its own planted fault;
+   both of its planted faults;
    rungs 0–2 suites untouched and green.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds.
 3. CI green on the pushed branch.

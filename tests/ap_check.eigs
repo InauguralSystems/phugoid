@@ -10,7 +10,7 @@
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 82.
+# Population pinned at exactly 83.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -324,11 +324,10 @@ if base.k100.zl.ok == 1:
         d_meas is base.k100.zl.zeta - base.k025.zl.zeta
 d_pred is (predicted of (1.0)).osc[1].zeta - (predicted of (0.25)).osc[1].zeta
 check_derived of ["C3.gain.use", gain_ok, d_meas, d_pred, 0.05]
-gain_dir is 0
-if gain_ok == 1:
-    if d_meas > 0.0:
-        gain_dir is 1
-check_exact of ["C3.gain.dir", gain_dir, 1]
+# (C3.gain.dir removed at round 4: `d_meas > 0` is implied by
+# C3.gain.use being within 5% of a positive d_pred, so it could never
+# fail independently and inflated the population's apparent coverage.
+# C4.ph.sustained went the same way — implied by C4.ph.osc == 56.)
 
 # LINEARITY witness: the A_cl prediction is a linearization, so the error
 # must SHRINK with amplitude. Plant s5 rebuilds the small-amplitude run at
@@ -426,6 +425,15 @@ define first_osc(rec) as:
         i is i + 1
     return 0.0 - 1.0
 
+define last_osc(rec) as:
+    local last is 0.0 - 1.0
+    local i is 0
+    loop while i < (len of rec.verdict):
+        if rec.verdict[i] == "oscillating":
+            last is i
+        i is i + 1
+    return last
+
 define osc_count(rec) as:
     local n is 0
     local i is 0
@@ -449,13 +457,16 @@ for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c050", 25, 1
 
 # C4 — the POSITIVE control: a persistent regime IS actionable. The
 # phugoid at a matched cadence yields sustained oscillating verdicts.
-ph_rec is sup_run of ["C4.ph.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, 100, tr.P, method, freeze]
+ph_rec is sup_run of ["C4.ph.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 50, 100, tr.P, method, freeze]
 check_exact of ["C4.ph.reads", ph_rec.reads, 80]
 check_exact of ["C4.ph.osc", osc_count of (ph_rec), 56]
-ph_frac_ok is 0
-if osc_count of (ph_rec) > 40:
-    ph_frac_ok is 1
-check_exact of ["C4.ph.sustained", ph_frac_ok, 1]
+# The SATURATED horizon — the whole evidence for "the flat count is the
+# window, not the physics". Round 4 repacked this stream (count, onset,
+# toggles and reads all preserved) to move the horizon 79 -> 64, i.e. a
+# genuine deadband cutoff inside the run, with 82/82 and all 16 plants
+# green. 79 is the maximum possible index, so unlike a mid-ramp row it is
+# clamped and can only move DOWNWARD — which is exactly the failure.
+check_exact of ["C4.ph.horizon", last_osc of (ph_rec), 79]
 
 # C5.P1 — verdict-driven INNER-loop modulation chatters. Sampling the
 # verdict every step makes the engagement toggle at the band boundary;
@@ -482,6 +493,11 @@ check_exact of ["C5.p1.inner.engagements", inner.toggles, 0]
 # verdicts are confidently wrong, not absent.
 check_exact of ["C5.p1.inner.diverging", verdict_count of [inner, "diverging"], 3934]
 check_exact of ["C5.p1.inner.converged", verdict_count of [inner, "converged"], 4056]
+# ...and the remainder, so the distribution is CLOSED: 3934 + 4056 + 9 +
+# 1 = 8000. The first draft pinned only the two large bands while the
+# prose implied completeness, leaving 10 reads unaccounted (round 4).
+check_exact of ["C5.p1.inner.stable", verdict_count of [inner, "stable"], 9]
+check_exact of ["C5.p1.inner.equilibrium", verdict_count of [inner, "equilibrium"], 1]
 # And the supervisory layer does NOT hold cleanly either: it sees the
 # regime (59 of 80 reads) but the engagement flickers 15 times in one
 # phugoid episode, because the raw verdict carries no hysteresis at the
@@ -499,7 +515,12 @@ define first_engaged(rec) as:
             return i
         i is i + 1
     return 0.0 - 1.0
-check_exact of ["C4.ph.first_engaged", first_engaged of (ph_rec), 9]
+# Recorded at decim 50 against a cadence of 100, so the actuator record
+# is sampled twice per verdict and this is an INDEPENDENT read rather
+# than an alias of the verdict onset (round 4: with decim == cadence,
+# engaged[i] was identically verdict[i] == "oscillating", and a stream
+# repack left it unmoved).
+check_exact of ["C4.ph.first_engaged", first_engaged of (ph_rec), 19]
 
 # C5.P4 — the deadband sets an observability HORIZON, not an on/off gate.
 # The first draft called this a "sharp cliff" on the strength of two
@@ -521,15 +542,6 @@ check_exact of ["C4.ph.first_engaged", first_engaged of (ph_rec), 9]
 # the saturation boundary — a row there (uamp 0.5: horizon 78 against a
 # last read of 79) flips by one under any perturbing plant, which is
 # brittleness rather than signal.
-define last_osc(rec) as:
-    local last is 0.0 - 1.0
-    local i is 0
-    loop while i < (len of rec.verdict):
-        if rec.verdict[i] == "oscillating":
-            last is i
-        i is i + 1
-    return last
-
 for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0], ["a030", 0.3, 23, 38, 9], ["a040", 0.4, 40, 58, 9], ["a035", 0.35, 34, 53, 9]]:
     local icr is mode_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 0, ramp[1]]
     local rc is sup_run of [f"C5.p4.{ramp[0]}.run", icr, tr.de, eff_gain of (0.5), 0.05, 8000, 100, 100, tr.P, method, freeze]
@@ -539,8 +551,8 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0], ["a030", 0.3, 23, 38, 9], [
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 82:
-    print of f"FAIL harness: expected exactly 82 checks, ran {checks_run}"
+if checks_run != 83:
+    print of f"FAIL harness: expected exactly 83 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

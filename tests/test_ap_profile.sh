@@ -39,6 +39,19 @@ med() {  # median of 5 wall-clock seconds for one variant. Round-2 review
         awk -v a="$t0" -v b="$t1" 'BEGIN{ printf "%.3f\n", (b-a)/1000000000 }'
     done | sort -n | sed -n 3p
 }
+# Bounds live in ONE place each. Round 4 found the gate comparing against
+# a literal while its planted fault cited a second copy: editing only the
+# gate's bound to 0.4 left the whole suite green, with the gate accepting
+# a runtime where reads cost LESS than writes. A gate and the fault that
+# validates it must share the constant.
+RW_BOUND=1.5
+WF_BOUND=1.15
+
+# check_ratio <label> <value> <bound> -> 0 if value > bound
+check_ratio() {
+    awk -v x="$2" -v b="$3" 'BEGIN{ exit !(x > b) }'
+}
+
 echo "--- ap_profile (C6: observer read-path cost) ---"
 "$EIGS" tests/ap_profile.eigs read  | grep -q '^read '  || { echo "FAIL: read variant did not run"; exit 1; }
 "$EIGS" tests/ap_profile.eigs write | grep -q '^write ' || { echo "FAIL: write variant did not run"; exit 1; }
@@ -46,9 +59,9 @@ echo "--- ap_profile (C6: observer read-path cost) ---"
 R=$(med read); W=$(med write); F=$(med floor)
 echo "read=${R}s  write=${W}s  floor=${F}s  (120k frames, median of 5)"
 RATIO=$(awk -v r="$R" -v w="$W" 'BEGIN{ if (w<=0) w=0.001; printf "%.2f", r/w }')
-echo "read/write ratio = ${RATIO}  (bound: > 1.5)"
-awk -v x="$RATIO" 'BEGIN{ exit !(x > 1.5) }' || {
-    echo "FAIL: the read path no longer dominates (ratio ${RATIO} <= 1.5)."
+echo "read/write ratio = ${RATIO}  (bound: > ${RW_BOUND})"
+check_ratio read/write "$RATIO" "$RW_BOUND" || {
+    echo "FAIL: the read path no longer dominates (ratio ${RATIO} <= ${RW_BOUND})."
     echo "      If reads were made O(1) this is EXPECTED — re-measure, update"
     echo "      ORACLE.md's C6 numbers, and re-justify the bound."
     exit 1; }
@@ -57,8 +70,8 @@ echo "PASS: read path dominates at ${RATIO}x — #915's write-path gate cannot h
 # The observed WRITE path must cost something too, or `floor` is a number
 # nobody reads and the "78% reads / 22% writes" split is unsupported.
 WF=$(awk -v w="$W" -v f="$F" 'BEGIN{ if (f<=0) f=0.001; printf "%.2f", w/f }')
-echo "write/floor ratio = ${WF}  (bound: > 1.15)"
-awk -v x="$WF" 'BEGIN{ exit !(x > 1.15) }' || { echo "FAIL: observed writes now cost no more than the unobserved floor (${WF}) — re-measure and re-justify the 78/22 split"; exit 1; }
+echo "write/floor ratio = ${WF}  (bound: > ${WF_BOUND})"
+check_ratio write/floor "$WF" "$WF_BOUND" || { echo "FAIL: observed writes now cost no more than the unobserved floor (${WF}) — re-measure and re-justify the 78/22 split"; exit 1; }
 echo "PASS: observed write path costs ${WF}x the unobserved floor"
 
 # PLANTED FAULT for this gate (rungs 0-2 refuse to ship a gate never shown
@@ -68,15 +81,15 @@ echo "PASS: observed write path costs ${WF}x the unobserved floor"
 # is the part that could silently accept anything; the variants themselves
 # are validated by having just been run above.
 PLANTED=$(awk -v r="$W" -v w="$W" 'BEGIN{ printf "%.2f", r/w }')
-if awk -v x="$PLANTED" 'BEGIN{ exit !(x > 1.5) }'; then
+if check_ratio planted "$PLANTED" "$RW_BOUND"; then
     echo "FAIL: the C6 bound accepted a planted ratio of ${PLANTED} — this gate cannot fail"; exit 1
 fi
-echo "PASS: C6 read/write planted fault rejected (ratio ${PLANTED} <= 1.5)"
+echo "PASS: C6 read/write planted fault rejected (ratio ${PLANTED} <= ${RW_BOUND})"
 
 # The same for the SECOND bound: a floor equal to the write time is what
 # "observed writes are free" would look like, and 1.15 must reject it.
 PLANTED2=$(awk -v w="$W" -v f="$W" 'BEGIN{ printf "%.2f", w/f }')
-if awk -v x="$PLANTED2" 'BEGIN{ exit !(x > 1.15) }'; then
+if check_ratio planted2 "$PLANTED2" "$WF_BOUND"; then
     echo "FAIL: the C6 write/floor bound accepted a planted ratio of ${PLANTED2} — that bound cannot fail"; exit 1
 fi
-echo "PASS: C6 write/floor planted fault rejected (ratio ${PLANTED2} <= 1.15)"
+echo "PASS: C6 write/floor planted fault rejected (ratio ${PLANTED2} <= ${WF_BOUND})"
