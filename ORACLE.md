@@ -1122,7 +1122,7 @@ cadences `C5.sp.{c010,c020,c040,c102}` (round 18: this enumeration was written a
   three ratio FLOORS — read/write, write/floor, and (since round 10)
   write/noread — plus a CEILING on write/floor (3.0). No µs/read and no
   µs/frame is asserted anywhere; the absolutes below are context, not
-  arms. Four planted faults, one per arm. read/write has no ceiling deliberately (load
+  arms. FIVE planted faults: one per arm, plus `file_pin`'s (round 23). read/write has no ceiling deliberately (load
   INFLATES it — 3.38 measured on unmutated code); write/floor can have one
   because load DEFLATES it (0.98 measured at round 7), so the arm cannot
   flake in the direction load pushes. Baseline
@@ -1471,24 +1471,24 @@ measured one.)
 
 | Plant | Injected into | Reds |
 |---|---|---|
-| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 68 |
-| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 67 |
-| s3 | Euler instead of RK4 | 52 |
-| s4 | trim offset by 0.01 rad | 131 |
+| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 73 |
+| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 71 |
+| s3 | Euler instead of RK4 | 60 |
+| s4 | trim offset by 0.01 rad | 133 |
 | s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
 | s6 | grading-dt dilation (estimator side only) | 6 |
-| s7 | verdict stream frozen — supervisory layer inert | 122 |
+| s7 | verdict stream frozen — supervisory layer inert | 131 |
 | s8 | ζ/T constant-replaced with the identity field carried | 13 |
-| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 100 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 109 |
 | s10 | dt-rerun grading separator | 1 |
 | s11 | ζ estimator slot alias | 16 |
-| s12 | verdicts forced to `oscillating` — the dual of s7 | 130 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 140 |
 | s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
 | s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
 | s16 | its mirror — the extrema slot fed by the DFT (makes `as_tp` live) | 1 |
 
-C6's FOUR planted faults live in `tests/test_ap_profile.sh` — one per arm
+C6's four RATIO planted faults live in `tests/test_ap_profile.sh` — one per arm
 (read/write floor, write/floor floor, write/floor ceiling, write/noread
 floor) — and are counted separately; they are not part of this 16.
 
@@ -1547,7 +1547,24 @@ logic against a synthetic input, so `file_pin() { : ; }` and `peer_ok() {
 return 0; }` each gutted a gate with its own plant still printing PASS —
 verbatim the failure round 22 had just closed, one round later. Both now
 call the real function over a dirty input and require nonzero, the shape
-`tests/test_lint.sh` had used all along. The `file_pin` plant also gained
+`tests/test_lint.sh` had used all along.
+
+**Round 24 then found the SAME defect in round 23's own new plants**, in
+the commit that named it: the three manifest-enforcement plants were two
+inline copies of the gate's pipeline plus one tautology (it grepped a name
+the manifest declares `structural` against the plantable branch, which can
+never see it), and two of the five arms had no plant at all. Gutting all
+five left the suite at exit 0 still printing PASS. All five arms are now
+extracted as functions — `manifest_identity`, `rowparams_identity`,
+`coverage_ok`, `structural_ok`, `class_ok` — each with an in-class plant
+that calls it on a dirty input and a guard that the mutation applied; each
+verified to reject its fault, accept the clean input, and have its plant
+fire when the arm is gutted.
+
+Three rounds running, the fix for "the plant does not exercise the gate"
+had that same defect. The property is now checkable rather than asserted:
+every enforcement arm in this rung is a named function with an executed
+in-class plant, and gutting any one of them reds. The `file_pin` plant also gained
 the two guards its sibling had and it lacked: a `cmp -s` check that the
 mutation applied at all, and a single-sourced hash (it had duplicated the
 constant, breaking this file's own round-4 rule). Round 22 applied it back
@@ -1612,9 +1629,9 @@ pre-registered clause.
 
 ## Exit gate for rung 3
 
-1. All C checks green (200, population pinned); every one of the 16
+1. All C checks green (212, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
-   all FOUR of its planted faults (one per arm);
+   all FIVE of its planted faults (one per arm, plus file_pin's);
    rungs 0–2 suites untouched and green.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds.
    **This was exceeded, deliberately and on the record.** The cap round

@@ -172,7 +172,12 @@ file_pin() {
 # and run the REAL function over it, asserting nonzero.
 PROFILE_HASH=f674b4b84476
 PROFILE_LINES=61
+NOREAD_HASH=743df838d495
+NOREAD_LINES=15
 [ "$PROFILE_HASH" = "f674b4b84476" ] || { echo "FAIL: PROFILE_HASH is $PROFILE_HASH, declared f674b4b84476 — the workload identity is DATA and gets the same identity pin the bounds do"; exit 1; }
+[ "$PROFILE_LINES" = "61" ]          || { echo "FAIL: PROFILE_LINES is $PROFILE_LINES, declared 61"; exit 1; }
+[ "$NOREAD_HASH" = "743df838d495" ]  || { echo "FAIL: NOREAD_HASH is $NOREAD_HASH, declared 743df838d495"; exit 1; }
+[ "$NOREAD_LINES" = "15" ]           || { echo "FAIL: NOREAD_LINES is $NOREAD_LINES, declared 15"; exit 1; }
 FP_TMP=$(mktemp -d)
 sed 's/^N is 120000$/N is 60000/' tests/ap_profile.eigs > "$FP_TMP/mut.eigs"
 cmp -s tests/ap_profile.eigs "$FP_TMP/mut.eigs" && { rm -rf "$FP_TMP"; echo "FAIL: the file_pin plant's mutation did not apply — it would certify nothing"; exit 1; }
@@ -182,7 +187,7 @@ fi
 rm -rf "$FP_TMP"
 echo "PASS: C6 file_pin planted fault rejected (the real file_pin rejects a halved N)"
 file_pin tests/ap_profile.eigs        "$PROFILE_HASH" "$PROFILE_LINES"
-file_pin tests/ap_profile_noread.eigs 743df838d495 15
+file_pin tests/ap_profile_noread.eigs "$NOREAD_HASH" "$NOREAD_LINES"
 # Round 8 retired the site grep that round 6 added: any read added to or
 # removed from a measured loop already changes that loop's body hash, so
 # the grep caught nothing the hashes miss and could only false-alarm on a

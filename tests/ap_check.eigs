@@ -10,7 +10,7 @@
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 200.
+# Population pinned at exactly 212.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -626,6 +626,23 @@ for cs in [["c010", 5, 0, 0.0 - 1.0, 300, 133, 157, 9, 1, 10, 23694, 21111, 113]
 # yields FIVE classes and 120 `diverging` reads on a healthy decaying mode.
 # That strengthens prediction 3 rather than weakening it, and the rung's
 # own upstream evidence at that cadence was pinned nowhere until now.
+# Round 24: the SP half pins all four band edges precisely so no windowing
+# change can restore the monotone story; the phugoid half shipped two
+# INTERIOR points and left its published lower edge -- "first sighted at
+# 3.70 s", the number the DISJOINT claim rests on -- pinned nowhere. Both
+# edges now bracketed at one-cadence resolution, as the SP's are.
+# These are verdict streams, so they get the full family -- the streamfam
+# gate rejected a `dist=none` declaration for them, which is the gate
+# catching its own author doing the thing it was built to stop.
+for pe in [["p365", 73, 0, 109, 100, 9, 3, 90], ["p370", 74, 1, 108, 75, 32, 9, 51]]:
+    local erec is sup_run of [f"C5.ph.{pe[0]}.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, pe[1], tr.P, method, freeze]
+    check_exact of [f"C5.ph.{pe[0]}.osc", osc_count of (erec), pe[2]]
+    check_exact of [f"C5.ph.{pe[0]}.reads", len of erec.verdict, pe[3]]
+    check_exact of [f"C5.ph.{pe[0]}.stable", verdict_count of [erec, "stable"], pe[4]]
+    check_exact of [f"C5.ph.{pe[0]}.moving", verdict_count of [erec, "moving"], pe[5]]
+    check_exact of [f"C5.ph.{pe[0]}.runs", verdict_runs of (erec), pe[6]]
+    check_exact of [f"C5.ph.{pe[0]}.maxrun", verdict_maxrun of (erec), pe[7]]
+
 for pc in [["p045", 9, 888, 359, 520, 9, 0, 0, 163742, 35, 33, 230050], ["p100", 20, 400, 120, 101, 58, 91, 30, 23583, 91, 17, 29322]]:
     local prec is sup_run of [f"C5.ph.{pc[0]}.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, pc[1], tr.P, method, freeze]
     check_exact of [f"C5.ph.{pc[0]}.osc", osc_count of (prec), 0]
@@ -727,7 +744,7 @@ check_exact of ["C5.p1.inner.runs", verdict_runs of (inner), 37]
 # GROWING ones: the verdict signature of an amplifying mode, which is the
 # one thing a supervisory layer exists to distinguish from a healthy one.
 # verdict_oidx would be vacuous here (osc = 0), so the checksum keys on
-# this stream's dominant class instead.
+# this stream's `diverging` class (round 19: NOT its dominant one -- converged 4056 exceeds diverging 3934) instead.
 check_exact of ["C5.p1.inner.didx", verdict_idxsum of [inner, "diverging"], 16038601]
 # Round 21 read the matrix AS a matrix and found `cidx` on the four
 # SMALLEST converged-bearing streams and absent from the three largest --
@@ -817,8 +834,8 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0, 71, 9, 0, 3124], ["a03
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 200:
-    print of f"FAIL harness: expected exactly 200 checks, ran {checks_run}"
+if checks_run != 212:
+    print of f"FAIL harness: expected exactly 212 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1
