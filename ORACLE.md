@@ -1103,12 +1103,16 @@ than one that does not:
   decaying mode half the time. Pinned as `C5.p1.inner.{osc,diverging,
   converged,engagements}`.
 - **Prediction 2 (supervisory holds cleanly) — HALF WRONG.** Supervision
-  does act on a persistent regime (59 `oscillating` verdicts in 80 reads
-  on the phugoid at a matched cadence), but the engagement **flickers 15
-  times** in a single phugoid episode, because the raw verdict carries no
-  hysteresis at the band boundary. A damper cycling on and off 15 times
-  is not "holds". A control consumer needs a debounce the predicates do
-  not provide. Pinned as `C5.p2.sup.toggles = 15`.
+  does act on a persistent regime (**56** `oscillating` verdicts in 80
+  reads on the phugoid at a matched cadence), but the engagement
+  **flickers 17 times** in a single phugoid episode, because the raw
+  verdict carries no hysteresis at the band boundary. A damper cycling on
+  and off 17 times is not "holds". A control consumer needs a debounce
+  the predicates do not provide. Pinned as `C5.p2.sup.toggles = 17`,
+  `C4.ph.osc = 56`, and — since the layer's actual output is the
+  actuator timeline — `C4.ph.first_engaged = 9`. (These are the
+  round-1 re-measurements on the corrected IC; the first draft published
+  59 and 15 from the looping trajectory.)
 - **Prediction 3 — CONFIRMED, and stronger than stated.** For the short
   period there is no usable cadence at all: 0.1 s and 0.2 s cadences are
   blind (window < period), 0.5 s and 1 s report exactly once, *after* the

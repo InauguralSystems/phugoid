@@ -71,4 +71,12 @@ PLANTED=$(awk -v r="$W" -v w="$W" 'BEGIN{ printf "%.2f", r/w }')
 if awk -v x="$PLANTED" 'BEGIN{ exit !(x > 1.5) }'; then
     echo "FAIL: the C6 bound accepted a planted ratio of ${PLANTED} — this gate cannot fail"; exit 1
 fi
-echo "PASS: C6 planted fault rejected (ratio ${PLANTED} <= 1.5)"
+echo "PASS: C6 read/write planted fault rejected (ratio ${PLANTED} <= 1.5)"
+
+# The same for the SECOND bound: a floor equal to the write time is what
+# "observed writes are free" would look like, and 1.15 must reject it.
+PLANTED2=$(awk -v w="$W" -v f="$W" 'BEGIN{ printf "%.2f", w/f }')
+if awk -v x="$PLANTED2" 'BEGIN{ exit !(x > 1.15) }'; then
+    echo "FAIL: the C6 write/floor bound accepted a planted ratio of ${PLANTED2} — that bound cannot fail"; exit 1
+fi
+echo "PASS: C6 write/floor planted fault rejected (ratio ${PLANTED2} <= 1.15)"

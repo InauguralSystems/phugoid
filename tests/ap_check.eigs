@@ -8,8 +8,9 @@
 # s10 dt-rerun grading separator, s11 zeta slot alias, s12 verdicts
 # forced to `oscillating` (the dual of s7),
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
-# s15 the phugoid DFT slot aliased to period_peaks (makes as_td live).
-# Population pinned at exactly 73.
+# s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
+# s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
+# Population pinned at exactly 82.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -389,6 +390,12 @@ ph_z is mangle_z of (zeta_logdec of [ph_u, ph_gdt])
 ph_Td is period_dft of [ph_u, ph_gdt]
 if plant == "s15":
     ph_Td is period_peaks of [ph_u, ph_gdt]
+# Plant s16 is s15's mirror: the extrema slot fed by the DFT. Without it
+# as_tp was the one accessor of four with no plant driving its refusal
+# arm — gutting it to `return res` passed 73/73 and all 15 plants
+# (round-3 review; rung-1 round-3's null-arm class recurring).
+if plant == "s16":
+    ph_T is period_dft of [ph_u, ph_gdt]
 check_result of ["C2.ph.T", as_tp of (ph_T), "T", pk05.osc[0].T, 0.01]
 check_result of ["C2.ph.Tdft", as_td of (ph_Td), "T", pk05.osc[0].T, 0.01]
 check_result of ["C2.ph.zlog", as_zl of (ph_z), "zeta", pk05.osc[0].zeta, 0.05]
@@ -403,6 +410,22 @@ define verdict_count(rec, want) as:
         i is i + 1
     return n
 
+# Round-3 review: round 2 pinned where oscillation STOPS and left where it
+# STARTS as prose — and the onset is the load-bearing half of BOTH
+# surviving headline claims. A mutation that repacks the verdict stream
+# (same counts, same last index, different onset) restores the cliff story
+# and passes 73/73 with all 15 plants green. The onset is the window-fill
+# latency: read 9 of a 10-sample window, identical at every amplitude,
+# which is the whole mechanism behind "supervision runs out rather than
+# switching off" and behind prediction 3's t = 5 s / t = 10 s.
+define first_osc(rec) as:
+    local i is 0
+    loop while i < (len of rec.verdict):
+        if rec.verdict[i] == "oscillating":
+            return i
+        i is i + 1
+    return 0.0 - 1.0
+
 define osc_count(rec) as:
     local n is 0
     local i is 0
@@ -415,9 +438,14 @@ define osc_count(rec) as:
 # C5.P3 — the cadence sweep on the SHORT PERIOD: no cadence both sees the
 # fold and reports in time. Fast cadences are blind (window < period);
 # slow ones report after the mode is over.
-for cs in [["c010", 5, 0], ["c020", 10, 0], ["c050", 25, 1], ["c100", 50, 1]]:
+# The `.at` row is the point of prediction 3: a COUNT of 1 is equally
+# consistent with "reported once, far too late" and "reported instantly".
+# Only the read index distinguishes them — read 9 x the cadence gives the
+# t = 5 s and t = 10 s the bar publishes, against a mode gone by ~5 s.
+for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c050", 25, 1, 9], ["c100", 50, 1, 9]]:
     local rec is sup_run of [f"C5.sp.{cs[0]}.run", ic_sp, tr.de, eff_gain of (0.5), 0.02, 1500, 25, cs[1], tr.P, method, freeze]
     check_exact of [f"C5.sp.{cs[0]}.osc", osc_count of (rec), cs[2]]
+    check_exact of [f"C5.sp.{cs[0]}.at", first_osc of (rec), cs[3]]
 
 # C4 — the POSITIVE control: a persistent regime IS actionable. The
 # phugoid at a matched cadence yields sustained oscillating verdicts.
@@ -462,6 +490,16 @@ check_exact of ["C5.p1.inner.converged", verdict_count of [inner, "converged"], 
 # moment the gain changes — reading the decimated `engaged` record
 # undercounted them (the instrument, not the physics).
 check_exact of ["C5.p2.sup.toggles", ph_rec.toggles, 17]
+# The ACTUATOR's own timeline — the thing the supervisory layer exists to
+# produce — was recorded and read by nothing until round 3 pointed it out.
+define first_engaged(rec) as:
+    local i is 0
+    loop while i < (len of rec.engaged):
+        if rec.engaged[i] != 0.0:
+            return i
+        i is i + 1
+    return 0.0 - 1.0
+check_exact of ["C4.ph.first_engaged", first_engaged of (ph_rec), 9]
 
 # C5.P4 — the deadband sets an observability HORIZON, not an on/off gate.
 # The first draft called this a "sharp cliff" on the strength of two
@@ -492,16 +530,17 @@ define last_osc(rec) as:
         i is i + 1
     return last
 
-for ramp in [["a020", 0.2, 0, 0.0 - 1.0], ["a030", 0.3, 23, 38], ["a040", 0.4, 40, 58], ["a035", 0.35, 34, 53]]:
+for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0], ["a030", 0.3, 23, 38, 9], ["a040", 0.4, 40, 58, 9], ["a035", 0.35, 34, 53, 9]]:
     local icr is mode_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 0, ramp[1]]
     local rc is sup_run of [f"C5.p4.{ramp[0]}.run", icr, tr.de, eff_gain of (0.5), 0.05, 8000, 100, 100, tr.P, method, freeze]
     check_exact of [f"C5.p4.{ramp[0]}.osc", osc_count of (rc), ramp[2]]
     check_exact of [f"C5.p4.{ramp[0]}.horizon", last_osc of (rc), ramp[3]]
+    check_exact of [f"C5.p4.{ramp[0]}.onset", first_osc of (rc), ramp[4]]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 73:
-    print of f"FAIL harness: expected exactly 73 checks, ran {checks_run}"
+if checks_run != 82:
+    print of f"FAIL harness: expected exactly 82 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1
