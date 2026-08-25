@@ -1473,16 +1473,16 @@ measured one.)
 |---|---|---|
 | s1 | gain sign flipped (the design error the chain caught before any sim ran) | 55 |
 | s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 54 |
-| s3 | Euler instead of RK4 | 41 |
-| s4 | trim offset by 0.01 rad | 85 |
+| s3 | Euler instead of RK4 | 44 |
+| s4 | trim offset by 0.01 rad | 88 |
 | s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
 | s6 | grading-dt dilation (estimator side only) | 6 |
-| s7 | verdict stream frozen — supervisory layer inert | 67 |
+| s7 | verdict stream frozen — supervisory layer inert | 70 |
 | s8 | ζ/T constant-replaced with the identity field carried | 13 |
-| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 69 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 72 |
 | s10 | dt-rerun grading separator | 1 |
 | s11 | ζ estimator slot alias | 16 |
-| s12 | verdicts forced to `oscillating` — the dual of s7 | 75 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 78 |
 | s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
 | s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
@@ -1519,10 +1519,30 @@ complete. Prose did not stop it. `tests/ap_manifest.txt` now carries a
 `streamfam` matrix declaring, per stream, which row families it has and
 why any are absent; `tests/test_ap_planted.sh` enumerates the streams from
 their ROW tokens and fails if one has no line, or if a declared family's
-rows are missing. Validated with three planted faults: a new undeclared
-stream, a deleted family row, and a vacuous stream list. The third caught
-a real bug in the gate itself — under `set -e` an empty `grep` aborted
-before the vacuity check could speak.
+rows are missing. Round 20 validated it with three planted faults —
+a new undeclared stream, a deleted family row, and a vacuous stream list —
+and the third caught a real bug in the gate itself (`set -e` aborted at an
+empty `grep` before the vacuity check could speak).
+
+**But round 21 showed the gate did not bind its own defect class, and that
+those three plants are why.** All three are declaration↔manifest
+consistency faults; not one is a *twinning* fault. The gate read each line
+in isolation and never compared a stream to its peers, so adding `cidx` to
+one of five converged-bearing streams passed fully green — and the tree was
+shipping exactly that: `cidx` sat on the four SMALLEST converged-bearing
+streams and was absent, silently, from the three largest, because an
+absence inside a comma list is not a missing line. Rebuilt as a matrix:
+the stream count is identity-pinned, every ROW token must end `.run` (a
+rename removed two streams from the enumeration undetected), and every
+stream must carry each index family any PEER carries or name it in a
+`skip=<fam>:<why>` token. Re-validated with three NEW plants of the right
+class — a family on one sibling only, a renamed ROW token, and a dropped
+stream count — plus the original three.
+
+The lesson generalises past this repo: **a gate's planted faults must come
+from the defect class the gate exists to stop.** Three faults that all
+probe the same easy axis certify that axis and nothing else, and read as
+thorough validation.
 Absences are declared, not silent: `C5.sp.*` carry no families (disclosed
 in known-unexercised (e)), `C5.p4.a020` is `equiv` for `runs`/`maxrun`
 (proved), and the `C2/C3` rows emit no verdicts at all.
@@ -1558,11 +1578,19 @@ pre-registered clause.
 
 ## Exit gate for rung 3
 
-1. All C checks green (134, population pinned); every one of the 16
+1. All C checks green (137, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
    all FOUR of its planted faults (one per arm);
    rungs 0–2 suites untouched and green.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds.
+   **This was exceeded, deliberately and on the record.** The cap round
+   (8) returned FAIL with a live forgery hole, so shipping on it would have
+   shipped an unverified fix; every round since has also found a real
+   defect, so the find rate never justified stopping. Rounds 13-21 were
+   dominated by two self-inflicted classes — an invented causal story, and
+   a fix reaching one member of a symmetric set — the second of which is
+   now a gate. A round cap is the wrong terminator when the find rate is
+   undiminished; the honest report is the round count and what each found.
 3. CI green on the pushed branch.
 4. The three predictions each reported with their measurement — including
    any that failed to reproduce.

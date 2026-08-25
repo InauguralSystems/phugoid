@@ -55,7 +55,7 @@ a closed-loop autopilot, with the observer as its supervisory layer:
   plant, graded against closed-loop pole predictions computed from the
   chain BEFORE the controller existed (`A_cl = A + B·K`, then the same
   `charpoly4 → dk_roots → modes_of`). Measured: ζ tracks the prediction
-  to 0.0066–0.16% across the four graded gains, and the whole grading
+  to 0.0066–0.16% across the three graded gains and the phugoid row, and the whole grading
   apparatus transferred with no new oracle code.
 - **The observer in the loop.** Two of three pre-registered predictions
   were **refuted**, which is the rung's main result. At inner-loop rate
@@ -113,7 +113,7 @@ bash tests/test_observer.sh    # 11 observer-verdict checks + 2 plants
 bash tests/test_latsim.sh      # 76 rung-2 model checks vs the rung-0 chain
 bash tests/test_latsim_planted.sh # 22 rung-2 plants, exact red sets + manifest
 bash tests/test_observer_lat.sh   # 13 rung-2 observer checks + 2 plants
-bash tests/test_ap.sh          # 134 rung-3 closed-loop checks
+bash tests/test_ap.sh          # 137 rung-3 closed-loop checks
 bash tests/test_ap_planted.sh  # 16 rung-3 plants, exact red sets + manifest
 bash tests/test_ap_profile.sh  # the observer read-path ratio gate
 ```

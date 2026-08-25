@@ -10,7 +10,7 @@
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 134.
+# Population pinned at exactly 137.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -423,6 +423,13 @@ check_exact of ["C2.ph.Tdft.k", ph_Td.k, 8]
 # plus the 3 start-up runs (stable 9, equilibrium 1, diverging 32) = 37 --
 # and the first cycle dumps 260+220+198+260 = 938 against T/dt = 938.35
 # (later cycles sum to 939 -- a sample, not exact).
+# CORRECTED at round 18 and twinned here only at round 21: the line above
+# is two cancelling errors. It charges the non-cyclic start-up window to
+# the 4-per-period law (+1.08) and omits the runs = transitions + 1 term
+# (-1.00). There are also FOUR start-up segments, not three -- stable 9,
+# equilibrium 1, diverging 32, converged 211 (253 samples = 12.65 s), and
+# that 211-run belongs to no cycle. Correct: 3 start-up transitions
+# + 4*(400 - 12.65)/46.918 = 33.02 cyclic + 1 = 37.02.
 # It does NOT track the gain. Round 13 claimed it did; round 14 measured
 # eff_gain 0.5 -> 2.0 leaving all nine inner rows bit-identical, and s1/s2
 # red zero of them. kq is provably INERT on this row, which is the
@@ -594,10 +601,10 @@ for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c040", 20, 0
 # And "blind" is the wrong word, as this rung's own prediction-1 write-up
 # says: the observer is not silent, it is loud and wrong. At 1 Hz -- the
 # literal case GAPS.md G4 / EigenScript#1044 is built on -- the phugoid
-# yields SIX classes and 120 `diverging` reads on a healthy decaying mode.
+# yields FIVE classes and 120 `diverging` reads on a healthy decaying mode.
 # That strengthens prediction 3 rather than weakening it, and the rung's
 # own upstream evidence at that cadence was pinned nowhere until now.
-for pc in [["p045", 9, 888, 359, 520, 9, 0, 0, 163742, 35, 33], ["p100", 20, 400, 120, 101, 58, 91, 30, 23583, 91, 17]]:
+for pc in [["p045", 9, 888, 359, 520, 9, 0, 0, 163742, 35, 33, 230050], ["p100", 20, 400, 120, 101, 58, 91, 30, 23583, 91, 17, 29322]]:
     local prec is sup_run of [f"C5.ph.{pc[0]}.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, pc[1], tr.P, method, freeze]
     check_exact of [f"C5.ph.{pc[0]}.osc", osc_count of (prec), 0]
     check_exact of [f"C5.ph.{pc[0]}.reads", len of prec.verdict, pc[2]]
@@ -605,9 +612,10 @@ for pc in [["p045", 9, 888, 359, 520, 9, 0, 0, 163742, 35, 33], ["p100", 20, 400
     check_exact of [f"C5.ph.{pc[0]}.conv", verdict_count of [prec, "converged"], pc[4]]
     check_exact of [f"C5.ph.{pc[0]}.stable", verdict_count of [prec, "stable"], pc[5]]
     check_exact of [f"C5.ph.{pc[0]}.equil", verdict_count of [prec, "equilibrium"], pc[6]]
-    # `improving` is a SIXTH verdict class, found at round 19 and pinned
-    # nowhere in the rung before it (the fifth, `moving`, arrived at round
-    # 13 the same way). 0 + 120 + 101 + 58 + 91 + 30 = 400: closed.
+    # `improving` is the SEVENTH verdict class, found at round 19 and pinned
+    # nowhere in the rung before it (the SIXTH, `moving`, arrived at round
+    # 13 the same way; the runtime's numeric report vocabulary is exactly
+    # seven -- obs_num_report -- and the rung now exhibits all of them). 0 + 120 + 101 + 58 + 91 + 30 = 400: closed.
     check_exact of [f"C5.ph.{pc[0]}.improving", verdict_count of [prec, "improving"], pc[7]]
     check_exact of [f"C5.ph.{pc[0]}.didx", verdict_idxsum of [prec, "diverging"], pc[8]]
     # ...and the RUN STRUCTURE, which the index sum cannot see. Round 20
@@ -619,6 +627,7 @@ for pc in [["p045", 9, 888, 359, 520, 9, 0, 0, 163742, 35, 33], ["p100", 20, 400
     # carry this rung's headline evidence for EigenScript#1044.
     check_exact of [f"C5.ph.{pc[0]}.runs", verdict_runs of (prec), pc[9]]
     check_exact of [f"C5.ph.{pc[0]}.maxrun", verdict_maxrun of (prec), pc[10]]
+    check_exact of [f"C5.ph.{pc[0]}.cidx", verdict_idxsum of [prec, "converged"], pc[11]]
 
 # C4 — the POSITIVE control: a persistent regime IS actionable. The
 # phugoid at a matched cadence yields sustained oscillating verdicts.
@@ -642,7 +651,7 @@ check_exact of ["C4.ph.maxrun", verdict_maxrun of (ph_rec), 13]
 check_exact of ["C4.ph.oidx", verdict_oidx of (ph_rec), 2497]
 # ...and CLOSE the distribution, as `inner`'s has been since round 4. Only
 # the 56 oscillating were pinned, leaving 24 of 80 reads uncategorised --
-# among them a FIFTH verdict class, `moving`, which appeared in no pin, no
+# among them the SIXTH verdict class, `moving`, which appeared in no pin, no
 # comment and no manifest row anywhere in the rung. 18 + 56 + 6 = 80.
 check_exact of ["C4.ph.stable", verdict_count of [ph_rec, "stable"], 18]
 check_exact of ["C4.ph.moving", verdict_count of [ph_rec, "moving"], 6]
@@ -698,6 +707,11 @@ check_exact of ["C5.p1.inner.runs", verdict_runs of (inner), 37]
 # verdict_oidx would be vacuous here (osc = 0), so the checksum keys on
 # this stream's dominant class instead.
 check_exact of ["C5.p1.inner.didx", verdict_idxsum of [inner, "diverging"], 16038601]
+# Round 21 read the matrix AS a matrix and found `cidx` on the four
+# SMALLEST converged-bearing streams and absent from the three largest --
+# and absent silently, since a missing entry inside a comma list is not a
+# missing line. Both index sums now cover every stream that has the class.
+check_exact of ["C5.p1.inner.cidx", verdict_idxsum of [inner, "converged"], 15957354]
 check_exact of ["C5.p1.inner.maxrun", verdict_maxrun of (inner), 260]
 # And the supervisory layer does NOT hold cleanly either: it sees the
 # regime (56 of 80 reads, pinned by C4.ph.osc) but the engagement
@@ -781,8 +795,8 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0, 71, 9, 0, 3124], ["a03
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 134:
-    print of f"FAIL harness: expected exactly 134 checks, ran {checks_run}"
+if checks_run != 137:
+    print of f"FAIL harness: expected exactly 137 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

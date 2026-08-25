@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The rung-3 planted-fault matrix (ORACLE.md): each s-plant must flip
 # EXACTLY its declared red set, every plant run executes the full pinned
-# 134-check population, and the manifest rules hold (identity incl.
+# 137-check population, and the manifest rules hold (identity incl.
 # tolerance tokens and ROW parameters; every plantable name in some red
 # set; structural names in none; unknown class tokens FAIL).
 set -euo pipefail
@@ -15,7 +15,7 @@ run_plant() {
         echo "FAIL: plant $1 did not make ap_check exit nonzero — the checker cannot fail"; exit 1
     fi
     grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 134$' "$OUT" || { echo "FAIL: plant $1 run population != 134"; exit 1; }
+    grep -q '^CHECKS_RUN 137$' "$OUT" || { echo "FAIL: plant $1 run population != 137"; exit 1; }
 }
 expect_total_fails() {
     got=$(grep -c '^FAIL ' "$OUT" || true)
@@ -39,13 +39,13 @@ expect_green 'C1\.'
 echo "PASS: S2 red pattern exact"
 
 echo "--- S3: integrator RK4 -> Euler -> periods + dt invariance + supervisory toggles ---"
-run_plant s3; expect_total_fails 41
+run_plant s3; expect_total_fails 44
 expect_red 'C2\.k025\.T ' 'C2\.k050\.T ' 'C2\.k100\.T ' 'C3\.dt\.T ' 'C3\.dt\.zlog ' 'C3\.dt\.zenv ' 'C2\.ph\.zlog ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a035\.horizon '
 expect_green 'C0\.' 'C1\.'
 echo "PASS: S3 red pattern exact"
 
 echo "--- S4: trim offset -> C1 + parity + every graded mode ---"
-run_plant s4; expect_total_fails 85
+run_plant s4; expect_total_fails 88
 expect_red 'C1\.res\.' 'C1\.hold\.' 'C0\.a13 ' 'C2\.k025\.T ' 'C3\.gain\.use ' 'C5\.sp\.c050\.osc '
 echo "PASS: S4 red pattern exact"
 
@@ -62,7 +62,7 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.zlog' 'C4\.' 'C5\.sp'
 echo "PASS: S6 red pattern exact"
 
 echo "--- S7: verdict stream frozen to 'stable' (supervisory inert) ---"
-run_plant s7; expect_total_fails 67
+run_plant s7; expect_total_fails 70
 expect_red 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C4\.ph\.horizon ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a035\.horizon ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.onset ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S7 red pattern exact"
@@ -75,7 +75,7 @@ expect_green 'C0\.' 'C1\.' '\.n ' '\.nr ' '\.nf ' 'C4\.' 'C5\.'
 echo "PASS: S8 red pattern exact"
 
 echo "--- S9: dataset broadly poisoned -> parity + graded modes + verdicts ---"
-run_plant s9; expect_total_fails 69
+run_plant s9; expect_total_fails 72
 expect_red 'C0\.a11 ' 'C0\.a33 ' 'C2\.k050\.zlog ' 'C3\.gain\.use ' 'C4\.ph\.osc ' 'C2\.ph\.Tdft ' 'C5\.p4\.a030\.osc '
 expect_green 'C1\.'
 echo "PASS: S9 red pattern exact"
@@ -93,7 +93,7 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.T ' 'C4\.' 'C5\.'
 echo "PASS: S11 red pattern exact"
 
 echo "--- S12: verdicts forced to 'oscillating' (the dual of S7) ---"
-run_plant s12; expect_total_fails 75
+run_plant s12; expect_total_fails 78
 expect_red 'C5\.sp\.c010\.osc ' 'C5\.sp\.c020\.osc ' 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C5\.p1\.inner\.osc ' 'C5\.p1\.inner\.engagements ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a020\.osc ' 'C5\.p1\.inner\.diverging ' 'C5\.p1\.inner\.converged ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.stable ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S12 red pattern exact"
@@ -124,29 +124,40 @@ expect_green 'C2\.ph\.Tdft ' 'C0\.' 'C1\.' 'C3\.' 'C4\.' 'C5\.'
 echo "PASS: S16 red pattern exact (round-3 review: as_tp was the one accessor with no plant driving its refusal arm — gutting it passed 73/73 and all 15 plants)"
 
 # ------------------------------------------------------------------
-echo "--- streamfam: row-family x verdict-stream coverage (round 20) ---"
+echo "--- streamfam: row-family x verdict-stream coverage (round 20, rebuilt round 21) ---"
 # Eight consecutive rounds found the same defect -- a row family added to
-# one verdict stream and not its siblings, five times inside the fix for
-# the previous round's finding. Advice did not stop it; this does. Every
-# stream that emits a ROW token must have a streamfam line, and every
-# family that line declares must have its rows present in the manifest.
+# one verdict stream and not its siblings. Round 20 made it a gate. Round
+# 21 showed that gate did NOT bind the defect: it checked each line against
+# the manifest in isolation and never compared a stream to its PEERS, so
+# adding `cidx` to one of five converged-bearing streams passed fully
+# green. Its three validating plants were all declaration-consistency
+# faults; none was a twinning fault, so the gate had never been tested
+# against its own defect class. Rebuilt to be a matrix:
+#   1. the stream list is pinned (a gate that examines fewer streams than
+#      it did yesterday must not still print OK);
+#   2. every ROW token must end `.run`, so a stream cannot leave the
+#      enumeration by being renamed;
+#   3. for every index family used by ANY stream, every stream must either
+#      carry it or name it in a `skip=<fam>:<why>` token -- an absence
+#      inside a comma list is otherwise silent by construction, which is
+#      exactly how the cidx hole hid.
 "$EIGS" tests/ap_check.eigs > "$OUT" 2>&1 || true
-# `|| true`: under `set -e` an empty grep aborts the script before the
-# vacuity check below can speak, so the gate would die with rc=1 and no
-# diagnostic. Fail-safe, but a silent gate is not a gate -- verified by
-# plant.
+BADTOK=$(grep -o '^ROW [A-Za-z0-9_.]*' "$OUT" | sed 's/^ROW //' | grep -v '\.run$' || true)
+[ -z "$BADTOK" ] || { echo "FAIL: ROW token(s) not ending in .run, so the streamfam enumeration would silently skip them: $BADTOK"; exit 1; }
 STREAMS=$(grep -o '^ROW [A-Za-z0-9_.]*\.run ' "$OUT" | sed 's/^ROW //; s/\.run $//' | sort -u || true)
-[ -n "$STREAMS" ] || { echo "FAIL: streamfam gate found no ROW tokens — the gate would pass vacuously"; exit 1; }
-NSTREAM=0
+NSTREAM=$(echo "$STREAMS" | grep -c . || true)
+DECL_STREAMS=23
+[ "$DECL_STREAMS" = "23" ] || { echo "FAIL: DECL_STREAMS is $DECL_STREAMS, declared 23 — the stream count is DATA and gets the same identity pin the bounds do"; exit 1; }
+[ "$NSTREAM" = "$DECL_STREAMS" ] || { echo "FAIL: streamfam examined $NSTREAM verdict streams, declared $DECL_STREAMS — a gate that measures fewer streams than yesterday must not print OK"; exit 1; }
+# the union of index families in use anywhere
+IDXFAMS=$(grep '^streamfam ' tests/ap_manifest.txt | tr ' ' '\n' | grep '^idx=' | sed 's/^idx=//' | tr ',' '\n' | grep -v '^none$' | sort -u)
 for st in $STREAMS; do
-    NSTREAM=$((NSTREAM+1))
     line=$(grep "^streamfam $st " tests/ap_manifest.txt || true)
     [ -n "$line" ] || { echo "FAIL: verdict stream '$st' has no streamfam line in tests/ap_manifest.txt — a new stream must declare which row families it carries, and justify any it does not (this gate exists because that was missed eight rounds running)"; exit 1; }
     for fam in $(echo "$line" | tr ' ' '\n' | grep '=' ); do
         key=${fam%%=*}; val=${fam#*=}
-        [ "$val" = "none" ] && continue
-        [ "$val" = "equiv" ] && continue
-        [ "$val" = "justified" ] && continue
+        [ "$key" = "skip" ] && continue
+        [ "$val" = "none" ] || [ "$val" = "equiv" ] || [ "$val" = "justified" ] && continue
         if [ "$key" = "runs" ] || [ "$key" = "maxrun" ]; then
             grep -q "^ap $st\.$key " tests/ap_manifest.txt || { echo "FAIL: $st declares $key=$val but has no 'ap $st.$key' row in the manifest"; exit 1; }
             continue
@@ -155,8 +166,16 @@ for st in $STREAMS; do
             grep -q "^ap $st\.$f " tests/ap_manifest.txt || { echo "FAIL: $st declares $key including '$f' but has no 'ap $st.$f' row in the manifest"; exit 1; }
         done
     done
+    # PEER check: the one round 20 omitted, and the reason its gate did not bind.
+    case "$line" in *"dist=none"*) continue;; esac
+    for f in $IDXFAMS; do
+        case "$line" in
+            *"idx=$f"*|*",$f "*|*",$f,"*) continue;;
+        esac
+        echo "$line" | tr ' ' '\n' | grep -q "^skip=$f:" || { echo "FAIL: $st carries neither index family '$f' nor a 'skip=$f:<why>' token, while a PEER stream carries it — an absence inside a comma list is silent, which is how the cidx hole hid for a full round"; exit 1; }
+    done
 done
-echo "PASS: all $NSTREAM verdict streams declare their row families, and every declared family has its manifest rows"
+echo "PASS: all $NSTREAM verdict streams declare their row families, every declared family has its manifest rows, and every peer index family is carried or explicitly skipped"
 
 echo "--- manifest: identity + rowparams + coverage + class vocabulary ---"
 "$EIGS" tests/ap_check.eigs > "$WORK/clean" 2>&1 || { echo "FAIL: unplanted ap_check nonzero"; exit 1; }
