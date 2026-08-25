@@ -1068,8 +1068,9 @@ cadences `C5.sp.{c010,c020,c040,c102}` (round 18: this enumeration was written a
   plant and the manifest, while turning decaying run lengths (260, 258,
   256…) into growing ones — the verdict signature of an *amplifying* mode,
   which is the one thing a supervisory layer exists to distinguish from a
-  healthy one. `C5.p1.inner.didx` and `C4.ph.oidx` (index sums over each
-  stream's dominant class) bind it; round 15 had applied that checksum to
+  healthy one. `C5.p1.inner.didx` and `C4.ph.oidx` (index sums over one named class per
+  stream (round 19: this said "dominant class", but `inner` keys on
+  `diverging` at 3934 against `converged` at 4056 — the second largest) bind it; round 15 had applied that checksum to
   `C5.p4` alone, the fourth twinning miss in this loop. The counts alone could not
   see it: a count-preserving repack (group by category in first-appearance
   order, so the multiset is exactly what the trajectory produced and every
@@ -1332,10 +1333,22 @@ than one that does not:
   are the same quantity, so a windowed verdict cannot act on a well-damped
   transient. **Prediction 3's PHUGOID half was asserted and never measured
   until round 18.** The claim is that no single cadence serves both modes;
-  only the SP side had been swept. Measured, the phugoid is blind at every
-  cadence inside the SP's sighted band and first sighted at a 3.70 s
-  interval, so the two bands are DISJOINT and the pre-registered claim is
-  confirmed on both sides — now shipped as `C5.ph.{p040,p100}.osc = 0`.
+  only the SP side had been swept. Measured, the phugoid never says `oscillating` at
+  any cadence inside the SP's sighted band and is first sighted at a 3.70 s
+  interval, so the two bands are DISJOINT and the pre-registered claim
+  holds on both sides — shipped as `C5.ph.{p045,p100}`. **"Blind" is the
+  wrong word**, as this rung's own prediction-1 write-up says: the observer
+  is not silent, it is loud and wrong. At 1 Hz — the literal case G4 /
+  EigenScript#1044 is built on — the phugoid yields SIX verdict classes and
+  **120 `diverging` reads on a healthy decaying mode**, which strengthens
+  prediction 3. Round 19 also found the rung's *sixth* verdict class,
+  `improving` (30 reads at 1 Hz), pinned nowhere — the fifth, `moving`,
+  arrived the same way at round 13. Both rows now carry a closed
+  distribution and an order checksum; round 18 shipped them pinning only
+  `osc = 0`, so relabelling the whole stream to `diverging` — the exact
+  mutation round 18 had just closed on a020 — passed 116/116 and every
+  plant. Round 18 also flew 0.40 s, the SP's LAST BLIND cadence, outside
+  the band it was meant to overlap; the in-band cadence is 0.45 s.
   Note "visibility starts near HALF a period" does NOT generalise: the
   phugoid's lower edge is a 37 s window span against T = 46.9 s, i.e. 0.79
   of a period. The complement holds
@@ -1383,12 +1396,19 @@ For a sub-unit channel like pitch rate the band is absolute
 excitation rather than on the dynamics.
 
 That is G5's third independent sighting and the first where it changes
-what an actuator does. Pinned as `C5.p4.a0{20,30,35,40}` over eight field names — 25 rows, not
-the "twelve" this sentence claimed until round 18. That figure was exactly
+what an actuator does. Pinned as `C5.p4.a0{20,30,35,40}` over **nine** field names — **32** rows
+(counted from the manifest, not from memory). This sentence said "twelve"
+until round 18 and then "eight field names, 25 rows" until round 19; both
+were written by hand and both were wrong. That figure was exactly
 true at round 7 and then went stale three times over: round 14 deleted
 a020's two `-1` rows as vacuous, and rounds 14/15/17 added `runs`, `oidx`,
-`conv`, `stable`, `equil` and `cidx`. Every row family now applies to all
-four ramp rows including the clean-zero one,
+`conv`, `stable`, `equil` and `cidx`. Every distribution and order family now applies to all four ramp rows
+including the clean-zero one. `runs` and `oidx` are the exception and stay
+inside the `osc > 0` guard: `oidx` is vacuous at `osc = 0`, and a020's
+`cidx = 3124` is the maximum possible index sum for 71 converged reads in
+0…79, so `conv` + `cidx` already determine that stream uniquely and
+`a020.runs` would be an equivalent mutant. Round 19 checked that rather
+than assuming it,
 four rows spanning the ramp plus the clean zero, all sited MID-ramp
 rather than at the saturated end, since a row at saturation (uamp 0.5:
 horizon 78 against a last read of 79) flips by one under any perturbing
@@ -1448,16 +1468,16 @@ measured one.)
 |---|---|---|
 | s1 | gain sign flipped (the design error the chain caught before any sim ran) | 55 |
 | s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 54 |
-| s3 | Euler instead of RK4 | 30 |
-| s4 | trim offset by 0.01 rad | 71 |
+| s3 | Euler instead of RK4 | 39 |
+| s4 | trim offset by 0.01 rad | 83 |
 | s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
 | s6 | grading-dt dilation (estimator side only) | 6 |
-| s7 | verdict stream frozen — supervisory layer inert | 53 |
+| s7 | verdict stream frozen — supervisory layer inert | 63 |
 | s8 | ζ/T constant-replaced with the identity field carried | 13 |
-| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 57 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 66 |
 | s10 | dt-rerun grading separator | 1 |
 | s11 | ζ estimator slot alias | 16 |
-| s12 | verdicts forced to `oscillating` — the dual of s7 | 61 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 71 |
 | s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
 | s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
@@ -1501,7 +1521,7 @@ published as a measurement, not asserted; (b) C0's gain-independence is
 structural (`B[0] = 0`), stated but not measured — all 16 C0 rows run at
 kq = 0.5; (c) the C6 absolutes (read/write/floor/noread wall times) are
 context and are asserted nowhere; (d) the shell harnesses' own FAIL
-branches, as in rungs 1 and 2; (e) the interiors of `C5.sp.*` (seven cadence rows, 300/150/75/71/60/30/29 reads) have no order pin — round 15's entry said "four rows … short (60 and 30 reads)", which round 16 found stale from its own edit; `c010`'s 300-read interior is not short and its verdict classes are pinned nowhere; (f) **prediction 2's
+branches, as in rungs 1 and 2; (e) the interiors of `C5.sp.*` (seven cadence rows, 300/150/75/71/60/30/29 reads) have no order pin — the two `C5.ph.*` rows DO, as of round 19 — round 15's entry said "four rows … short (60 and 30 reads)", which round 16 found stale from its own edit; `c010`'s 300-read interior is not short and its verdict classes are pinned nowhere; (f) **prediction 2's
 second clause is not measured** — "the closed-loop response while engaged still matches the C2
 predictions" was pre-registered, and no shipped check grades the
 supervisory trajectory against the C2 predictions (`C2.ph` certifies the
@@ -1512,7 +1532,7 @@ pre-registered clause.
 
 ## Exit gate for rung 3
 
-1. All C checks green (116, population pinned); every one of the 16
+1. All C checks green (130, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
    all FOUR of its planted faults (one per arm);
    rungs 0–2 suites untouched and green.

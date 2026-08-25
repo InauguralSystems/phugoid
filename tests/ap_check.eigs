@@ -10,7 +10,7 @@
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 116.
+# Population pinned at exactly 130.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -577,15 +577,39 @@ for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c040", 20, 0
 # C5.P3b — the PHUGOID half of prediction 3, which the rung asserted and
 # never measured until round 18. The claim is that no single cadence
 # serves both modes; the SP half was swept, the phugoid half was not.
-# Measured: the phugoid is blind at every cadence inside the SP's sighted
-# band (0.42-1.00 s) and first sighted at 3.70 s -- so the two bands are
-# DISJOINT and the pre-registered claim is confirmed on both sides.
-# Note the SP table's "visibility starts near HALF a period" does NOT
-# generalise: the phugoid's lower edge is a window span of 37 s against
-# T = 46.9 s, i.e. 0.79 of a period.
-for pc in [["p040", 8], ["p100", 20]]:
+# Measured: the phugoid never says `oscillating` at any cadence inside the
+# SP's sighted band (0.42-1.00 s) and is first sighted at 3.70 s -- so the
+# two bands are DISJOINT and the pre-registered claim holds on both sides.
+#
+# Round 19 corrected two things about round 18's version of this block.
+# (1) It flew cadence 8 = 0.40 s, which is the SP's LAST BLIND cadence,
+# outside the sighted band it was meant to overlap -- the off-by-one-cadence
+# class round 17 found on the upper edge, recurring in the next round's fix.
+# The in-band cadence at dt=0.05 is 9 (0.45 s).
+# (2) It pinned only `osc = 0`, so relabelling the whole stream to
+# `diverging` -- the exact mutation round 18 had just closed on a020 --
+# passed 116/116 and every plant. Both rows now carry the closed
+# distribution and the order checksum every other verdict stream here has.
+#
+# And "blind" is the wrong word, as this rung's own prediction-1 write-up
+# says: the observer is not silent, it is loud and wrong. At 1 Hz -- the
+# literal case GAPS.md G4 / EigenScript#1044 is built on -- the phugoid
+# yields SIX classes and 120 `diverging` reads on a healthy decaying mode.
+# That strengthens prediction 3 rather than weakening it, and the rung's
+# own upstream evidence at that cadence was pinned nowhere until now.
+for pc in [["p045", 9, 888, 359, 520, 9, 0, 0, 163742], ["p100", 20, 400, 120, 101, 58, 91, 30, 23583]]:
     local prec is sup_run of [f"C5.ph.{pc[0]}.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, pc[1], tr.P, method, freeze]
     check_exact of [f"C5.ph.{pc[0]}.osc", osc_count of (prec), 0]
+    check_exact of [f"C5.ph.{pc[0]}.reads", len of prec.verdict, pc[2]]
+    check_exact of [f"C5.ph.{pc[0]}.div", verdict_count of [prec, "diverging"], pc[3]]
+    check_exact of [f"C5.ph.{pc[0]}.conv", verdict_count of [prec, "converged"], pc[4]]
+    check_exact of [f"C5.ph.{pc[0]}.stable", verdict_count of [prec, "stable"], pc[5]]
+    check_exact of [f"C5.ph.{pc[0]}.equil", verdict_count of [prec, "equilibrium"], pc[6]]
+    # `improving` is a SIXTH verdict class, found at round 19 and pinned
+    # nowhere in the rung before it (the fifth, `moving`, arrived at round
+    # 13 the same way). 0 + 120 + 101 + 58 + 91 + 30 = 400: closed.
+    check_exact of [f"C5.ph.{pc[0]}.improving", verdict_count of [prec, "improving"], pc[7]]
+    check_exact of [f"C5.ph.{pc[0]}.didx", verdict_idxsum of [prec, "diverging"], pc[8]]
 
 # C4 — the POSITIVE control: a persistent regime IS actionable. The
 # phugoid at a matched cadence yields sustained oscillating verdicts.
@@ -748,8 +772,8 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0, 71, 9, 0, 3124], ["a03
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 116:
-    print of f"FAIL harness: expected exactly 116 checks, ran {checks_run}"
+if checks_run != 130:
+    print of f"FAIL harness: expected exactly 130 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1
