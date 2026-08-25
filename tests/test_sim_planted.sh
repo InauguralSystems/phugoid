@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The rung-1 planted-fault matrix (ORACLE.md): each q-plant must flip
 # EXACTLY its declared red set while everything else stays green, every
-# plant run must execute the full pinned 64-check population, and the
+# plant run must execute the full pinned 79-check population, and the
 # manifest rules hold (identity incl. tolerance tokens; every plantable
 # name in some red set; structural names in none). Counts measured
 # 2026-08-24; a drift in any of them is a real change in the checkers'
