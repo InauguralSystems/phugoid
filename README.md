@@ -75,7 +75,7 @@ bash tests/test_sim.sh         # 76 rung-1 model checks vs the rung-0 chain
 bash tests/test_sim_planted.sh # 18 rung-1 plants, exact red sets + manifest
 bash tests/test_observer.sh    # 11 observer-verdict checks + 2 plants
 bash tests/test_latsim.sh      # 73 rung-2 model checks vs the rung-0 chain
-bash tests/test_latsim_planted.sh # 18 rung-2 plants, exact red sets + manifest
+bash tests/test_latsim_planted.sh # 19 rung-2 plants, exact red sets + manifest
 bash tests/test_observer_lat.sh   # 13 rung-2 observer checks + 2 plants
 ```
 

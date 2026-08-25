@@ -54,42 +54,42 @@ no_refusals() {
     return 0
 }
 
-echo "--- R1: Cnb x1.05 (weathercock) -> DR frequency rows + spiral (5) ---"
+echo "--- R1: Cnb x1.05 (weathercock) -> DR + ctl frequency rows + spiral (7) ---"
 run_plant r1
 expect_total_fails 7
 expect_red 'T0\.a21 ' 'T0\.a41 ' 'T2\.dr\.Tpeaks ' 'T2\.dr\.Tdft ' 'T2\.spiral\.th ' 'T2\.ctl\.Tpeaks ' 'T2\.ctl\.Tdft '
 expect_green 'T1\.' 'T3\.' 'M2X\.' 'T2\.dr\.z ' 'T2\.roll'
 echo "PASS: R1 red pattern exact"
 
-echo "--- R2: Ixz dropped in the sim copy (the lateral fold-drop) -> primed rows + DR + roll (10) ---"
+echo "--- R2: Ixz dropped in the sim copy (the lateral fold-drop) -> primed rows + DR incl. ctl + roll (14) ---"
 run_plant r2
 expect_total_fails 14
 expect_red 'T0\.a21 ' 'T0\.a22 ' 'T0\.a24 ' 'T0\.a41 ' 'T0\.a42 ' 'T0\.a44 ' 'T2\.dr\.Tpeaks ' 'T2\.dr\.Tdft ' 'T2\.dr\.z ' 'T2\.roll\.th ' 'T2\.ctl\.Tpeaks ' 'T2\.ctl\.Tdft ' 'T2\.ctl\.z ' 'T2\.ctl\.pamp '
 expect_green 'T1\.' 'T2\.spiral' 'T3\.' 'M2X\.'
 echo "PASS: R2 red pattern exact"
 
-echo "--- R3: integrator RK4 -> Euler -> DR damping + roll + their dt-invariances (4) ---"
+echo "--- R3: integrator RK4 -> Euler -> DR damping (incl. ctl) + roll + their dt-invariances (5) ---"
 run_plant r3
 expect_total_fails 5
 expect_red 'T2\.dr\.z ' 'T2\.roll\.th ' 'T2\.ctl\.z ' 'T3\.dt\.drz ' 'T3\.dt\.rollth '
 expect_green 'T0\.' 'T1\.' 'T2\.dr\.T' 'T2\.spiral' 'T3\.amp' 'T3\.ctl' 'M2X\.'
 echo "PASS: R3 red pattern exact"
 
-echo "--- R4: every state offset from the origin -> T1 (all 6) + parity + spillovers (16) ---"
+echo "--- R4: every state offset from the origin -> T1 (all 6) + parity + ctl + spillovers (20) ---"
 run_plant r4
 expect_total_fails 20
 expect_red 'T1\.res\.vdot ' 'T1\.res\.pdot ' 'T1\.res\.phidot ' 'T1\.res\.rdot ' 'T1\.hold\.' 'T0\.a11 ' 'T0\.a13 ' 'T0\.a21 ' 'T0\.a22 ' 'T0\.a24 ' 'T0\.a42 ' 'T0\.a44 ' 'T2\.roll\.th ' 'T2\.ctl\.z ' 'T2\.ctl\.pamp ' 'T3\.ctl\.gain '
 expect_green 'M2X\.'
 echo "PASS: R4 red pattern exact"
 
-echo "--- R5: Clb x1.3 (dihedral) -> spiral + DR + roll + a bin flip (8) ---"
+echo "--- R5: Clb x1.3 (dihedral) -> spiral + DR incl. ctl + roll + a bin flip (12) ---"
 run_plant r5
 expect_total_fails 12
 expect_red 'T0\.a21 ' 'T0\.a41 ' 'T2\.dr\.Tpeaks ' 'T2\.dr\.Tdft ' 'T2\.dr\.z ' 'T2\.roll\.th ' 'T2\.spiral\.th ' 'T2\.dr\.Tdft\.k ' 'T2\.ctl\.Tpeaks ' 'T2\.ctl\.Tdft ' 'T2\.ctl\.z ' 'T2\.ctl\.pamp '
 expect_green 'T1\.' 'T3\.' 'M2X\.'
 echo "PASS: R5 red pattern exact"
 
-echo "--- R6: grading dt dilated x1.02 -> the 4 sim period/t-half checks; zeta green (4) ---"
+echo "--- R6: grading dt dilated x1.02 -> the 6 sim period/t-half checks; zeta green ---"
 run_plant r6
 expect_total_fails 6
 expect_red 'T2\.dr\.Tpeaks ' 'T2\.dr\.Tdft ' 'T2\.roll\.th ' 'T2\.spiral\.th ' 'T2\.ctl\.Tpeaks ' 'T2\.ctl\.Tdft '
@@ -118,7 +118,7 @@ expect_red 'T0\.a11 ' 'T0\.a12 ' 'T0\.a13 ' 'T0\.a14 ' 'T0\.a21 ' 'T0\.a22 ' 'T0
 expect_green 'T1\.' 'T3\.' 'M2X\.'
 echo "PASS: R9 red pattern exact"
 
-echo "--- R10: re-run gradings corrupted (dt x1.02, zeta/t-half x1.03, fields carried) -> all 15 T3, NUMERIC arm ---"
+echo "--- R10: re-run gradings corrupted (dt x1.02, zeta/t-half x1.03, fields carried) -> the 13 graded T3 comparisons, NUMERIC arm ---"
 run_plant r10
 expect_total_fails 13
 expect_red 'T3\.dt\.' 'T3\.amp\.' 'T3\.ctl\.drTp ' 'T3\.ctl\.drTd ' 'T3\.ctl\.drz '
@@ -127,21 +127,21 @@ no_refusals R10
 expect_green 'T[0-2]\.' 'M2X\.'
 echo "PASS: R10 red pattern exact"
 
-echo "--- R11: the Td slot fed by period_peaks -> k-pins + accessor-refused Td rows (8) ---"
+echo "--- R11: the Td slot fed by period_peaks -> k-pins + accessor-refused Td rows incl. ctl (9) ---"
 run_plant r11
 expect_total_fails 9
 expect_red 'T2\.dr\.Tdft ' 'T2\.dr\.Tdft\.k ' 'T2\.ctl\.Tdft ' 'T3\.dt\.drTd ' 'T3\.amp\.drTd ' 'T3\.ctl\.drTd ' 'M2X\.dr\.Tdft ' 'M2X\.dr\.Tdft\.k ' 'M2X\.drs\.Tdft '
 expect_green 'T2\.dr\.Tpeaks ' 'T3\..*drTp ' 'T2\.roll' 'T2\.spiral'
 echo "PASS: R11 red pattern exact"
 
-echo "--- R12: the Tp slot fed by period_dft -> n-pins + accessor-refused Tp rows (8) ---"
+echo "--- R12: the Tp slot fed by period_dft -> n-pins + accessor-refused Tp rows incl. ctl (9) ---"
 run_plant r12
 expect_total_fails 9
 expect_red 'T2\.dr\.Tpeaks ' 'T2\.dr\.Tpeaks\.n ' 'T2\.ctl\.Tpeaks ' 'T3\.dt\.drTp ' 'T3\.amp\.drTp ' 'T3\.ctl\.drTp ' 'M2X\.dr\.Tpeaks ' 'M2X\.dr\.Tpeaks\.n ' 'M2X\.drs\.Tpeaks '
 expect_green 'T2\.dr\.Tdft ' 'T3\..*drTd ' 'T2\.roll' 'T2\.spiral'
 echo "PASS: R12 red pattern exact"
 
-echo "--- R13: the zeta slot fed by zeta_envelope -> nr-pins + accessor-refused z rows (8) ---"
+echo "--- R13: the zeta slot fed by zeta_envelope -> nr-pins + accessor-refused z rows incl. ctl (9) ---"
 run_plant r13
 expect_total_fails 9
 expect_red 'T2\.dr\.z ' 'T2\.dr\.z\.nr ' 'T2\.ctl\.z ' 'T3\.dt\.drz ' 'T3\.amp\.drz ' 'T3\.ctl\.drz ' 'M2X\.dr\.z ' 'M2X\.dr\.z\.nr ' 'M2X\.drs\.z '
@@ -176,6 +176,13 @@ expect_total_fails 3
 expect_red 'T2\.ctl\.psign ' 'T2\.ctl\.rsign ' 'T2\.ctl\.pamp '
 expect_green 'T2\.ctl\.T' 'T2\.ctl\.z ' 'T3\.ctl\.' 'T2\.dr' 'M2X\.'
 echo "PASS: R18 red pattern exact (round-5 review shipped reversed 1000x-geared controls through every suite: no graded run deflected a surface; the doublet run + sign/amplitude pins see the wiring, the x1.5 gain row measures the scaling reaching the dynamics)"
+
+echo "--- R19: the ctl run's grading dt alone dilated x1.02 -> exactly the 2 ctl period rows ---"
+run_plant r19
+expect_total_fails 2
+expect_red 'T2\.ctl\.Tpeaks ' 'T2\.ctl\.Tdft '
+expect_green 'T2\.dr\.' 'T2\.ctl\.z ' 'T3\.' 'M2X\.'
+echo "PASS: R19 red pattern exact (round-6 review rewired the ctl period rows to the mode-pure run's results; this is the plant that separates the two runs, so a rewired row goes green here and the count breaks)"
 
 echo "--- R16: every check_rel value displaced 1.1x its own executed rel arm, direction of the honest discrepancy -> all 31 tolerance rows ---"
 run_plant r16
@@ -213,4 +220,4 @@ done < <(grep -v '^#' tests/latsim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 18 rung-2 plants flip exactly their declared checks"
+echo "PASS: all 19 rung-2 plants flip exactly their declared checks"

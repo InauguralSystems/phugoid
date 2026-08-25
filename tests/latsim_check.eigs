@@ -348,7 +348,17 @@ define run_ctl(P) as:
     return {"rwin": rwin, "pprobe": rec.p[2], "rprobe": rec.r[2], "pamp": pamp}
 
 base_ctl is run_ctl of (P0)
-base_cg is grade_dr of [base_ctl.rwin, 0.2, 1]
+# Plant r19: the ctl run's GRADING dt alone dilated — the plant that
+# SEPARATES the ctl gradings from the mode-pure run's (round-6 review
+# rewired the T2.ctl period rows to base_dr's results and every suite
+# stayed green: same estimator kind, same bin, and every prior plant
+# reds both runs together — the row-rewire class needs a run-separating
+# plant, not another pin, because pins read the source object, not the
+# row's wiring).
+ctl_gdt is 0.2
+if plant == "r19":
+    ctl_gdt is 0.2 * 1.02
+base_cg is grade_dr of [base_ctl.rwin, ctl_gdt, 1]
 
 base_dr is grade_dr of [run_dr of [5.0, 0.02, 10, P0], 0.2, 1]
 base_roll is grade_th of [run_roll of [0.1, 0.02, 1, P0], 0.02, 1]
@@ -415,7 +425,7 @@ ctl2.Cldr is ctl2.Cldr * 1.5
 ctl2.Cndr is ctl2.Cndr * 1.5
 Pctl is make_lat_P of (ctl2)
 ctl_run is run_ctl of (Pctl)
-ctl_cg is grade_dr of [ctl_run.rwin, 0.2, 1]
+ctl_cg is grade_dr of [ctl_run.rwin, ctl_gdt, 1]
 check_result of ["T3.ctl.drTp", as_tp of (ctl_cg.Tp), "T", base_cg.Tp.T, 0.002]
 check_result of ["T3.ctl.drTd", as_td of (ctl_cg.Td), "T", base_cg.Td.T, 0.002]
 check_result of ["T3.ctl.drz", as_zl of (ctl_cg.zl), "zeta", base_cg.zl.zeta, 0.002]

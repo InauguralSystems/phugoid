@@ -821,33 +821,42 @@ All measured 2026-08-24; 13 checks in `tests/observer_lat_check.eigs`
 
 ## Rung-2 planted-fault matrix
 
-Same rules (exact red sets, full 56-check population every run, manifest
+Same rules (exact red sets, full 73-check population every run, manifest
 identity + class vocabulary, no-refusals guards on the fabricating
 plants R8/R10 from the FIRST commit — rung 1's rounds 7–8 lessons are
-load-bearing here, not relearned). Eighteen plants (fourteen at first build; R15–R18 added by review
-rounds 1–5), red sets measured 2026-08-24 and asserted exactly in
-`tests/test_latsim_planted.sh`:
-R1 C_nβ ×1.05 (5: weathercock rows + DR periods + spiral), R2 Ixz
-dropped (10: every primed row + DR + roll — the lateral fold-drop),
-R3 Euler (4: DR ζ, roll t½, their dt-invariances), R4 all states offset
-from the origin (16: T1 complete + parity + spillovers), R5 C_lβ ×1.3
-(8: dihedral — spiral, DR, roll, and a DFT bin flip), R6 grading-dt
-×1.02 (4: the periods AND both t½ — t_half scales with dt; ζ green),
-R7 M2X generator dilation (8, incl. the bridge count pins), R8 ζ→0.05 /
-t½→1.0 with fields carried (7, numeric arm asserted), R9 broad poison
-incl. C_yp/C_yr made nonzero and θ₀ tilted (15), R10 rerun-side
-corruption (all 15 T3, numeric arm asserted), R11/R12/R13 the Td/Tp/ζ
-slot aliases (8 each: pins + accessor-refused rows), R14 t½ result
-×1.05 (4: exactly the aperiodic rows), R18 controls reversed/geared
-(3: exactly the sign and amplitude wiring pins — the round-5 class),
-R15 every check_below/
+load-bearing here, not relearned). Nineteen plants (fourteen at first
+build; R15–R19 added by review rounds 1–6), red sets measured
+2026-08-24 and asserted exactly in `tests/test_latsim_planted.sh` —
+the counts below are the CURRENT (round-6) reality; the graded control
+run added at round 5 grew eleven of them:
+R1 C_nβ ×1.05 (7: weathercock rows + DR periods incl. the ctl run's +
+spiral), R2 Ixz dropped (14: every primed row + DR incl. ctl + roll),
+R3 Euler (5: DR ζ incl. ctl, roll t½, their dt-invariances), R4 all
+states offset from the origin (20: T1 complete + parity + ctl +
+spillovers), R5 C_lβ ×1.3 (12: dihedral — spiral, DR incl. ctl, roll,
+a DFT bin flip), R6 grading-dt ×1.02 (6: all sim periods and t½s; ζ
+green), R7 M2X generator dilation (12, incl. the count pins and gen.s1
+identities), R8 ζ→0.05 / t½→1.0 with fields carried (8, numeric arm
+asserted), R9 broad poison incl. C_yp/C_yr made nonzero and θ₀ tilted
+(19), R10 rerun-side corruption (the 13 graded T3 comparisons, numeric
+arm asserted — the gain row correctly stays green), R11/R12/R13 the
+Td/Tp/ζ slot aliases (9 each: pins + accessor-refused rows incl. ctl),
+R14 t½ result ×1.05 (4: exactly the aperiodic rows), R17 generator
+body corrupted (12: the wiring identities), R18 controls
+reversed/geared (3: exactly the sign and amplitude wiring pins — the
+round-5 class), R19 the ctl run's grading dt alone dilated (2: exactly
+the ctl period rows — round-6 review rewired those rows to the
+mode-pure run's agreeing results and every suite stayed green; the
+row-rewire class needs a RUN-SEPARATING plant, since identity pins
+read the source object, not the row's wiring, and the ζ row already
+had its separator in R4), R15 every check_below/
 check_relabs value displaced 1.1× its OWN site's executed tolerance,
 structural sites exempt (17: the 6 T1 + 11 plantable T0 — added after
 round-1 review widened check_below's executed bound ×10⁶ with every
 suite green, rung-0's P15/P17 executed-tolerance class; the same fix
 went to rung 1 as Q16, whose S1/S0 comparators had the identical
 unpinned shape), R16 every check_rel value displaced 1.1× its own
-executed rel arm in the DIRECTION of the honest discrepancy (28: all
+executed rel arm in the DIRECTION of the honest discrepancy (31 as of round 5: all
 tolerance rows — round-2 review found round 1's fix two-thirds done:
 check_rel, the third comparator, had no displacement plant, and a
 single-site ×10 executed widening survived every suite; the direction
