@@ -162,6 +162,18 @@ file_pin() {
     [ "$gotn" = "$3" ] || { echo "FAIL: $1 has $gotn code lines, declared $3 — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure every variant and re-pin"; exit 1; }
     [ "$got"  = "$2" ] || { echo "FAIL: $1 changed (identity $got, declared $2) — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure every variant and re-pin"; exit 1; }
 }
+# PLANTED FAULT for file_pin itself (round 22). C6's four other plants all
+# synthesise a ratio and feed it to the comparator; NONE touches the .eigs
+# files, so the layer that actually stops "the measured workload silently
+# became a different workload" -- the defect rounds 5, 8 and 9 found -- had
+# never been shown able to fail. Round 21's lesson, applied here: plants
+# must come from the defect class the gate exists to stop.
+FP_TMP=$(mktemp -d)
+sed 's/^N is 120000$/N is 60000/' tests/ap_profile.eigs > "$FP_TMP/mut.eigs"
+FP_GOT=$(grep -v '^[[:space:]]*#' "$FP_TMP/mut.eigs" | grep -v '^[[:space:]]*$' | md5sum | cut -c1-12)
+rm -rf "$FP_TMP"
+[ "$FP_GOT" != "f674b4b84476" ] || { echo "FAIL: file_pin's identity is blind to halving the frame count — the pin cannot fail"; exit 1; }
+echo "PASS: C6 file_pin planted fault rejected (halved N hashes to $FP_GOT, not f674b4b84476)"
 file_pin tests/ap_profile.eigs        f674b4b84476 61
 file_pin tests/ap_profile_noread.eigs 743df838d495 15
 # Round 8 retired the site grep that round 6 added: any read added to or

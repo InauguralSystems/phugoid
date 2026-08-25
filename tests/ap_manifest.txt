@@ -50,15 +50,78 @@ ap C2.ph.Tdft plantable reltol=0.01
 ap C2.ph.zlog plantable reltol=0.05
 ap C2.ph.Tdft.k plantable exact=8
 ap C5.sp.c010.osc plantable exact=0
+ap C5.sp.c010.reads structural exact=300
+ap C5.sp.c010.div plantable exact=133
+ap C5.sp.c010.conv plantable exact=157
+ap C5.sp.c010.stable plantable exact=9
+ap C5.sp.c010.equil plantable exact=1
+ap C5.sp.c010.runs plantable exact=10
+ap C5.sp.c010.maxrun plantable exact=113
+ap C5.sp.c010.didx plantable exact=23694
+ap C5.sp.c010.cidx plantable exact=21111
 ap C5.sp.c020.osc plantable exact=0
+ap C5.sp.c020.reads structural exact=150
+ap C5.sp.c020.div plantable exact=59
+ap C5.sp.c020.conv plantable exact=81
+ap C5.sp.c020.stable plantable exact=9
+ap C5.sp.c020.equil plantable exact=1
+ap C5.sp.c020.runs plantable exact=9
+ap C5.sp.c020.maxrun plantable exact=54
+ap C5.sp.c020.didx plantable exact=5693
+ap C5.sp.c020.cidx plantable exact=5437
 ap C5.sp.c040.osc plantable exact=0
+ap C5.sp.c040.reads structural exact=75
+ap C5.sp.c040.div plantable exact=25
+ap C5.sp.c040.conv plantable exact=40
+ap C5.sp.c040.stable plantable exact=9
+ap C5.sp.c040.equil plantable exact=1
+ap C5.sp.c040.runs plantable exact=5
+ap C5.sp.c040.maxrun plantable exact=32
+ap C5.sp.c040.didx plantable exact=1350
+ap C5.sp.c040.cidx plantable exact=1380
 ap C5.sp.c042.osc plantable exact=1
+ap C5.sp.c042.reads structural exact=71
+ap C5.sp.c042.div plantable exact=23
+ap C5.sp.c042.conv plantable exact=38
+ap C5.sp.c042.stable plantable exact=9
+ap C5.sp.c042.equil plantable exact=0
+ap C5.sp.c042.runs plantable exact=5
+ap C5.sp.c042.maxrun plantable exact=31
+ap C5.sp.c042.didx plantable exact=1196
+ap C5.sp.c042.cidx plantable exact=1244
 ap C5.sp.c042.at plantable exact=9
 ap C5.sp.c050.osc plantable exact=1
+ap C5.sp.c050.reads structural exact=60
+ap C5.sp.c050.div plantable exact=20
+ap C5.sp.c050.conv plantable exact=30
+ap C5.sp.c050.stable plantable exact=9
+ap C5.sp.c050.equil plantable exact=0
+ap C5.sp.c050.runs plantable exact=5
+ap C5.sp.c050.maxrun plantable exact=25
+ap C5.sp.c050.didx plantable exact=890
+ap C5.sp.c050.cidx plantable exact=835
 ap C5.sp.c050.at plantable exact=9
 ap C5.sp.c100.osc plantable exact=1
+ap C5.sp.c100.reads structural exact=30
+ap C5.sp.c100.div plantable exact=7
+ap C5.sp.c100.conv plantable exact=13
+ap C5.sp.c100.stable plantable exact=9
+ap C5.sp.c100.equil structural exact=0
+ap C5.sp.c100.runs plantable exact=4
+ap C5.sp.c100.maxrun plantable exact=13
+ap C5.sp.c100.didx plantable exact=182
+ap C5.sp.c100.cidx plantable exact=208
 ap C5.sp.c100.at plantable exact=9
 ap C5.sp.c102.osc plantable exact=0
+ap C5.sp.c102.reads structural exact=29
+ap C5.sp.c102.div plantable exact=7
+ap C5.sp.c102.conv plantable exact=13
+ap C5.sp.c102.stable plantable exact=9
+ap C5.sp.c102.equil structural exact=0
+ap C5.sp.c102.runs plantable exact=3
+ap C5.sp.c102.maxrun plantable exact=13
+ap C5.sp.c102.didx plantable exact=175
+ap C5.sp.c102.cidx plantable exact=195
 ap C5.ph.p045.osc plantable exact=0
 ap C5.ph.p045.reads structural exact=888
 ap C5.ph.p045.div plantable exact=359
@@ -175,13 +238,13 @@ streamfam C5.p4.a020   dist=conv,stable,equil idx=cidx skip=oidx:osc-is-0-so-vac
 streamfam C5.p4.a030   dist=conv,stable,equil idx=cidx,oidx skip=didx:no-diverging-reads runs=yes maxrun=justified
 streamfam C5.p4.a035   dist=conv,stable,equil idx=cidx,oidx skip=didx:no-diverging-reads runs=yes maxrun=justified
 streamfam C5.p4.a040   dist=conv,stable,equil idx=cidx,oidx skip=didx:no-diverging-reads runs=yes maxrun=justified
-streamfam C5.sp.c010   dist=none idx=none runs=none maxrun=none
-streamfam C5.sp.c020   dist=none idx=none runs=none maxrun=none
-streamfam C5.sp.c040   dist=none idx=none runs=none maxrun=none
-streamfam C5.sp.c042   dist=none idx=none runs=none maxrun=none
-streamfam C5.sp.c050   dist=none idx=none runs=none maxrun=none
-streamfam C5.sp.c100   dist=none idx=none runs=none maxrun=none
-streamfam C5.sp.c102   dist=none idx=none runs=none maxrun=none
+streamfam C5.sp.c010   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.sp.c020   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.sp.c040   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.sp.c042   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.sp.c050   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.sp.c100   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.sp.c102   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
 streamfam C1.hold      dist=none idx=none runs=none maxrun=none
 # The cl_run rows below emit no verdicts at all -- they are graded
 # trajectories, not observer streams -- so every family is legitimately

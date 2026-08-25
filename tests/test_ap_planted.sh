@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The rung-3 planted-fault matrix (ORACLE.md): each s-plant must flip
 # EXACTLY its declared red set, every plant run executes the full pinned
-# 137-check population, and the manifest rules hold (identity incl.
+# 200-check population, and the manifest rules hold (identity incl.
 # tolerance tokens and ROW parameters; every plantable name in some red
 # set; structural names in none; unknown class tokens FAIL).
 set -euo pipefail
@@ -15,7 +15,7 @@ run_plant() {
         echo "FAIL: plant $1 did not make ap_check exit nonzero — the checker cannot fail"; exit 1
     fi
     grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 137$' "$OUT" || { echo "FAIL: plant $1 run population != 137"; exit 1; }
+    grep -q '^CHECKS_RUN 200$' "$OUT" || { echo "FAIL: plant $1 run population != 200"; exit 1; }
 }
 expect_total_fails() {
     got=$(grep -c '^FAIL ' "$OUT" || true)
@@ -27,25 +27,25 @@ expect_green() { for pat in "$@"; do if grep '^FAIL ' "$OUT" | grep -Eq "$pat"; 
 no_refusals() { grep '^FAIL ' "$OUT" | grep -q 'refused' && { echo "FAIL: $1 reds must use the numeric arm, found a refusal"; exit 1; }; return 0; }
 
 echo "--- S1: gain sign flipped -> pitch rows + every zeta + the gain witnesses ---"
-run_plant s1; expect_total_fails 55
+run_plant s1; expect_total_fails 68
 expect_red 'C0\.a23 ' 'C0\.a33 ' 'C2\.k050\.T ' 'C2\.k100\.zlog ' 'C3\.gain\.use ' 'C2\.ph\.Tdft\.k ' 'C3\.amp\.zenv ' 'C5\.p4\.a035\.horizon '
 expect_green 'C1\.'
 echo "PASS: S1 red pattern exact"
 
 echo "--- S2: gain never reaches the dynamics (inert controller) ---"
-run_plant s2; expect_total_fails 54
+run_plant s2; expect_total_fails 67
 expect_red 'C3\.gain\.use ' 'C3\.lin\.shrinks ' 'C2\.k100\.T ' 'C2\.ph\.T ' 'C3\.amp\.zenv '
 expect_green 'C1\.'
 echo "PASS: S2 red pattern exact"
 
 echo "--- S3: integrator RK4 -> Euler -> periods + dt invariance + supervisory toggles ---"
-run_plant s3; expect_total_fails 44
+run_plant s3; expect_total_fails 52
 expect_red 'C2\.k025\.T ' 'C2\.k050\.T ' 'C2\.k100\.T ' 'C3\.dt\.T ' 'C3\.dt\.zlog ' 'C3\.dt\.zenv ' 'C2\.ph\.zlog ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a035\.horizon '
 expect_green 'C0\.' 'C1\.'
 echo "PASS: S3 red pattern exact"
 
 echo "--- S4: trim offset -> C1 + parity + every graded mode ---"
-run_plant s4; expect_total_fails 88
+run_plant s4; expect_total_fails 131
 expect_red 'C1\.res\.' 'C1\.hold\.' 'C0\.a13 ' 'C2\.k025\.T ' 'C3\.gain\.use ' 'C5\.sp\.c050\.osc '
 echo "PASS: S4 red pattern exact"
 
@@ -62,7 +62,7 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.zlog' 'C4\.' 'C5\.sp'
 echo "PASS: S6 red pattern exact"
 
 echo "--- S7: verdict stream frozen to 'stable' (supervisory inert) ---"
-run_plant s7; expect_total_fails 70
+run_plant s7; expect_total_fails 122
 expect_red 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C4\.ph\.horizon ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a035\.horizon ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.onset ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S7 red pattern exact"
@@ -75,7 +75,7 @@ expect_green 'C0\.' 'C1\.' '\.n ' '\.nr ' '\.nf ' 'C4\.' 'C5\.'
 echo "PASS: S8 red pattern exact"
 
 echo "--- S9: dataset broadly poisoned -> parity + graded modes + verdicts ---"
-run_plant s9; expect_total_fails 72
+run_plant s9; expect_total_fails 100
 expect_red 'C0\.a11 ' 'C0\.a33 ' 'C2\.k050\.zlog ' 'C3\.gain\.use ' 'C4\.ph\.osc ' 'C2\.ph\.Tdft ' 'C5\.p4\.a030\.osc '
 expect_green 'C1\.'
 echo "PASS: S9 red pattern exact"
@@ -93,7 +93,7 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.T ' 'C4\.' 'C5\.'
 echo "PASS: S11 red pattern exact"
 
 echo "--- S12: verdicts forced to 'oscillating' (the dual of S7) ---"
-run_plant s12; expect_total_fails 78
+run_plant s12; expect_total_fails 130
 expect_red 'C5\.sp\.c010\.osc ' 'C5\.sp\.c020\.osc ' 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C5\.p1\.inner\.osc ' 'C5\.p1\.inner\.engagements ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a020\.osc ' 'C5\.p1\.inner\.diverging ' 'C5\.p1\.inner\.converged ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.stable ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S12 red pattern exact"
@@ -166,8 +166,22 @@ for st in $STREAMS; do
             grep -q "^ap $st\.$f " tests/ap_manifest.txt || { echo "FAIL: $st declares $key including '$f' but has no 'ap $st.$f' row in the manifest"; exit 1; }
         done
     done
-    # PEER check: the one round 20 omitted, and the reason its gate did not bind.
-    case "$line" in *"dist=none"*) continue;; esac
+    # PEER check: the one round 20 omitted, and the reason its gate did not
+    # bind. Round 22 found the SECOND reason it did not bind: `dist=none`
+    # was both the blanket exemption AND the truthful declaration of an
+    # under-covered stream, so the seven C5.sp rows that emitted verdicts
+    # and pinned nothing skipped the rule by the very token that declared
+    # the gap -- the rule ran on exactly the eight streams already covered.
+    # The exemption is now DERIVED, not declared: a cl_run ROW token
+    # carries 8 pipe-separated params and a sup_run token 9, so a stream
+    # that emits verdicts cannot claim `dist=none` however its line reads.
+    NP=$(grep -m1 "^ROW $st\.run params=" "$OUT" | sed 's/.*params=//' | tr '|' '\n' | grep -c . || true)
+    case "$line" in
+        *"dist=none"*)
+            [ "$NP" = "8" ] || { echo "FAIL: $st declares dist=none but its ROW token carries $NP params, which is the sup_run arity — a stream that EMITS verdicts cannot declare itself exempt from the peer rule (round 22: this exemption was hiding seven streams and a live defect)"; exit 1; }
+            continue;;
+    esac
+    [ "$NP" = "9" ] || { echo "FAIL: $st declares verdict families but its ROW token carries $NP params, not the sup_run arity 9"; exit 1; }
     for f in $IDXFAMS; do
         case "$line" in
             *"idx=$f"*|*",$f "*|*",$f,"*) continue;;
@@ -175,6 +189,22 @@ for st in $STREAMS; do
         echo "$line" | tr ' ' '\n' | grep -q "^skip=$f:" || { echo "FAIL: $st carries neither index family '$f' nor a 'skip=$f:<why>' token, while a PEER stream carries it — an absence inside a comma list is silent, which is how the cidx hole hid for a full round"; exit 1; }
     done
 done
+# PLANTED FAULTS for the peer rule itself (round 22). Rounds 20 and 21
+# validated this gate only in prose; nothing in the tree regression-guarded
+# it, so relaxing it back to round 20's form left the suite green. These
+# run every time, and they are TWINNING faults -- the defect class the gate
+# exists to stop -- not declaration-consistency faults.
+SF_PROBE=$(grep '^streamfam C5.p1.inner ' tests/ap_manifest.txt | sed 's/idx=didx,cidx/idx=didx/')
+case "$SF_PROBE" in
+    *"idx=didx,cidx"*) echo "FAIL: the streamfam peer-rule plant did not apply — it would certify nothing"; exit 1;;
+esac
+SF_HIT=0
+for f in $IDXFAMS; do
+    case "$SF_PROBE" in *"idx=$f"*|*",$f "*|*",$f,"*) continue;; esac
+    echo "$SF_PROBE" | tr ' ' '\n' | grep -q "^skip=$f:" || SF_HIT=1
+done
+[ "$SF_HIT" = "1" ] || { echo "FAIL: the peer rule accepts a stream missing an index family a sibling carries — it cannot fail on its own defect class"; exit 1; }
+echo "PASS: streamfam peer-rule planted fault rejected (a sibling-only index family is caught)"
 echo "PASS: all $NSTREAM verdict streams declare their row families, every declared family has its manifest rows, and every peer index family is carried or explicitly skipped"
 
 echo "--- manifest: identity + rowparams + coverage + class vocabulary ---"

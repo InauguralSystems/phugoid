@@ -1471,18 +1471,18 @@ measured one.)
 
 | Plant | Injected into | Reds |
 |---|---|---|
-| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 55 |
-| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 54 |
-| s3 | Euler instead of RK4 | 44 |
-| s4 | trim offset by 0.01 rad | 88 |
+| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 68 |
+| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 67 |
+| s3 | Euler instead of RK4 | 52 |
+| s4 | trim offset by 0.01 rad | 131 |
 | s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
 | s6 | grading-dt dilation (estimator side only) | 6 |
-| s7 | verdict stream frozen — supervisory layer inert | 70 |
+| s7 | verdict stream frozen — supervisory layer inert | 122 |
 | s8 | ζ/T constant-replaced with the identity field carried | 13 |
-| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 72 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 100 |
 | s10 | dt-rerun grading separator | 1 |
 | s11 | ζ estimator slot alias | 16 |
-| s12 | verdicts forced to `oscillating` — the dual of s7 | 78 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 130 |
 | s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
 | s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
@@ -1540,12 +1540,36 @@ class — a family on one sibling only, a renamed ROW token, and a dropped
 stream count — plus the original three.
 
 The lesson generalises past this repo: **a gate's planted faults must come
-from the defect class the gate exists to stop.** Three faults that all
+from the defect class the gate exists to stop.** Round 22 applied it back
+across the repo and found two more instances, both now fixed: C6's four
+plants all synthesise a ratio and feed it to the comparator, so `file_pin`
+— the layer that actually stops "the measured workload silently became a
+different workload", the defect rounds 5, 8 and 9 found — had **no plant at
+all**; and the streamfam gate's own six validating faults existed only as
+prose, so relaxing the peer rule back to round 20's form left the suite
+green. Both now ship as executed plants that run every time. Three faults that all
 probe the same easy axis certify that axis and nothing else, and read as
 thorough validation.
-Absences are declared, not silent: `C5.sp.*` carry no families (disclosed
-in known-unexercised (e)), `C5.p4.a020` is `equiv` for `runs`/`maxrun`
-(proved), and the `C2/C3` rows emit no verdicts at all.
+**Round 22 found the second reason it did not bind — and it was worse than
+the first.** `dist=none` was both the blanket exemption from the peer rule
+AND the truthful declaration of an under-covered stream, so the seven
+`C5.sp.*` rows that emitted verdicts and pinned nothing escaped by the very
+token that declared the gap. The rule ran on exactly the eight streams
+already covered: it could not fire on the shipped tree, and could not fire
+if the hole were widened. The hole was live — relabelling `C5.sp.c010`'s
+300 reads to `diverging`, the same mutation this rung records as closed for
+`a020` and `C5.ph`, passed 137/137 and every plant.
+Both fixed: all seven cadence streams now carry the full distribution,
+`runs`, `maxrun` and both index sums (56 rows, and their `.equil`
+classifications were corrected twice by the manifest's own
+structural/plantable guard), and the exemption is now DERIVED rather than
+declared — a `cl_run` ROW token carries 8 params and a `sup_run` token 9,
+so a stream that emits verdicts cannot claim `dist=none` however its line
+reads. Verified by plant.
+Absences that remain are declared AND proved: `C5.p4.a020` is `equiv` for
+`runs`/`maxrun` (its `cidx` is the maximum possible index sum, which forces
+the order), and the `C2/C3` rows emit no verdicts at all — now checkable
+from their ROW arity rather than taken on trust.
 It also made an inconsistency visible that no round had named: the same
 family is spelled three ways across streams (`diverging`/`div`,
 `converged`/`conv`, `equilibrium`/`equil`). The gate declares actual
@@ -1578,7 +1602,7 @@ pre-registered clause.
 
 ## Exit gate for rung 3
 
-1. All C checks green (137, population pinned); every one of the 16
+1. All C checks green (200, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
    all FOUR of its planted faults (one per arm);
    rungs 0–2 suites untouched and green.

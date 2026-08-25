@@ -10,7 +10,7 @@
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 137.
+# Population pinned at exactly 200.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -569,9 +569,31 @@ define osc_count(rec) as:
 # All four edges are pinned so no windowing change can restore the monotone
 # "fast = blind, slow = too late" story -- the defect round 2 closed for
 # C5.p4's ramp.
-for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c040", 20, 0, 0.0 - 1.0], ["c042", 21, 1, 9], ["c050", 25, 1, 9], ["c100", 50, 1, 9], ["c102", 51, 0, 0.0 - 1.0]]:
+for cs in [["c010", 5, 0, 0.0 - 1.0, 300, 133, 157, 9, 1, 10, 23694, 21111, 113],
+           ["c020", 10, 0, 0.0 - 1.0, 150, 59, 81, 9, 1, 9, 5693, 5437, 54],
+           ["c040", 20, 0, 0.0 - 1.0, 75, 25, 40, 9, 1, 5, 1350, 1380, 32],
+           ["c042", 21, 1, 9, 71, 23, 38, 9, 0, 5, 1196, 1244, 31],
+           ["c050", 25, 1, 9, 60, 20, 30, 9, 0, 5, 890, 835, 25],
+           ["c100", 50, 1, 9, 30, 7, 13, 9, 0, 4, 182, 208, 13],
+           ["c102", 51, 0, 0.0 - 1.0, 29, 7, 13, 9, 0, 3, 175, 195, 13]]:
     local rec is sup_run of [f"C5.sp.{cs[0]}.run", ic_sp, tr.de, eff_gain of (0.5), 0.02, 1500, 25, cs[1], tr.P, method, freeze]
     check_exact of [f"C5.sp.{cs[0]}.osc", osc_count of (rec), cs[2]]
+    # Round 22: these seven were the ONLY verdict streams with no interior
+    # pins -- and the streamfam gate exempted them by the very token that
+    # declared the gap (`dist=none`), so the peer rule ran on exactly the
+    # eight streams already covered and could not fire on the hole. The
+    # mutation this rung records as closed for a020 (round 18) and
+    # C5.ph (round 19) -- relabelling a healthy decaying mode's whole
+    # stream to `diverging` -- was still open here across 715 reads.
+    check_exact of [f"C5.sp.{cs[0]}.reads", len of rec.verdict, cs[4]]
+    check_exact of [f"C5.sp.{cs[0]}.div", verdict_count of [rec, "diverging"], cs[5]]
+    check_exact of [f"C5.sp.{cs[0]}.conv", verdict_count of [rec, "converged"], cs[6]]
+    check_exact of [f"C5.sp.{cs[0]}.stable", verdict_count of [rec, "stable"], cs[7]]
+    check_exact of [f"C5.sp.{cs[0]}.equil", verdict_count of [rec, "equilibrium"], cs[8]]
+    check_exact of [f"C5.sp.{cs[0]}.runs", verdict_runs of (rec), cs[9]]
+    check_exact of [f"C5.sp.{cs[0]}.maxrun", verdict_maxrun of (rec), cs[12]]
+    check_exact of [f"C5.sp.{cs[0]}.didx", verdict_idxsum of [rec, "diverging"], cs[10]]
+    check_exact of [f"C5.sp.{cs[0]}.cidx", verdict_idxsum of [rec, "converged"], cs[11]]
     # Round 14: first_osc/last_osc return -1 IFF osc_count == 0, so a `.at`
     # row pinned at -1 cannot fail independently of its `.osc == 0`
     # sibling -- verified across all 16 plants, where they fire only as a
@@ -795,8 +817,8 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0, 71, 9, 0, 3124], ["a03
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 137:
-    print of f"FAIL harness: expected exactly 137 checks, ran {checks_run}"
+if checks_run != 200:
+    print of f"FAIL harness: expected exactly 200 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1
