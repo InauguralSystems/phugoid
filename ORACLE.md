@@ -1060,8 +1060,17 @@ verdicts that contradict physics — are `C5.p1.inner.{diverging,converged}`
 (a decaying mode reported as diverging half the time) and the blind
 cadences `C5.sp.{c010,c020}`.
 - **C5 — the three pre-registered predictions** (below). Since round 12
-  the inner verdict stream is pinned for ORDER as well as content —
-  `C5.p1.inner.runs = 37` and `.maxrun = 260`. The counts alone could not
+  the inner verdict stream is pinned for run STRUCTURE as well as content
+  (`runs = 37`, `maxrun = 260`) — and since round 16 for order proper.
+  Round 15 wrote down that run count is reversal-invariant and then round
+  16 found the same is true of `maxrun`, so "pinned for ORDER" had been
+  false for this stream: reversing all 8000 verdicts passed 96/96, every
+  plant and the manifest, while turning decaying run lengths (260, 258,
+  256…) into growing ones — the verdict signature of an *amplifying* mode,
+  which is the one thing a supervisory layer exists to distinguish from a
+  healthy one. `C5.p1.inner.didx` and `C4.ph.oidx` (index sums over each
+  stream's dominant class) bind it; round 15 had applied that checksum to
+  `C5.p4` alone, the fourth twinning miss in this loop. The counts alone could not
   see it: a count-preserving repack (group by category in first-appearance
   order, so the multiset is exactly what the trajectory produced and every
   plant still reds) turned 37 maximal runs into 4 and left 85/85, all 16
@@ -1286,11 +1295,18 @@ than one that does not:
 
   | cadence | window span | span / T_sp | verdict |
   |---|---|---|---|
-  | 0.4 s (`c040`) | 4 s | 0.43 | blind — last blind |
-  | 0.44 s (`c044`) | 4.4 s | 0.47 | **sighted** — visibility starts near HALF a period |
-  | 0.5 s (`c050`) | 5 s | 0.55 | sighted |
-  | 1.0 s (`c100`) | 10 s | 1.08 | sighted — last sighted |
-  | 1.2 s (`c120`) | 12 s | 1.29 | blind again — unpublished until round 15 |
+  | 0.4 s (`c040`) | 4 s | 0.438 | blind — last blind |
+  | 0.42 s (`c042`) | 4.2 s | 0.460 | **sighted** — visibility starts near HALF a period |
+  | 0.5 s (`c050`) | 5 s | 0.547 | sighted — the row that refuted the story |
+  | 1.0 s (`c100`) | 10 s | 1.095 | sighted — last sighted |
+  | 1.04 s (`c104`) | 10.4 s | 1.139 | blind again — unpublished until round 15 |
+
+  (Spans are against the **kq = 0** short-period T = 9.1341 s. Round 15's
+  first version of this table quoted the kq = 0.5 period and put the edges
+  at cadence 22 and 60; round 16 corrected both — the runs fly at gain 0,
+  and swept at one-cadence resolution the edges are 21 and 52. That is the
+  wrong-plant error round 13 caught on `maxrun`, recurring inside the fix
+  for round 15's finding.)
 
   The two edges have different causes: below, too little of a fold in the
   window to classify; above, the G5 horizon — by the time the window fills
@@ -1301,7 +1317,7 @@ than one that does not:
   for `C5.p4`'s ramp, recurring in the neighbouring table.
   The sighted rows all report exactly once, *after* the mode has decayed
   (t ≥ 4.4 s for a mode gone by ~5 s; at the earliest sighted cadence the
-  latency is still ~1.9 decay constants). Detection latency and phase lag
+  latency is still ~2.4 decay constants). Detection latency and phase lag
   are the same quantity, so a windowed verdict cannot act on a well-damped
   transient. The complement holds
   too: the lightly-damped phugoid (ζ = 0.036, ringing for many periods)
@@ -1406,18 +1422,18 @@ measured one.)
 
 | Plant | Injected into | Reds |
 |---|---|---|
-| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 43 |
-| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 43 |
-| s3 | Euler instead of RK4 | 21 |
-| s4 | trim offset by 0.01 rad | 60 |
+| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 44 |
+| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 44 |
+| s3 | Euler instead of RK4 | 22 |
+| s4 | trim offset by 0.01 rad | 61 |
 | s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
 | s6 | grading-dt dilation (estimator side only) | 6 |
-| s7 | verdict stream frozen — supervisory layer inert | 36 |
+| s7 | verdict stream frozen — supervisory layer inert | 38 |
 | s8 | ζ/T constant-replaced with the identity field carried | 13 |
-| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 46 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 48 |
 | s10 | dt-rerun grading separator | 1 |
 | s11 | ζ estimator slot alias | 16 |
-| s12 | verdicts forced to `oscillating` — the dual of s7 | 42 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 44 |
 | s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
 | s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
@@ -1461,10 +1477,7 @@ published as a measurement, not asserted; (b) C0's gain-independence is
 structural (`B[0] = 0`), stated but not measured — all 16 C0 rows run at
 kq = 0.5; (c) the C6 absolutes (read/write/floor/noread wall times) are
 context and are asserted nowhere; (d) the shell harnesses' own FAIL
-branches, as in rungs 1 and 2; (e) the interiors of `C5.sp.*` (four cadence rows) have no
-`runs`/`maxrun` twin — the three streams that needed one got it at rounds
-12, 13 and 14, and these are short (60 and 30 reads) with `.osc` pinned at
-0 or 1, so there is little interior to permute; (f) **prediction 2's
+branches, as in rungs 1 and 2; (e) the interiors of `C5.sp.*` (now SEVEN cadence rows, 300/150/75/71/60/30/29 reads) have no order pin — round 15's entry said "four rows … short (60 and 30 reads)", which round 16 found stale from its own edit; `c010`'s 300-read interior is not short and its verdict classes are pinned nowhere; (f) **prediction 2's
 second clause is not measured** — "the closed-loop response while engaged still matches the C2
 predictions" was pre-registered, and no shipped check grades the
 supervisory trajectory against the C2 predictions (`C2.ph` certifies the
@@ -1475,7 +1488,7 @@ pre-registered clause.
 
 ## Exit gate for rung 3
 
-1. All C checks green (96, population pinned); every one of the 16
+1. All C checks green (98, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
    all FOUR of its planted faults (one per arm);
    rungs 0–2 suites untouched and green.

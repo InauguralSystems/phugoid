@@ -10,7 +10,7 @@
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 96.
+# Population pinned at exactly 98.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -460,14 +460,17 @@ define verdict_runs(rec) as:
 # the horizon), and run COUNT is reversal-invariant by construction, so
 # reversing every verdict strictly between onset and horizon passed 92/92,
 # all 16 plants and the manifest. This does bind: reversal moves it.
-define verdict_oidx(rec) as:
+define verdict_idxsum(rec, want) as:
     local t is 0
     local i is 0
     loop while i < (len of rec.verdict):
-        if rec.verdict[i] == "oscillating":
+        if rec.verdict[i] == want:
             t is t + i
         i is i + 1
     return t
+
+define verdict_oidx(rec) as:
+    return verdict_idxsum of [rec, "oscillating"]
 
 define verdict_maxrun(rec) as:
     local best is 0
@@ -532,24 +535,28 @@ define osc_count(rec) as:
 # fold and reports in time. The response is a two-sided BAND, and round 15
 # refuted the mechanism this comment used to state ("requires the window to
 # span a period"): the shipped c050 row is itself the counter-example, at
-# window span 0.547 of the SP period, sighted. Measured edges, SP T = 9.268s
-# at dt = 0.02, window = 10 samples so span = 10*cadence*dt:
-#   cad 20 (span 0.43 T)  blind      <- lower edge, last blind
-#   cad 22 (span 0.47 T)  SIGHTED    <- visibility starts near HALF a period
-#   cad 50 (span 1.08 T)  sighted    <- upper edge, last sighted
-#   cad 60 (span 1.29 T)  blind      <- the G5 horizon: by the time the
-#                                       window fills, the mode is under the
-#                                       deadband
-# The two edges have DIFFERENT causes -- too little of a fold to see, then
-# too late to matter -- and the upper one was published nowhere until
-# round 15. Both are pinned below so no windowing change can restore the
-# monotone "fast = blind, slow = too late" story, which is the same defect
-# round 2 closed for C5.p4's ramp.
-# The `.at` row is the point of prediction 3: a COUNT of 1 is equally
-# consistent with "reported once, far too late" and "reported instantly".
-# Only the read index distinguishes them — read 9 x the cadence gives the
-# t = 5 s and t = 10 s the bar publishes, against a mode gone by ~5 s.
-for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c040", 20, 0, 0.0 - 1.0], ["c044", 22, 1, 9], ["c050", 25, 1, 9], ["c100", 50, 1, 9], ["c120", 60, 0, 0.0 - 1.0]]:
+# window span 0.55 of the SP period, sighted.
+# Round 16 then corrected round 15's own table twice. (1) It quoted spans
+# against the kq=0.5 period, but these runs fly at gain 0 for essentially
+# the whole run (.osc is 0 or 1), so the plant is A and the period is the
+# kq=0 row, T = 9.1341s -- the same wrong-plant error round 13 found on
+# maxrun, recurring one table over. (2) Swept at one-cadence resolution the
+# edges are not where round 15 put them. Measured, window = 10 samples so
+# span = 10*cadence*dt:
+#   cad 20 (span 4.0s, 0.438 T)  blind    <- lower edge, last blind
+#   cad 21 (span 4.2s, 0.460 T)  SIGHTED  <- visibility starts near HALF a period
+#   cad 25 (span 5.0s, 0.547 T)  sighted     (the row that refuted the story)
+#   cad 50 (span 10.0s, 1.095 T) sighted  <- upper edge, last sighted
+#   cad 52 (span 10.4s, 1.139 T) blind    <- blind again
+# The two edges have DIFFERENT causes -- too little of a fold to classify,
+# then the G5 horizon (by the time the window fills the mode is under the
+# deadband). Round 16 tested that with an amplitude sweep: the upper edge
+# collapses between amp 0.1 and 0.5 while the lower edge is unmoved from
+# amp 0.1 to 100, three orders of magnitude of difference in sensitivity.
+# All four edges are pinned so no windowing change can restore the monotone
+# "fast = blind, slow = too late" story -- the defect round 2 closed for
+# C5.p4's ramp.
+for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c040", 20, 0, 0.0 - 1.0], ["c042", 21, 1, 9], ["c050", 25, 1, 9], ["c100", 50, 1, 9], ["c104", 52, 0, 0.0 - 1.0]]:
     local rec is sup_run of [f"C5.sp.{cs[0]}.run", ic_sp, tr.de, eff_gain of (0.5), 0.02, 1500, 25, cs[1], tr.P, method, freeze]
     check_exact of [f"C5.sp.{cs[0]}.osc", osc_count of (rec), cs[2]]
     # Round 14: first_osc/last_osc return -1 IFF osc_count == 0, so a `.at`
@@ -576,6 +583,11 @@ check_exact of ["C4.ph.osc", osc_count of (ph_rec), 56]
 check_exact of ["C4.ph.onset", first_osc of (ph_rec), 9]
 check_exact of ["C4.ph.runs", verdict_runs of (ph_rec), 18]
 check_exact of ["C4.ph.maxrun", verdict_maxrun of (ph_rec), 13]
+# ...and the same order checksum round 15 gave C5.p4 and did not twin here
+# (the fourth twinning miss in this loop). Reversing ph_rec's interior
+# passed 96/96 with osc/onset/horizon/runs/maxrun/stable/moving/toggles/
+# first_engaged all matching.
+check_exact of ["C4.ph.oidx", verdict_oidx of (ph_rec), 2497]
 # ...and CLOSE the distribution, as `inner`'s has been since round 4. Only
 # the 56 oscillating were pinned, leaving 24 of 80 reads uncategorised --
 # among them a FIFTH verdict class, `moving`, which appeared in no pin, no
@@ -625,6 +637,15 @@ check_exact of ["C5.p1.inner.equilibrium", verdict_count of [inner, "equilibrium
 # -> 1 run) and s12 (forced oscillating -> 1 run), so the existing plant
 # matrix covers them.
 check_exact of ["C5.p1.inner.runs", verdict_runs of (inner), 37]
+# Round 16: runs and maxrun are BOTH reversal-invariant (a reversal
+# preserves the run-length multiset), so "pinned for ORDER" was false for
+# this stream -- reversing all 8000 verdicts passed 96/96, every plant and
+# the manifest, while turning decaying run lengths (260, 258, 256...) into
+# GROWING ones: the verdict signature of an amplifying mode, which is the
+# one thing a supervisory layer exists to distinguish from a healthy one.
+# verdict_oidx would be vacuous here (osc = 0), so the checksum keys on
+# this stream's dominant class instead.
+check_exact of ["C5.p1.inner.didx", verdict_idxsum of [inner, "diverging"], 16038601]
 check_exact of ["C5.p1.inner.maxrun", verdict_maxrun of (inner), 260]
 # And the supervisory layer does NOT hold cleanly either: it sees the
 # regime (56 of 80 reads, pinned by C4.ph.osc) but the engagement
@@ -688,8 +709,8 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0], ["a030", 0.3, 23, 38,
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 96:
-    print of f"FAIL harness: expected exactly 96 checks, ran {checks_run}"
+if checks_run != 98:
+    print of f"FAIL harness: expected exactly 98 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1
