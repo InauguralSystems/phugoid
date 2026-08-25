@@ -1045,12 +1045,14 @@ verdicts that contradict physics — are `C5.p1.inner.{diverging,converged}`
 (a decaying mode reported as diverging half the time) and the blind
 cadences `C5.sp.{c010,c020}`.
 - **C5 — the three pre-registered predictions** (below).
-- **C6 — read-path profile (a RATIO gate, not an absolute budget):** measured µs per predicate
-  read and per frame, with a regression bound. Baseline probe measured
-  2026-08-25 before this rung: **0.70 µs/read**, read path = 64% of a
-  write+read workload, and observed *scalar* writes ≈ free (0.31 s vs a
-  0.30 s fully-unobserved floor over 200k frames, n=5 medians). The gate
-  is a ceiling, not a target: a regression past it is a FAIL. **Numbers
+- **C6 — read-path profile (a RATIO gate, not an absolute budget):** the shipped gate asserts
+  two ratio FLOORS — it fires when reads stop dominating writes, i.e. when
+  the read path gets relatively *cheaper*. No µs/read and no µs/frame is
+  asserted anywhere; the absolutes below are context, not arms. Baseline
+  probe measured 2026-08-25 before this rung: **0.70 µs/read**, read path
+  = 64% of a write+read workload, and observed *scalar* writes ≈ free
+  (0.31 s vs a 0.30 s fully-unobserved floor over 200k frames, n=5
+  medians). **Numbers
   corrected at round 1** — n=5 medians on the shipped program (120k
   frames): read 0.501 s, write 0.243 s, floor 0.169 s, so read/write =
   2.06 and write/floor = 1.44; repeated runs land in **1.95–2.13** for
@@ -1060,7 +1062,18 @@ cadences `C5.sp.{c010,c020}`.
   bound literals are identity-pinned against their declared values, and
   each variant's EXECUTED work is pinned too (round 5 halved the floor
   variant's loop and the gate reported a greener ratio while every suite
-  stayed green). Both bounds are
+  stayed green). The 1.94–2.13 window is a REPRODUCTION note, not an arm —
+  the gate has no ceiling, deliberately: a concurrent-load run on this box
+  measured read/write = 3.38 on unmutated code, so a ratio ceiling would
+  flake on a shared runner. What pins the workload instead is the read
+  POPULATION: round 6 measured the per-predicate split and found
+  `oscillating of u` fires **0** times in 120k frames (conv 11563, stable
+  65157, div 56566 = the pinned 133286), so a hit count cannot see that
+  read at all — deleting it (−25% of the read path, ratio 1.98 → 1.67,
+  outside this very window) and adding three more copies (+75%, → 2.91)
+  both left the pin matching and the suite green. The four read sites are
+  now pinned structurally against the source, and `READ_SITES` is
+  published in the variant's own output as `read 133286 480000`. Both bounds are
   single-sourced constants shared with their planted faults, after round
   4 found that editing a gate's literal alone left its own fault citing
   the old value and the suite green. The gate takes **median of 5**, not 3 —
@@ -1193,12 +1206,16 @@ number. `sp_subspace_ic` (rung 1) normalises the excitation on the **w**
 channel — correct for the w-dominant short period it was written for.
 Rung 3 reused it for the PHUGOID, which is u-dominant (|v_u/v_w| = 6.75
 on the annihilator column used), so normalising on w rather than u
-over-scales the excitation by **~17×**; demanding 5 ft/s of w landed at
+over-scales the excitation by **6.75×**; demanding 5 ft/s of w landed at
 a scale factor of 938 only because the raw column's normalisation is
-arbitrary. (Round-5 review: the first draft called that 938 a component
-ratio — the measured consequences below were right, the stated cause was
-wrong by ~137×. A causal story is a hypothesis however precise it
-sounds.) The
+arbitrary. The fix moved both knobs at once — `w=5.0` (scale 938.4) to
+`u=2.0` (scale 55.6), a **16.9×** reduction — of which the channel is
+6.75× and the remaining 2.5× is the amplitude literal. (Round-5 review:
+the first draft called that 938 a component ratio — wrong by ~137×.
+Round-6 review: the fix's own text then attributed the whole 16.9× to
+the channel. The measured consequences below were right both times; the
+stated cause was wrong both times. A causal story is a hypothesis
+however precise it sounds.) The
 "phugoid episode" started 97° nose-down and flew **7 complete pitch
 loops**, with airspeed swinging from −9 to 714 ft/s on a linear-aero
 model valid near Mach 0.25. Nothing in the rung could see it — the

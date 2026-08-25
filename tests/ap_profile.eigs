@@ -18,6 +18,13 @@ if (len of cli) > 0:
 
 N is 120000
 
+# The read path's declared population: 4 predicate reads per frame.
+# The hit total run_read returns does NOT pin this — `oscillating of u`
+# fires 0 times on a sinusoid, so a quarter of the read work contributes
+# nothing to the total and can be deleted or duplicated invisibly.
+# tests/test_ap_profile.sh checks this literal against the source.
+READ_SITES is 4
+
 define run_read(n) as:
     local u is 0.0
     local w is 0.0
@@ -71,7 +78,7 @@ define run_floor(n) as:
     return i
 
 if mode == "read":
-    print of f"read {run_read of (N)}"
+    print of f"read {run_read of (N)} {N * READ_SITES}"
 elif mode == "write":
     print of f"write {run_write of (N)}"
 else:

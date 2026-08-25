@@ -196,7 +196,7 @@ define sp_subspace_ic(A, ph_re, ph_im, tstate, wamp) as:
 # matters enormously: the short period is w-dominant, so scaling its
 # eigenvector to a given w is benign; the phugoid is u-DOMINANT
 # (|v_u/v_w| = 6.75 on the annihilator column actually used), so
-# normalising it on w over-scales the excitation ~17x and flies the
+# normalising it on w over-scales the excitation 6.75x and flies the
 # aircraft through complete pitch loops. (The raw column's own
 # normalisation is arbitrary, which is why demanding w = 5.0 landed at a
 # scale factor of 938 — that 938 is a scale, NOT a component ratio, as

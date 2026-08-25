@@ -363,7 +363,9 @@ ic_sp is sp_subspace_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk
 # carries. The first draft normalised on w (inheriting rung-1's helper,
 # which is correct for the w-dominant short period) and, because the
 # phugoid is u-dominant (|v_u/v_w| = 6.75 on the annihilator column
-# used), over-scaled the excitation ~17x: the
+# used), over-scaled the excitation 6.75x — and with the amplitude
+# literal moving 5.0 -> 2.0 as well, the fix cut the scale 16.9x
+# (938.4 -> 55.6) in total. The consequence: the
 # "phugoid" run pitched 97 deg nose-down and looped the aircraft 7 times
 # with airspeed swinging negative, on a linear-aero model valid near
 # Mach 0.25. Round-1 review caught it; C2.ph below now PROVES the run is
@@ -500,7 +502,8 @@ check_exact of ["C5.p1.inner.converged", verdict_count of [inner, "converged"], 
 check_exact of ["C5.p1.inner.stable", verdict_count of [inner, "stable"], 9]
 check_exact of ["C5.p1.inner.equilibrium", verdict_count of [inner, "equilibrium"], 1]
 # And the supervisory layer does NOT hold cleanly either: it sees the
-# regime (59 of 80 reads) but the engagement flickers 17 times in one
+# regime (56 of 80 reads, pinned by C4.ph.osc) but the engagement
+# flickers 17 times in one
 # phugoid episode, because the raw verdict carries no hysteresis at the
 # band boundary. A control consumer needs a debounce the language's
 # predicates do not provide. Toggles are counted INSIDE the run at the

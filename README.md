@@ -55,8 +55,8 @@ a closed-loop autopilot, with the observer as its supervisory layer:
   plant, graded against closed-loop pole predictions computed from the
   chain BEFORE the controller existed (`A_cl = A + B·K`, then the same
   `charpoly4 → dk_roots → modes_of`). Measured: ζ tracks the prediction
-  to 0.15–0.64%, and the whole grading apparatus transferred with no new
-  oracle code.
+  to 0.0066–0.16% across the four graded gains, and the whole grading
+  apparatus transferred with no new oracle code.
 - **The observer in the loop.** Two of three pre-registered predictions
   were **refuted**, which is the rung's main result. At inner-loop rate
   the observer is not noisy — but neither is it merely blind: on a
@@ -72,7 +72,7 @@ a closed-loop autopilot, with the observer as its supervisory layer:
   mode decays under the band supervision runs out of time rather than
   switching off — EigenScript#1045 changing what an actuator does.
 - **`tests/ap_profile.eigs`** — the observer's READ path, which no
-  consumer had put under load, is ~1.9–2.1× the write path on this shape,
+  consumer had put under load, is 1.94–2.13× the write path on this shape,
   so EigenScript#915's write-path gate cannot help it by construction.
 
 Rung 2 (shipped 2026-08-24) is the lateral model — three timescales and

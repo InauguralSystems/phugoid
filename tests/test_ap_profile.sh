@@ -70,7 +70,20 @@ echo "--- ap_profile (C6: observer read-path cost) ---"
 # greps matched only the line prefix. This is the repo's own rule (a gate
 # that silently measures LESS still prints OK) applied to the one
 # measurement whose executed population was not pinned.
-"$EIGS" tests/ap_profile.eigs read  | grep -q '^read 133286$'  || { echo "FAIL: read variant did not execute its declared work (expect 'read 133286')";  "$EIGS" tests/ap_profile.eigs read;  exit 1; }
+#
+# The hit total is not enough on its own. Round-6 review measured the
+# per-predicate split -- osc(u)=0, conv(w)=11563, stable(q)=65157,
+# div(th)=56566 -- so `oscillating of u` contributes NOTHING to 133286.
+# Deleting it (read path -25%, ratio 1.98 -> 1.67, outside ORACLE.md's own
+# declared 1.94-2.13 window) and adding three more copies of it (+75%,
+# ratio -> 2.91) both left the pin matching and the whole suite green.
+# A hit count cannot pin a zero-hit read, so the read POPULATION is pinned
+# structurally instead, against the source.
+DECL_SITES=4
+[ "$DECL_SITES" = "4" ] || { echo "FAIL: DECL_SITES is $DECL_SITES, declared 4 — the read population is DATA and gets the same identity pin the bounds do"; exit 1; }
+SITES=$(grep -c '^[[:space:]]*if \(oscillating\|converged\|stable\|diverging\|improving\|equilibrium\) of ' tests/ap_profile.eigs)
+[ "$SITES" = "$DECL_SITES" ] || { echo "FAIL: tests/ap_profile.eigs has $SITES predicate read sites, declared $DECL_SITES — the read path's population changed, so the ratio measures a different workload than ORACLE.md publishes"; exit 1; }
+"$EIGS" tests/ap_profile.eigs read  | grep -q '^read 133286 480000$'  || { echo "FAIL: read variant did not execute its declared work (expect 'read 133286 480000')";  "$EIGS" tests/ap_profile.eigs read;  exit 1; }
 "$EIGS" tests/ap_profile.eigs write | grep -q '^write 120000$' || { echo "FAIL: write variant did not execute its declared work (expect 'write 120000')"; "$EIGS" tests/ap_profile.eigs write; exit 1; }
 "$EIGS" tests/ap_profile.eigs floor | grep -q '^floor 120000$' || { echo "FAIL: floor variant did not execute its declared work (expect 'floor 120000')"; "$EIGS" tests/ap_profile.eigs floor; exit 1; }
 R=$(med read); W=$(med write); F=$(med floor)
