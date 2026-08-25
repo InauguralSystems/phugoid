@@ -10,7 +10,7 @@
 # corruption (S4 comparator validation), q11 period_dft result corruption
 # (estimator wiring; the k-pins are the anti-alias defense).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 76.
+# failure; the check population is pinned at exactly 79.
 #
 # The chain reference (dim_derivs_lon -> a_lon -> charpoly4 -> dk_roots ->
 # modes_of) is ALWAYS computed from a clean dataset copy — plants poison
@@ -354,8 +354,28 @@ define grade_ph(uwin, dt, simflag) as:
         z is mangle_z of (zeta_envelope of [uwin, gdt])
     return {"Tp": tp_raw, "Td": wrap_dft of (td_raw), "z": z}
 
-base_sp is grade_sp of [run_sp of ["S2.run", 2.0, 0.02, 1, tr], 0.02, 1]
-base_ph is grade_ph of [run_ph of ["S3.run", 0.005, 0.05, 20, tr], 1.0, 1]
+# Window amplitude (max - min): the run-USE gain rows below pin that a
+# rerun's changed argument actually reaches the dynamics (round 8: a
+# rerun body ignoring its amplitude argument — or a ctl rerun built
+# from the unscaled derivatives — made invariance rows compare a run to
+# itself, the round-5 vacuity class one level up; ROW tokens pin the
+# print, these pin the use).
+define win_amp(w) as:
+    local lo is w[0]
+    local hi is w[0]
+    local i is 0
+    loop while i < (len of w):
+        if w[i] > hi:
+            hi is w[i]
+        if w[i] < lo:
+            lo is w[i]
+        i is i + 1
+    return hi - lo
+
+base_sp_w is run_sp of ["S2.run", 2.0, 0.02, 1, tr]
+base_sp is grade_sp of [base_sp_w, 0.02, 1]
+base_ph_w is run_ph of ["S3.run", 0.005, 0.05, 20, tr]
+base_ph is grade_ph of [base_ph_w, 1.0, 1]
 
 # Read-site identity accessors (round 6): the slot-identity pins guard
 # the grading helpers, but every CONSUMER read of a paired-estimator
@@ -464,22 +484,43 @@ ampg_ph is 1.0
 if plant == "q21":
     ampg_sp is 0.0204
     ampg_ph is 1.02
-amp_sp is grade_sp of [run_sp of ["S4.amp.sp.run", 1.0, 0.02, 1, tr], ampg_sp, 1]
+# Plant q23: the amp rerun's arguments forced back to the base values —
+# the round-8 vacuity shape as a plant; only the gain rows can see it.
+amp_wamp is 1.0
+amp_deoff is 0.0025
+if plant == "q23":
+    amp_wamp is 2.0
+    amp_deoff is 0.005
+amp_sp_w is run_sp of ["S4.amp.sp.run", amp_wamp, 0.02, 1, tr]
+amp_sp is grade_sp of [amp_sp_w, ampg_sp, 1]
 amp_sp.zl is sep_z of [amp_sp.zl, "q21"]
 amp_sp.ze is sep_z of [amp_sp.ze, "q21"]
-amp_ph is grade_ph of [run_ph of ["S4.amp.ph.run", 0.0025, 0.05, 20, tr], ampg_ph, 1]
+amp_ph_w is run_ph of ["S4.amp.ph.run", amp_deoff, 0.05, 20, tr]
+amp_ph is grade_ph of [amp_ph_w, ampg_ph, 1]
 amp_ph.z is sep_z of [amp_ph.z, "q21"]
 inv_pair of ["amp", amp_sp, amp_ph, 0.005, 0.005]
+check_rel of ["S4.amp.gain.sp", (win_amp of (amp_sp_w)) / (win_amp of (base_sp_w)), 0.5, 0.02]
+check_rel of ["S4.amp.gain.ph", (win_amp of (amp_ph_w)) / (win_amp of (base_ph_w)), 0.5, 0.02]
 
 # nominal control derivatives are excitation-only: Cmde x1.5 re-trims and
 # re-runs; the graded quantities must not move.
 ctl2 is ctl_nominal of null
 ctl2.Cmde is ctl2.Cmde * 1.5
 ctl2.CLde is ctl2.CLde * 1.5
+# Plant q22: the ctl rerun built from the UNSCALED derivatives — round
+# 8's rung-1 twin of the rung-2 round-5 vacuity (nothing pinned that
+# the x1.5 reaches the dynamics; the reruns were rewireable to
+# bit-identical base runs). Only the gain row can see it.
+if plant == "q22":
+    ctl2 is ctl_nominal of null
 tr2 is make_trim of (ctl2)
 ctl_sp is grade_sp of [run_sp of ["S4.ctl.sp.run", 2.0, 0.02, 1, tr2], 0.02, 1]
-ctl_ph is grade_ph of [run_ph of ["S4.ctl.ph.run", 0.005, 0.05, 20, tr2], 1.0, 1]
+ctl_ph_w is run_ph of ["S4.ctl.ph.run", 0.005, 0.05, 20, tr2]
+ctl_ph is grade_ph of [ctl_ph_w, 1.0, 1]
 inv_pair of ["ctl", ctl_sp, ctl_ph, 0.002, 0.002]
+# The rung-1 gain twin of rung-2's T3.ctl.gain: the pulse's phugoid
+# amplitude scales with C_mδe, so the x1.5 must show up here.
+check_rel of ["S4.ctl.gain", (win_amp of (ctl_ph_w)) / (win_amp of (base_ph_w)), 1.5, 0.02]
 
 # ------------------------------------------------------------ M1X
 # The estimator bridge: the rung-0 estimators validated on synthetic
@@ -569,8 +610,8 @@ check_exact of ["M1X.ph2.Tpeaks.n", g3.Tp.n_extrema, 8]
 # ------------------------------------------------------------ population
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 76:
-    print of f"FAIL harness: expected exactly 76 checks, ran {checks_run}"
+if checks_run != 79:
+    print of f"FAIL harness: expected exactly 79 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

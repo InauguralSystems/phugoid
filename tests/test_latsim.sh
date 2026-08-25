@@ -5,7 +5,7 @@
 # the integrator, the three mode-pure IC runs grade to the chain's
 # Dutch-roll/roll/spiral quantities inside the declared arms, the
 # dt/amplitude/control invariances hold, the M2X bridge is valid in
-# rung-2's exact windows, and exactly 73 checks ran.
+# rung-2's exact windows, and exactly 76 checks ran.
 set -euo pipefail
 
 EIGS="${EIGENSCRIPT:-eigenscript}"
@@ -22,6 +22,6 @@ if ! "$EIGS" tests/latsim_check.eigs > "$OUT" 2>&1; then
     tail -3 "$OUT"
     exit 1
 fi
-grep -q '^CHECKS_RUN 73$' "$OUT" || { echo "FAIL: check population not 73"; tail -3 "$OUT"; exit 1; }
+grep -q '^CHECKS_RUN 76$' "$OUT" || { echo "FAIL: check population not 76"; tail -3 "$OUT"; exit 1; }
 grep -q '^FAILURES 0$' "$OUT" || { echo "FAIL: failures reported"; grep '^FAIL' "$OUT"; exit 1; }
-echo "PASS: 73/73 rung-2 checks green"
+echo "PASS: 76/76 rung-2 checks green"

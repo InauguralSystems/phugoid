@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The rung-2 planted-fault matrix (ORACLE.md): each r-plant must flip
 # EXACTLY its declared red set, every plant run must execute the full
-# pinned 73-check population, and the manifest rules hold (identity incl.
+# pinned 76-check population, and the manifest rules hold (identity incl.
 # tolerance tokens; every plantable name in some red set; structural
 # names in none; unknown class tokens FAIL — rung-1 round-8's lesson).
 # Fabricating plants (r8, r10) carry identity fields and their blocks
@@ -24,7 +24,7 @@ run_plant() {
         exit 1
     fi
     grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 73$' "$OUT" || { echo "FAIL: plant $plant run population != 73"; exit 1; }
+    grep -q '^CHECKS_RUN 76$' "$OUT" || { echo "FAIL: plant $plant run population != 76"; exit 1; }
 }
 
 expect_total_fails() {
@@ -75,9 +75,10 @@ expect_red 'T2\.dr\.z ' 'T2\.roll\.th ' 'T2\.ctl\.z ' 'T3\.dt\.drz ' 'T3\.dt\.ro
 expect_green 'T0\.' 'T1\.' 'T2\.dr\.T' 'T2\.spiral' 'T3\.amp' 'T3\.ctl' 'M2X\.'
 echo "PASS: R3 red pattern exact"
 
-echo "--- R4: every state offset from the origin -> T1 (all 6) + parity + ctl + spillovers (20) ---"
+echo "--- R4: every state offset from the origin -> T1 (all 6) + parity + ctl + gain rows + spillovers (23) ---"
 run_plant r4
-expect_total_fails 20
+expect_total_fails 23
+expect_red 'T3\.amp\.gain\.dr ' 'T3\.amp\.gain\.roll ' 'T3\.amp\.gain\.spiral ' 'T3\.ctl\.gain '
 expect_red 'T1\.res\.vdot ' 'T1\.res\.pdot ' 'T1\.res\.phidot ' 'T1\.res\.rdot ' 'T1\.hold\.' 'T0\.a11 ' 'T0\.a13 ' 'T0\.a21 ' 'T0\.a22 ' 'T0\.a24 ' 'T0\.a42 ' 'T0\.a44 ' 'T2\.roll\.th ' 'T2\.ctl\.z ' 'T2\.ctl\.pamp ' 'T3\.ctl\.gain '
 expect_green 'M2X\.'
 echo "PASS: R4 red pattern exact"
@@ -198,9 +199,16 @@ expect_red 'T3\.dt\.drTp ' 'T3\.dt\.drTd ' 'T3\.dt\.drz ' 'T3\.dt\.rollth ' 'T3\
 expect_green 'T3\.amp\.' 'T3\.ctl\.' 'T2\.' 'M2X\.'
 echo "PASS: R21 red pattern exact (round-7: a T3 row fed the wrong rerun's agreeing grading survived every symmetric plant; self-compares are r10's, cross-rerun swaps are this plant's)"
 
-echo "--- R16: every check_rel value displaced 1.1x its own executed rel arm, direction of the honest discrepancy -> all 31 tolerance rows ---"
+echo "--- R22: the amp rerun's arguments forced to base -> exactly the 3 amp gain rows ---"
+run_plant r22
+expect_total_fails 3
+expect_red 'T3\.amp\.gain\.dr ' 'T3\.amp\.gain\.roll ' 'T3\.amp\.gain\.spiral '
+expect_green 'T3\.amp\.drT' 'T3\.amp\.drz' 'T3\.amp\.rollth' 'T3\.amp\.spiralth' 'T[0-2]\.' 'M2X\.'
+echo "PASS: R22 red pattern exact (round 8's run-USE class: the gain rows pin that the halved amplitude reaches the dynamics)"
+
+echo "--- R16: every check_rel value displaced 1.1x its own executed rel arm, direction of the honest discrepancy -> all 34 tolerance rows ---"
 run_plant r16
-expect_total_fails 31
+expect_total_fails 34
 expect_red 'T2\.dr\.Tpeaks ' 'T2\.roll\.th ' 'T2\.spiral\.th ' 'T3\.dt\.' 'T3\.amp\.' 'T3\.ctl\.' 'M2X\.dr\.z ' 'M2X\.rollc\.th '
 no_refusals R16
 expect_green 'T0\.' 'T1\.' '\.k ' '\.n ' '\.nr '
@@ -234,4 +242,4 @@ done < <(grep -v '^#' tests/latsim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 21 rung-2 plants flip exactly their declared checks"
+echo "PASS: all 22 rung-2 plants flip exactly their declared checks"

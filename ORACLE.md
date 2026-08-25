@@ -825,8 +825,8 @@ All measured 2026-08-24; 13 checks in `tests/observer_lat_check.eigs`
 Same rules (exact red sets, full 73-check population every run, manifest
 identity + class vocabulary, no-refusals guards on the fabricating
 plants R8/R10 from the FIRST commit — rung 1's rounds 7–8 lessons are
-load-bearing here, not relearned). Nineteen plants (fourteen at first
-build; R15–R19 added by review rounds 1–6), red sets measured
+load-bearing here, not relearned). Twenty-two plants (fourteen at first
+build; R15–R22 added by review rounds 1–8), red sets measured
 2026-08-24 and asserted exactly in `tests/test_latsim_planted.sh` —
 the counts below are the CURRENT (round-6) reality; the graded control
 run added at round 5 grew eleven of them:
@@ -894,6 +894,45 @@ devcontainer reproduces the full-precision tokens bit-exactly, CI run
 32792297147) and recorded M2X.rollc's executed margin: 1.9× (rel error
 5.1·10⁻³ against the 1% arm — the one bridge row inside the 2×
 brittleness band; every other row has ≥4.3× headroom).
+
+**Round 8 (final) — the run-USE class and closure.** Round 8 found the
+round-4 lesson (the token pins the print, not the use) unapplied to
+RUNS: a rerun body ignoring its amplitude argument, or a ctl rerun
+built from the unscaled derivatives, made invariance rows compare a run
+to itself — three single-line mutants survived every suite (rung-1 ctl
+gutted, the rung-1 twin of rung-2's round-5 vacuity that was never
+twinned back; rung-1 ph amplitude ignored; rung-2 spiral amplitude
+ignored; the sp/dr/roll amplitudes were covered only by plant-spillover
+luck). Closed with **run-USE gain rows**: each amp rerun's window
+amplitude must be 0.5× its base run's (measured 0.4963–0.5001), and
+each ctl rerun's excitation must scale ×1.5 (rung-1 S4.ctl.gain
+measured 1.5112; rung-2's T3.ctl.gain already existed) — with vacuity
+plants Q22/Q23/R22 proving every gain row can fail, and all three
+round-8 mutants verified to red the CLEAN run. Populations 76 → 79
+(rung 1) and 73 → 76 (rung 2); plants 22 + 22.
+
+## Loop closure (rung 2, round 8 of 8, cap reached)
+
+Both loops ran to their 8-round caps, every round productive, and every
+finding in BOTH loops was in the grading apparatus — the physics was
+never faulted (independently re-derived at rung-1 round 6 and rung-2
+round 1). **Certified:** the full three-rung differential stack with
+plant-driven coverage of every comparator's executed tolerance (1.1×
+displacement, both rungs), every estimator slot and consumer read-site
+(identity pins + accessors + alias plants), generator and run print AND
+use (ROW tokens + gen.s0/s1/len + gain rows + body/vacuity plants),
+cross-rerun row-rewire separators (R19–R21, Q20/Q21), the control path
+where controls act (signs, gearing, measured ×1.5 gains in both rungs),
+manifest identity incl. tolerance tokens, rowparams and class
+vocabulary, and the observer layers (24 verdict pins, 4 o-plants, the
+mirror identity, the G5 unit triplet). **Known-unexercised, by
+decision:** the shell harnesses' own FAIL branches; accessor-gut +
+row-alias DOUBLE mutations; O2 channel wiring beyond the incidentally
+protected probe; arm-sized window/cadence drifts on runs pinned only
+through their identity integers (the ctl doublet's parameters are
+pinned via the pamp/gain regression rows only); and the recorded
+sim-impurity magnitudes, which are measurements, not live checks —
+rung 3 should re-measure them when the model grows.
 
 ## Exit gate for rung 2
 

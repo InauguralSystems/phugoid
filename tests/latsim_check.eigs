@@ -8,7 +8,7 @@
 # numeric arm asserted), r9 dataset broad-poison incl. theta0 tilt, r10
 # rerun-side corruption, r11/r12/r13 the DR alias plants, r14 t_half
 # result corruption, r15-r18 review-round plants. Population pinned at
-# exactly 73.
+# exactly 76.
 #
 # The rung-1 armor arrives PRE-BUILT (rounds 1-8 lessons, not relearned):
 # identity pins with distinct values per site, read-site accessors,
@@ -279,6 +279,21 @@ for rr in range of 4:
 # run-argument vacuity — never enters an expected truth, the same
 # P12-class hole as the round-3 contaminants; the manifest's row
 # identity is the only thing that can see it).
+# Window amplitude for the run-USE gain rows (round 8: a run body
+# ignoring its amplitude argument made T3.amp rows compare a run to
+# itself; ROW tokens pin the print, the gain rows pin the use).
+define win_amp(w) as:
+    local lo is w[0]
+    local hi is w[0]
+    local i is 0
+    loop while i < (len of w):
+        if w[i] > hi:
+            hi is w[i]
+        if w[i] < lo:
+            lo is w[i]
+        i is i + 1
+    return hi - lo
+
 define run_dr(rn, vamp, dt, decim, P) as:
     print of f"ROW {rn} params={vamp}|{dt}|{decim}"
     local ic is plant_state of (lat_mode_ic of [A_ref, dr_ref.re, dr_ref.im, roll_ref.re, spiral_ref.re, "dr", [1.0, 0.0, 0.0, 0.0], 0, vamp])
@@ -368,9 +383,12 @@ if plant == "r19":
     ctl_gdt is 0.2 * 1.02
 base_cg is grade_dr of [base_ctl.rwin, ctl_gdt, 1]
 
-base_dr is grade_dr of [run_dr of ["T2.dr.run", 5.0, 0.02, 10, P0], 0.2, 1]
-base_roll is grade_th of [run_roll of ["T2.roll.run", 0.1, 0.02, 1, P0], 0.02, 1]
-base_spiral is grade_th of [run_spiral of ["T2.spiral.run", 0.05, 0.05, 10, P0], 0.5, 1]
+base_dr_w is run_dr of ["T2.dr.run", 5.0, 0.02, 10, P0]
+base_dr is grade_dr of [base_dr_w, 0.2, 1]
+base_roll_w is run_roll of ["T2.roll.run", 0.1, 0.02, 1, P0]
+base_roll is grade_th of [base_roll_w, 0.02, 1]
+base_spiral_w is run_spiral of ["T2.spiral.run", 0.05, 0.05, 10, P0]
+base_spiral is grade_th of [base_spiral_w, 0.5, 1]
 
 # ------------------------------------------------------------ T2
 check_result of ["T2.dr.Tpeaks", as_tp of (base_dr.Tp), "T", dr_ref.T, 0.01]
@@ -435,10 +453,25 @@ dt_roll is sep_dt_z of (grade_th of [run_roll of ["T3.dt.roll.run", 0.1, 0.01, 2
 dt_spiral is sep_dt_z of (grade_th of [run_spiral of ["T3.dt.spiral.run", 0.05, 0.025, 20, P0], dtg_spiral, 1])
 inv_set of ["dt", dt_dr, dt_roll, dt_spiral, 0.001]
 
-amp_dr is grade_dr of [run_dr of ["T3.amp.dr.run", 2.5, 0.02, 10, P0], 0.2, 1]
-amp_roll is grade_th of [run_roll of ["T3.amp.roll.run", 0.05, 0.02, 1, P0], 0.02, 1]
-amp_spiral is grade_th of [run_spiral of ["T3.amp.spiral.run", 0.025, 0.05, 10, P0], 0.5, 1]
+# Plant r22: the amp rerun's arguments forced back to base — the
+# round-8 vacuity shape; only the gain rows can see it.
+a_vamp is 2.5
+a_pamp is 0.05
+a_phiamp is 0.025
+if plant == "r22":
+    a_vamp is 5.0
+    a_pamp is 0.1
+    a_phiamp is 0.05
+amp_dr_w is run_dr of ["T3.amp.dr.run", a_vamp, 0.02, 10, P0]
+amp_dr is grade_dr of [amp_dr_w, 0.2, 1]
+amp_roll_w is run_roll of ["T3.amp.roll.run", a_pamp, 0.02, 1, P0]
+amp_roll is grade_th of [amp_roll_w, 0.02, 1]
+amp_spiral_w is run_spiral of ["T3.amp.spiral.run", a_phiamp, 0.05, 10, P0]
+amp_spiral is grade_th of [amp_spiral_w, 0.5, 1]
 inv_set of ["amp", amp_dr, amp_roll, amp_spiral, 0.005]
+check_rel of ["T3.amp.gain.dr", (win_amp of (amp_dr_w)) / (win_amp of (base_dr_w)), 0.5, 0.02]
+check_rel of ["T3.amp.gain.roll", (win_amp of (amp_roll_w)) / (win_amp of (base_roll_w)), 0.5, 0.02]
+check_rel of ["T3.amp.gain.spiral", (win_amp of (amp_spiral_w)) / (win_amp of (base_spiral_w)), 0.5, 0.02]
 
 # ctl invariance on the CONTROL-EXCITED run (round 5: the old rows
 # compared mode-pure IC runs that never deflect a surface — bit-identical
@@ -555,8 +588,8 @@ check_result of ["M2X.spiralc.th", g_sp, "t_half", spiral_ref.t_half, 0.01]
 # ------------------------------------------------------------ population
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 73:
-    print of f"FAIL harness: expected exactly 73 checks, ran {checks_run}"
+if checks_run != 76:
+    print of f"FAIL harness: expected exactly 76 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1
