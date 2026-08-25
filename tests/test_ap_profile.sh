@@ -18,9 +18,18 @@ EIGS="${EIGENSCRIPT:-eigenscript}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Portable timer: `date +%s%N`, NOT /usr/bin/time. The first version of
+# this script used /usr/bin/time, which exists on the dev box but is not
+# installed in the devcontainer — CI died with exit 127 while all 14
+# suites were green locally. No other script in this repo needs an
+# external binary; this one must not either.
 med() {  # median of 3 wall-clock seconds for one variant
     for _ in 1 2 3; do
-        /usr/bin/time -f %e "$EIGS" tests/ap_profile.eigs "$1" 2>&1 >/dev/null
+        local t0 t1
+        t0=$(date +%s%N)
+        "$EIGS" tests/ap_profile.eigs "$1" >/dev/null 2>&1
+        t1=$(date +%s%N)
+        awk -v a="$t0" -v b="$t1" 'BEGIN{ printf "%.3f\n", (b-a)/1000000000 }'
     done | sort -n | sed -n 2p
 }
 echo "--- ap_profile (C6: observer read-path cost) ---"
