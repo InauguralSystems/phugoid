@@ -9,7 +9,7 @@
 # forced to `oscillating` (the dual of s7),
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live).
-# Population pinned at exactly 67.
+# Population pinned at exactly 73.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -371,8 +371,12 @@ ic_sp is sp_subspace_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk
 ic_ph is mode_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 0, 2.0]
 
 # C2.ph — the phugoid IC, graded at FIXED gain against the phugoid
-# prediction. Without this the supervisory rows are named after a mode
-# nothing verifies they contain.
+# prediction. Scope, stated precisely (round-2 review): this proves the
+# INITIAL CONDITION excites the phugoid and that the fixed-gain plant
+# reproduces the prediction. The supervisory runs fly the same state0
+# (identity-checked: their ROW tokens carry it) through a plant whose
+# gain TOGGLES, so this row certifies the excitation, not that
+# trajectory.
 ph_fixed is cl_run of ["C2.ph.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 20, tr.P, method]
 ph_u is []
 i is 0
@@ -412,12 +416,12 @@ define osc_count(rec) as:
 # fold and reports in time. Fast cadences are blind (window < period);
 # slow ones report after the mode is over.
 for cs in [["c010", 5, 0], ["c020", 10, 0], ["c050", 25, 1], ["c100", 50, 1]]:
-    local rec is sup_run of [f"C5.sp.{cs[0]}.run", ic_sp, tr.de, 0.5, 0.02, 1500, 25, cs[1], tr.P, method, freeze]
+    local rec is sup_run of [f"C5.sp.{cs[0]}.run", ic_sp, tr.de, eff_gain of (0.5), 0.02, 1500, 25, cs[1], tr.P, method, freeze]
     check_exact of [f"C5.sp.{cs[0]}.osc", osc_count of (rec), cs[2]]
 
 # C4 — the POSITIVE control: a persistent regime IS actionable. The
 # phugoid at a matched cadence yields sustained oscillating verdicts.
-ph_rec is sup_run of ["C4.ph.run", ic_ph, tr.de, 0.5, 0.05, 8000, 100, 100, tr.P, method, freeze]
+ph_rec is sup_run of ["C4.ph.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, 100, tr.P, method, freeze]
 check_exact of ["C4.ph.reads", ph_rec.reads, 80]
 check_exact of ["C4.ph.osc", osc_count of (ph_rec), 56]
 ph_frac_ok is 0
@@ -436,7 +440,7 @@ check_exact of ["C4.ph.sustained", ph_frac_ok, 1]
 # zero times in 8000 reads, and the damper never engages at all. The
 # failure mode is silence, not chatter. Pinned as measured so the day
 # upstream changes the windowing, this flips loudly.
-inner is sup_run of ["C5.p1.inner.run", ic_ph, tr.de, 0.5, 0.05, 8000, 100, 1, tr.P, method, freeze]
+inner is sup_run of ["C5.p1.inner.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, 1, tr.P, method, freeze]
 check_exact of ["C5.p1.inner.reads", inner.reads, 8000]
 check_exact of ["C5.p1.inner.osc", osc_count of (inner), 0]
 check_exact of ["C5.p1.inner.engagements", inner.toggles, 0]
@@ -459,25 +463,45 @@ check_exact of ["C5.p1.inner.converged", verdict_count of [inner, "converged"], 
 # undercounted them (the instrument, not the physics).
 check_exact of ["C5.p2.sup.toggles", ph_rec.toggles, 17]
 
-# C5.P4 — the DEADBAND CLIFF. Same mode, same persistence, same cadence:
-# only the excitation amplitude varies. Across a 16x range (uamp 0.5..8)
-# the verdict fraction is FLAT at 56-57/80 — so above the deadband,
-# persistence is indeed the governing variable. Below it the layer does
-# not degrade gracefully, it goes silent: at uamp 0.2 (|q|max 1.3e-3
-# rad/s) the observer reports zero oscillating verdicts and the damper
-# never engages. That is EigenScript#1045's absolute sub-unit deadband
-# demonstrated inside a control loop, with a sharp threshold rather than
-# a gradient — the third independent sighting of G5 and the first where
-# it changes what an actuator does.
-for cliff in [["hi", 0.5, 56], ["lo", 0.2, 0]]:
-    local icc is mode_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 0, cliff[1]]
-    local rc is sup_run of [f"C5.p4.{cliff[0]}.run", icc, tr.de, 0.5, 0.05, 8000, 100, 100, tr.P, method, freeze]
-    check_exact of [f"C5.p4.{cliff[0]}.osc", osc_count of (rc), cliff[2]]
+# C5.P4 — the deadband sets an observability HORIZON, not an on/off gate.
+# The first draft called this a "sharp cliff" on the strength of two
+# sampled points (uamp 0.5 -> 56 verdicts, 0.2 -> 0) with the 2.5x
+# interval between them never probed. Round-2 review probed it: the
+# response is a clean monotone RAMP, and the mechanism is better than a
+# threshold. The onset is identical at every amplitude (read 9, the
+# window filling); only the CUTOFF moves. The mode decays, |q| falls
+# under the absolute band, and from that read onward `oscillating` stops
+# for good. So the deadband truncates the actionable window in TIME:
+# supervision does not switch off, it RUNS OUT. Larger excitation buys a
+# later crossing and therefore a longer horizon, monotonically — until
+# the crossing is pushed past the end of the run, at which point the
+# count saturates on the WINDOW rather than on the physics (which is all
+# the first draft's "flat across a 16x range" ever was).
+# Rows pin the ramp AND the horizon, so no future change can restore the
+# cliff story: the saturated endpoints alone could not see the gradient.
+# All four rows sit MID-ramp or at the clean zero, deliberately avoiding
+# the saturation boundary — a row there (uamp 0.5: horizon 78 against a
+# last read of 79) flips by one under any perturbing plant, which is
+# brittleness rather than signal.
+define last_osc(rec) as:
+    local last is 0.0 - 1.0
+    local i is 0
+    loop while i < (len of rec.verdict):
+        if rec.verdict[i] == "oscillating":
+            last is i
+        i is i + 1
+    return last
+
+for ramp in [["a020", 0.2, 0, 0.0 - 1.0], ["a030", 0.3, 23, 38], ["a040", 0.4, 40, 58], ["a035", 0.35, 34, 53]]:
+    local icr is mode_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 0, ramp[1]]
+    local rc is sup_run of [f"C5.p4.{ramp[0]}.run", icr, tr.de, eff_gain of (0.5), 0.05, 8000, 100, 100, tr.P, method, freeze]
+    check_exact of [f"C5.p4.{ramp[0]}.osc", osc_count of (rc), ramp[2]]
+    check_exact of [f"C5.p4.{ramp[0]}.horizon", last_osc of (rc), ramp[3]]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 67:
-    print of f"FAIL harness: expected exactly 67 checks, ran {checks_run}"
+if checks_run != 73:
+    print of f"FAIL harness: expected exactly 73 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

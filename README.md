@@ -66,9 +66,11 @@ a closed-loop autopilot, with the observer as its supervisory layer:
   does not hold cleanly either; it *flickers* 17 times in one phugoid
   episode for want of hysteresis. The corrected design law needs two
   conditions: a verdict is actionable only when the regime persists
-  beyond ~1–2 observation windows **and** the observed channel clears the
-  deadband — the latter a sharp cliff (56 → 0 verdicts) that is
-  EigenScript#1045 changing what an actuator does.
+  beyond ~1–2 observation windows **and** the observed channel still clears
+  the deadband. The second condition is a *horizon*, not a gate: the
+  onset never moves (the window filling), only the cutoff does, so as a
+  mode decays under the band supervision runs out of time rather than
+  switching off — EigenScript#1045 changing what an actuator does.
 - **`tests/ap_profile.eigs`** — the observer's READ path, which no
   consumer had put under load, is 2–2.8× the write path on this shape,
   so EigenScript#915's write-path gate cannot help it by construction.

@@ -1048,7 +1048,10 @@ first gain tried during design did exactly that — phugoid ζ went to
   is a ceiling, not a target: a regression past it is a FAIL. **Numbers
   corrected at round 1** — n=5 medians on the shipped program (120k
   frames): read 0.501 s, write 0.243 s, floor 0.169 s, so read/write =
-  2.06 and write/floor = 1.44. Of the 0.332 s of observer cost, **78% is
+  2.06 and write/floor = 1.44. The gate takes **median of 5**, not 3 —
+  round-2 review caught an unmutated write/floor pair reading 0.96 under
+  median-of-3, which is below the bound; three samples do not insulate a
+  20% margin on a shared runner. Of the 0.332 s of observer cost, **78% is
   reads and 22% is writes**. The earlier ad-hoc probe's claim that
   "observed scalar writes are essentially free (0.31 vs a 0.30 floor)"
   does NOT reproduce and is withdrawn: writes cost +44% over the floor.
@@ -1122,28 +1125,45 @@ refutation of the persistence law. Re-measured on a physically valid
 trajectory (see the IC correction below), the truth is sharper than
 either version:
 
-| phugoid excitation | Δθ₀ | \|q\|max (rad/s) | oscillating / 80 |
+| phugoid excitation | onset read | last `oscillating` read | verdicts / 80 |
 |---|---|---|---|
-| uamp 8.0 | −23.0° | 5.6e-2 | 57 |
-| uamp 4.0 | −11.5° | 2.7e-2 | 56 |
-| uamp 2.0 | −5.7° | 1.3e-2 | 56 |
-| uamp 1.0 | −2.9° | 6.4e-3 | 56 |
-| uamp 0.5 | −1.4° | 3.2e-3 | 56 |
-| **uamp 0.2** | **−0.6°** | **1.3e-3** | **0** |
+| uamp 0.2 | — | — | **0** |
+| uamp 0.25 | 9 | 18 | 7 |
+| uamp 0.30 | 9 | 38 | 23 |
+| uamp 0.35 | 9 | 53 | 34 |
+| uamp 0.40 | 9 | 58 | 40 |
+| uamp 0.45 | 9 | 78 | 56 |
+| uamp 0.50 | 9 | 78 | 56 |
+| uamp ≥ 1.0 | 9 | 79 (last read) | 56 |
 
-Across a **16× amplitude range the fraction is flat** — so above the
-deadband, persistence is indeed the governing variable. Below it there is
-no graceful degradation: the layer goes **completely silent** at a sharp
-threshold between \|q\| ≈ 3.2e-3 and 1.3e-3 rad/s. So:
+**Corrected at round 2.** The first draft sampled only the two ends of
+this table and called the result a sharp cliff with "no graceful
+degradation". Probing the 2.5× interval between them shows a clean
+monotone **ramp**, and the mechanism is better than a threshold: the
+onset is identical at every amplitude (read 9, the window filling), and
+only the CUTOFF moves. The mode decays, |q| falls under the absolute
+band, and from that read onward `oscillating` stops for good. The
+apparent "flat 56–57 across a 16× range" was never an invariance — it is
+**saturation**, the crossing pushed past the end of the 400 s run, so the
+count is capped by the window rather than by the physics. So:
 
 > **A verdict is actionable iff (a) the regime persists beyond ~1–2
-> observation windows, AND (b) the observed channel's motion clears the
-> deadband — which, for a sub-unit channel like pitch rate, is an
-> ABSOLUTE threshold (EigenScript#1045), so it depends on the unit and
-> the excitation rather than on the dynamics.**
+> observation windows, AND (b) the observed channel still clears the
+> deadband — and since a decaying mode's amplitude falls, (b) is a
+> HORIZON in time, not a gate. Supervision does not switch off; it runs
+> out. Larger excitation buys a later crossing and a longer horizon,
+> monotonically.**
+
+For a sub-unit channel like pitch rate the band is absolute
+(EigenScript#1045), so that horizon depends on the unit and the
+excitation rather than on the dynamics.
 
 That is G5's third independent sighting and the first where it changes
-what an actuator does. Pinned as `C5.p4.{hi,lo}.osc`.
+what an actuator does. Pinned as `C5.p4.a0{20,30,35,40}.{osc,horizon}` —
+four rows spanning the ramp plus the clean zero, all sited MID-ramp
+rather than at the saturated end, since a row at saturation (uamp 0.5:
+horizon 78 against a last read of 79) flips by one under any perturbing
+plant and measures brittleness rather than signal.
 
 ## The round-1 correction: the phugoid IC was flying loops
 
@@ -1187,7 +1207,7 @@ displaced past its bound.
 
 ## Exit gate for rung 3
 
-1. All C checks green (67, population pinned); every one of the 15
+1. All C checks green (73, population pinned); every one of the 15
    plants red in exactly the declared way; the C6 gate green including
    its own planted fault;
    rungs 0–2 suites untouched and green.

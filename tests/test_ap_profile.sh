@@ -27,21 +27,24 @@ cd "$ROOT"
 # installed in the devcontainer — CI died with exit 127 while all 14
 # suites were green locally. No other script in this repo needs an
 # external binary; this one must not either.
-med() {  # median of 3 wall-clock seconds for one variant
-    for _ in 1 2 3; do
+med() {  # median of 5 wall-clock seconds for one variant. Round-2 review
+         # caught a median-of-3 write/floor pair reading 0.96 — below the
+         # 1.15 bound — on UNMUTATED code. Three samples is not enough
+         # insulation for a 20% margin on a shared runner; five is.
+    for _ in 1 2 3 4 5; do
         local t0 t1
         t0=$(date +%s%N)
         "$EIGS" tests/ap_profile.eigs "$1" >/dev/null 2>&1
         t1=$(date +%s%N)
         awk -v a="$t0" -v b="$t1" 'BEGIN{ printf "%.3f\n", (b-a)/1000000000 }'
-    done | sort -n | sed -n 2p
+    done | sort -n | sed -n 3p
 }
 echo "--- ap_profile (C6: observer read-path cost) ---"
 "$EIGS" tests/ap_profile.eigs read  | grep -q '^read '  || { echo "FAIL: read variant did not run"; exit 1; }
 "$EIGS" tests/ap_profile.eigs write | grep -q '^write ' || { echo "FAIL: write variant did not run"; exit 1; }
 "$EIGS" tests/ap_profile.eigs floor | grep -q '^floor ' || { echo "FAIL: floor variant did not run"; exit 1; }
 R=$(med read); W=$(med write); F=$(med floor)
-echo "read=${R}s  write=${W}s  floor=${F}s  (120k frames, median of 3)"
+echo "read=${R}s  write=${W}s  floor=${F}s  (120k frames, median of 5)"
 RATIO=$(awk -v r="$R" -v w="$W" 'BEGIN{ if (w<=0) w=0.001; printf "%.2f", r/w }')
 echo "read/write ratio = ${RATIO}  (bound: > 1.5)"
 awk -v x="$RATIO" 'BEGIN{ exit !(x > 1.5) }' || {
