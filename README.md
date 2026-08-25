@@ -72,8 +72,13 @@ a closed-loop autopilot, with the observer as its supervisory layer:
   mode decays under the band supervision runs out of time rather than
   switching off — EigenScript#1045 changing what an actuator does.
 - **`tests/ap_profile.eigs`** — the observer's READ path, which no
-  consumer had put under load, is 1.75–2.50× the write path on this shape,
-  so EigenScript#915's write-path gate cannot help it by construction.
+  consumer had put under load. The whole read-bearing program costs
+  1.75–2.50× the write-only one on this shape; attributed, reads are
+  ~94% of the observer cost. And the rung's second upstream find:
+  EigenScript#915's write-path gate arms per **module**, so one verdict
+  read anywhere in a file — even in a function that is never called —
+  re-arms bookkeeping for every assignment in it (+42% measured on dead
+  code; GAPS.md G7). It cannot help an autopilot by construction.
 
 Rung 2 (shipped 2026-08-24) is the lateral model — three timescales and
 the level-set stress:

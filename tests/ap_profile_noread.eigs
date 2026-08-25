@@ -1,0 +1,32 @@
+# ap_profile_noread.eigs — the C6 control variant.
+# Run: eigenscript tests/ap_profile_noread.eigs
+#
+# The same observed write loop as ap_profile.eigs's `write` variant, in a
+# module that contains NO predicate read anywhere. That difference alone
+# is the measurement: EigenScript#915's write-path gate arms per MODULE,
+# so a single verdict read anywhere in the file — even in a function that
+# is never called — re-arms full entropy bookkeeping for every assignment
+# in it. This variant is what an observed write costs when nothing in the
+# module reads a verdict, and it is the floor the `write` variant should
+# have been measured against all along (GAPS.md G7).
+#
+# It must stay read-free. That is what `file_pin` in
+# tests/test_ap_profile.sh enforces.
+
+N is 120000
+
+define run_noread(n) as:
+    local u is 0.0
+    local w is 0.0
+    local q is 0.0
+    local th is 0.0
+    local i is 0
+    loop while i < n:
+        u is 280.0 + (sin of (i * 0.01))
+        w is 2.0 + (cos of (i * 0.01))
+        q is 0.01 * (sin of (i * 0.03))
+        th is 0.02 * (cos of (i * 0.02))
+        i is i + 1
+    print of f"noread {i}"
+
+run_noread of (N)

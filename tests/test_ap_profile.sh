@@ -13,10 +13,15 @@
 #   read/write  = 2.06   -> the bound below is 1.5 (~23% margin)
 #   write/floor = 1.44   -> the observed WRITE path is not free either
 #   of the 0.332s of observer cost, 78% is reads and 22% is writes
-# CORRECTION (round-1 review): an earlier ad-hoc probe reported "observed
-# scalar writes are essentially free (0.31s vs a 0.30s floor)". That does
-# NOT reproduce on the shipped program — writes cost +44% over the floor.
-# The number published first was wrong; these are the ones this gate uses.
+# CORRECTION, TWICE. An earlier probe reported "observed scalar writes are
+# essentially free (0.31s vs a 0.30s floor)". Round 1 could not reproduce
+# it here (writes measured +44% over the floor) and withdrew it. Round 10
+# showed the WITHDRAWAL was the error: against a read-free module an
+# observed write is indistinguishable from the unobserved floor
+# (noread/floor 0.88-1.21 across five rounds, i.e. 1.0 within noise). The +44% is #915's
+# module-granular arming penalty, not write cost — GAPS.md G7. Two correct
+# measurements in different regimes, and the regime variable went unnamed
+# for six rounds.
 set -euo pipefail
 EIGS="${EIGENSCRIPT:-eigenscript}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -39,6 +44,20 @@ med() {  # median of 5 wall-clock seconds for one variant. Round-2 review
         awk -v a="$t0" -v b="$t1" 'BEGIN{ printf "%.3f\n", (b-a)/1000000000 }'
     done | sort -n | sed -n 3p
 }
+med_file() {  # median of 5 for a single-variant file
+    for _ in 1 2 3 4 5; do
+        local t0 t1
+        t0=$(date +%s%N)
+        "$EIGS" "$1" >/dev/null 2>&1
+        t1=$(date +%s%N)
+        awk -v a="$t0" -v b="$t1" 'BEGIN{ printf "%.3f\n", (b-a)/1000000000 }'
+    done | sort -n | sed -n 3p
+}
+expect_out_file() {
+    got=$("$EIGS" "$1" $2)
+    [ "$got" = "$3" ] || { echo "FAIL: $1 did not execute its declared work"; echo "  expected: $3"; echo "  got:      $got"; exit 1; }
+}
+
 # Bounds live in ONE place each. Round 4 found the gate comparing against
 # a literal while its planted fault cited a second copy: editing only the
 # gate's bound to 0.4 left the whole suite green, with the gate accepting
@@ -53,6 +72,14 @@ WF_BOUND=1.15
 # floor collapsing, which is how every fabrication of this ratio so far
 # has presented.
 WF_CEIL=3.0
+# The ARMING penalty (GAPS.md G7): write/noread. Round 10 measured that
+# `write/floor` does not isolate the observed write path at all -- neutering
+# only the four predicate reads inside run_read, a function the `write`
+# variant never enters, drops write/floor from ~1.45 to ~1.03. #915's gate
+# arms per MODULE, so one verdict read anywhere in the file re-arms entropy
+# bookkeeping for every assignment in it. This bound is the penalty itself,
+# measured against a module that is read-free by construction.
+WA_BOUND=1.15
 
 # The bounds are DATA and get the manifest treatment every tolerance
 # argument in this repo gets. Round-5 review widened both literals
@@ -62,6 +89,7 @@ WF_CEIL=3.0
 # and the value itself was free. A bound-derived plant cannot fix this
 # (it tracks the widening); the declared value has to be pinned.
 [ "$RW_BOUND" = "1.5" ]  || { echo "FAIL: RW_BOUND is $RW_BOUND, declared 1.5 — a widened bound must be re-justified in ORACLE.md, not edited in place"; exit 1; }
+[ "$WA_BOUND" = "1.15" ] || { echo "FAIL: WA_BOUND is $WA_BOUND, declared 1.15 — a widened bound must be re-justified in ORACLE.md, not edited in place"; exit 1; }
 [ "$WF_CEIL" = "3.0" ]   || { echo "FAIL: WF_CEIL is $WF_CEIL, declared 3.0 — a widened bound must be re-justified in ORACLE.md, not edited in place"; exit 1; }
 [ "$WF_BOUND" = "1.15" ] || { echo "FAIL: WF_BOUND is $WF_BOUND, declared 1.15 — a widened bound must be re-justified in ORACLE.md, not edited in place"; exit 1; }
 
@@ -97,87 +125,26 @@ echo "--- ap_profile (C6: observer read-path cost) ---"
 # A hit count cannot pin a zero-hit read, so the read POPULATION is pinned
 # structurally too, against the source.
 #
-# Round-7 review then showed BOTH of those layers bind something other
-# than the executed loop body, and that round 6 fixed only run_read while
-# run_write and run_floor kept the counter-only pin (the repo's own
-# twin-the-fix rule, broken by the fix for the finding that motivated it):
-#   * deleting TWO of run_floor's four per-frame writes left `floor 120000`
-#     matching, collapsed the floor 45%, and turned write/floor from 1.44
-#     into 2.59 -- round 5's defect through the other door, halving the
-#     WORK instead of the count;
-#   * moving the zero-hit read OUT of run_read's loop and into run_write
-#     left the site count and the hit total matching, at ratio 1.70;
-#   * `if not (oscillating of q):` adds a read the anchored grep cannot
-#     see at all -- as can `elif`, `while`, and `x is converged of u`.
-# So the measured loop bodies are pinned by IDENTITY, the way every other
-# tolerance argument in this repo is. Comment and blank lines are stripped
-# first (they do not change the work); anything else that edits a measured
-# body fails loudly and demands a re-measure. Note the strip is by LINE: a
-# comment appended to a code line still reds the gate. That is the
-# fail-safe direction, but it is not what "comments are ignored" implies.
-body_hash() {
-    awk -v fn="define $1(" '
-        index($0, fn) == 1 { inbody = 1; next }
-        inbody && /^[^[:space:]]/ { inbody = 0 }
-        inbody { line = $0; sub(/^[[:space:]]+/, "", line)
-                 if (line != "" && substr(line, 1, 1) != "#") print $0 }
-    ' tests/ap_profile.eigs | md5sum | cut -c1-12
+# Round-7/8/9 review walked this outward three more times: the body pins
+# bound the loop bodies but not the call site, the call-site argument
+# (`run_floor of (0)` kept every layer matching while the floor became
+# 0.008s of interpreter startup and write/floor read 28.75), and then the
+# module level around it (eight lines of `unobserved:` busywork before the
+# dispatch moved read/write 2.13 -> 3.47 with every pin matching).
+#
+# Round 10 replaced four awk programs with one. A comment- and
+# blank-stripped WHOLE-FILE hash is strictly stronger than per-body plus
+# per-module hashes -- it also pins the `define` headers those left free --
+# and cannot hash to nothing, so the anti-vacuity line counts come along
+# for free rather than being a separate layer.
+file_pin() {
+    got=$(grep -v '^[[:space:]]*#' "$1" | grep -v '^[[:space:]]*$' | md5sum | cut -c1-12)
+    gotn=$(grep -v '^[[:space:]]*#' "$1" | grep -v -c '^[[:space:]]*$')
+    [ "$gotn" = "$3" ] || { echo "FAIL: $1 has $gotn code lines, declared $3 — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure every variant and re-pin"; exit 1; }
+    [ "$got"  = "$2" ] || { echo "FAIL: $1 changed (identity $got, declared $2) — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure every variant and re-pin"; exit 1; }
 }
-body_lines() {
-    awk -v fn="define $1(" '
-        index($0, fn) == 1 { inbody = 1; next }
-        inbody && /^[^[:space:]]/ { inbody = 0 }
-        inbody { line = $0; sub(/^[[:space:]]+/, "", line)
-                 if (line != "" && substr(line, 1, 1) != "#") n++ }
-        END { print n + 0 }
-    ' tests/ap_profile.eigs
-}
-# Round 9: the three body pins stop at the function bodies, and the exact
-# output constrains only the one line each variant prints -- so the MODULE
-# LEVEL was still free. Eight lines inserted before the dispatch,
-#     if mode == "read":
-#         warmup is 0
-#         unobserved:
-#             loop while warmup < 4000000:
-#                 warmup is warmup + 1
-# left every body hash, every line count and every exact output matching
-# while moving the published read/write from 2.13 to 3.47 (+63%) with work
-# that is inside `unobserved:` and therefore definitionally NOT read-path
-# cost. Numerator inflation is the one direction with no arm -- read/write
-# deliberately has no ceiling -- and C6's "the read path dominates" is
-# rung 3's whole upstream argument. So everything OUTSIDE the three bodies
-# is pinned too, by the same comment-stripped hash.
-module_hash() {
-    awk '
-        /^define run_(read|write|floor)\(/ { inbody = 1; next }
-        inbody && /^[^[:space:]]/ { inbody = 0 }
-        inbody { next }
-        { line = $0; sub(/^[[:space:]]+/, "", line)
-          if (line != "" && substr(line, 1, 1) != "#") print $0 }
-    ' tests/ap_profile.eigs | md5sum | cut -c1-12
-}
-module_lines() {
-    awk '
-        /^define run_(read|write|floor)\(/ { inbody = 1; next }
-        inbody && /^[^[:space:]]/ { inbody = 0 }
-        inbody { next }
-        { line = $0; sub(/^[[:space:]]+/, "", line)
-          if (line != "" && substr(line, 1, 1) != "#") n++ }
-        END { print n + 0 }
-    ' tests/ap_profile.eigs
-}
-# A body that hashed to nothing would pass vacuously, so each body's line
-# count is pinned alongside its identity (the repo's no-vacuous-check rule).
-for spec in "run_read:d2e2942f112e:21" "run_write:514b678f699a:12" "run_floor:82a98c4d1216:13"; do
-    fn=${spec%%:*}; rest=${spec#*:}; want=${rest%%:*}; wantn=${rest##*:}
-    got=$(body_hash "$fn"); gotn=$(body_lines "$fn")
-    [ "$gotn" = "$wantn" ] || { echo "FAIL: $fn's measured body is $gotn lines, declared $wantn — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure all three variants and re-pin"; exit 1; }
-    [ "$got" = "$want" ]   || { echo "FAIL: $fn's measured body changed (identity $got, declared $want) — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure all three variants and re-pin"; exit 1; }
-done
-MOD_HASH=913a072da7fe
-MOD_LINES=12
-[ "$(module_lines)" = "$MOD_LINES" ] || { echo "FAIL: ap_profile.eigs has $(module_lines) module-level lines, declared $MOD_LINES — work outside the three measured bodies changes what C6 times; re-measure and re-pin"; exit 1; }
-[ "$(module_hash)"  = "$MOD_HASH"  ] || { echo "FAIL: ap_profile.eigs's module level changed (identity $(module_hash), declared $MOD_HASH) — work outside the three measured bodies changes what C6 times; re-measure and re-pin"; exit 1; }
+file_pin tests/ap_profile.eigs        f674b4b84476 61
+file_pin tests/ap_profile_noread.eigs 743df838d495 15
 # Round 8 retired the site grep that round 6 added: any read added to or
 # removed from a measured loop already changes that loop's body hash, so
 # the grep caught nothing the hashes miss and could only false-alarm on a
@@ -196,10 +163,11 @@ expect_out() {
     got=$("$EIGS" tests/ap_profile.eigs "$1")
     [ "$got" = "$2" ] || { echo "FAIL: $1 variant did not execute its declared work"; echo "  expected: $2"; echo "  got:      $got"; exit 1; }
 }
+expect_out_file tests/ap_profile_noread.eigs "" "noread 120000"
 expect_out read  "read 133286 480000"
 expect_out write "write 120000"
 expect_out floor "floor 120000"
-R=$(med read); W=$(med write); F=$(med floor)
+R=$(med read); W=$(med write); F=$(med floor); NR=$(med_file tests/ap_profile_noread.eigs)
 echo "read=${R}s  write=${W}s  floor=${F}s  (120k frames, median of 5)"
 RATIO=$(awk -v r="$R" -v w="$W" 'BEGIN{ if (w<=0) w=0.001; printf "%.2f", r/w }')
 echo "read/write ratio = ${RATIO}  (bound: > ${RW_BOUND})"
@@ -208,7 +176,7 @@ check_ratio read/write "$RATIO" "$RW_BOUND" || {
     echo "      If reads were made O(1) this is EXPECTED — re-measure, update"
     echo "      ORACLE.md's C6 numbers, and re-justify the bound."
     exit 1; }
-echo "PASS: read path dominates at ${RATIO}x — #915's write-path gate cannot help this shape"
+echo "PASS: the read-bearing program costs ${RATIO}x the write-only one — #915's write-path gate cannot help this shape (attributed: reads are ~94% of observer cost, see G7)"
 
 # The observed WRITE path must cost something too, or `floor` is a number
 # nobody reads and the "78% reads / 22% writes" split is unsupported.
@@ -263,3 +231,32 @@ if below_ceiling "$PLANTED3" "$WF_CEIL"; then
     echo "FAIL: the C6 write/floor ceiling accepted a planted ratio of ${PLANTED3} — that ceiling cannot fail"; exit 1
 fi
 echo "PASS: C6 write/floor ceiling planted fault rejected (ratio ${PLANTED3} >= ${WF_CEIL})"
+
+# The arming penalty, and the attribution it corrects.
+WA=$(awk -v w="$W" -v n="$NR" 'BEGIN{ if (n<=0) n=0.001; printf "%.2f", w/n }')
+NF_=$(awk -v n="$NR" -v f="$F" 'BEGIN{ if (f<=0) f=0.001; printf "%.2f", n/f }')
+echo "noread=${NR}s   write/noread = ${WA}  (bound: > ${WA_BOUND})   noread/floor = ${NF_}"
+# Same treatment write/floor gets: this pair is the noisiest in the gate
+# (measured 1.21-1.59 across five quiet rounds, and the two modules are
+# separate processes), so a first failure re-measures and the second
+# reading decides. The planted fault below is deterministic and reds
+# through both.
+if ! check_ratio write/noread "$WA" "$WA_BOUND"; then
+    echo "NOTE: write/noread ${WA} <= ${WA_BOUND} on the first reading — re-measuring once"
+    W=$(med write); NR=$(med_file tests/ap_profile_noread.eigs)
+    WA=$(awk -v w="$W" -v n="$NR" 'BEGIN{ if (n<=0) n=0.001; printf "%.2f", w/n }')
+    echo "write/noread = ${WA}  (re-measured, decisive)"
+    check_ratio write/noread "$WA" "$WA_BOUND" || {
+        echo "FAIL: an observed write in a read-bearing module now costs no more"
+        echo "      than the same write in a read-free one (${WA} on both readings) —"
+        echo "      either #915's arming became per-binding upstream (GAPS.md G7"
+        echo "      fixed: re-measure, re-attribute, and close G7) or this control"
+        echo "      stopped being read-free."
+        exit 1; }
+fi
+echo "PASS: C6 module-arming penalty present at ${WA}x (G7) — the write cost C6 attributes to writes is mostly this"
+PLANTED4=$(awk -v w="$W" 'BEGIN{ printf "%.2f", w/w }')
+if check_ratio planted4 "$PLANTED4" "$WA_BOUND"; then
+    echo "FAIL: the C6 arming bound accepted a planted ratio of ${PLANTED4} — that bound cannot fail"; exit 1
+fi
+echo "PASS: C6 arming planted fault rejected (ratio ${PLANTED4} <= ${WA_BOUND})"

@@ -1055,11 +1055,10 @@ verdicts that contradict physics — are `C5.p1.inner.{diverging,converged}`
 cadences `C5.sp.{c010,c020}`.
 - **C5 — the three pre-registered predictions** (below).
 - **C6 — read-path profile (a RATIO gate, not an absolute budget):** the shipped gate asserts
-  two ratio FLOORS — it fires when reads stop dominating writes, i.e. when
-  the read path gets relatively *cheaper* — plus, since round 8, a CEILING
-  on write/floor (3.0). No µs/read and no µs/frame is asserted anywhere;
-  the absolutes below are context, not arms. Three planted faults, not two:
-  each floor and the ceiling. read/write has no ceiling deliberately (load
+  three ratio FLOORS — read/write, write/floor, and (since round 10)
+  write/noread — plus a CEILING on write/floor (3.0). No µs/read and no
+  µs/frame is asserted anywhere; the absolutes below are context, not
+  arms. Four planted faults, one per arm. read/write has no ceiling deliberately (load
   INFLATES it — 3.38 measured on unmutated code); write/floor can have one
   because load DEFLATES it (0.98 measured at round 7), so the arm cannot
   flake in the direction load pushes. Baseline
@@ -1128,13 +1127,28 @@ cadences `C5.sp.{c010,c020}`.
   the old value and the suite green. The gate takes **median of 5**, not 3 —
   round-2 review caught an unmutated write/floor pair reading 0.96 under
   median-of-3, which is below the bound; three samples do not insulate a
-  20% margin on a shared runner. Of the 0.332 s of observer cost, **78% is
-  reads and 22% is writes**. The earlier ad-hoc probe's claim that
-  "observed scalar writes are essentially free (0.31 vs a 0.30 floor)"
-  does NOT reproduce and is withdrawn: writes cost +44% over the floor.
-  The gate asserts both ratios (so `floor` is load-bearing rather than a
-  number nobody reads) and carries a planted fault proving the bound can
-  reject. Shipped as
+  20% margin on a shared runner. The first attribution here — "of the 0.332 s of
+  observer cost, 78% is reads and 22% is writes" — was **wrong about the
+  22%**, and so was this section's withdrawal of the earlier probe.
+  Round 10 measured the missing regime variable. Against a read-FREE
+  module (`tests/ap_profile_noread.eigs`) an observed scalar write is
+  **indistinguishable from the unobserved floor** — noread/floor measured
+  0.88, 1.04, 1.11, 1.21, 0.88 across five n=5 rounds, i.e. 1.0 within
+  noise — which is what the withdrawn probe reported; the +44% is EigenScript#915's arming penalty, which is
+  module-granular — one verdict read anywhere in a file, even inside a
+  function that is never called, re-arms bookkeeping for every assignment
+  in it (GAPS.md **G7**, a new upstream find, measured at ~42% on a dead
+  read). So the split is roughly **94% reads / 6% writes**, with the
+  arming penalty sitting inside what was called "writes". This makes the
+  rung's upstream argument stronger: #915's gate cannot help an autopilot
+  not merely because reads dominate, but because the consumer's reads
+  disarm the write optimisation for their whole module.
+  The gate asserts all three ratios plus the ceiling (so `floor` and
+  `noread` are load-bearing rather than numbers nobody reads), and each
+  arm carries a planted fault proving it can reject. `write/noread` is the
+  noisiest pair in the gate (1.21-1.59 across five rounds, two separate
+  processes), so it re-measures once before failing, as `write/floor`
+  already does. Shipped as
   `tests/ap_profile.eigs` + `tests/test_ap_profile.sh`, gating the
   read/write RATIO (measured 1.75–2.50×, bound 1.5×) rather than a wall
   time, because absolute budgets flake on shared CI runners while the
@@ -1317,14 +1331,24 @@ measured one.)
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
 | s16 | its mirror — the extrema slot fed by the DFT (makes `as_tp` live) | 1 |
 
-C6's two planted faults live in `tests/test_ap_profile.sh` and are counted
-separately; they are not part of this 16.
+C6's FOUR planted faults live in `tests/test_ap_profile.sh` — one per arm
+(read/write floor, write/floor floor, write/floor ceiling, write/noread
+floor) — and are counted separately; they are not part of this 16.
+
+**Known-unexercised (deliberate, bounded), rung 3:** (a) the three ratio
+arms bound each pair but not the read/write SPLIT they support — with all
+of them green the split could in principle move a long way, and it is
+published as a measurement, not asserted; (b) C0's gain-independence is
+structural (`B[0] = 0`), stated but not measured — all 16 C0 rows run at
+kq = 0.5; (c) the C6 absolutes (read/write/floor/noread wall times) are
+context and are asserted nowhere; (d) the shell harnesses' own FAIL
+branches, as in rungs 1 and 2.
 
 ## Exit gate for rung 3
 
 1. All C checks green (83, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
-   all THREE of its planted faults (two floors and the ceiling);
+   all FOUR of its planted faults (one per arm);
    rungs 0–2 suites untouched and green.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds.
 3. CI green on the pushed branch.

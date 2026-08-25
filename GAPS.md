@@ -147,3 +147,47 @@ relying on field access erroring. Likely intended fail-soft semantics
 (the #971/#975 reform track owns the policy); recorded so rung-2+
 checkers keep the pattern: pin a field only via a comparison a null
 cannot pass.
+
+### G7 — #915's write-path gate arms per MODULE, and a single verdict read defeats it
+Found at rung-3 blind-critic round 10, 2026-08-25, `eigenscript` v0.41.0.
+EigenScript#915's optimisation makes observed *scalar writes* nearly free.
+The arming is module-granular: **one predicate read anywhere in a module —
+including in a function that is never called — re-arms full entropy
+bookkeeping for every assignment in that module.**
+
+Minimal reproduction. A write loop of 200k frames, alone in its module,
+against the same module plus a dead four-line function. n=5 medians, three
+independent rounds:
+
+| module | 1 | 2 | 3 |
+|---|---|---|---|
+| write loop alone | 0.163 | 0.150 | 0.149 |
+| + a never-called `if oscillating of z:` | 0.217 | 0.222 | 0.213 |
+| + a never-called `if z > 0.0:` (control) | 0.169 | 0.156 | 0.145 |
+
+The predicate read costs ~42% on code that never runs it; the numeric
+comparison in the same position costs nothing.
+
+Consequences measured in this repo's own C6 gate (`tests/test_ap_profile.sh`):
+- `write/floor` was read as "observed writes cost +44% over the unobserved
+  floor". It is not measuring intrinsic write cost at all. Neutering only
+  the four predicate reads inside `run_read` — a function the `write`
+  variant never enters — drops it from ~1.45 to ~1.03.
+- Against a read-free control module (`tests/ap_profile_noread.eigs`),
+  `noread/floor` measures **1.07**: an observed scalar write really is
+  ~free, as the pre-rung-3 probe reported. Rung 3's round-1 review
+  withdrew that claim as unreproducible. **The claim was true and the
+  withdrawal was wrong** — nobody had identified the regime variable.
+- So of this shape's observer cost, the intrinsic write share is a few
+  percent, not the 22% published; most of the "write" cost is this
+  arming penalty. Pinned live as `write/noread > 1.15` with a planted
+  fault, so the day upstream makes arming per-binding, C6 fails and says
+  to re-attribute and close G7.
+
+This strengthens rung 3's upstream argument rather than weakening it: the
+reason #915's gate cannot help an autopilot is not only that reads
+dominate, but that the consumer's reads *disarm the write optimisation for
+the whole module they live in*. `unobserved:` is the existing workaround
+and is what rung 3's `sup_run` already does; the gap is that a consumer
+which legitimately reads verdicts pays on every unrelated assignment in
+the same file.
