@@ -23,7 +23,7 @@ run_plant() {
         exit 1
     fi
     grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 64$' "$OUT" || { echo "FAIL: plant $plant run population != 64"; exit 1; }
+    grep -q '^CHECKS_RUN 76$' "$OUT" || { echo "FAIL: plant $plant run population != 76"; exit 1; }
 }
 
 expect_total_fails() {
@@ -90,11 +90,11 @@ expect_red 'S2\.T ' 'S3\.Tpeaks ' 'S3\.Tdft '
 expect_green 'S0\.' 'S1\.' 'S2\.z' 'S3\.z' 'S4\.' 'M1X\.'
 echo "PASS: Q6 red pattern exact"
 
-echo "--- Q7: M1X generator time-dilated x1.05 -> exactly the 5 bridge period checks ---"
+echo "--- Q7: M1X generator time-dilated x1.05 -> the 5 bridge period checks + the 4 gen.s1 identities (9) ---"
 run_plant q7
-expect_total_fails 5
-expect_red 'M1X\.sp\.phi20\.T ' 'M1X\.sp\.phi45\.T ' 'M1X\.sp2\.T ' 'M1X\.ph2\.Tpeaks ' 'M1X\.ph2\.Tdft '
-expect_green 'S[0-4]\.' 'M1X\..*z'
+expect_total_fails 9
+expect_red 'M1X\.sp\.phi20\.T ' 'M1X\.sp\.phi45\.T ' 'M1X\.sp2\.T ' 'M1X\.ph2\.Tpeaks ' 'M1X\.ph2\.Tdft ' 'M1X\.sp\.phi20\.gen\.s1 ' 'M1X\.sp\.phi45\.gen\.s1 ' 'M1X\.sp2\.gen\.s1 ' 'M1X\.ph2\.gen\.s1 '
+expect_green 'S[0-4]\.' 'M1X\..*z' '\.gen\.s0 ' '\.gen\.len '
 echo "PASS: Q7 red pattern exact"
 
 echo "--- Q8: graded zeta replaced by 0.05 (identity fields carried) -> exactly the 10 zeta checks through the NUMERIC arm ---"
@@ -178,6 +178,13 @@ grep '^FAIL ' "$OUT" | grep -q 'refused' && { echo "FAIL: Q17 reds must use the 
 expect_green 'S0\.' 'S1\.' '\.k ' '\.n ' '\.nr ' '\.nf '
 echo "PASS: Q17 red pattern exact (rung-2 round 2's find, applied to both rungs)"
 
+echo "--- Q18: the generator BODY corrupted (a1 nudged 1.1e-9, contaminant dropped, one sample short) -> exactly the 12 wiring identities ---"
+run_plant q18
+expect_total_fails 12
+expect_red 'M1X\.sp\.phi20\.gen\.' 'M1X\.sp\.phi45\.gen\.' 'M1X\.sp2\.gen\.' 'M1X\.ph2\.gen\.'
+expect_green 'S[0-4]\.' 'M1X\.sp\.phi20\.T ' 'M1X\.ph2\.z ' 'M1X\.sp2\.zlog '
+echo "PASS: Q18 red pattern exact (rung-2 round 4's find applied to both rungs: the ROW token pins the print, the gen identities pin the use)"
+
 # ------------------------------------------------------------------
 # Manifest enforcement (same rules as test_planted.sh): identity over
 # name + tolerance token; plantable coverage; structural exclusion.
@@ -212,4 +219,4 @@ done < <(grep -v '^#' tests/sim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 17 rung-1 plants flip exactly their declared checks"
+echo "PASS: all 18 rung-1 plants flip exactly their declared checks"

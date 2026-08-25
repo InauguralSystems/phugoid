@@ -845,7 +845,20 @@ expected truth, so no tolerance arm can see them) — and rung-0's
 round-20 ROWPARAMS class was inherited: every bridge generator call in
 BOTH rungs now emits its executed arguments as a `ROW` token,
 identity-checked against the manifest's `rowparams` lines (verified:
-the zeroed contaminant now fails the row-identity diff).
+the zeroed contaminant now fails the row-identity diff). Round 4 then
+showed the token pins the PRINT, not the USE — a body-level
+decontamination inside the generator kept the token intact and every
+suite green — so the OTHER half of rung-0's P12 defense was inherited
+too: gen.s0/gen.s1/gen.len wiring identities per bridge row (sig[0]
+and sig[1] recomputed bit-exactly from the same arguments; the length
+against n), with R17/Q18 (generator body corrupted: a1 nudged
+1.1·10⁻⁹, contaminant dropped, one sample short) proving all twelve
+can fail in each rung. Populations 56 → 68 and 64 → 76. Round 4 also
+retired the rowparams cross-platform risk with evidence (the pinned
+devcontainer reproduces the full-precision tokens bit-exactly, CI run
+32792297147) and recorded M2X.rollc's executed margin: 1.9× (rel error
+5.1·10⁻³ against the 1% arm — the one bridge row inside the 2×
+brittleness band; every other row has ≥4.3× headroom).
 
 ## Exit gate for rung 2
 

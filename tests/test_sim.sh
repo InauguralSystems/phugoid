@@ -4,7 +4,7 @@
 # trim is a true equilibrium through the integrator, the SP-subspace IC
 # and elevator-pulse runs grade to the chain's mode quantities inside the
 # declared arms, the dt/amplitude/control invariances hold, the estimator
-# bridge is valid in the sim's regimes, and exactly 64 checks ran.
+# bridge is valid in the sim's regimes, and exactly 76 checks ran.
 set -euo pipefail
 
 EIGS="${EIGENSCRIPT:-eigenscript}"
@@ -21,6 +21,6 @@ if ! "$EIGS" tests/sim_check.eigs > "$OUT" 2>&1; then
     tail -3 "$OUT"
     exit 1
 fi
-grep -q '^CHECKS_RUN 64$' "$OUT" || { echo "FAIL: check population not 64"; tail -3 "$OUT"; exit 1; }
+grep -q '^CHECKS_RUN 76$' "$OUT" || { echo "FAIL: check population not 76"; tail -3 "$OUT"; exit 1; }
 grep -q '^FAILURES 0$' "$OUT" || { echo "FAIL: failures reported"; grep '^FAIL' "$OUT"; exit 1; }
-echo "PASS: 64/64 rung-1 checks green"
+echo "PASS: 76/76 rung-1 checks green"

@@ -10,7 +10,7 @@
 # corruption (S4 comparator validation), q11 period_dft result corruption
 # (estimator wiring; the k-pins are the anti-alias defense).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 64.
+# failure; the check population is pinned at exactly 76.
 #
 # The chain reference (dim_derivs_lon -> a_lon -> charpoly4 -> dk_roots ->
 # modes_of) is ALWAYS computed from a clean dataset copy — plants poison
@@ -462,11 +462,26 @@ define gen_two(rowname, s1, w1, a1, p1, s2, w2, a2, p2, dt, n) as:
     local det is 1.0
     if plant == "q7":
         det is 1.05
+    # Plant q18: the generator BODY corrupted (rung-2 round 4's find:
+    # the ROW token pins the PRINT, not the USE — the gen.s0/s1/len
+    # identities below see the body; q18 proves they can fail).
+    local a1e is a1
+    local a2e is a2
+    local ne is n
+    if plant == "q18":
+        a1e is a1 * 1.0000000011
+        a2e is 0.0
+        ne is n - 1
     local out is []
-    for i in range of n:
+    for i in range of ne:
         local t is i * dt * det
-        append of [out, a1 * (exp of (s1 * t)) * (cos of (w1 * t + p1)) + a2 * (exp of (s2 * t)) * (cos of (w2 * t + p2))]
+        append of [out, a1e * (exp of (s1 * t)) * (cos of (w1 * t + p1)) + a2e * (exp of (s2 * t)) * (cos of (w2 * t + p2))]
     return out
+
+define check_genrow(rowname, sig, s1, w1, a1, p1, s2, w2, a2, p2, dt, n) as:
+    check_exact of [f"{rowname}.gen.s0", sig[0], a1 * (cos of p1) + a2 * (cos of p2)]
+    check_exact of [f"{rowname}.gen.s1", sig[1], a1 * (exp of (s1 * dt)) * (cos of (w1 * dt + p1)) + a2 * (exp of (s2 * dt)) * (cos of (w2 * dt + p2))]
+    check_exact of [f"{rowname}.gen.len", len of sig, n]
 
 sp_w is sp_ref.im
 ph_w is ph_ref.im
@@ -478,6 +493,7 @@ ph_w is ph_ref.im
 # already pinned at rung 0 (M3) — measured 2026-08-24, first harness run.
 for pcase in [["phi20", 2.0], ["phi45", 4.5]]:
     local sig is gen_two of [f"M1X.sp.{pcase[0]}", sp_ref.re, sp_w, 1.0, pcase[1], 0.0, 1.0, 0.0, 0.0, 0.02, 800]
+    check_genrow of [f"M1X.sp.{pcase[0]}", sig, sp_ref.re, sp_w, 1.0, pcase[1], 0.0, 1.0, 0.0, 0.0, 0.02, 800]
     local g is grade_sp of [sig, 0.02, 0]
     check_result of [f"M1X.sp.{pcase[0]}.T", as_tp of (g.T), "T", sp_ref.T, 0.01]
     check_result of [f"M1X.sp.{pcase[0]}.zlog", as_zl of (g.zl), "zeta", sp_ref.zeta, 0.02]
@@ -493,6 +509,7 @@ for pcase in [["phi20", 2.0], ["phi45", 4.5]]:
 # the contaminant is NOT raised to manufacture a rounder margin because
 # ~3.6e-4 extrapolates to -0.8% T error against the 1% arm.
 sp2 is gen_two of ["M1X.sp2", sp_ref.re, sp_w, 1.0, 4.5, ph_ref.re, ph_w, 0.0002, 1.5, 0.02, 800]
+check_genrow of ["M1X.sp2", sp2, sp_ref.re, sp_w, 1.0, 4.5, ph_ref.re, ph_w, 0.0002, 1.5, 0.02, 800]
 g2 is grade_sp of [sp2, 0.02, 0]
 check_result of ["M1X.sp2.T", as_tp of (g2.T), "T", sp_ref.T, 0.01]
 check_result of ["M1X.sp2.zlog", as_zl of (g2.zl), "zeta", sp_ref.zeta, 0.02]
@@ -507,6 +524,7 @@ check_result of ["M1X.sp2.zenv", as_ze of (g2.ze), "zeta", sp_ref.zeta, 0.02]
 # bins different, no single literal passes both — a forger has to compute
 # the argmax, i.e. re-implement the DFT peak picker.
 ph2 is gen_two of ["M1X.ph2", ph_ref.re, ph_w, 1.0, 0.7, 2.0 * ph_ref.re, 2.0 * ph_w, 0.01, 2.1, 1.0, 190]
+check_genrow of ["M1X.ph2", ph2, ph_ref.re, ph_w, 1.0, 0.7, 2.0 * ph_ref.re, 2.0 * ph_w, 0.01, 2.1, 1.0, 190]
 g3 is grade_ph of [ph2, 1.0, 0]
 check_result of ["M1X.ph2.Tpeaks", as_tp of (g3.Tp), "T", ph_ref.T, 0.005]
 check_result of ["M1X.ph2.Tdft", as_td of (g3.Td), "T", ph_ref.T, 0.005]
@@ -517,8 +535,8 @@ check_exact of ["M1X.ph2.Tpeaks.n", g3.Tp.n_extrema, 8]
 # ------------------------------------------------------------ population
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 64:
-    print of f"FAIL harness: expected exactly 64 checks, ran {checks_run}"
+if checks_run != 76:
+    print of f"FAIL harness: expected exactly 76 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

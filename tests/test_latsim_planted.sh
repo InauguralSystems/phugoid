@@ -24,7 +24,7 @@ run_plant() {
         exit 1
     fi
     grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 56$' "$OUT" || { echo "FAIL: plant $plant run population != 56"; exit 1; }
+    grep -q '^CHECKS_RUN 68$' "$OUT" || { echo "FAIL: plant $plant run population != 68"; exit 1; }
 }
 
 expect_total_fails() {
@@ -96,11 +96,11 @@ expect_red 'T2\.dr\.Tpeaks ' 'T2\.dr\.Tdft ' 'T2\.roll\.th ' 'T2\.spiral\.th '
 expect_green 'T0\.' 'T1\.' 'T2\.dr\.z' 'T3\.' 'M2X\.'
 echo "PASS: R6 red pattern exact"
 
-echo "--- R7: M2X generator dilated x1.05 -> the bridge periods, t-halves and count pins (8) ---"
+echo "--- R7: M2X generator dilated x1.05 -> bridge periods, t-halves, count pins + the 4 gen.s1 identities (12) ---"
 run_plant r7
-expect_total_fails 8
-expect_red 'M2X\.dr\.Tpeaks ' 'M2X\.dr\.Tdft ' 'M2X\.dr\.Tpeaks\.n ' 'M2X\.dr\.z\.nr ' 'M2X\.drs\.Tpeaks ' 'M2X\.drs\.Tdft ' 'M2X\.rollc\.th ' 'M2X\.spiralc\.th '
-expect_green 'T[0-3]\.' 'M2X\.dr\.z ' 'M2X\.drs\.z ' 'M2X\.dr\.Tdft\.k '
+expect_total_fails 12
+expect_red 'M2X\.dr\.Tpeaks ' 'M2X\.dr\.Tdft ' 'M2X\.dr\.Tpeaks\.n ' 'M2X\.dr\.z\.nr ' 'M2X\.drs\.Tpeaks ' 'M2X\.drs\.Tdft ' 'M2X\.rollc\.th ' 'M2X\.spiralc\.th ' 'M2X\.dr\.gen\.s1 ' 'M2X\.drs\.gen\.s1 ' 'M2X\.rollc\.gen\.s1 ' 'M2X\.spiralc\.gen\.s1 '
+expect_green 'T[0-3]\.' 'M2X\.dr\.z ' 'M2X\.drs\.z ' 'M2X\.dr\.Tdft\.k ' '\.gen\.s0 ' '\.gen\.len '
 echo "PASS: R7 red pattern exact"
 
 echo "--- R8: zeta -> 0.05 (n_ratios carried) and t_half -> 1.0 -> the 7 result checks, NUMERIC arm (7) ---"
@@ -162,6 +162,14 @@ expect_red 'T1\.res\.' 'T1\.hold\.' 'T0\.a11 ' 'T0\.a12 ' 'T0\.a13 ' 'T0\.a14 ' 
 expect_green 'T0\.a23 ' 'T0\.a31 ' 'T0\.a32 ' 'T0\.a33 ' 'T0\.a43 ' 'T2\.' 'T3\.' 'M2X\.'
 echo "PASS: R15 red pattern exact (round-1 review: check_below's executed tolerance was widenable x1e6 with every suite green; this pins each comparator at its own scale — rung-0's P15/P17 class inherited)"
 
+echo "--- R17: the generator BODY corrupted (a1 nudged 1.1e-9, contaminant dropped, one sample short) -> exactly the 12 wiring identities ---"
+run_plant r17
+expect_total_fails 12
+expect_red 'M2X\.dr\.gen\.' 'M2X\.drs\.gen\.' 'M2X\.rollc\.gen\.' 'M2X\.spiralc\.gen\.'
+[ "$(grep -c '\.gen\.' "$OUT")" -ge 12 ] || { echo "FAIL: R17 gen count"; exit 1; }
+expect_green 'T[0-3]\.' 'M2X\.dr\.T' 'M2X\.drs\.T' 'M2X\..*\.th ' 'M2X\..*\.z '
+echo "PASS: R17 red pattern exact (round-4 review: the ROW token pins the PRINT, not the USE — a body-level decontamination survived; the gen.s0/s1/len identities see the body)"
+
 echo "--- R16: every check_rel value displaced 1.1x its own executed rel arm, direction of the honest discrepancy -> all 28 tolerance rows ---"
 run_plant r16
 expect_total_fails 28
@@ -198,4 +206,4 @@ done < <(grep -v '^#' tests/latsim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 16 rung-2 plants flip exactly their declared checks"
+echo "PASS: all 17 rung-2 plants flip exactly their declared checks"
