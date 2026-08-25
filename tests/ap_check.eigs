@@ -10,7 +10,7 @@
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 98.
+# Population pinned at exactly 107.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -547,7 +547,13 @@ define osc_count(rec) as:
 #   cad 21 (span 4.2s, 0.460 T)  SIGHTED  <- visibility starts near HALF a period
 #   cad 25 (span 5.0s, 0.547 T)  sighted     (the row that refuted the story)
 #   cad 50 (span 10.0s, 1.095 T) sighted  <- upper edge, last sighted
-#   cad 52 (span 10.4s, 1.139 T) blind    <- blind again
+#   cad 51 (span 10.2s, 1.117 T) blind    <- blind again, FIRST blind
+# Round 17: round 16 pinned cadence 52 as the upper edge without testing
+# 51, which is the actual first blind -- so the lower edge was bracketed at
+# one-cadence resolution and the upper was not. A 2% sensitivity change in
+# the observed sample moved the upper edge a full cadence with all 98
+# checks and every plant still green; the same movement at the lower edge
+# cannot hide, because c040/c042 are adjacent. Both edges are adjacent now.
 # The two edges have DIFFERENT causes -- too little of a fold to classify,
 # then the G5 horizon (by the time the window fills the mode is under the
 # deadband). Round 16 tested that with an amplitude sweep: the upper edge
@@ -556,7 +562,7 @@ define osc_count(rec) as:
 # All four edges are pinned so no windowing change can restore the monotone
 # "fast = blind, slow = too late" story -- the defect round 2 closed for
 # C5.p4's ramp.
-for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c040", 20, 0, 0.0 - 1.0], ["c042", 21, 1, 9], ["c050", 25, 1, 9], ["c100", 50, 1, 9], ["c104", 52, 0, 0.0 - 1.0]]:
+for cs in [["c010", 5, 0, 0.0 - 1.0], ["c020", 10, 0, 0.0 - 1.0], ["c040", 20, 0, 0.0 - 1.0], ["c042", 21, 1, 9], ["c050", 25, 1, 9], ["c100", 50, 1, 9], ["c102", 51, 0, 0.0 - 1.0]]:
     local rec is sup_run of [f"C5.sp.{cs[0]}.run", ic_sp, tr.de, eff_gain of (0.5), 0.02, 1500, 25, cs[1], tr.P, method, freeze]
     check_exact of [f"C5.sp.{cs[0]}.osc", osc_count of (rec), cs[2]]
     # Round 14: first_osc/last_osc return -1 IFF osc_count == 0, so a `.at`
@@ -692,7 +698,7 @@ check_exact of ["C4.ph.first_engaged", first_engaged of (ph_rec), 19]
 # the saturation boundary — a row there (uamp 0.5: horizon 78 against a
 # last read of 79) flips by one under any perturbing plant, which is
 # brittleness rather than signal.
-for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0], ["a030", 0.3, 23, 38, 9, 12, 554], ["a040", 0.4, 40, 58, 9, 15, 1376], ["a035", 0.35, 34, 53, 9, 16, 1053]]:
+for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0, 0, 0, 0], ["a030", 0.3, 23, 38, 9, 12, 554, 42, 9, 6], ["a040", 0.4, 40, 58, 9, 15, 1376, 21, 12, 7], ["a035", 0.35, 34, 53, 9, 16, 1053, 27, 9, 10]]:
     local icr is mode_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 0, ramp[1]]
     local rc is sup_run of [f"C5.p4.{ramp[0]}.run", icr, tr.de, eff_gain of (0.5), 0.05, 8000, 100, 100, tr.P, method, freeze]
     check_exact of [f"C5.p4.{ramp[0]}.osc", osc_count of (rc), ramp[2]]
@@ -706,11 +712,18 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0], ["a030", 0.3, 23, 38,
         # and run COUNT is reversal-invariant). verdict_oidx does.
         check_exact of [f"C5.p4.{ramp[0]}.runs", verdict_runs of (rc), ramp[5]]
         check_exact of [f"C5.p4.{ramp[0]}.oidx", verdict_oidx of (rc), ramp[6]]
+        # ...and CLOSE the distribution, which C5.p1.inner has had since
+        # round 4 and C4.ph since round 13. Round 17 found this the last
+        # stream set without it -- the fifth twinning miss in the loop, so
+        # all four rows get it in one pass rather than one per round.
+        check_exact of [f"C5.p4.{ramp[0]}.conv", verdict_count of [rc, "converged"], ramp[7]]
+        check_exact of [f"C5.p4.{ramp[0]}.stable", verdict_count of [rc, "stable"], ramp[8]]
+        check_exact of [f"C5.p4.{ramp[0]}.equil", verdict_count of [rc, "equilibrium"], ramp[9]]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 98:
-    print of f"FAIL harness: expected exactly 98 checks, ran {checks_run}"
+if checks_run != 107:
+    print of f"FAIL harness: expected exactly 107 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

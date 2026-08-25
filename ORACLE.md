@@ -1299,12 +1299,12 @@ than one that does not:
   | 0.42 s (`c042`) | 4.2 s | 0.460 | **sighted** — visibility starts near HALF a period |
   | 0.5 s (`c050`) | 5 s | 0.547 | sighted — the row that refuted the story |
   | 1.0 s (`c100`) | 10 s | 1.095 | sighted — last sighted |
-  | 1.04 s (`c104`) | 10.4 s | 1.139 | blind again — unpublished until round 15 |
+  | 1.02 s (`c102`) | 10.2 s | 1.117 | blind again — the FIRST blind |
 
   (Spans are against the **kq = 0** short-period T = 9.1341 s. Round 15's
   first version of this table quoted the kq = 0.5 period and put the edges
   at cadence 22 and 60; round 16 corrected both — the runs fly at gain 0,
-  and swept at one-cadence resolution the edges are 21 and 52. That is the
+  and swept at one-cadence resolution the edges are 21 and 51 — and round 16's own replacement pinned 52 without testing 51, so the lower edge was bracketed adjacently and the upper was not. Round 17 measured a 2% sensitivity change moving the upper edge a full cadence with all 98 checks and every plant green. Both edges are adjacent now. That is the
   wrong-plant error round 13 caught on `maxrun`, recurring inside the fix
   for round 15's finding.)
 
@@ -1316,8 +1316,8 @@ than one that does not:
   "fast = blind, slow = too late" story — the same defect round 2 closed
   for `C5.p4`'s ramp, recurring in the neighbouring table.
   The sighted rows all report exactly once, *after* the mode has decayed
-  (t ≥ 4.4 s for a mode gone by ~5 s; at the earliest sighted cadence the
-  latency is still ~2.4 decay constants). Detection latency and phase lag
+  (t ≥ 4.2 s for a mode gone by ~5 s; at the earliest sighted cadence the
+  latency is still ~2.3 decay constants). Detection latency and phase lag
   are the same quantity, so a windowed verdict cannot act on a well-damped
   transient. The complement holds
   too: the lightly-damped phugoid (ζ = 0.036, ringing for many periods)
@@ -1422,18 +1422,18 @@ measured one.)
 
 | Plant | Injected into | Reds |
 |---|---|---|
-| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 44 |
-| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 44 |
-| s3 | Euler instead of RK4 | 22 |
-| s4 | trim offset by 0.01 rad | 61 |
+| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 52 |
+| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 51 |
+| s3 | Euler instead of RK4 | 27 |
+| s4 | trim offset by 0.01 rad | 68 |
 | s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
 | s6 | grading-dt dilation (estimator side only) | 6 |
-| s7 | verdict stream frozen — supervisory layer inert | 38 |
+| s7 | verdict stream frozen — supervisory layer inert | 47 |
 | s8 | ζ/T constant-replaced with the identity field carried | 13 |
-| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 48 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 54 |
 | s10 | dt-rerun grading separator | 1 |
 | s11 | ζ estimator slot alias | 16 |
-| s12 | verdicts forced to `oscillating` — the dual of s7 | 44 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 53 |
 | s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
 | s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
@@ -1477,7 +1477,7 @@ published as a measurement, not asserted; (b) C0's gain-independence is
 structural (`B[0] = 0`), stated but not measured — all 16 C0 rows run at
 kq = 0.5; (c) the C6 absolutes (read/write/floor/noread wall times) are
 context and are asserted nowhere; (d) the shell harnesses' own FAIL
-branches, as in rungs 1 and 2; (e) the interiors of `C5.sp.*` (now SEVEN cadence rows, 300/150/75/71/60/30/29 reads) have no order pin — round 15's entry said "four rows … short (60 and 30 reads)", which round 16 found stale from its own edit; `c010`'s 300-read interior is not short and its verdict classes are pinned nowhere; (f) **prediction 2's
+branches, as in rungs 1 and 2; (e) the interiors of `C5.sp.*` (seven cadence rows, 300/150/75/71/60/30/29 reads) have no order pin — round 15's entry said "four rows … short (60 and 30 reads)", which round 16 found stale from its own edit; `c010`'s 300-read interior is not short and its verdict classes are pinned nowhere; (f) **prediction 2's
 second clause is not measured** — "the closed-loop response while engaged still matches the C2
 predictions" was pre-registered, and no shipped check grades the
 supervisory trajectory against the C2 predictions (`C2.ph` certifies the
@@ -1488,7 +1488,7 @@ pre-registered clause.
 
 ## Exit gate for rung 3
 
-1. All C checks green (98, population pinned); every one of the 16
+1. All C checks green (107, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
    all FOUR of its planted faults (one per arm);
    rungs 0–2 suites untouched and green.

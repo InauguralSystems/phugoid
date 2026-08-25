@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The rung-3 planted-fault matrix (ORACLE.md): each s-plant must flip
 # EXACTLY its declared red set, every plant run executes the full pinned
-# 98-check population, and the manifest rules hold (identity incl.
+# 107-check population, and the manifest rules hold (identity incl.
 # tolerance tokens and ROW parameters; every plantable name in some red
 # set; structural names in none; unknown class tokens FAIL).
 set -euo pipefail
@@ -15,7 +15,7 @@ run_plant() {
         echo "FAIL: plant $1 did not make ap_check exit nonzero — the checker cannot fail"; exit 1
     fi
     grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 98$' "$OUT" || { echo "FAIL: plant $1 run population != 98"; exit 1; }
+    grep -q '^CHECKS_RUN 107$' "$OUT" || { echo "FAIL: plant $1 run population != 107"; exit 1; }
 }
 expect_total_fails() {
     got=$(grep -c '^FAIL ' "$OUT" || true)
@@ -27,25 +27,25 @@ expect_green() { for pat in "$@"; do if grep '^FAIL ' "$OUT" | grep -Eq "$pat"; 
 no_refusals() { grep '^FAIL ' "$OUT" | grep -q 'refused' && { echo "FAIL: $1 reds must use the numeric arm, found a refusal"; exit 1; }; return 0; }
 
 echo "--- S1: gain sign flipped -> pitch rows + every zeta + the gain witnesses ---"
-run_plant s1; expect_total_fails 44
+run_plant s1; expect_total_fails 52
 expect_red 'C0\.a23 ' 'C0\.a33 ' 'C2\.k050\.T ' 'C2\.k100\.zlog ' 'C3\.gain\.use ' 'C2\.ph\.Tdft\.k ' 'C3\.amp\.zenv ' 'C5\.p4\.a035\.horizon '
 expect_green 'C1\.'
 echo "PASS: S1 red pattern exact"
 
 echo "--- S2: gain never reaches the dynamics (inert controller) ---"
-run_plant s2; expect_total_fails 44
+run_plant s2; expect_total_fails 51
 expect_red 'C3\.gain\.use ' 'C3\.lin\.shrinks ' 'C2\.k100\.T ' 'C2\.ph\.T ' 'C3\.amp\.zenv '
 expect_green 'C1\.'
 echo "PASS: S2 red pattern exact"
 
 echo "--- S3: integrator RK4 -> Euler -> periods + dt invariance + supervisory toggles ---"
-run_plant s3; expect_total_fails 22
+run_plant s3; expect_total_fails 27
 expect_red 'C2\.k025\.T ' 'C2\.k050\.T ' 'C2\.k100\.T ' 'C3\.dt\.T ' 'C3\.dt\.zlog ' 'C3\.dt\.zenv ' 'C2\.ph\.zlog ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a035\.horizon '
 expect_green 'C0\.' 'C1\.'
 echo "PASS: S3 red pattern exact"
 
 echo "--- S4: trim offset -> C1 + parity + every graded mode ---"
-run_plant s4; expect_total_fails 61
+run_plant s4; expect_total_fails 68
 expect_red 'C1\.res\.' 'C1\.hold\.' 'C0\.a13 ' 'C2\.k025\.T ' 'C3\.gain\.use ' 'C5\.sp\.c050\.osc '
 echo "PASS: S4 red pattern exact"
 
@@ -62,7 +62,7 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.zlog' 'C4\.' 'C5\.sp'
 echo "PASS: S6 red pattern exact"
 
 echo "--- S7: verdict stream frozen to 'stable' (supervisory inert) ---"
-run_plant s7; expect_total_fails 38
+run_plant s7; expect_total_fails 47
 expect_red 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C4\.ph\.horizon ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a035\.horizon ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.onset ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S7 red pattern exact"
@@ -75,7 +75,7 @@ expect_green 'C0\.' 'C1\.' '\.n ' '\.nr ' '\.nf ' 'C4\.' 'C5\.'
 echo "PASS: S8 red pattern exact"
 
 echo "--- S9: dataset broadly poisoned -> parity + graded modes + verdicts ---"
-run_plant s9; expect_total_fails 48
+run_plant s9; expect_total_fails 54
 expect_red 'C0\.a11 ' 'C0\.a33 ' 'C2\.k050\.zlog ' 'C3\.gain\.use ' 'C4\.ph\.osc ' 'C2\.ph\.Tdft ' 'C5\.p4\.a030\.osc '
 expect_green 'C1\.'
 echo "PASS: S9 red pattern exact"
@@ -93,7 +93,7 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.T ' 'C4\.' 'C5\.'
 echo "PASS: S11 red pattern exact"
 
 echo "--- S12: verdicts forced to 'oscillating' (the dual of S7) ---"
-run_plant s12; expect_total_fails 44
+run_plant s12; expect_total_fails 53
 expect_red 'C5\.sp\.c010\.osc ' 'C5\.sp\.c020\.osc ' 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C5\.p1\.inner\.osc ' 'C5\.p1\.inner\.engagements ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a020\.osc ' 'C5\.p1\.inner\.diverging ' 'C5\.p1\.inner\.converged ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.stable ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S12 red pattern exact"
