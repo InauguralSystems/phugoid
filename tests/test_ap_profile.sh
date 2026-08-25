@@ -65,6 +65,15 @@ WF_CEIL=3.0
 [ "$WF_CEIL" = "3.0" ]   || { echo "FAIL: WF_CEIL is $WF_CEIL, declared 3.0 — a widened bound must be re-justified in ORACLE.md, not edited in place"; exit 1; }
 [ "$WF_BOUND" = "1.15" ] || { echo "FAIL: WF_BOUND is $WF_BOUND, declared 1.15 — a widened bound must be re-justified in ORACLE.md, not edited in place"; exit 1; }
 
+# below_ceiling <value> <ceiling> -> 0 if value < ceiling. Shared by the
+# real check and its planted fault: round 4's rule is that a gate and the
+# fault validating it use the same constant, and round 9 showed the same
+# applies to the same COMPARISON -- two copies of the expression let one be
+# flipped with the plant still passing.
+below_ceiling() {
+    awk -v x="$1" -v c="$2" 'BEGIN{ exit !(x < c) }'
+}
+
 # check_ratio <label> <value> <bound> -> 0 if value > bound
 check_ratio() {
     awk -v x="$2" -v b="$3" 'BEGIN{ exit !(x > b) }'
@@ -123,6 +132,40 @@ body_lines() {
         END { print n + 0 }
     ' tests/ap_profile.eigs
 }
+# Round 9: the three body pins stop at the function bodies, and the exact
+# output constrains only the one line each variant prints -- so the MODULE
+# LEVEL was still free. Eight lines inserted before the dispatch,
+#     if mode == "read":
+#         warmup is 0
+#         unobserved:
+#             loop while warmup < 4000000:
+#                 warmup is warmup + 1
+# left every body hash, every line count and every exact output matching
+# while moving the published read/write from 2.13 to 3.47 (+63%) with work
+# that is inside `unobserved:` and therefore definitionally NOT read-path
+# cost. Numerator inflation is the one direction with no arm -- read/write
+# deliberately has no ceiling -- and C6's "the read path dominates" is
+# rung 3's whole upstream argument. So everything OUTSIDE the three bodies
+# is pinned too, by the same comment-stripped hash.
+module_hash() {
+    awk '
+        /^define run_(read|write|floor)\(/ { inbody = 1; next }
+        inbody && /^[^[:space:]]/ { inbody = 0 }
+        inbody { next }
+        { line = $0; sub(/^[[:space:]]+/, "", line)
+          if (line != "" && substr(line, 1, 1) != "#") print $0 }
+    ' tests/ap_profile.eigs | md5sum | cut -c1-12
+}
+module_lines() {
+    awk '
+        /^define run_(read|write|floor)\(/ { inbody = 1; next }
+        inbody && /^[^[:space:]]/ { inbody = 0 }
+        inbody { next }
+        { line = $0; sub(/^[[:space:]]+/, "", line)
+          if (line != "" && substr(line, 1, 1) != "#") n++ }
+        END { print n + 0 }
+    ' tests/ap_profile.eigs
+}
 # A body that hashed to nothing would pass vacuously, so each body's line
 # count is pinned alongside its identity (the repo's no-vacuous-check rule).
 for spec in "run_read:d2e2942f112e:21" "run_write:514b678f699a:12" "run_floor:82a98c4d1216:13"; do
@@ -131,6 +174,10 @@ for spec in "run_read:d2e2942f112e:21" "run_write:514b678f699a:12" "run_floor:82
     [ "$gotn" = "$wantn" ] || { echo "FAIL: $fn's measured body is $gotn lines, declared $wantn — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure all three variants and re-pin"; exit 1; }
     [ "$got" = "$want" ]   || { echo "FAIL: $fn's measured body changed (identity $got, declared $want) — C6 times a DIFFERENT workload than ORACLE.md publishes; re-measure all three variants and re-pin"; exit 1; }
 done
+MOD_HASH=913a072da7fe
+MOD_LINES=12
+[ "$(module_lines)" = "$MOD_LINES" ] || { echo "FAIL: ap_profile.eigs has $(module_lines) module-level lines, declared $MOD_LINES — work outside the three measured bodies changes what C6 times; re-measure and re-pin"; exit 1; }
+[ "$(module_hash)"  = "$MOD_HASH"  ] || { echo "FAIL: ap_profile.eigs's module level changed (identity $(module_hash), declared $MOD_HASH) — work outside the three measured bodies changes what C6 times; re-measure and re-pin"; exit 1; }
 # Round 8 retired the site grep that round 6 added: any read added to or
 # removed from a measured loop already changes that loop's body hash, so
 # the grep caught nothing the hashes miss and could only false-alarm on a
@@ -181,7 +228,7 @@ if ! check_ratio write/floor "$WF" "$WF_BOUND"; then
     echo "write/floor ratio = ${WF}  (re-measured, decisive)"
     check_ratio write/floor "$WF" "$WF_BOUND" || { echo "FAIL: observed writes now cost no more than the unobserved floor (${WF} on both readings) — re-measure and re-justify the 78/22 split"; exit 1; }
 fi
-awk -v x="$WF" -v c="$WF_CEIL" 'BEGIN{ exit !(x < c) }' || { echo "FAIL: write/floor is ${WF}, above the ${WF_CEIL} ceiling — the unobserved floor has collapsed (it is the denominator), so this is a measurement fault, not a speedup"; exit 1; }
+below_ceiling "$WF" "$WF_CEIL" || { echo "FAIL: write/floor is ${WF}, above the ${WF_CEIL} ceiling — either the unobserved floor collapsed or the write path inflated; both read identically here and both are measurement faults, not speedups"; exit 1; }
 echo "PASS: observed write path costs ${WF}x the unobserved floor"
 
 # PLANTED FAULT for this gate (rungs 0-2 refuse to ship a gate never shown
@@ -203,3 +250,16 @@ if check_ratio planted2 "$PLANTED2" "$WF_BOUND"; then
     echo "FAIL: the C6 write/floor bound accepted a planted ratio of ${PLANTED2} — that bound cannot fail"; exit 1
 fi
 echo "PASS: C6 write/floor planted fault rejected (ratio ${PLANTED2} <= ${WF_BOUND})"
+
+# ...and the CEILING gets one too. Round 9: it shipped as the only arm in
+# this file with no planted fault, in a script whose own rule is that a
+# gate never shown able to fail does not ship. A floor collapsed to a
+# tenth of the write time is what `run_floor of (0)` measured (0.008s
+# against 0.230s) before the exact-output pin closed that door; the
+# ceiling is what remains if a RUNTIME change, rather than a source edit,
+# collapses it.
+PLANTED3=$(awk -v w="$W" 'BEGIN{ printf "%.2f", w/(w/10) }')
+if below_ceiling "$PLANTED3" "$WF_CEIL"; then
+    echo "FAIL: the C6 write/floor ceiling accepted a planted ratio of ${PLANTED3} — that ceiling cannot fail"; exit 1
+fi
+echo "PASS: C6 write/floor ceiling planted fault rejected (ratio ${PLANTED3} >= ${WF_CEIL})"

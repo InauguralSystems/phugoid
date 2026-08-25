@@ -1028,7 +1028,8 @@ first gain tried during design did exactly that — phugoid ζ went to
 - **C1 — trim preserved (5):** with kq = 0 the closed-loop model must
   reproduce rung 1's S1 exactly (residuals ≤ 1e-9, 60 s hold), proving
   the controller is a no-op at zero gain rather than a new plant.
-- **C2 — closed-loop modes graded (9):** for kq ∈ {0.25, 0.5, 1.0}, the
+- **C2 — closed-loop modes graded (22):** nine graded rows plus their
+  identity pins and the four separate `C2.ph.*` rows — for kq ∈ {0.25, 0.5, 1.0}, the
   SP-subspace free response of the CLOSED loop, graded by rung-0's
   estimators against the predicted A_cl eigenvalues above: T within
   **1%**, ζ within **2%**, plus the identity pins (k/n_extrema/n_ratios,
@@ -1055,8 +1056,13 @@ cadences `C5.sp.{c010,c020}`.
 - **C5 — the three pre-registered predictions** (below).
 - **C6 — read-path profile (a RATIO gate, not an absolute budget):** the shipped gate asserts
   two ratio FLOORS — it fires when reads stop dominating writes, i.e. when
-  the read path gets relatively *cheaper*. No µs/read and no µs/frame is
-  asserted anywhere; the absolutes below are context, not arms. Baseline
+  the read path gets relatively *cheaper* — plus, since round 8, a CEILING
+  on write/floor (3.0). No µs/read and no µs/frame is asserted anywhere;
+  the absolutes below are context, not arms. Three planted faults, not two:
+  each floor and the ceiling. read/write has no ceiling deliberately (load
+  INFLATES it — 3.38 measured on unmutated code); write/floor can have one
+  because load DEFLATES it (0.98 measured at round 7), so the arm cannot
+  flake in the direction load pushes. Baseline
   probe measured 2026-08-25 before this rung: **0.70 µs/read**, read path
   = 64% of a write+read workload, and observed *scalar* writes ≈ free
   (0.31 s vs a 0.30 s fully-unobserved floor over 200k frames, n=5
@@ -1073,9 +1079,10 @@ cadences `C5.sp.{c010,c020}`.
   each variant's EXECUTED work is pinned too (round 5 halved the floor
   variant's loop and the gate reported a greener ratio while every suite
   stayed green). That spread is a REPRODUCTION note, not an arm —
-  the gate has no ceiling, deliberately: a concurrent-load run on this box
-  measured read/write = 3.38 on unmutated code, so a ratio ceiling would
-  flake on a shared runner. What pins the workload instead is the read
+  read/write has no ceiling, deliberately: a concurrent-load run on this box
+  measured read/write = 3.38 on unmutated code, so a ratio ceiling there
+  would flake on a shared runner. (write/floor's ceiling is safe for the
+  opposite reason — load deflates that ratio.) What pins the workload instead is the read
   POPULATION: round 6 measured the per-predicate split and found
   `oscillating of u` fires **0** times in 120k frames (conv 11563, stable
   65157, div 56566 = the pinned 133286), so a hit count cannot see that
@@ -1097,11 +1104,25 @@ cadences `C5.sp.{c010,c020}`.
   `if not (oscillating of q):`, both evaded the site grep entirely. The
   three measured bodies are now pinned by IDENTITY (comment- and
   blank-stripped hash plus line count, so a body that hashed to nothing
-  cannot pass vacuously); the grep survives as a cross-check. Verified:
-  all three round-7 mutants and an equal-line-count constant swap fail
-  loudly; a FULL-LINE comment inside a measured body does not (a comment
-  appended to a code line does red the gate — fail-safe, and round 8
-  corrected the claim, which had been stated unscoped). Both bounds are
+  cannot pass vacuously); round 8 retired the grep, which caught nothing
+  the hashes miss. Round 8 also found the CALL SITE free —
+  `run_floor of (0)` kept every layer matching while the measured floor
+  became 0.008 s of interpreter startup and write/floor read 28.75 against
+  a published 1.44 — so each variant now prints its own line from its own
+  loop counter and the gate matches the whole output exactly. Round 9 then
+  found the pins stop at the three function bodies while the MODULE LEVEL
+  stayed free: eight lines of `unobserved:` busywork before the dispatch —
+  definitionally not read-path cost — left every body hash, line count and
+  exact output matching while moving the published read/write from 2.13 to
+  **3.47**. That is the one direction with no arm, since read/write has no
+  ceiling, and "the read path dominates" is this rung's whole upstream
+  argument; everything outside the three bodies is now pinned by the same
+  comment-stripped hash. Verified: all three round-7 mutants, an
+  equal-line-count constant swap, `run_floor of (0)`, a fabricated extra
+  output line, round 9's warmup insertion and an `N` change all fail
+  loudly; a FULL-LINE comment — at module level or inside a body — does
+  not (a comment appended to a code line does red the gate: fail-safe, and
+  round 8 corrected that claim, which had been stated unscoped). Both bounds are
   single-sourced constants shared with their planted faults, after round
   4 found that editing a gate's literal alone left its own fault citing
   the old value and the suite green. The gate takes **median of 5**, not 3 —
@@ -1303,7 +1324,7 @@ separately; they are not part of this 16.
 
 1. All C checks green (83, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
-   both of its planted faults;
+   all THREE of its planted faults (two floors and the ceiling);
    rungs 0–2 suites untouched and green.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds.
 3. CI green on the pushed branch.
