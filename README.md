@@ -78,7 +78,7 @@ a closed-loop autopilot, with the observer as its supervisory layer:
   EigenScript#915's write-path gate arms per **module**, so one verdict
   read anywhere in a file — even in a function that is never called —
   re-arms bookkeeping for every assignment in it (+42% measured on dead
-  code; GAPS.md G7). It cannot help an autopilot by construction.
+  code; GAPS.md G7, EigenScript#1046). It cannot help an autopilot by construction.
 
 Rung 2 (shipped 2026-08-24) is the lateral model — three timescales and
 the level-set stress:

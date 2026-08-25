@@ -1137,8 +1137,8 @@ cadences `C5.sp.{c010,c020}`.
   noise — which is what the withdrawn probe reported; the +44% is EigenScript#915's arming penalty, which is
   module-granular — one verdict read anywhere in a file, even inside a
   function that is never called, re-arms bookkeeping for every assignment
-  in it (GAPS.md **G7**, a new upstream find, measured at ~42% on a dead
-  read). So the split is roughly **94% reads / 6% writes**, with the
+  in it (GAPS.md **G7**, upstreamed as EigenScript#1046, measured at ~42% on a
+  dead read). So the split is roughly **94% reads / 6% writes**, with the
   arming penalty sitting inside what was called "writes". This makes the
   rung's upstream argument stronger: #915's gate cannot help an autopilot
   not merely because reads dominate, but because the consumer's reads

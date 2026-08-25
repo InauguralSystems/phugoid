@@ -150,6 +150,7 @@ cannot pass.
 
 ### G7 — #915's write-path gate arms per MODULE, and a single verdict read defeats it
 Found at rung-3 blind-critic round 10, 2026-08-25, `eigenscript` v0.41.0.
+Upstreamed as **EigenScript#1046**.
 EigenScript#915's optimisation makes observed *scalar writes* nearly free.
 The arming is module-granular: **one predicate read anywhere in a module —
 including in a function that is never called — re-arms full entropy
