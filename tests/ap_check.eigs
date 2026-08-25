@@ -10,7 +10,7 @@
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 83.
+# Population pinned at exactly 85.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -406,6 +406,47 @@ check_result of ["C2.ph.Tdft", as_td of (ph_Td), "T", pk05.osc[0].T, 0.01]
 check_result of ["C2.ph.zlog", as_zl of (ph_z), "zeta", pk05.osc[0].zeta, 0.05]
 check_exact of ["C2.ph.Tdft.k", ph_Td.k, 8]
 
+# Round-12 review: the counts above pin WHAT the stream contains and the
+# distribution is closed, but nothing pinned its ORDER -- and the order IS
+# the finding. A count-preserving repack (group by category in
+# first-appearance order, multiset untouched, so it survives every plant)
+# turned 37 maximal runs into 4 and left 83/83, all 16 plants, the
+# manifest and lint green, while "an autopilot would fight a healthy mode
+# half the time" silently became "it flips once in 400 s". This is the
+# repack class round 3 closed for C5.p4's onset and round 4 for C4.ph's
+# horizon, never applied to the one stream that is the result.
+define verdict_runs(rec) as:
+    local n is 0
+    local i is 0
+    loop while i < (len of rec.verdict):
+        if i == 0:
+            n is n + 1
+        elif rec.verdict[i] != rec.verdict[i - 1]:
+            n is n + 1
+        i is i + 1
+    return n
+
+# The LONGEST maximal run, which ties the alternation to the physics: at
+# dt=0.05 a quarter of the predicted closed-loop phugoid period
+# (T = 51.438 s) is 257 samples, and the longest run measures 260. That is
+# the mechanism -- a 10-sample window sees a locally monotone slice of a
+# sinusoid -- expressed as a number a windowing change upstream would red.
+define verdict_maxrun(rec) as:
+    local best is 0
+    local cur is 0
+    local i is 0
+    loop while i < (len of rec.verdict):
+        if i == 0:
+            cur is 1
+        elif rec.verdict[i] == rec.verdict[i - 1]:
+            cur is cur + 1
+        else:
+            cur is 1
+        if cur > best:
+            best is cur
+        i is i + 1
+    return best
+
 define verdict_count(rec, want) as:
     local n is 0
     local i is 0
@@ -504,6 +545,12 @@ check_exact of ["C5.p1.inner.converged", verdict_count of [inner, "converged"], 
 # prose implied completeness, leaving 10 reads unaccounted (round 4).
 check_exact of ["C5.p1.inner.stable", verdict_count of [inner, "stable"], 9]
 check_exact of ["C5.p1.inner.equilibrium", verdict_count of [inner, "equilibrium"], 1]
+# ...and the ORDER, which is what "alternates" means and what the counts
+# above cannot see (round 12). Both rows are red under s7 (stream frozen
+# -> 1 run) and s12 (forced oscillating -> 1 run), so the existing plant
+# matrix covers them.
+check_exact of ["C5.p1.inner.runs", verdict_runs of (inner), 37]
+check_exact of ["C5.p1.inner.maxrun", verdict_maxrun of (inner), 260]
 # And the supervisory layer does NOT hold cleanly either: it sees the
 # regime (56 of 80 reads, pinned by C4.ph.osc) but the engagement
 # flickers 17 times in one
@@ -558,8 +605,8 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0], ["a030", 0.3, 23, 38, 9], [
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 83:
-    print of f"FAIL harness: expected exactly 83 checks, ran {checks_run}"
+if checks_run != 85:
+    print of f"FAIL harness: expected exactly 85 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

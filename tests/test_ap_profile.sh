@@ -165,7 +165,7 @@ file_pin tests/ap_profile_noread.eigs 743df838d495 15
 # every layer matching -- body hash, line count, site count, and
 # `floor 120000` via `0 + N` -- while the measured floor collapsed to
 # 0.008 s of interpreter startup and write/floor reported 28.75 against a
-# published 1.44, fabricating the exact 78/22 split the bound exists to
+# published 1.44, fabricating the exact attribution the bound exists to
 # support. An exact match also rejects a fabricated extra line, which
 # `grep -q` would have accepted.
 expect_out() {
@@ -185,7 +185,7 @@ check_ratio read/write "$RATIO" "$RW_BOUND" || {
     echo "      If reads were made O(1) this is EXPECTED — re-measure, update"
     echo "      ORACLE.md's C6 numbers, and re-justify the bound."
     exit 1; }
-echo "PASS: the read-bearing program costs ${RATIO}x the write-only one — #915's write-path gate cannot help this shape (attributed: reads are ~94% of observer cost, see G7)"
+echo "PASS: the read-bearing program costs ${RATIO}x the write-only one — #915's write-path gate cannot help this shape (attributed: reads-direct 75-89%, arming 3-21%, intrinsic writes ~0 — see GAPS G7)"
 
 # The observed WRITE path must cost something too, or `floor` is a number
 # nobody reads and the "78% reads / 22% writes" split is unsupported.
@@ -203,7 +203,7 @@ if ! check_ratio write/floor "$WF" "$WF_BOUND"; then
     W=$(med write); F=$(med floor)
     WF=$(awk -v w="$W" -v f="$F" 'BEGIN{ if (f<=0) f=0.001; printf "%.2f", w/f }')
     echo "write/floor ratio = ${WF}  (re-measured, decisive)"
-    check_ratio write/floor "$WF" "$WF_BOUND" || { echo "FAIL: observed writes now cost no more than the unobserved floor (${WF} on both readings) — re-measure and re-justify the 78/22 split"; exit 1; }
+    check_ratio write/floor "$WF" "$WF_BOUND" || { echo "FAIL: observed writes now cost no more than the unobserved floor (${WF} on both readings) — re-measure and re-justify the read/write attribution"; exit 1; }
 fi
 below_ceiling "$WF" "$WF_CEIL" || { echo "FAIL: write/floor is ${WF}, above the ${WF_CEIL} ceiling — either the unobserved floor collapsed or the write path inflated; both read identically here and both are measurement faults, not speedups"; exit 1; }
 echo "PASS: observed write path costs ${WF}x the unobserved floor"
@@ -263,7 +263,7 @@ if ! check_ratio write/noread "$WA" "$WA_BOUND"; then
         echo "      stopped being read-free."
         exit 1; }
 fi
-echo "PASS: C6 module-arming penalty present at ${WA}x (G7) — the write cost C6 attributes to writes is mostly this"
+echo "PASS: C6 process-wide arming penalty present at ${WA}x (G7) — the write cost C6 attributes to writes is mostly this"
 PLANTED4=$(awk -v w="$W" 'BEGIN{ printf "%.2f", w/w }')
 if check_ratio planted4 "$PLANTED4" "$WA_BOUND"; then
     echo "FAIL: the C6 arming bound accepted a planted ratio of ${PLANTED4} — that bound cannot fail"; exit 1

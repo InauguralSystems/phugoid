@@ -111,42 +111,7 @@ Local mitigation: the plant was rebuilt to zero the GAIN instead (which is
 the more faithful inert-controller fault anyway); `trim_solve` still does
 not check, which is recorded here rather than silently patched, because
 the honest fix is upstream.
-
-## Watch (not yet blocking)
-
-### W1 — `dft` is O(n²); fine at rung 0, will not scale to swarm telemetry
-`lib/engineering.dft` at n≈470 costs ~1s of the rung-0 suite. Rung 4's
-N-aircraft telemetry grading will want a real FFT (radix-2 is ~60 lines of
-EigenScript). Upstream when the need is measured, not before.
-
-### W2 — `^` is bitwise XOR, not power
-Not a bug — documented behavior, and `pow of [a, b]` exists. Recorded because
-numeric-code authors habitually write `x ^ 2` and get a silent wrong number
-(caught here in the first probe script). A lint hint for `^` between float
-operands might be worth an upstream issue if it bites again.
-
-### W3 — no ODE integrator in the stdlib; second consumer re-roll
-`lib/calculus.eigs` has quadrature only. `dynamics` hand-rolled
-semi-implicit Euler (`physics.eigs step`); phugoid has now hand-rolled
-RK4 + Euler twice (`sim.eigs`, and `latsim.eigs` at rung 2 — the
-integrator can't be shared without function-valued plumbing the rungs
-don't otherwise need), validated by the S0/T0 parity and dt-invariance
-checks. Two consumers re-rolling the same numerics is the G1/G2 shape one
-rung earlier. Candidate upstream API: `lib/ode.eigs` with `rk4_step` /
-`semi_implicit_step` over a user derivative function. Upstream when a
-third consumer rolls one, or when rung 4's swarm makes integrator cost a
-measured concern.
-
-### W4 — missing dict-field access is a silent null
-`d.k` on a dict without `k` returns null silently (v0.41.0; exit 0).
-Bit in round 2 of the rung-1 review: a checker copying `res.k` off the
-WRONG estimator's result (which has `n_extrema`, not `k`) tripped
-nothing, letting an estimator-alias mutation survive — the anti-alias
-k-pins had to be designed around comparing against null instead of
-relying on field access erroring. Likely intended fail-soft semantics
-(the #971/#975 reform track owns the policy); recorded so rung-2+
-checkers keep the pattern: pin a field only via a comparison a null
-cannot pass.
+Upstreamed as **EigenScript#1047**.
 
 ### G7 — #915's write-path gate arms PROCESS-WIDE and monotonically; a bare string arms it
 Found at rung-3 blind-critic round 10, corrected at round 11, 2026-08-25,
@@ -220,3 +185,39 @@ reason #915's gate cannot help an autopilot is not only that reads
 dominate, but that a single read anywhere in the program disarms the write
 optimisation everywhere. `unobserved:` remains the workaround, and is what
 rung 3's `sup_run` already does.
+
+## Watch (not yet blocking)
+
+### W1 — `dft` is O(n²); fine at rung 0, will not scale to swarm telemetry
+`lib/engineering.dft` at n≈470 costs ~1s of the rung-0 suite. Rung 4's
+N-aircraft telemetry grading will want a real FFT (radix-2 is ~60 lines of
+EigenScript). Upstream when the need is measured, not before.
+
+### W2 — `^` is bitwise XOR, not power
+Not a bug — documented behavior, and `pow of [a, b]` exists. Recorded because
+numeric-code authors habitually write `x ^ 2` and get a silent wrong number
+(caught here in the first probe script). A lint hint for `^` between float
+operands might be worth an upstream issue if it bites again.
+
+### W3 — no ODE integrator in the stdlib; second consumer re-roll
+`lib/calculus.eigs` has quadrature only. `dynamics` hand-rolled
+semi-implicit Euler (`physics.eigs step`); phugoid has now hand-rolled
+RK4 + Euler twice (`sim.eigs`, and `latsim.eigs` at rung 2 — the
+integrator can't be shared without function-valued plumbing the rungs
+don't otherwise need), validated by the S0/T0 parity and dt-invariance
+checks. Two consumers re-rolling the same numerics is the G1/G2 shape one
+rung earlier. Candidate upstream API: `lib/ode.eigs` with `rk4_step` /
+`semi_implicit_step` over a user derivative function. Upstream when a
+third consumer rolls one, or when rung 4's swarm makes integrator cost a
+measured concern.
+
+### W4 — missing dict-field access is a silent null
+`d.k` on a dict without `k` returns null silently (v0.41.0; exit 0).
+Bit in round 2 of the rung-1 review: a checker copying `res.k` off the
+WRONG estimator's result (which has `n_extrema`, not `k`) tripped
+nothing, letting an estimator-alias mutation survive — the anti-alias
+k-pins had to be designed around comparing against null instead of
+relying on field access erroring. Likely intended fail-soft semantics
+(the #971/#975 reform track owns the policy); recorded so rung-2+
+checkers keep the pattern: pin a field only via a comparison a null
+cannot pass.

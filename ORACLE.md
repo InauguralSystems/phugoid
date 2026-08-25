@@ -1053,7 +1053,20 @@ distinction lives in each pin's own comment, and the DIVERGENT ones —
 verdicts that contradict physics — are `C5.p1.inner.{diverging,converged}`
 (a decaying mode reported as diverging half the time) and the blind
 cadences `C5.sp.{c010,c020}`.
-- **C5 — the three pre-registered predictions** (below).
+- **C5 — the three pre-registered predictions** (below). Since round 12
+  the inner verdict stream is pinned for ORDER as well as content —
+  `C5.p1.inner.runs = 37` and `.maxrun = 260`. The counts alone could not
+  see it: a count-preserving repack (group by category in first-appearance
+  order, so the multiset is exactly what the trajectory produced and every
+  plant still reds) turned 37 maximal runs into 4 and left 85/85, all 16
+  plants, the manifest and lint green — while "an autopilot would fight a
+  healthy mode half the time" silently became "it flips once in 400 s".
+  `maxrun` also ties the alternation to the physics: at dt = 0.05 a quarter
+  of the predicted closed-loop phugoid period (T = 51.438 s) is 257
+  samples, and the longest run measures 260, so a windowing change upstream
+  reds it. This is the repack class round 3 closed for `C5.p4`'s onset and
+  round 4 for `C4.ph`'s horizon, never applied to the one stream that IS
+  the result.
 - **C6 — read-path profile (a RATIO gate, not an absolute budget):** the shipped gate asserts
   three ratio FLOORS — read/write, write/floor, and (since round 10)
   write/noread — plus a CEILING on write/floor (3.0). No µs/read and no
@@ -1332,16 +1345,16 @@ measured one.)
 |---|---|---|
 | s1 | gain sign flipped (the design error the chain caught before any sim ran) | 33 |
 | s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 35 |
-| s3 | Euler instead of RK4 | 15 |
-| s4 | trim offset by 0.01 rad | 50 |
+| s3 | Euler instead of RK4 | 16 |
+| s4 | trim offset by 0.01 rad | 51 |
 | s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
 | s6 | grading-dt dilation (estimator side only) | 6 |
-| s7 | verdict stream frozen — supervisory layer inert | 21 |
+| s7 | verdict stream frozen — supervisory layer inert | 23 |
 | s8 | ζ/T constant-replaced with the identity field carried | 13 |
-| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 33 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 35 |
 | s10 | dt-rerun grading separator | 1 |
 | s11 | ζ estimator slot alias | 16 |
-| s12 | verdicts forced to `oscillating` — the dual of s7 | 29 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 31 |
 | s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
 | s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
 | s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
@@ -1350,6 +1363,14 @@ measured one.)
 C6's FOUR planted faults live in `tests/test_ap_profile.sh` — one per arm
 (read/write floor, write/floor floor, write/floor ceiling, write/noread
 floor) — and are counted separately; they are not part of this 16.
+
+**Margin note (round 12).** Two arms ship with sub-15% headroom on a
+shared runner: `write/floor` (bound 1.15, measured 0.98 once under load at
+round 7) and `write/noread` (bound 1.15, measured 1.21–1.59). Each gets
+exactly one re-measure before failing. `read/write` was given no ceiling
+because load inflates it; these two floors are the mirror risk and the
+retry is the whole mitigation. If either flakes on CI, the fix is to widen
+with a re-justification here — not to add retries.
 
 **Known-unexercised (deliberate, bounded), rung 3:** (a) the three ratio
 arms bound each pair but not the read/write SPLIT they support — with all
@@ -1362,7 +1383,7 @@ branches, as in rungs 1 and 2.
 
 ## Exit gate for rung 3
 
-1. All C checks green (83, population pinned); every one of the 16
+1. All C checks green (85, population pinned); every one of the 16
    plants red in exactly the declared way; the C6 gate green including
    all FOUR of its planted faults (one per arm);
    rungs 0–2 suites untouched and green.
