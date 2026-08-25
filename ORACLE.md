@@ -942,3 +942,187 @@ rung 3 should re-measure them when the model grows.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds —
    the rung-1 cap, with the identity armor arriving pre-built this time.
 3. CI green on the pushed branch (devcontainer, EIGS_REF=v0.41.0).
+
+
+---
+
+# Rung 3 — the autopilot: closed-loop control, and the observer as the supervisory layer
+
+Written before the controller, per the grader-first rule. The reference
+values below were computed from the rung-0 chain BEFORE any control code
+existed (`A_cl = A + B·K`, then the same `charpoly4 → dk_roots →
+modes_of`), so the closed-loop truth table is a prediction, not a
+description.
+
+## Scope, and what is deliberately NOT in this rung
+
+The ladder listed rung 3 as "6-DOF + control tapes, byte-exact replay
+gate". Two deliberate changes, both recorded so they are decisions rather
+than drift:
+
+- **6-DOF is deferred.** None of this rung's three predictions need it;
+  the longitudinal 3-DOF plant of rung 1 already carries the modes the
+  controller acts on. 6-DOF is a large lift orthogonal to the question
+  being asked, and would dilute it.
+- **The byte-exact replay gate is deferred, because today it would be
+  VACUOUS by construction.** The sim contains no nondeterminism — no RNG,
+  no clock, no human input — so a same-seed two-process diff passes
+  trivially and would certify nothing. The replay gate arrives with its
+  nondeterminism source (sensor noise, or human control input), not
+  before. Recorded as known-unexercised rather than shipped as a green
+  check that measures nothing.
+
+What this rung IS: the first phugoid model that **acts**. Rungs 0–2 grade
+free responses; nothing ever consumed a verdict. Here a controller closes
+the loop, and the observer is graded as a component of that loop.
+
+## The pipeline under test
+
+```
+longitudinal 3-DOF plant (rung 1, unchanged)
+  + elevator control column B from the nominal control derivatives
+  → inner loop: classical pitch-rate feedback, de = de_trim + kq·q   (C0, C2)
+  → closed-loop Jacobian vs A + B·K                                  (C0)
+  → measured closed-loop modes vs predicted eigenvalues, 3 gains     (C2)
+  → invariances: dt, amplitude, gain-scaling                         (C3)
+  → supervisory layer: damper ENGAGED/DISENGAGED by observer verdict (C4)
+  → the three pre-registered predictions                             (C5)
+  → observer read-path cost profile                                  (C6)
+```
+
+## The closed-loop reference (computed 2026-08-25, before the controller)
+
+`B = [0, −8.4264, −0.5574, 0]` from the nominal C_Lδe/C_mδe, with the same
+Zẇ/Mẇ folds as `a_lon`. Law `de = de_trim + kq·q`, so `A_cl = A + B·K`
+with `K = [0,0,kq,0]`:
+
+| kq | SP T (s) | SP ζ | phugoid T (s) | phugoid ζ |
+|---|---|---|---|---|
+| 0.00 | 9.1341 | 0.62542 | 46.918 | 0.013245 |
+| 0.25 | 9.1510 | 0.66997 | 49.233 | 0.024916 |
+| 0.50 | 9.2681 | 0.71236 | 51.438 | 0.035855 |
+| 1.00 | 9.8615 | 0.79164 | 55.580 | 0.055945 |
+
+Monotone in both modes, which is itself a check: a controller that damps
+the short period while *degrading* the phugoid has the sign wrong (the
+first gain tried during design did exactly that — phugoid ζ went to
+−0.045 — and the chain caught it before any sim ran).
+
+## Checks and tolerances (claims first; measurements recorded after)
+
+- **C0 — closed-loop parity (16):** central-difference Jacobian of the
+  CONTROLLED derivative function at trim vs `A + B·K`, per-entry, with
+  **rung 1's S0 arms, not rung 2's** — corrected after measurement: this
+  is the longitudinal plant, whose trim sits at a small non-zero α, so
+  the entries that are structurally zero in the chain matrix are
+  O(u₀·α_trim) here (worst 0.0143 at a13 = −w_trim, at every gain). Rung
+  2 reached machine epsilon only because its lateral trim is the exact
+  origin. Arms: rel 3·10⁻³ with per-entry absolute arms as in rung 1.
+  This pins that the controller's linearization is the matrix the
+  predictions were computed from — without it, C2 could pass against a
+  plant that is not the one the oracle describes.
+- **C1 — trim preserved (5):** with kq = 0 the closed-loop model must
+  reproduce rung 1's S1 exactly (residuals ≤ 1e-9, 60 s hold), proving
+  the controller is a no-op at zero gain rather than a new plant.
+- **C2 — closed-loop modes graded (9):** for kq ∈ {0.25, 0.5, 1.0}, the
+  SP-subspace free response of the CLOSED loop, graded by rung-0's
+  estimators against the predicted A_cl eigenvalues above: T within
+  **1%**, ζ within **2%**, plus the identity pins (k/n_extrema/n_ratios,
+  values distinct per site per the one-literal rule).
+- **C3 — invariances (9):** dt halved < 0.1%; excitation amplitude halved
+  < 0.5%; and a **gain-USE witness** — the measured ζ must MOVE with kq
+  in the predicted direction and magnitude (rung-2 round-8's lesson: an
+  invariance row is only a test if the varied parameter reaches the
+  dynamics; here the gain is the parameter, so its effect is the pin).
+- **C4 — supervisory layer (population pinned in harness):** the damper
+  is engaged/disengaged by `report of q`, not by a hand-written trigger.
+  Physics truth table written first: engaged during the transient,
+  disengaged once settled. Graded as agree/divergence rows like rungs 1–2.
+- **C5 — the three pre-registered predictions** (below).
+- **C6 — read-path profile (a RATIO gate, not an absolute budget):** measured µs per predicate
+  read and per frame, with a regression bound. Baseline probe measured
+  2026-08-25 before this rung: **0.70 µs/read**, read path = 64% of a
+  write+read workload, and observed *scalar* writes ≈ free (0.31 s vs a
+  0.30 s fully-unobserved floor over 200k frames, n=5 medians). The gate
+  is a ceiling, not a target: a regression past it is a FAIL. Shipped as
+  `tests/ap_profile.eigs` + `tests/test_ap_profile.sh`, gating the
+  read/write RATIO (measured 2.09–2.8×, bound 1.5×) rather than a wall
+  time, because absolute budgets flake on shared CI runners while the
+  ratio is a property of the runtime. If reads are ever made O(1) the
+  gate fails BY DESIGN and says so in its own failure message — that is
+  the signal to re-measure and re-justify, not a regression.
+
+## The three pre-registered predictions (recorded before the build)
+
+1. **Verdict-driven INNER-loop damping will limit-cycle.** A controller
+   that modulates the damper gain continuously on a discrete verdict at
+   inner-loop rate will chatter at the band boundary — the same failure
+   Eigen-Geometric-Control shows (99% of ticks sign-flipping, 94% of
+   control budget spent fighting itself), sourced here from the observer's
+   band quantization rather than from the control law. Measurable: command
+   sign flips per tick, and the estimators reporting a spurious oscillation
+   at the sampling frequency.
+2. **Verdict-driven SUPERVISORY control will hold, at a measurable lag.**
+   Engagement latency ≈ the window duration; the closed-loop response
+   while engaged still matches the C2 predictions.
+3. **No single observation cadence serves both longitudinal modes.**
+   The window is 10 SAMPLES, so seeing an oscillation fold requires the
+   window to span a period — which delays the verdict by half a period.
+   Short period (T = 9.13 s) and phugoid (T = 46.9 s) differ by 5.1×, so
+   the cadence that makes one observable makes the other useless. This is
+   G4 escalated from "wrong verdict" to "unsatisfiable requirement", and
+   it is the strongest argument EigenScript#1044 will get.
+
+**Both predictions 1 and 2 were REFUTED by measurement, and the
+refutations are the rung's main result.** Recorded here in full, since a
+pre-registered prediction that survives contact unchanged teaches less
+than one that does not:
+
+- **Prediction 1 (inner-loop chatter) — WRONG.** At inner-loop rate the
+  10-sample window spans 0.5 s against a 51 s mode — 1% of a cycle — so
+  the classifier is not noisy, it is **blind**: 0 `oscillating` verdicts
+  in 8000 reads, 0 engagements, the damper never acts at all. The failure
+  mode is silence, not chatter. Pinned as `C5.p1.inner.*`.
+- **Prediction 2 (supervisory holds cleanly) — HALF WRONG.** Supervision
+  does act on a persistent regime (59 `oscillating` verdicts in 80 reads
+  on the phugoid at a matched cadence), but the engagement **flickers 15
+  times** in a single phugoid episode, because the raw verdict carries no
+  hysteresis at the band boundary. A damper cycling on and off 15 times
+  is not "holds". A control consumer needs a debounce the predicates do
+  not provide. Pinned as `C5.p2.sup.toggles = 15`.
+- **Prediction 3 — CONFIRMED, and stronger than stated.** For the short
+  period there is no usable cadence at all: 0.1 s and 0.2 s cadences are
+  blind (window < period), 0.5 s and 1 s report exactly once, *after* the
+  mode has decayed (t = 5 s and t = 10 s for a mode that is gone by ~5 s).
+  Detection latency and phase lag are the same quantity, so a windowed
+  verdict cannot act on a well-damped transient. The complement holds
+  too: the lightly-damped phugoid (ζ = 0.036, ringing for many periods)
+  IS actionable at 74–88% of reads. **The design law: verdict-driven
+  supervision is usable exactly when the regime persists for more than
+  ~1–2 observation windows.**
+
+## Rung-3 planted-fault matrix
+
+Same rules, and the rung-1/2 armor arrives PRE-BUILT from the first
+commit (identity pins with distinct values, read-site accessors, ROW
+tokens on every generator AND graded run, USE witnesses on every varied
+parameter, displacement plants at 1.1× executed tolerance for all three
+comparators, no-refusals guards on fabricating plants, manifest identity
++ class vocabulary). Plants planned, red sets measured then pinned:
+s1 gain sign flipped, s2 B column zeroed (controller inert — the rung-1
+inert-obstacle class), s3 Euler, s4 trim offset, s5 gain-USE vacuity
+(rerun built at the base gain), s6 grading-dt dilation, s7 verdict stream
+frozen (supervisory layer inert), s8 ζ/T constant-replace with identity
+carried, s9 broad dataset poison, s10 rerun-side corruption, s11–s13 the
+estimator slot aliases, s14 comparator displacement, s15 read-path budget
+displaced past its bound.
+
+## Exit gate for rung 3
+
+1. All C checks green (56, population pinned); every one of the 14
+   plants red in exactly the declared way; the C6 ratio gate green;
+   rungs 0–2 suites untouched and green.
+2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds.
+3. CI green on the pushed branch.
+4. The three predictions each reported with their measurement — including
+   any that failed to reproduce.

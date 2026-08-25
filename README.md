@@ -48,6 +48,27 @@ Rung 1 (shipped 2026-08-24) is the first model, graded by rung 0:
   `diverging` on its quarter-cycles (GAPS.md G4, the first measured
   instance of the proposal's two-timescale prediction).
 
+Rung 3 (shipped 2026-08-25) is the first phugoid model that **acts** —
+a closed-loop autopilot, with the observer as its supervisory layer:
+
+- **`autopilot.eigs`** — classical pitch-rate feedback on the rung-1
+  plant, graded against closed-loop pole predictions computed from the
+  chain BEFORE the controller existed (`A_cl = A + B·K`, then the same
+  `charpoly4 → dk_roots → modes_of`). Measured: ζ tracks the prediction
+  to 0.15–0.64%, and the whole grading apparatus transferred with no new
+  oracle code.
+- **The observer in the loop.** Two of three pre-registered predictions
+  were **refuted**, which is the rung's main result: at inner-loop rate
+  the observer is not noisy but *blind* (0 oscillating verdicts in 8000
+  reads — the window spans 1% of a cycle), and supervision does not hold
+  cleanly but *flickers* (15 engage/disengage toggles in one phugoid
+  episode, for want of hysteresis). The design law that survives: a
+  windowed verdict is actionable only for regimes persisting longer than
+  ~1–2 observation windows.
+- **`tests/ap_profile.eigs`** — the observer's READ path, which no
+  consumer had put under load, is 2–2.8× the write path on this shape,
+  so EigenScript#915's write-path gate cannot help it by construction.
+
 Rung 2 (shipped 2026-08-24) is the lateral model — three timescales and
 the level-set stress:
 
@@ -77,6 +98,9 @@ bash tests/test_observer.sh    # 11 observer-verdict checks + 2 plants
 bash tests/test_latsim.sh      # 76 rung-2 model checks vs the rung-0 chain
 bash tests/test_latsim_planted.sh # 22 rung-2 plants, exact red sets + manifest
 bash tests/test_observer_lat.sh   # 13 rung-2 observer checks + 2 plants
+bash tests/test_ap.sh          # 56 rung-3 closed-loop checks
+bash tests/test_ap_planted.sh  # 14 rung-3 plants, exact red sets + manifest
+bash tests/test_ap_profile.sh  # the observer read-path ratio gate
 ```
 
 Requires `eigenscript` on PATH (or `EIGENSCRIPT=/path/to/binary`), pinned in
@@ -89,7 +113,8 @@ CI at the version in `.devcontainer/Dockerfile`.
 | 0 | Oracle before code: dataset, mode predictions, measurement scripts | done |
 | 1 | Longitudinal 3-DOF, trimmed; elevator pulse → phugoid, SP-subspace IC → short period, graded against rung 0; observer verdicts graded second | **done** |
 | 2 | Lateral 3-DOF: Dutch roll, spiral, roll subsidence via mode-pure annihilator ICs; the level-set/value-channel stress graded | **done** |
-| 3 | 6-DOF + control tapes, byte-exact replay gate | — |
+| 3 | The autopilot: closed-loop control graded against closed-loop pole predictions; the observer as supervisory layer | **done** |
+| 3b | 6-DOF + control tapes, byte-exact replay gate (deferred from rung 3: no nondeterminism source yet, so the gate would be vacuous) | — |
 | 4 | The swarm: N aircraft, three-arm observer cost curve (ceiling/disciplined/floor), VM-vs-AOT | — |
 
 Headless by contract through rung 4; any instrument-panel phase comes after

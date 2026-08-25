@@ -32,4 +32,4 @@ jobs:
               EIGENSCRIPT=eigenscript bash "$t"
               N=$((N+1))
             done
-            [ "$N" -ge 11 ] || { echo "FAIL: only $N test scripts found"; exit 1; }
+            [ "$N" -ge 14 ] || { echo "FAIL: only $N test scripts found"; exit 1; }

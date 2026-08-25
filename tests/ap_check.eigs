@@ -1,0 +1,404 @@
+# ap_check.eigs — the rung-3 C0..C5 checks from ORACLE.md.
+# Run from the repo root:  eigenscript tests/ap_check.eigs [plant]
+# Plants: s1 gain sign flipped, s2 B column zeroed (controller inert),
+# s3 Euler, s4 trim offset, s5 gain-USE vacuity (rerun at base gain),
+# s6 grading-dt dilation, s7 verdict stream frozen (supervisory inert),
+# s8 zeta/T constant-replace with identity carried, s9 broad dataset
+# poison, s10 rerun-side corruption, s11/s12 estimator slot aliases,
+# s10 dt-rerun grading separator, s11 zeta slot alias, s12 verdicts
+# forced to `oscillating` (the dual of s7),
+# s13 comparator displacement (below/relabs), s14 check_rel displacement.
+# Population pinned at exactly 56.
+#
+# The rung-1/2 armor arrives pre-built: identity pins with distinct
+# values, read-site accessors, ROW tokens on every graded run, USE
+# witnesses on every varied parameter, displacement plants at 1.1x the
+# executed tolerance for all comparators, no-refusals guards on the
+# fabricating plants, manifest identity + class vocabulary.
+
+load_file of "data/b747_approach.eigs"
+load_file of "autopilot.eigs"
+load_file of "measure.eigs"
+load_file of "tests/checklib.eigs"
+
+cli is args of null
+plant is ""
+if (len of cli) > 0:
+    plant is cli[0]
+
+checks_run is 0
+failures is 0
+
+define check_rel(name, ours, truth, reltol) as:
+    checks_run is checks_run + 1
+    local v is ours
+    if plant == "s14":
+        local sg is 1.0
+        if v < truth:
+            sg is 0.0 - 1.0
+        v is v + sg * 1.1 * reltol * (abs of truth)
+    if (rel_tol_ok of [v, truth, reltol]) == 1:
+        print of f"PASS {name} reltol={reltol} ours={v} truth={truth}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} reltol={reltol} ours={v} truth={truth}"
+
+define c0_exempt(name) as:
+    for nm in ["C0.a41", "C0.a42", "C0.a43", "C0.a44"]:
+        if nm == name:
+            return 1
+    return 0
+
+define check_relabs(name, ours, ref, reltol, abstol) as:
+    checks_run is checks_run + 1
+    local v is ours
+    if plant == "s13":
+        if (c0_exempt of (name)) == 0:
+            local eff is reltol * (abs of ref)
+            if abstol > eff:
+                eff is abstol
+            local sg is 1.0
+            if v < ref:
+                sg is 0.0 - 1.0
+            v is v + sg * 1.1 * eff
+    local diff is abs of (v - ref)
+    local ok is 0
+    if diff <= reltol * (abs of ref):
+        ok is 1
+    if diff <= abstol:
+        ok is 1
+    if ok == 1:
+        print of f"PASS {name} relabs={reltol}|{abstol} ours={v} ref={ref}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} relabs={reltol}|{abstol} ours={v} ref={ref}"
+
+define check_below(name, val, bound) as:
+    checks_run is checks_run + 1
+    local v is val
+    if plant == "s13":
+        v is (abs of v) + 1.1 * bound
+    if (abs of v) <= bound:
+        print of f"PASS {name} below={bound} val={v}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} below={bound} val={v}"
+
+define check_exact(name, val, want) as:
+    checks_run is checks_run + 1
+    if val == want:
+        print of f"PASS {name} exact={want} val={val}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} exact={want} val={val}"
+
+define check_result(name, res, field, truth, reltol) as:
+    if res.ok == 1:
+        check_rel of [name, res[field], truth, reltol]
+    else:
+        checks_run is checks_run + 1
+        failures is failures + 1
+        print of f"FAIL {name} reltol={reltol} estimator refused: {res.reason}"
+
+# Read-site identity accessors (rung-1 rounds 6-7).
+define as_tp(res) as:
+    if res.ok == 1:
+        if res.n_extrema == null:
+            return {"ok": 0, "reason": "not an extrema result (n_extrema missing)"}
+    return res
+
+define as_zl(res) as:
+    if res.ok == 1:
+        if res.n_ratios == null:
+            return {"ok": 0, "reason": "not a log-decrement result (n_ratios missing)"}
+    return res
+
+define as_ze(res) as:
+    if res.ok == 1:
+        if res.n_fit == null:
+            return {"ok": 0, "reason": "not an envelope result (n_fit missing)"}
+    return res
+
+# Plant s8: graded zeta/T constant-replaced AFTER the estimator, with the
+# identity field CARRIED so the fabrication reds through the NUMERIC arm
+# (rung-1 round-7 rule; the block asserts no-refusals).
+define mangle_z(res) as:
+    if plant == "s8":
+        if res.ok == 1:
+            if res.n_ratios != null:
+                return {"ok": 1, "zeta": 0.05, "n_ratios": res.n_ratios}
+            return {"ok": 1, "zeta": 0.05, "n_fit": res.n_fit}
+    return res
+
+define mangle_T(res) as:
+    if plant == "s8":
+        if res.ok == 1:
+            return {"ok": 1, "T": 5.0, "n_extrema": res.n_extrema}
+    return res
+
+# Plant s6: the dt handed to the sim-signal estimators only.
+define est_dt(dt) as:
+    if plant == "s6":
+        return dt * 1.02
+    return dt
+
+# ------------------------------------------------------- references
+data_ref is b747_approach of null
+d_ref is dim_derivs_lon of (data_ref)
+A_ref is a_lon of [d_ref, data_ref.cond]
+B_ref is ctl_column of [data_ref, ctl_nominal of null]
+
+define make_data as:
+    local dcopy is b747_approach of null
+    if plant == "s9":
+        dcopy.lon.CLa is dcopy.lon.CLa * 1.1
+        dcopy.lon.Cma is dcopy.lon.Cma * 1.05
+        dcopy.lon.Cmq is dcopy.lon.Cmq * 1.2
+        dcopy.cond.W is dcopy.cond.W * 1.05
+    return dcopy
+
+# Plant s1 flips the gain sign (the design error the chain caught before
+# any sim ran: phugoid zeta goes negative).
+define eff_gain(kq) as:
+    if plant == "s1":
+        return 0.0 - kq
+    # Plant s2: the gain never reaches the dynamics — the controller is
+    # inert while every row still claims its gain (the rung-1
+    # inert-obstacle class). NOTE: the first draft of this plant zeroed
+    # the sim's control derivatives instead, which CRASHED trim_solve —
+    # a pre-existing rung-1 robustness gap recorded in GAPS.md (the
+    # delta-e column of the trim Jacobian goes to zero, linalg
+    # solve_linear returns null, and trim_solve indexes it unchecked).
+    if plant == "s2":
+        return 0.0
+    return kq
+
+method is "rk4"
+if plant == "s3":
+    method is "euler"
+
+data_sim is make_data of null
+ctl_sim is ctl_nominal of null
+P0 is sim_params of [data_sim, ctl_sim]
+tr0 is trim_solve of (P0)
+tr is tr0
+if plant == "s4":
+    tr.alpha is tr0.alpha + 0.01
+    tr.state is trim_state of [tr.alpha, tr0.P.u0]
+
+# Predicted closed-loop modes for a gain (the ORACLE reference), from the
+# CLEAN chain — plants poison only the sim side so the differential fires.
+define predicted(kq) as:
+    return modes_of of (dk_roots of [charpoly4 of (a_closed of [A_ref, B_ref, [0.0, 0.0, kq, 0.0]]), 60])
+
+# ------------------------------------------------------- C1: trim preserved at kq=0
+res is trim_residual of [[tr.alpha, tr.de, tr.thrust], tr.P]
+check_below of ["C1.res.udot", res[0], 1e-9]
+check_below of ["C1.res.wdot", res[1], 1e-9]
+check_below of ["C1.res.qdot", res[2], 1e-11]
+hold is cl_run of ["C1.hold.run", tr.state, tr.de, 0.0, 0.05, 1200, 1, tr.P, method]
+hmax_u is 0.0
+hmax_q is 0.0
+i is 0
+loop while i < (len of hold.t):
+    local du is abs of (hold.u[i] - tr.state[0])
+    if du > hmax_u:
+        hmax_u is du
+    local dq is abs of hold.q[i]
+    if dq > hmax_q:
+        hmax_q is dq
+    i is i + 1
+check_below of ["C1.hold.u", hmax_u, 1e-6]
+check_below of ["C1.hold.q", hmax_q, 1e-9]
+
+# ------------------------------------------------------- C0: closed-loop parity
+# Per-entry absolute arms inherited from rung-1's S0: the longitudinal
+# trim sits at a small non-zero alpha, so entries that are structurally
+# zero in the chain matrix are O(u0*alpha_trim) here (a13 = -w_trim, the
+# 0.0143 measured in rung 1 and again at every gain in rung 3).
+Jcl is cl_jacobian of [tr.state, tr.de, eff_gain of (0.5), tr.P]
+Acl_ref is a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]]
+c0_abs is [[0.001, 0.001, 0.03, 0.001], [0.001, 0.001, 0.001, 0.004], [1e-5, 1e-6, 0.001, 1e-5], [0.001, 0.001, 0.001, 0.001]]
+for r in range of 4:
+    for c in range of 4:
+        check_relabs of [f"C0.a{r + 1}{c + 1}", Jcl[r][c], Acl_ref[r][c], 0.003, c0_abs[r][c]]
+
+# ------------------------------------------------------- C2: closed-loop modes graded
+# Amplitude 0.1 ft/s: the A_cl prediction is a LINEARIZATION, and the
+# measured error scales with amplitude (kq=1: -12.0% at amp 2.0, -4.4%
+# at 0.5, -0.28% at 0.1, -0.018% at 0.01 — measured 2026-08-25). 0.1
+# keeps every arm honest with >=3x margin; C3.lin pins the direction.
+define grade_cl(rn, kq, amp, dt, decim, gdt, nsteps) as:
+    local pk is predicted of (kq)
+    local Aclp is a_closed of [A_ref, B_ref, [0.0, 0.0, kq, 0.0]]
+    local ic is sp_subspace_ic of [Aclp, pk.osc[0].re, pk.osc[0].im, tr.state, amp]
+    local rec is cl_run of [rn, ic, tr.de, eff_gain of (kq), dt, nsteps, decim, tr.P, method]
+    local wwin is []
+    local i is 0
+    loop while i < (len of rec.t):
+        append of [wwin, rec.w[i] - tr.state[1]]
+        i is i + 1
+    local g is est_dt of (gdt)
+    # Plant s11: the zeta slots SWAPPED. The two estimators agree to ~1e-4
+    # here, so only the identity fields (n_ratios vs n_fit) can see it —
+    # the rung-1/2 slot-alias class.
+    local zl is mangle_z of (zeta_logdec of [wwin, g])
+    local ze is mangle_z of (zeta_envelope of [wwin, g])
+    if plant == "s11":
+        zl is zeta_envelope of [wwin, g]
+        ze is zeta_logdec of [wwin, g]
+    return {"T": mangle_T of (period_peaks of [wwin, g]), "zl": zl, "ze": ze, "pred": pk.osc[1]}
+
+base is {}
+for gc in [["k025", 0.25, 4, 2, 3], ["k050", 0.50, 4, 2, 3], ["k100", 1.00, 4, 2, 3]]:
+    local nm is gc[0]
+    local kq is gc[1]
+    local G is grade_cl of [f"C2.{nm}.run", kq, 0.1, 0.02, 1, 0.02, 800]
+    base[nm] is G
+    check_result of [f"C2.{nm}.T", as_tp of (G.T), "T", G.pred.T, 0.01]
+    check_result of [f"C2.{nm}.zlog", as_zl of (G.zl), "zeta", G.pred.zeta, 0.02]
+    check_result of [f"C2.{nm}.zenv", as_ze of (G.ze), "zeta", G.pred.zeta, 0.02]
+    check_exact of [f"C2.{nm}.T.n", G.T.n_extrema, gc[2]]
+    check_exact of [f"C2.{nm}.zl.nr", G.zl.n_ratios, gc[3]]
+    check_exact of [f"C2.{nm}.ze.nf", G.ze.n_fit, gc[4]]
+
+# ------------------------------------------------------- C3: invariances + USE witnesses
+# dt halved (recording cadence preserved). Plant s10 corrupts the
+# RERUN's grading alone — the separator that distinguishes the dt rerun
+# from its agreeing base sibling (rung-2 round-7: identity pins read the
+# source object, not the row's wiring).
+dt_gdt is 0.02
+if plant == "s10":
+    dt_gdt is 0.02 * 1.02
+dtG is grade_cl of ["C3.dt.run", 0.5, 0.1, 0.01, 2, dt_gdt, 1600]
+check_result of ["C3.dt.T", as_tp of (dtG.T), "T", base.k050.T.T, 0.001]
+check_result of ["C3.dt.zlog", as_zl of (dtG.zl), "zeta", base.k050.zl.zeta, 0.001]
+check_result of ["C3.dt.zenv", as_ze of (dtG.ze), "zeta", base.k050.ze.zeta, 0.001]
+
+# GAIN-USE witness: the measured zeta must MOVE with kq, in the predicted
+# direction and by the predicted amount. Without this, a controller whose
+# gain never reaches the dynamics (plant s2) passes every C2 row, because
+# each row is graded against ITS OWN gain's prediction.
+# Guarded: a refused upstream estimator must FAIL the derived check, not
+# crash the harness (plant s4 did exactly that in the first draft).
+define check_derived(name, ok, ours, truth, reltol) as:
+    checks_run is checks_run + 1
+    if ok == 0:
+        failures is failures + 1
+        print of f"FAIL {name} reltol={reltol} derived from a refused estimator"
+    else:
+        local v is ours
+        if plant == "s14":
+            local sg is 1.0
+            if v < truth:
+                sg is 0.0 - 1.0
+            v is v + sg * 1.1 * reltol * (abs of truth)
+        if (rel_tol_ok of [v, truth, reltol]) == 1:
+            print of f"PASS {name} reltol={reltol} ours={v} truth={truth}"
+        else:
+            failures is failures + 1
+            print of f"FAIL {name} reltol={reltol} ours={v} truth={truth}"
+
+gain_ok is 0
+d_meas is 0.0
+if base.k100.zl.ok == 1:
+    if base.k025.zl.ok == 1:
+        gain_ok is 1
+        d_meas is base.k100.zl.zeta - base.k025.zl.zeta
+d_pred is (predicted of (1.0)).osc[1].zeta - (predicted of (0.25)).osc[1].zeta
+check_derived of ["C3.gain.use", gain_ok, d_meas, d_pred, 0.05]
+gain_dir is 0
+if gain_ok == 1:
+    if d_meas > 0.0:
+        gain_dir is 1
+check_exact of ["C3.gain.dir", gain_dir, 1]
+
+# LINEARITY witness: the A_cl prediction is a linearization, so the error
+# must SHRINK with amplitude. Plant s5 rebuilds the small-amplitude run at
+# the base amplitude, making the comparison vacuous.
+amp_small is 0.02
+if plant == "s5":
+    amp_small is 0.1
+linG is grade_cl of ["C3.lin.run", 1.0, amp_small, 0.02, 1, 0.02, 800]
+lin_ok is 0
+if base.k100.T.ok == 1:
+    if linG.T.ok == 1:
+        local err_big is abs of ((base.k100.T.T - base.k100.pred.T) / base.k100.pred.T)
+        local err_small is abs of ((linG.T.T - linG.pred.T) / linG.pred.T)
+        if err_small < err_big:
+            lin_ok is 1
+check_exact of ["C3.lin.shrinks", lin_ok, 1]
+
+# ------------------------------------------------------- C4/C5: the observer in the loop
+# Physics truth, written before measuring: the SP transient (zeta 0.71)
+# decays within about one period; the phugoid (zeta 0.036) rings for many.
+# A windowed classifier needs a window spanning a period to see a fold,
+# which delays the verdict by ~half a period — so supervision can only
+# act on regimes that PERSIST. Measured 2026-08-25 and pinned below.
+freeze is "live"
+if plant == "s7":
+    freeze is "frozen"
+if plant == "s12":
+    freeze is "forced"
+
+pk05 is predicted of (0.5)
+ic_sp is sp_subspace_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[0].re, pk05.osc[0].im, tr.state, 0.1]
+ic_ph is sp_subspace_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 5.0]
+
+define osc_count(rec) as:
+    local n is 0
+    local i is 0
+    loop while i < (len of rec.verdict):
+        if rec.verdict[i] == "oscillating":
+            n is n + 1
+        i is i + 1
+    return n
+
+# C5.P3 — the cadence sweep on the SHORT PERIOD: no cadence both sees the
+# fold and reports in time. Fast cadences are blind (window < period);
+# slow ones report after the mode is over.
+for cs in [["c010", 5, 0], ["c020", 10, 0], ["c050", 25, 1], ["c100", 50, 1]]:
+    local rec is sup_run of [f"C5.sp.{cs[0]}.run", ic_sp, tr.de, 0.5, 0.02, 1500, 25, cs[1], tr.P, method, freeze]
+    check_exact of [f"C5.sp.{cs[0]}.osc", osc_count of (rec), cs[2]]
+
+# C4 — the POSITIVE control: a persistent regime IS actionable. The
+# phugoid at a matched cadence yields sustained oscillating verdicts.
+ph_rec is sup_run of ["C4.ph.run", ic_ph, tr.de, 0.5, 0.05, 8000, 100, 100, tr.P, method, freeze]
+check_exact of ["C4.ph.reads", ph_rec.reads, 80]
+check_exact of ["C4.ph.osc", osc_count of (ph_rec), 59]
+ph_frac_ok is 0
+if osc_count of (ph_rec) > 40:
+    ph_frac_ok is 1
+check_exact of ["C4.ph.sustained", ph_frac_ok, 1]
+
+# C5.P1 — verdict-driven INNER-loop modulation chatters. Sampling the
+# verdict every step makes the engagement toggle at the band boundary;
+# the supervisory cadence does not.
+# C5.P1 — PREDICTION REFUTED, and the refutation is the finding.
+# The pre-registered prediction was that verdict-driven inner-loop
+# modulation would CHATTER. Measured, it does not: at inner-loop rate
+# the 10-sample window spans 0.5 s against a 51 s period — 1% of a
+# cycle — so the classifier is simply BLIND, reports `oscillating`
+# zero times in 8000 reads, and the damper never engages at all. The
+# failure mode is silence, not chatter. Pinned as measured so the day
+# upstream changes the windowing, this flips loudly.
+inner is sup_run of ["C5.p1.inner.run", ic_ph, tr.de, 0.5, 0.05, 8000, 100, 1, tr.P, method, freeze]
+check_exact of ["C5.p1.inner.reads", inner.reads, 8000]
+check_exact of ["C5.p1.inner.osc", osc_count of (inner), 0]
+check_exact of ["C5.p1.inner.engagements", inner.toggles, 0]
+# And the supervisory layer does NOT hold cleanly either: it sees the
+# regime (59 of 80 reads) but the engagement flickers 15 times in one
+# phugoid episode, because the raw verdict carries no hysteresis at the
+# band boundary. A control consumer needs a debounce the language's
+# predicates do not provide. Toggles are counted INSIDE the run at the
+# moment the gain changes — reading the decimated `engaged` record
+# undercounted them (the instrument, not the physics).
+check_exact of ["C5.p2.sup.toggles", ph_rec.toggles, 15]
+
+print of f"CHECKS_RUN {checks_run}"
+print of f"FAILURES {failures}"
+if checks_run != 56:
+    print of f"FAIL harness: expected exactly 56 checks, ran {checks_run}"
+    exit of 1
+if failures > 0:
+    exit of 1

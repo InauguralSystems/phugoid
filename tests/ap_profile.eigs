@@ -1,0 +1,78 @@
+# ap_profile.eigs — the rung-3 C6 read-path profile.
+# Run: eigenscript tests/ap_profile.eigs [read|write|floor]
+#
+# The autopilot shape: state channels written per frame, plus verdict
+# reads. Rungs 0-2 exercised only the WRITE path (what EigenScript#915's
+# gate optimises). A controller polling verdicts exercises the READ path,
+# which no consumer had put under load — and on this shape the read path
+# dominates, so the gate cannot help here by construction.
+# The three variants isolate it:
+#   read  — observed writes + 4 verdict reads per frame (the autopilot)
+#   write — observed writes only (what rungs 0-2 did)
+#   floor — everything inside `unobserved:` (no observer at all)
+
+cli is args of null
+mode is "read"
+if (len of cli) > 0:
+    mode is cli[0]
+
+N is 120000
+
+define run_read(n) as:
+    local u is 0.0
+    local w is 0.0
+    local q is 0.0
+    local th is 0.0
+    local hits is 0
+    local i is 0
+    loop while i < n:
+        u is 280.0 + (sin of (i * 0.01))
+        w is 2.0 + (cos of (i * 0.01))
+        q is 0.01 * (sin of (i * 0.03))
+        th is 0.02 * (cos of (i * 0.02))
+        if oscillating of u:
+            hits is hits + 1
+        if converged of w:
+            hits is hits + 1
+        if stable of q:
+            hits is hits + 1
+        if diverging of th:
+            hits is hits + 1
+        i is i + 1
+    return hits
+
+define run_write(n) as:
+    local u is 0.0
+    local w is 0.0
+    local q is 0.0
+    local th is 0.0
+    local i is 0
+    loop while i < n:
+        u is 280.0 + (sin of (i * 0.01))
+        w is 2.0 + (cos of (i * 0.01))
+        q is 0.01 * (sin of (i * 0.03))
+        th is 0.02 * (cos of (i * 0.02))
+        i is i + 1
+    return i
+
+define run_floor(n) as:
+    local u is 0.0
+    local w is 0.0
+    local q is 0.0
+    local th is 0.0
+    local i is 0
+    unobserved:
+        loop while i < n:
+            u is 280.0 + (sin of (i * 0.01))
+            w is 2.0 + (cos of (i * 0.01))
+            q is 0.01 * (sin of (i * 0.03))
+            th is 0.02 * (cos of (i * 0.02))
+            i is i + 1
+    return i
+
+if mode == "read":
+    print of f"read {run_read of (N)}"
+elif mode == "write":
+    print of f"write {run_write of (N)}"
+else:
+    print of f"floor {run_floor of (N)}"

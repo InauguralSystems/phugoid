@@ -1,0 +1,79 @@
+# ap_manifest.txt — every check name in ap_check.eigs with its
+# planted-fault coverage class and tolerance token (rules as in
+# sim_manifest.txt / latsim_manifest.txt, enforced by test_ap_planted.sh).
+# Structural entries (written justification, ORACLE.md rung-3 C0/C4):
+#   C0.a41..a44 — the theta-dot row [0,0,1,0], a builder constant no
+#     data plant can move (same exemption as rungs 1 and 2).
+#   C4.ph.reads, C5.p1.inner.reads — read COUNTS derived only from
+#     call-site literals (nsteps / cadence). No data plant can move
+#     them; they are pinned instead by the ROW token identity, which
+#     carries those same literals.
+# Regenerate only with a written justification in ORACLE.md.
+ap C1.res.udot plantable below=1e-09
+ap C1.res.wdot plantable below=1e-09
+ap C1.res.qdot plantable below=1e-11
+ap C1.hold.u plantable below=1e-06
+ap C1.hold.q plantable below=1e-09
+ap C0.a11 plantable relabs=0.003|0.001
+ap C0.a12 plantable relabs=0.003|0.001
+ap C0.a13 plantable relabs=0.003|0.03
+ap C0.a14 plantable relabs=0.003|0.001
+ap C0.a21 plantable relabs=0.003|0.001
+ap C0.a22 plantable relabs=0.003|0.001
+ap C0.a23 plantable relabs=0.003|0.001
+ap C0.a24 plantable relabs=0.003|0.004
+ap C0.a31 plantable relabs=0.003|1e-05
+ap C0.a32 plantable relabs=0.003|1e-06
+ap C0.a33 plantable relabs=0.003|0.001
+ap C0.a34 plantable relabs=0.003|1e-05
+ap C0.a41 structural relabs=0.003|0.001
+ap C0.a42 structural relabs=0.003|0.001
+ap C0.a43 structural relabs=0.003|0.001
+ap C0.a44 structural relabs=0.003|0.001
+ap C2.k025.T plantable reltol=0.01
+ap C2.k025.zlog plantable reltol=0.02
+ap C2.k025.zenv plantable reltol=0.02
+ap C2.k025.T.n plantable exact=4
+ap C2.k025.zl.nr plantable exact=2
+ap C2.k025.ze.nf plantable exact=3
+ap C2.k050.T plantable reltol=0.01
+ap C2.k050.zlog plantable reltol=0.02
+ap C2.k050.zenv plantable reltol=0.02
+ap C2.k050.T.n plantable exact=4
+ap C2.k050.zl.nr plantable exact=2
+ap C2.k050.ze.nf plantable exact=3
+ap C2.k100.T plantable reltol=0.01
+ap C2.k100.zlog plantable reltol=0.02
+ap C2.k100.zenv plantable reltol=0.02
+ap C2.k100.T.n plantable exact=4
+ap C2.k100.zl.nr plantable exact=2
+ap C2.k100.ze.nf plantable exact=3
+ap C3.dt.T plantable reltol=0.001
+ap C3.dt.zlog plantable reltol=0.001
+ap C3.dt.zenv plantable reltol=0.001
+ap C3.gain.use plantable reltol=0.05
+ap C3.gain.dir plantable exact=1
+ap C3.lin.shrinks plantable exact=1
+ap C5.sp.c010.osc plantable exact=0
+ap C5.sp.c020.osc plantable exact=0
+ap C5.sp.c050.osc plantable exact=1
+ap C5.sp.c100.osc plantable exact=1
+ap C4.ph.reads structural exact=80
+ap C4.ph.osc plantable exact=59
+ap C4.ph.sustained plantable exact=1
+ap C5.p1.inner.reads structural exact=8000
+ap C5.p1.inner.osc plantable exact=0
+ap C5.p1.inner.engagements plantable exact=0
+ap C5.p2.sup.toggles plantable exact=15
+rowparams C1.hold.run params=0|0.05|1|1200
+rowparams C2.k025.run params=0.25|0.02|1|800
+rowparams C2.k050.run params=0.5|0.02|1|800
+rowparams C2.k100.run params=1|0.02|1|800
+rowparams C3.dt.run params=0.5|0.01|2|1600
+rowparams C3.lin.run params=1|0.02|1|800
+rowparams C5.sp.c010.run params=0.5|0.02|25|5|1500
+rowparams C5.sp.c020.run params=0.5|0.02|25|10|1500
+rowparams C5.sp.c050.run params=0.5|0.02|25|25|1500
+rowparams C5.sp.c100.run params=0.5|0.02|25|50|1500
+rowparams C4.ph.run params=0.5|0.05|100|100|8000
+rowparams C5.p1.inner.run params=0.5|0.05|100|1|8000

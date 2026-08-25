@@ -95,6 +95,23 @@ roll mode (t½ = 0.56 s) reads `stable` mid-decay when the 10-sample
 window spans only 0.36 t½, and `improving` correctly when the cadence
 puts ~3.6 t½ in the window (`O2.roll.fast` / `O2.roll.matched`).
 
+### G6 — `linalg.solve_linear` returns null on a singular system, silently
+**Hit at rung 3 (2026-08-25).** Building the "controller inert" plant by
+zeroing the sim's control derivatives crashed the rung-1 trim solver with
+`cannot index null` at `x[j] is x[j] + step[j]` — three frames away from
+the cause. Root: with the elevator column of the trim Jacobian identically
+zero the system is singular, and `lib/linalg.solve_linear` returns **null**
+rather than raising (verified directly: a 3x3 with a zero row returns null,
+no error). The caller then indexes it. Same silent-null family as W4, but
+in a numeric routine where the caller cannot distinguish "singular" from
+"bug in my matrix construction". **Candidate upstream API:** raise, or
+return a result carrying an `ok` flag like this repo's own estimators do —
+a solver that cannot say "singular" forces every caller to re-detect it.
+Local mitigation: the plant was rebuilt to zero the GAIN instead (which is
+the more faithful inert-controller fault anyway); `trim_solve` still does
+not check, which is recorded here rather than silently patched, because
+the honest fix is upstream.
+
 ## Watch (not yet blocking)
 
 ### W1 — `dft` is O(n²); fine at rung 0, will not scale to swarm telemetry
