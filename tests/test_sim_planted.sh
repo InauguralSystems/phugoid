@@ -23,7 +23,7 @@ run_plant() {
         exit 1
     fi
     grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 64$' "$OUT" || { echo "FAIL: plant $plant run population != 64"; exit 1; }
+    grep -q '^CHECKS_RUN 79$' "$OUT" || { echo "FAIL: plant $plant run population != 79"; exit 1; }
 }
 
 expect_total_fails() {
@@ -69,16 +69,18 @@ expect_red 'S2\.T ' 'S3\.z ' 'S4\.dt\.spT ' 'S4\.dt\.spzl ' 'S4\.dt\.spze ' 'S4\
 expect_green 'S0\.' 'S1\.' 'S4\.amp\.' 'S4\.ctl\.' 'M1X\.'
 echo "PASS: Q3 red pattern exact"
 
-echo "--- Q4: trim alpha offset +0.01 rad -> S1 + parity + SP set (19) ---"
+echo "--- Q4: trim alpha offset +0.01 rad -> S1 + parity + SP set + gain rows (21) ---"
 run_plant q4
-expect_total_fails 19
+expect_total_fails 21
+expect_red 'S4\.amp\.gain\.sp ' 'S4\.amp\.gain\.ph '
 expect_red 'S1\.res\.' 'S1\.hold\.' 'S0\.a12 ' 'S0\.a13 ' 'S0\.a21 ' 'S0\.a22 ' 'S0\.a24 ' 'S0\.a31 ' 'S2\.T ' 'S2\.zenv ' 'S2\.zlog\.nr ' 'S2\.zenv\.nf '
 expect_green 'S3\.' 'M1X\.'
 echo "PASS: Q4 red pattern exact"
 
-echo "--- Q5: thrust dropped -> S1 + every sim-graded mode (18) ---"
+echo "--- Q5: thrust dropped -> S1 + every sim-graded mode + gain rows (21) ---"
 run_plant q5
-expect_total_fails 18
+expect_total_fails 21
+expect_red 'S4\.amp\.gain\.sp ' 'S4\.amp\.gain\.ph ' 'S4\.ctl\.gain '
 expect_red 'S1\.res\.' 'S1\.hold\.' 'S2\.' 'S3\.' 'S2\.zlog\.nr ' 'S2\.zenv\.nf ' 'S4\.amp\.spT '
 expect_green 'S0\.' 'M1X\.'
 echo "PASS: Q5 red pattern exact"
@@ -90,11 +92,11 @@ expect_red 'S2\.T ' 'S3\.Tpeaks ' 'S3\.Tdft '
 expect_green 'S0\.' 'S1\.' 'S2\.z' 'S3\.z' 'S4\.' 'M1X\.'
 echo "PASS: Q6 red pattern exact"
 
-echo "--- Q7: M1X generator time-dilated x1.05 -> exactly the 5 bridge period checks ---"
+echo "--- Q7: M1X generator time-dilated x1.05 -> the 5 bridge period checks + the 4 gen.s1 identities (9) ---"
 run_plant q7
-expect_total_fails 5
-expect_red 'M1X\.sp\.phi20\.T ' 'M1X\.sp\.phi45\.T ' 'M1X\.sp2\.T ' 'M1X\.ph2\.Tpeaks ' 'M1X\.ph2\.Tdft '
-expect_green 'S[0-4]\.' 'M1X\..*z'
+expect_total_fails 9
+expect_red 'M1X\.sp\.phi20\.T ' 'M1X\.sp\.phi45\.T ' 'M1X\.sp2\.T ' 'M1X\.ph2\.Tpeaks ' 'M1X\.ph2\.Tdft ' 'M1X\.sp\.phi20\.gen\.s1 ' 'M1X\.sp\.phi45\.gen\.s1 ' 'M1X\.sp2\.gen\.s1 ' 'M1X\.ph2\.gen\.s1 '
+expect_green 'S[0-4]\.' 'M1X\..*z' '\.gen\.s0 ' '\.gen\.len '
 echo "PASS: Q7 red pattern exact"
 
 echo "--- Q8: graded zeta replaced by 0.05 (identity fields carried) -> exactly the 10 zeta checks through the NUMERIC arm ---"
@@ -163,6 +165,56 @@ expect_red 'S2\.zlog ' 'S2\.zenv ' 'S2\.zlog\.nr ' 'S2\.zenv\.nf ' 'S4\.dt\.spzl
 expect_green 'S3\.' 'S4\..*ph' 'S4\..*spT ' 'M1X\.ph2'
 echo "PASS: Q15 red pattern exact (the only plant driving as_ze's refusal arm with a real wrong-estimator result; round-7's dual to q14)"
 
+echo "--- Q16: every check_below/check_relabs value displaced 1.1x its own executed tolerance -> the 5 S1 + 11 plantable S0 checks (16) ---"
+run_plant q16
+expect_total_fails 16
+expect_red 'S1\.res\.' 'S1\.hold\.' 'S0\.a11 ' 'S0\.a12 ' 'S0\.a13 ' 'S0\.a14 ' 'S0\.a21 ' 'S0\.a22 ' 'S0\.a23 ' 'S0\.a24 ' 'S0\.a31 ' 'S0\.a32 ' 'S0\.a33 '
+expect_green 'S0\.a34 ' 'S0\.a4' 'S[2-4]\.' 'M1X\.'
+echo "PASS: Q16 red pattern exact (found at rung-2 round 1: the executed comparator tolerance was unpinned — rung-0's P15/P17 class, now inherited by both rungs)"
+
+echo "--- Q17: every check_rel value displaced 1.1x its own executed rel arm, direction of the honest discrepancy -> all 39 tolerance rows ---"
+run_plant q17
+expect_total_fails 39
+expect_red 'S2\.T ' 'S2\.zlog ' 'S3\.Tpeaks ' 'S3\.z ' 'S4\.dt\.' 'S4\.amp\.' 'S4\.ctl\.' 'M1X\.sp\.' 'M1X\.sp2\.' 'M1X\.ph2\.Tpeaks ' 'M1X\.ph2\.z '
+grep '^FAIL ' "$OUT" | grep -q 'refused' && { echo "FAIL: Q17 reds must use the numeric arm, found a refusal"; exit 1; }
+expect_green 'S0\.' 'S1\.' '\.k ' '\.n ' '\.nr ' '\.nf '
+echo "PASS: Q17 red pattern exact (rung-2 round 2's find, applied to both rungs)"
+
+echo "--- Q20: the dt-rerun gradings alone corrupted -> exactly the 6 S4.dt rows ---"
+run_plant q20
+expect_total_fails 6
+expect_red 'S4\.dt\.spT ' 'S4\.dt\.spzl ' 'S4\.dt\.spze ' 'S4\.dt\.phTp ' 'S4\.dt\.phTd ' 'S4\.dt\.phz '
+expect_green 'S4\.amp\.' 'S4\.ctl\.' 'S[0-3]\.' 'M1X\.'
+echo "PASS: Q20 red pattern exact (rung-2 round 7's cross-rerun swap class, rung-1 twin)"
+
+echo "--- Q21: the amp-rerun gradings alone corrupted -> exactly the 6 S4.amp rows ---"
+run_plant q21
+expect_total_fails 6
+expect_red 'S4\.amp\.spT ' 'S4\.amp\.spzl ' 'S4\.amp\.spze ' 'S4\.amp\.phTp ' 'S4\.amp\.phTd ' 'S4\.amp\.phz '
+expect_green 'S4\.dt\.' 'S4\.ctl\.' 'S[0-3]\.' 'M1X\.'
+echo "PASS: Q21 red pattern exact (separates amp from the agreeing ctl/base gradings)"
+
+echo "--- Q22: the ctl rerun built from UNSCALED derivatives -> exactly the gain row ---"
+run_plant q22
+expect_total_fails 1
+expect_red 'S4\.ctl\.gain '
+expect_green 'S4\.ctl\.sp' 'S4\.ctl\.ph' 'S[0-3]\.' 'M1X\.'
+echo "PASS: Q22 red pattern exact (round 8: nothing pinned that the x1.5 reaches the dynamics — the rung-1 twin of the rung-2 round-5 vacuity)"
+
+echo "--- Q23: the amp rerun's arguments forced to base -> exactly the 2 amp gain rows ---"
+run_plant q23
+expect_total_fails 2
+expect_red 'S4\.amp\.gain\.sp ' 'S4\.amp\.gain\.ph '
+expect_green 'S4\.amp\.sp' 'S4\.amp\.ph' 'S[0-3]\.' 'M1X\.'
+echo "PASS: Q23 red pattern exact (the run-USE class: ROW tokens pin the print, gain rows pin the use)"
+
+echo "--- Q18: the generator BODY corrupted (a1 nudged 1.1e-9, contaminant dropped, one sample short) -> exactly the 12 wiring identities ---"
+run_plant q18
+expect_total_fails 12
+expect_red 'M1X\.sp\.phi20\.gen\.' 'M1X\.sp\.phi45\.gen\.' 'M1X\.sp2\.gen\.' 'M1X\.ph2\.gen\.'
+expect_green 'S[0-4]\.' 'M1X\.sp\.phi20\.T ' 'M1X\.ph2\.z ' 'M1X\.sp2\.zlog '
+echo "PASS: Q18 red pattern exact (rung-2 round 4's find applied to both rungs: the ROW token pins the print, the gen identities pin the use)"
+
 # ------------------------------------------------------------------
 # Manifest enforcement (same rules as test_planted.sh): identity over
 # name + tolerance token; plantable coverage; structural exclusion.
@@ -171,6 +223,13 @@ echo "--- manifest: identity + full red-set coverage ---"
 grep -E '^(PASS|FAIL) ' "$WORK/clean_sim" | awk '{print $2, $3}' | sort > "$WORK/names_sim"
 grep '^sim ' tests/sim_manifest.txt | awk '{print $2, $4}' | sort > "$WORK/man_sim"
 diff -u "$WORK/man_sim" "$WORK/names_sim" > /dev/null || { echo "FAIL: sim check-name set drifted from manifest"; diff "$WORK/man_sim" "$WORK/names_sim" || true; exit 1; }
+# Bridge-row generator parameters are identity-checked too (rung-0's
+# round-20 rowparams class, inherited at rung-2 round 3: a zeroed
+# contaminant amplitude never enters any expected truth, so only the
+# emitted-args identity can see it).
+grep '^ROW ' "$WORK/clean_sim" | awk '{print $2, $3}' | sort > "$WORK/rows_sim"
+grep '^rowparams ' tests/sim_manifest.txt | awk '{print $2, $3}' | sort > "$WORK/man_rows_sim"
+diff -u "$WORK/man_rows_sim" "$WORK/rows_sim" > /dev/null || { echo "FAIL: bridge-row parameter set drifted from manifest"; diff "$WORK/man_rows_sim" "$WORK/rows_sim" || true; exit 1; }
 sort -u "$WORK/red_union" > "$WORK/redu_sim"
 BAD=0
 while read -r kind name klass tolspec; do
@@ -190,4 +249,4 @@ done < <(grep -v '^#' tests/sim_manifest.txt)
 [ "$BAD" -eq 0 ] || exit 1
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
-echo "PASS: all 15 rung-1 plants flip exactly their declared checks"
+echo "PASS: all 22 rung-1 plants flip exactly their declared checks"

@@ -1,0 +1,169 @@
+# observer_lat_check.eigs — the rung-2 O2 checks (ORACLE.md): observer
+# verdicts graded against lateral physics ground truth — the level-set
+# stress this rung exists for. Run: eigenscript tests/observer_lat_check.eigs [plant]
+# Plants: o1 replay frozen at first sample; o2 replay replaced by an
+# UNEQUAL-magnitude alternation (unlike rung-1's o2, the magnitudes must
+# differ so the mirror-flip pin can red — a pure +/-A alternation is
+# entropy-invisible by the very identity being pinned).
+# Population pinned at exactly 13.
+#
+# Check classes (rung-1 convention):
+#   agree      — verdict/measurement matches physics truth.
+#   divergence — measured to CONTRADICT physics truth, pinned so an
+#                upstream change flips it loudly. Three mechanisms here:
+#     (a) G5 (NEW, this rung): rel = dv/(1+|v|) degenerates to an
+#         ABSOLUTE deadband for |v| < 1, so the verdict depends on the
+#         UNIT of the binding — the same spiral decay reads `converged`
+#         in radians and `moving` in degrees/milliradians (measured
+#         2026-08-24; upstreamed, see GAPS.md G5).
+#     (b) G4's fast-mode sibling: a mode FASTER than the window (roll
+#         t-half 0.56 s vs the 0.2 s window at 0.02 s cadence) reads
+#         `stable` mid-decay — `improving`'s contraction test needs the
+#         window to span enough of the mode. At 0.2 s cadence (window
+#         3.6 t-half) the same decay reads `improving` correctly.
+#     (c) G5's small-magnitude corollary on the doublet's phi tail.
+
+load_file of "data/b747_approach.eigs"
+load_file of "modes.eigs"
+load_file of "latsim.eigs"
+
+cli is args of null
+plant is ""
+if (len of cli) > 0:
+    plant is cli[0]
+
+checks_run is 0
+failures is 0
+
+define check_verdict(name, got, want, klass) as:
+    checks_run is checks_run + 1
+    if got == want:
+        print of f"PASS {name} {klass} verdict={got}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} {klass} want={want} got={got}"
+
+data is b747_approach of null
+P is lat_params of [data, lat_ctl_nominal of null]
+d is dim_derivs_lat of (data)
+A is a_lat of [d, data.cond]
+q4c is charpoly4 of (A)
+roots is dk_roots of [q4c, 60]
+mm is modes_of of (roots)
+dr is mm.osc[0]
+spiral is mm.reals[0]
+roll is mm.reals[1]
+nosched is [[1e9, 0.0, 0.0]]
+
+define replay_at(chan, i) as:
+    if plant == "o1":
+        return chan[0] + 0.0
+    if plant == "o2":
+        return chan[0] + (i % 2) * 5.0
+    return chan[i] + 0.0
+
+# ---------------------------------------------------- DR replay (1 s)
+# Physics truth: v swings symmetrically through zero for the whole
+# window (zeta 0.108, T 8.45 s). The value channel must classify it —
+# the motion the entropy channel cannot see (the level-set headline).
+icd is lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "dr", [1.0, 0.0, 0.0, 0.0], 0, 5.0]
+recd is lat_run of [icd, nosched, 0.02, 2250, 50, P, "rk4"]
+x is 0.0
+i is 0
+loop while i < (len of recd.t):
+    x is replay_at of [recd.v, i]
+    if i == 15:
+        check_verdict of ["O2.dr.t15", report of x, "oscillating", "agree"]
+    if i == 30:
+        check_verdict of ["O2.dr.t30", report of x, "oscillating", "agree"]
+    if i == 44:
+        check_verdict of ["O2.dr.t44", report of x, "oscillating", "agree"]
+    i is i + 1
+
+# ---------------------------------------------------- the mirror pins
+# H(x) = H(-x): a full +5 -> -5 reversal registers ZERO entropy change
+# (why == 0), while 5 -> 2.5 registers ~0.21 — the level-set identity
+# pinned behaviorally, with the magnitude row proving the why-instrument
+# is alive (a dead instrument would print 0 for both).
+mchan is [5.0, 0.0 - 5.0, 2.5]
+m is replay_at of [mchan, 0]
+m is replay_at of [mchan, 1]
+flip_dh is why is m
+check_verdict of ["O2.mirror.flip", f"{flip_dh}", "0", "agree"]
+m is replay_at of [mchan, 2]
+mag_dh is why is m
+mag_alive is 0
+if (abs of mag_dh) >= 0.1:
+    mag_alive is 1
+check_verdict of ["O2.mirror.mag", f"{mag_alive}", "1", "agree"]
+
+# ---------------------------------------------------- the unit triplet
+# One physical trajectory (the spiral-pure decay, amplitude 0.05 rad,
+# t-half 14.9 s — still halving at every probe), replayed in radians,
+# degrees, and milliradians. Physics truth is identical; the verdicts
+# are not — G5.
+recs is lat_run of [lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "spiral", [0.0, 0.0, 1.0, 0.0], 2, 0.05], nosched, 0.05, 1200, 20, P, "rk4"]
+urad is 0.0
+udeg is 0.0
+umr is 0.0
+i is 0
+loop while i < (len of recs.t):
+    local s is replay_at of [recs.phi, i]
+    urad is s + 0.0
+    udeg is s * 57.29577951308232 + 0.0
+    umr is s * 1000.0 + 0.0
+    if i == 30:
+        check_verdict of ["O2.units.rad", report of urad, "converged", "divergence"]
+        check_verdict of ["O2.units.deg", report of udeg, "moving", "divergence"]
+        check_verdict of ["O2.units.mrad", report of umr, "moving", "divergence"]
+    i is i + 1
+
+# ---------------------------------------------------- roll: window vs mode
+# The same decay at two cadences: at 0.02 s the 10-sample window spans
+# 0.36 t-half and reads `stable` mid-decay (divergence — the mode is
+# draining 3.6x per second); at 0.2 s the window spans 3.6 t-half and
+# reads `improving` (agree). Verdict quality is window-to-timescale
+# relative in BOTH directions (G4 was the slow side; this is the fast).
+icr is lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "roll", [0.0, 1.0, 0.0, 0.0], 1, 0.1]
+recr is lat_run of [icr, nosched, 0.02, 125, 1, P, "rk4"]
+z1 is 0.0
+i is 0
+loop while i < (len of recr.t):
+    z1 is replay_at of [recr.p, i]
+    if i == 30:
+        check_verdict of ["O2.roll.fast", report of z1, "stable", "divergence"]
+    i is i + 1
+recr2 is lat_run of [icr, nosched, 0.02, 125, 10, P, "rk4"]
+z2 is 0.0
+i is 0
+loop while i < (len of recr2.t):
+    z2 is replay_at of [recr2.p, i]
+    if i == 12:
+        check_verdict of ["O2.roll.matched", report of z2, "improving", "agree"]
+    i is i + 1
+
+# ---------------------------------------------------- phi, three timescales
+# Rudder doublet: phi carries the DR (t=10/20, oscillating — agree),
+# then the sub-milliradian spiral tail reads `converged` while still
+# actively decaying (t=35/55 — G5's small-magnitude corollary).
+schedD is [[1.0, 0.0, 0.03], [2.0, 0.0, 0.0 - 0.03], [1e9, 0.0, 0.0]]
+recD is lat_run of [[0.0, 0.0, 0.0, 0.0], schedD, 0.02, 3000, 50, P, "rk4"]
+y is 0.0
+i is 0
+loop while i < (len of recD.t):
+    y is replay_at of [recD.phi, i]
+    if i == 10:
+        check_verdict of ["O2.phi.t10", report of y, "oscillating", "agree"]
+    if i == 20:
+        check_verdict of ["O2.phi.t20", report of y, "oscillating", "agree"]
+    if i == 35:
+        check_verdict of ["O2.phi.t35", report of y, "converged", "divergence"]
+    i is i + 1
+
+print of f"CHECKS_RUN {checks_run}"
+print of f"FAILURES {failures}"
+if checks_run != 13:
+    print of f"FAIL harness: expected exactly 13 checks, ran {checks_run}"
+    exit of 1
+if failures > 0:
+    exit of 1

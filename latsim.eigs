@@ -1,0 +1,188 @@
+# latsim.eigs — rung 2: the nonlinear lateral 3-DOF flight model.
+# States [v, p, phi, r] in body axes (ft/s, rad/s, rad, rad/s), with the
+# longitudinal state FROZEN at the dataset trim (u = u0, w = 0,
+# theta = theta0) — the standard decoupled lateral model; full 6-DOF
+# coupling is rung 3.
+# Contract (ORACLE.md rung 2): the model's Jacobian at the origin equals
+# the rung-0 a_lat entry-by-entry. The Ixz cross-inertia is handled by
+# solving the coupled moment pair exactly —
+#   Ix*pdot - Ixz*rdot = L,  Iz*rdot - Ixz*pdot = N
+#   => pdot = (Iz*L + Ixz*N)/det, rdot = (Ix*N + Ixz*L)/det,
+#      det = Ix*Iz - Ixz^2
+# which is algebraically identical to the chain's primed ix/iz/(1-ix*iz)
+# rows (expanded by hand before coding; the T0 checks pin all 16 entries).
+
+import linalg
+
+# Aileron/rudder derivatives: NOMINAL, excitation-only (the public 747
+# dataset has no control columns; T3.ctl scales all of them x1.5 and the
+# graded mode quantities must not move). Do NOT cite these as data.
+define lat_ctl_nominal as:
+    return {"Clda": 0.05, "Cnda": 0.0, "Cyda": 0.0,
+            "Cydr": 0.1, "Cldr": 0.01, "Cndr": 0.0 - 0.09}
+
+define lat_params(data, ctl) as:
+    local c is data.cond
+    local k is data.lat
+    return {
+        "rho": c.rho, "S": c.S, "b": c.b, "g": c.g,
+        "m": c.W / c.g, "Ix": c.Ix, "Iz": c.Iz, "Ixz": c.Ixz,
+        "u0": c.u0, "theta0": c.theta0,
+        "Cyb": k.Cyb, "Cyp": k.Cyp, "Cyr": k.Cyr,
+        "Clb": k.Clb, "Clp": k.Clp, "Clr": k.Clr,
+        "Cnb": k.Cnb, "Cnp": k.Cnp, "Cnr": k.Cnr,
+        "Clda": ctl.Clda, "Cnda": ctl.Cnda, "Cyda": ctl.Cyda,
+        "Cydr": ctl.Cydr, "Cldr": ctl.Cldr, "Cndr": ctl.Cndr
+    }
+
+# State derivative. da/dr are the aileron/rudder deflections (rad).
+define deriv_lat(s, da, dr, P) as:
+    local v is s[0]
+    local p is s[1]
+    local phi is s[2]
+    local r is s[3]
+    local V is sqrt of (P.u0 * P.u0 + v * v)
+    local beta is atan2 of [v, P.u0]
+    local QS is 0.5 * P.rho * V * V * P.S
+    local bh is P.b / (2.0 * V)
+    local ph is p * bh
+    local rh is r * bh
+    local Cy is P.Cyb * beta + P.Cyp * ph + P.Cyr * rh + P.Cyda * da + P.Cydr * dr
+    local Cl is P.Clb * beta + P.Clp * ph + P.Clr * rh + P.Clda * da + P.Cldr * dr
+    local Cn is P.Cnb * beta + P.Cnp * ph + P.Cnr * rh + P.Cnda * da + P.Cndr * dr
+    local Y is QS * Cy
+    local Lm is QS * P.b * Cl
+    local Nm is QS * P.b * Cn
+    local vd is Y / P.m + P.g * (sin of phi) * (cos of P.theta0) - r * P.u0
+    local det is P.Ix * P.Iz - P.Ixz * P.Ixz
+    local pd is (P.Iz * Lm + P.Ixz * Nm) / det
+    local rd is (P.Ix * Nm + P.Ixz * Lm) / det
+    local tth is (sin of P.theta0) / (cos of P.theta0)
+    return [vd, pd, p + tth * r, rd]
+
+# Piecewise-constant [aileron, rudder] schedule: [[t_until, da, dr], ...].
+define ctl_at(t, sched) as:
+    for i in range of (len of sched):
+        if t < sched[i][0]:
+            return [sched[i][1], sched[i][2]]
+    local last is sched[(len of sched) - 1]
+    return [last[1], last[2]]
+
+define lat_rk4_step(s, t, dt, sched, P) as:
+    local c1 is ctl_at of [t, sched]
+    local c2 is ctl_at of [t + 0.5 * dt, sched]
+    local c4 is ctl_at of [t + dt, sched]
+    local k1 is deriv_lat of [s, c1[0], c1[1], P]
+    local s2 is []
+    for i in range of 4:
+        append of [s2, s[i] + 0.5 * dt * k1[i]]
+    local k2 is deriv_lat of [s2, c2[0], c2[1], P]
+    local s3 is []
+    for i in range of 4:
+        append of [s3, s[i] + 0.5 * dt * k2[i]]
+    local k3 is deriv_lat of [s3, c2[0], c2[1], P]
+    local s4 is []
+    for i in range of 4:
+        append of [s4, s[i] + dt * k3[i]]
+    local k4 is deriv_lat of [s4, c4[0], c4[1], P]
+    local out is []
+    for i in range of 4:
+        append of [out, s[i] + dt / 6.0 * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i])]
+    return out
+
+define lat_euler_step(s, t, dt, sched, P) as:
+    local c1 is ctl_at of [t, sched]
+    local k1 is deriv_lat of [s, c1[0], c1[1], P]
+    local out is []
+    for i in range of 4:
+        append of [out, s[i] + dt * k1[i]]
+    return out
+
+# Integrate nsteps of dt from state0, recording every decim-th sample.
+# Returns {"t", "v", "p", "phi", "r"}. method: "rk4" or "euler" (plant).
+# (Third hand-rolled integrator in the ecosystem after dynamics' and
+# sim.eigs's — GAPS.md W3's lib/ode case strengthens.)
+define lat_run(state0, sched, dt, nsteps, decim, P, method) as:
+    local s is [state0[0], state0[1], state0[2], state0[3]]
+    local rec is {"t": [], "v": [], "p": [], "phi": [], "r": []}
+    append of [rec.t, 0.0]
+    append of [rec.v, s[0]]
+    append of [rec.p, s[1]]
+    append of [rec.phi, s[2]]
+    append of [rec.r, s[3]]
+    local n is 0
+    unobserved:
+        loop while n < nsteps:
+            local t is n * dt
+            if method == "euler":
+                s is lat_euler_step of [s, t, dt, sched, P]
+            else:
+                s is lat_rk4_step of [s, t, dt, sched, P]
+            n is n + 1
+            if n % decim == 0:
+                append of [rec.t, n * dt]
+                append of [rec.v, s[0]]
+                append of [rec.p, s[1]]
+                append of [rec.phi, s[2]]
+                append of [rec.r, s[3]]
+    return rec
+
+# Central-difference Jacobian of deriv_lat at a state (T0 parity oracle).
+define lat_jacobian(state, da, dr, P) as:
+    local J is []
+    for i in range of 4:
+        append of [J, [0.0, 0.0, 0.0, 0.0]]
+    for j in range of 4:
+        local h is 1e-6 * (abs of state[j])
+        if h < 1e-8:
+            h is 1e-8
+        local sp is [state[0], state[1], state[2], state[3]]
+        local sm is [state[0], state[1], state[2], state[3]]
+        sp[j] is sp[j] + h
+        sm[j] is sm[j] - h
+        local dp is deriv_lat of [sp, da, dr, P]
+        local dm is deriv_lat of [sm, da, dr, P]
+        for i in range of 4:
+            J[i][j] is (dp[i] - dm[i]) / (2.0 * h)
+    return J
+
+# ---------------------------------------------------- mode-pure ICs
+# The lateral quartic factors as (DR quadratic) x (roll) x (spiral); by
+# Cayley-Hamilton, applying the product of the factors to KILL leaves the
+# remaining mode's invariant subspace exactly (rung 1's sp_subspace_ic,
+# generalized to annihilator products). All inputs are pinned chain
+# quantities (a_lat and its roots).
+
+define mat_shift(A, lam) as:
+    return linalg.mat_add of [A, linalg.mat_scale of [linalg.mat_identity of 4, 0.0 - lam]]
+
+define mat_quadfac(A, re, im) as:
+    # A^2 - 2 re A + |lambda|^2 I — annihilates the conjugate pair.
+    local A2 is linalg.mat_mul of [A, A]
+    return linalg.mat_add of [A2, linalg.mat_add of [linalg.mat_scale of [A, 0.0 - 2.0 * re], linalg.mat_scale of [linalg.mat_identity of 4, re * re + im * im]]]
+
+define mat_col_apply(B, e) as:
+    local out is []
+    for i in range of 4:
+        local acc is 0.0
+        for j in range of 4:
+            acc is acc + B[i][j] * e[j]
+        append of [out, acc]
+    return out
+
+# keep: "dr" | "roll" | "spiral". dr_re/dr_im are the DR pair; l_roll /
+# l_spiral the real eigenvalues. Scaled so component scale_idx = amp.
+define lat_mode_ic(A, dr_re, dr_im, l_roll, l_spiral, keep, seed, scale_idx, amp) as:
+    local B is linalg.mat_identity of 4
+    if keep == "dr":
+        B is linalg.mat_mul of [mat_shift of [A, l_roll], mat_shift of [A, l_spiral]]
+    if keep == "roll":
+        B is linalg.mat_mul of [mat_quadfac of [A, dr_re, dr_im], mat_shift of [A, l_spiral]]
+    if keep == "spiral":
+        B is linalg.mat_mul of [mat_quadfac of [A, dr_re, dr_im], mat_shift of [A, l_roll]]
+    local w is mat_col_apply of [B, seed]
+    local scale is amp / (abs of w[scale_idx])
+    local ic is []
+    for i in range of 4:
+        append of [ic, w[i] * scale]
+    return ic

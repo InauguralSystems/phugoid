@@ -1,0 +1,98 @@
+# latsim_manifest.txt — every check name in latsim_check.eigs with its
+# planted-fault coverage class and tolerance token (same rules as
+# sim_manifest.txt, enforced by tests/test_latsim_planted.sh).
+# Structural entries (written justification, ORACLE.md rung-2 T0):
+#   T0.a23, T0.a31, T0.a33, T0.a43 — zero on BOTH sides by construction
+#     (moment rows have no phi column; the phi-dot row has no v/phi
+#     dependence), no data fault can move either side.
+#   T0.a32 — the phi-dot row's unit p coefficient, a builder constant.
+# Regenerate only with a written justification in ORACLE.md.
+lat T1.res.vdot plantable below=1e-12
+lat T1.res.pdot plantable below=1e-12
+lat T1.res.phidot plantable below=1e-12
+lat T1.res.rdot plantable below=1e-12
+lat T1.hold.v plantable below=1e-09
+lat T1.hold.p plantable below=1e-09
+lat T0.a11 plantable relabs=1e-06|1e-08
+lat T0.a12 plantable relabs=1e-06|1e-08
+lat T0.a13 plantable relabs=1e-06|1e-08
+lat T0.a14 plantable relabs=1e-06|1e-08
+lat T0.a21 plantable relabs=1e-06|1e-08
+lat T0.a22 plantable relabs=1e-06|1e-08
+lat T0.a23 structural relabs=1e-06|1e-08
+lat T0.a24 plantable relabs=1e-06|1e-08
+lat T0.a31 structural relabs=1e-06|1e-08
+lat T0.a32 structural relabs=1e-06|1e-08
+lat T0.a33 structural relabs=1e-06|1e-08
+lat T0.a34 plantable relabs=1e-06|1e-08
+lat T0.a41 plantable relabs=1e-06|1e-08
+lat T0.a42 plantable relabs=1e-06|1e-08
+lat T0.a43 structural relabs=1e-06|1e-08
+lat T0.a44 plantable relabs=1e-06|1e-08
+lat T2.dr.Tpeaks plantable reltol=0.01
+lat T2.dr.Tdft plantable reltol=0.01
+lat T2.dr.z plantable reltol=0.02
+lat T2.roll.th plantable reltol=0.01
+lat T2.spiral.th plantable reltol=0.01
+lat T2.dr.Tdft.k plantable exact=5
+lat T2.dr.Tpeaks.n plantable exact=11
+lat T2.dr.z.nr plantable exact=9
+lat T2.ctl.Tpeaks plantable reltol=0.01
+lat T2.ctl.Tdft plantable reltol=0.01
+lat T2.ctl.z plantable reltol=0.02
+lat T2.ctl.psign plantable exact=1
+lat T2.ctl.rsign plantable exact=1
+lat T2.ctl.pamp plantable reltol=0.02
+lat T3.dt.drTp plantable reltol=0.001
+lat T3.dt.drTd plantable reltol=0.001
+lat T3.dt.drz plantable reltol=0.001
+lat T3.dt.rollth plantable reltol=0.001
+lat T3.dt.spiralth plantable reltol=0.001
+lat T3.amp.drTp plantable reltol=0.005
+lat T3.amp.drTd plantable reltol=0.005
+lat T3.amp.drz plantable reltol=0.005
+lat T3.amp.rollth plantable reltol=0.005
+lat T3.amp.spiralth plantable reltol=0.005
+lat T3.amp.gain.dr plantable reltol=0.02
+lat T3.amp.gain.roll plantable reltol=0.02
+lat T3.amp.gain.spiral plantable reltol=0.02
+lat T3.ctl.drTp plantable reltol=0.002
+lat T3.ctl.drTd plantable reltol=0.002
+lat T3.ctl.drz plantable reltol=0.002
+lat T3.ctl.gain plantable reltol=0.02
+lat M2X.dr.gen.s0 plantable exact=0.6967067093471654
+lat M2X.dr.gen.s1 plantable exact=0.5734449885806219
+lat M2X.dr.gen.len plantable exact=260
+lat M2X.dr.Tpeaks plantable reltol=0.01
+lat M2X.dr.Tdft plantable reltol=0.01
+lat M2X.dr.z plantable reltol=0.02
+lat M2X.dr.Tdft.k plantable exact=6
+lat M2X.dr.Tpeaks.n plantable exact=12
+lat M2X.dr.z.nr plantable exact=10
+lat M2X.drs.gen.s0 plantable exact=0.7467067093471654
+lat M2X.drs.gen.s1 plantable exact=0.6229830058554064
+lat M2X.drs.gen.len plantable exact=226
+lat M2X.drs.Tpeaks plantable reltol=0.01
+lat M2X.drs.Tdft plantable reltol=0.01
+lat M2X.drs.z plantable reltol=0.02
+lat M2X.rollc.gen.s0 plantable exact=1.0004535961214256
+lat M2X.rollc.gen.s1 plantable exact=0.9761242313742141
+lat M2X.rollc.gen.len plantable exact=126
+lat M2X.rollc.th plantable reltol=0.01
+lat M2X.spiralc.gen.s0 plantable exact=0.9966686198936009
+lat M2X.spiralc.gen.s1 plantable exact=0.9727789195688452
+lat M2X.spiralc.gen.len plantable exact=121
+lat M2X.spiralc.th plantable reltol=0.01
+rowparams T2.dr.run params=5|0.02|10
+rowparams T2.roll.run params=0.1|0.02|1
+rowparams T2.spiral.run params=0.05|0.05|10
+rowparams T3.dt.dr.run params=5|0.01|20
+rowparams T3.dt.roll.run params=0.1|0.01|2
+rowparams T3.dt.spiral.run params=0.05|0.025|20
+rowparams T3.amp.dr.run params=2.5|0.02|10
+rowparams T3.amp.roll.run params=0.05|0.02|1
+rowparams T3.amp.spiral.run params=0.025|0.05|10
+rowparams M2X.dr params=-0.08066055475989063|0.7433101887486894|1|0.8|0|1|0|0|0.2|260
+rowparams M2X.drs params=-0.08066055475989063|0.7433101887486894|1|0.8|-0.046413024405669266|0|0.05|0|0.2|226
+rowparams M2X.rollc params=-1.2307927985772928|0|1|0|-0.08066055475989063|0.7433101887486894|0.001|1.1|0.02|126
+rowparams M2X.spiralc params=-0.046413024405669266|0|1|0|-0.08066055475989063|0.7433101887486894|0.005|2.3|0.5|121

@@ -73,6 +73,28 @@ modes are specified. Local mitigation: the O checks pin today's misreads
 as `divergence`-class rows so an upstream windowing change flips them
 loudly and rung 1 re-grades.
 
+### G5 — value-channel verdicts are unit-dependent below |v| ≈ 1
+**Upstreamed: EigenScript#1045 (2026-08-24).**
+**Hit at rung 2 (2026-08-24, observer grading layer).** The value channel's
+relative step `rel = Δv/(1+|v|)` degenerates to an ABSOLUTE deadband for
+sub-unit magnitudes, so the verdict depends on the binding's UNIT.
+Measured (the `O2.units.*` triplet in `tests/observer_lat_check.eigs`):
+one physical trajectory — the spiral mode's bank angle, 0.05 rad decaying
+with t½ = 14.9 s, probed while still halving every 15 s — reads
+`converged` in radians and `moving` in degrees or milliradians. The
+radians verdict is also wrong on its own terms (0.7° off wings-level and
+actively rolling), but the inconsistency is the sharper defect: no
+physical semantics can depend on a representation choice. First exposed
+here because phugoid is the first consumer carrying sub-unit AND
+super-unit bindings for the same physics (`dynamics`' oscillators are
+O(1) by construction). Same family as G4: verdict correctness currently
+depends on the sampling cadence (G4) and the unit (G5), neither of which
+is physics. A fast-mode sibling of G4 was also measured (not separately
+upstreamed — it is the same window mechanism from the other side): the
+roll mode (t½ = 0.56 s) reads `stable` mid-decay when the 10-sample
+window spans only 0.36 t½, and `improving` correctly when the cadence
+puts ~3.6 t½ in the window (`O2.roll.fast` / `O2.roll.matched`).
+
 ## Watch (not yet blocking)
 
 ### W1 — `dft` is O(n²); fine at rung 0, will not scale to swarm telemetry
@@ -89,7 +111,9 @@ operands might be worth an upstream issue if it bites again.
 ### W3 — no ODE integrator in the stdlib; second consumer re-roll
 `lib/calculus.eigs` has quadrature only. `dynamics` hand-rolled
 semi-implicit Euler (`physics.eigs step`); phugoid has now hand-rolled
-RK4 + Euler (`sim.eigs`), validated here by the S0 parity and S4.dt
+RK4 + Euler twice (`sim.eigs`, and `latsim.eigs` at rung 2 — the
+integrator can't be shared without function-valued plumbing the rungs
+don't otherwise need), validated by the S0/T0 parity and dt-invariance
 checks. Two consumers re-rolling the same numerics is the G1/G2 shape one
 rung earlier. Candidate upstream API: `lib/ode.eigs` with `rk4_step` /
 `semi_implicit_step` over a user derivative function. Upstream when a

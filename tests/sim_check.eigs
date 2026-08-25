@@ -10,7 +10,7 @@
 # corruption (S4 comparator validation), q11 period_dft result corruption
 # (estimator wiring; the k-pins are the anti-alias defense).
 # Prints PASS/FAIL lines, then CHECKS_RUN / FAILURES; exits nonzero on any
-# failure; the check population is pinned at exactly 64.
+# failure; the check population is pinned at exactly 79.
 #
 # The chain reference (dim_derivs_lon -> a_lon -> charpoly4 -> dk_roots ->
 # modes_of) is ALWAYS computed from a clean dataset copy — plants poison
@@ -32,17 +32,51 @@ failures is 0
 
 define check_rel(name, ours, truth, reltol) as:
     checks_run is checks_run + 1
+    if plant == "q17":
+        # displace 1.1x this site's executed rel arm, in the DIRECTION of
+        # the honest discrepancy (rung-0 P18's rule) so no site's honest
+        # offset can absorb it — round-2 review found check_rel (the third
+        # comparator) had no displacement plant at all: a single-site x10
+        # executed-tolerance widening survived every suite.
+        local sg is 1.0
+        if ours < truth:
+            sg is 0.0 - 1.0
+        ours is ours + sg * 1.1 * reltol * (abs of truth)
     if (rel_tol_ok of [ours, truth, reltol]) == 1:
         print of f"PASS {name} reltol={reltol} ours={ours} truth={truth}"
     else:
         failures is failures + 1
         print of f"FAIL {name} reltol={reltol} ours={ours} truth={truth}"
 
+# Plant q16 (found at rung-2 round 1, applied here too): every
+# check_below/check_relabs value displaced 1.1x its OWN site's executed
+# tolerance — a widened executed bound lets the displacement pass and
+# q16's exact count breaks. Structural S0 sites exempt (the manifest's
+# never-red rule cross-checks this list: a missed name reds under q16
+# and the harness fails loudly).
+define q16_exempt(name) as:
+    for nm in ["S0.a34", "S0.a41", "S0.a42", "S0.a43", "S0.a44"]:
+        if nm == name:
+            return 1
+    return 0
+
 # S0's mixed arm: relative for the real entries, absolute for the entries
 # the rung-0 A zeroes by assuming trim at exactly alpha = 0 (ours sits at
 # the small alpha that closes the dataset's 0.03% CL gap; see ORACLE.md).
 define check_relabs(name, ours, ref, reltol, abstol) as:
     checks_run is checks_run + 1
+    if plant == "q16":
+        if (q16_exempt of (name)) == 0:
+            local eff is reltol * (abs of ref)
+            if abstol > eff:
+                eff is abstol
+            # direction of the honest discrepancy (P18's rule; round-2
+            # review measured S0.a12's honest offset absorbing 6% of an
+            # always-positive displacement's margin)
+            local sg is 1.0
+            if ours < ref:
+                sg is 0.0 - 1.0
+            ours is ours + sg * 1.1 * eff
     local diff is abs of (ours - ref)
     local ok is 0
     if diff <= reltol * (abs of ref):
@@ -68,6 +102,8 @@ define check_exact(name, val, want) as:
 
 define check_below(name, val, bound) as:
     checks_run is checks_run + 1
+    if plant == "q16":
+        val is (abs of val) + 1.1 * bound
     if (abs of val) <= bound:
         print of f"PASS {name} below={bound} val={val}"
     else:
@@ -201,7 +237,11 @@ for r in range of 4:
 # ------------------------------------------------------------ runs
 # S2: SP-subspace IC free response (chain-built, mode-pure; see sim.eigs
 # sp_subspace_ic). w-channel, window [0, 16 s], cadence 0.02 s.
-define run_sp(wamp, dt, decim, trx) as:
+# Graded runs emit their executed call-site parameters as ROW tokens
+# (rung-2 round 7: run-argument vacuities are P12-class — a rerun whose
+# dt is silently not halved never enters an expected truth).
+define run_sp(rn, wamp, dt, decim, trx) as:
+    print of f"ROW {rn} params={wamp}|{dt}|{decim}"
     local ic is sp_subspace_ic of [A_ref, ph_ref.re, ph_ref.im, trx.state, wamp]
     local rec is sim_run of [ic, [[1e9, trx.de]], dt, floor of (16.0 / dt), decim, trx.P, method]
     local wwin is []
@@ -214,7 +254,8 @@ define run_sp(wamp, dt, decim, trx) as:
 # S3: elevator pulse (+de_off for 20 s, back to trim) -> free phugoid about
 # the ORIGINAL trim. u-channel from t = 45 s (the pulse-edge SP is dead:
 # e^(-0.5515*25) ~ 1e-6), cadence 1.0 s, 280 s total.
-define run_ph(de_off, dt, decim, trx) as:
+define run_ph(rn, de_off, dt, decim, trx) as:
+    print of f"ROW {rn} params={de_off}|{dt}|{decim}"
     local sched is [[20.0, trx.de + de_off], [1e9, trx.de]]
     local rec is sim_run of [trx.state, sched, dt, floor of (280.0 / dt), decim, trx.P, method]
     local uwin is []
@@ -313,8 +354,28 @@ define grade_ph(uwin, dt, simflag) as:
         z is mangle_z of (zeta_envelope of [uwin, gdt])
     return {"Tp": tp_raw, "Td": wrap_dft of (td_raw), "z": z}
 
-base_sp is grade_sp of [run_sp of [2.0, 0.02, 1, tr], 0.02, 1]
-base_ph is grade_ph of [run_ph of [0.005, 0.05, 20, tr], 1.0, 1]
+# Window amplitude (max - min): the run-USE gain rows below pin that a
+# rerun's changed argument actually reaches the dynamics (round 8: a
+# rerun body ignoring its amplitude argument — or a ctl rerun built
+# from the unscaled derivatives — made invariance rows compare a run to
+# itself, the round-5 vacuity class one level up; ROW tokens pin the
+# print, these pin the use).
+define win_amp(w) as:
+    local lo is w[0]
+    local hi is w[0]
+    local i is 0
+    loop while i < (len of w):
+        if w[i] > hi:
+            hi is w[i]
+        if w[i] < lo:
+            lo is w[i]
+        i is i + 1
+    return hi - lo
+
+base_sp_w is run_sp of ["S2.run", 2.0, 0.02, 1, tr]
+base_sp is grade_sp of [base_sp_w, 0.02, 1]
+base_ph_w is run_ph of ["S3.run", 0.005, 0.05, 20, tr]
+base_ph is grade_ph of [base_ph_w, 1.0, 1]
 
 # Read-site identity accessors (round 6): the slot-identity pins guard
 # the grading helpers, but every CONSUMER read of a paired-estimator
@@ -392,24 +453,74 @@ define inv_pair(tag, gsp, gph, sp_tol, ph_tol) as:
     check_result of [f"S4.{tag}.phz", as_zl of (gph.z), "zeta", base_ph.z.zeta, ph_tol]
 
 # dt halved (recording cadence preserved via doubled decimation)
-dt_sp is grade_sp of [run_sp of [2.0, 0.01, 2, tr], 0.02, 1]
-dt_ph is grade_ph of [run_ph of [0.005, 0.025, 40, tr], 1.0, 1]
+# Plants q20/q21: the DT-rerun (q20) or AMP-rerun (q21) gradings alone
+# corrupted (gdt x1.02, zeta x1.03) — separators for cross-rerun row
+# swaps between agreeing gradings (rung-2 round 7's class; self-compares
+# are q10's).
+define sep_z(res, pl) as:
+    if plant == pl:
+        if res.ok == 1:
+            if res.n_ratios != null:
+                return {"ok": 1, "zeta": res.zeta * 1.03, "n_ratios": res.n_ratios}
+            if res.n_fit != null:
+                return {"ok": 1, "zeta": res.zeta * 1.03, "n_fit": res.n_fit}
+    return res
+
+dtg_sp is 0.02
+dtg_ph is 1.0
+if plant == "q20":
+    dtg_sp is 0.0204
+    dtg_ph is 1.02
+dt_sp is grade_sp of [run_sp of ["S4.dt.sp.run", 2.0, 0.01, 2, tr], dtg_sp, 1]
+dt_sp.zl is sep_z of [dt_sp.zl, "q20"]
+dt_sp.ze is sep_z of [dt_sp.ze, "q20"]
+dt_ph is grade_ph of [run_ph of ["S4.dt.ph.run", 0.005, 0.025, 40, tr], dtg_ph, 1]
+dt_ph.z is sep_z of [dt_ph.z, "q20"]
 inv_pair of ["dt", dt_sp, dt_ph, 0.001, 0.001]
 
 # excitation amplitude halved
-amp_sp is grade_sp of [run_sp of [1.0, 0.02, 1, tr], 0.02, 1]
-amp_ph is grade_ph of [run_ph of [0.0025, 0.05, 20, tr], 1.0, 1]
+ampg_sp is 0.02
+ampg_ph is 1.0
+if plant == "q21":
+    ampg_sp is 0.0204
+    ampg_ph is 1.02
+# Plant q23: the amp rerun's arguments forced back to the base values —
+# the round-8 vacuity shape as a plant; only the gain rows can see it.
+amp_wamp is 1.0
+amp_deoff is 0.0025
+if plant == "q23":
+    amp_wamp is 2.0
+    amp_deoff is 0.005
+amp_sp_w is run_sp of ["S4.amp.sp.run", amp_wamp, 0.02, 1, tr]
+amp_sp is grade_sp of [amp_sp_w, ampg_sp, 1]
+amp_sp.zl is sep_z of [amp_sp.zl, "q21"]
+amp_sp.ze is sep_z of [amp_sp.ze, "q21"]
+amp_ph_w is run_ph of ["S4.amp.ph.run", amp_deoff, 0.05, 20, tr]
+amp_ph is grade_ph of [amp_ph_w, ampg_ph, 1]
+amp_ph.z is sep_z of [amp_ph.z, "q21"]
 inv_pair of ["amp", amp_sp, amp_ph, 0.005, 0.005]
+check_rel of ["S4.amp.gain.sp", (win_amp of (amp_sp_w)) / (win_amp of (base_sp_w)), 0.5, 0.02]
+check_rel of ["S4.amp.gain.ph", (win_amp of (amp_ph_w)) / (win_amp of (base_ph_w)), 0.5, 0.02]
 
 # nominal control derivatives are excitation-only: Cmde x1.5 re-trims and
 # re-runs; the graded quantities must not move.
 ctl2 is ctl_nominal of null
 ctl2.Cmde is ctl2.Cmde * 1.5
 ctl2.CLde is ctl2.CLde * 1.5
+# Plant q22: the ctl rerun built from the UNSCALED derivatives — round
+# 8's rung-1 twin of the rung-2 round-5 vacuity (nothing pinned that
+# the x1.5 reaches the dynamics; the reruns were rewireable to
+# bit-identical base runs). Only the gain row can see it.
+if plant == "q22":
+    ctl2 is ctl_nominal of null
 tr2 is make_trim of (ctl2)
-ctl_sp is grade_sp of [run_sp of [2.0, 0.02, 1, tr2], 0.02, 1]
-ctl_ph is grade_ph of [run_ph of [0.005, 0.05, 20, tr2], 1.0, 1]
+ctl_sp is grade_sp of [run_sp of ["S4.ctl.sp.run", 2.0, 0.02, 1, tr2], 0.02, 1]
+ctl_ph_w is run_ph of ["S4.ctl.ph.run", 0.005, 0.05, 20, tr2]
+ctl_ph is grade_ph of [ctl_ph_w, 1.0, 1]
 inv_pair of ["ctl", ctl_sp, ctl_ph, 0.002, 0.002]
+# The rung-1 gain twin of rung-2's T3.ctl.gain: the pulse's phugoid
+# amplitude scales with C_mδe, so the x1.5 must show up here.
+check_rel of ["S4.ctl.gain", (win_amp of (ctl_ph_w)) / (win_amp of (base_ph_w)), 1.5, 0.02]
 
 # ------------------------------------------------------------ M1X
 # The estimator bridge: the rung-0 estimators validated on synthetic
@@ -417,15 +528,35 @@ inv_pair of ["ctl", ctl_sp, ctl_ph, 0.002, 0.002]
 # windows/cadences the sim grading uses — the zeta = 0.6255 regime the
 # rung-0 M1 grid never covered, and the mixed-mode reality the grid's
 # single-mode rows never posed.
-define gen_two(s1, w1, a1, p1, s2, w2, a2, p2, dt, n) as:
+# ROW tokens: the executed generator arguments, identity-checked against
+# the manifest's rowparams lines (added at rung-2 round 3, which zeroed
+# a bridge contaminant with every suite green — P12-class parameters
+# never enter any expected truth, so only an emission identity sees them).
+define gen_two(rowname, s1, w1, a1, p1, s2, w2, a2, p2, dt, n) as:
+    print of f"ROW {rowname} params={s1}|{w1}|{a1}|{p1}|{s2}|{w2}|{a2}|{p2}|{dt}|{n}"
     local det is 1.0
     if plant == "q7":
         det is 1.05
+    # Plant q18: the generator BODY corrupted (rung-2 round 4's find:
+    # the ROW token pins the PRINT, not the USE — the gen.s0/s1/len
+    # identities below see the body; q18 proves they can fail).
+    local a1e is a1
+    local a2e is a2
+    local ne is n
+    if plant == "q18":
+        a1e is a1 * 1.0000000011
+        a2e is 0.0
+        ne is n - 1
     local out is []
-    for i in range of n:
+    for i in range of ne:
         local t is i * dt * det
-        append of [out, a1 * (exp of (s1 * t)) * (cos of (w1 * t + p1)) + a2 * (exp of (s2 * t)) * (cos of (w2 * t + p2))]
+        append of [out, a1e * (exp of (s1 * t)) * (cos of (w1 * t + p1)) + a2e * (exp of (s2 * t)) * (cos of (w2 * t + p2))]
     return out
+
+define check_genrow(rowname, sig, s1, w1, a1, p1, s2, w2, a2, p2, dt, n) as:
+    check_exact of [f"{rowname}.gen.s0", sig[0], a1 * (cos of p1) + a2 * (cos of p2)]
+    check_exact of [f"{rowname}.gen.s1", sig[1], a1 * (exp of (s1 * dt)) * (cos of (w1 * dt + p1)) + a2 * (exp of (s2 * dt)) * (cos of (w2 * dt + p2))]
+    check_exact of [f"{rowname}.gen.len", len of sig, n]
 
 sp_w is sp_ref.im
 ph_w is ph_ref.im
@@ -436,7 +567,8 @@ ph_w is ph_ref.im
 # on the excluded edge sample, phi=0) hit the estimator's edge refusal,
 # already pinned at rung 0 (M3) — measured 2026-08-24, first harness run.
 for pcase in [["phi20", 2.0], ["phi45", 4.5]]:
-    local sig is gen_two of [sp_ref.re, sp_w, 1.0, pcase[1], 0.0, 1.0, 0.0, 0.0, 0.02, 800]
+    local sig is gen_two of [f"M1X.sp.{pcase[0]}", sp_ref.re, sp_w, 1.0, pcase[1], 0.0, 1.0, 0.0, 0.0, 0.02, 800]
+    check_genrow of [f"M1X.sp.{pcase[0]}", sig, sp_ref.re, sp_w, 1.0, pcase[1], 0.0, 1.0, 0.0, 0.0, 0.02, 800]
     local g is grade_sp of [sig, 0.02, 0]
     check_result of [f"M1X.sp.{pcase[0]}.T", as_tp of (g.T), "T", sp_ref.T, 0.01]
     check_result of [f"M1X.sp.{pcase[0]}.zlog", as_zl of (g.zl), "zeta", sp_ref.zeta, 0.02]
@@ -451,7 +583,8 @@ for pcase in [["phi20", 2.0], ["phi45", 4.5]]:
 # the bridge bounds the sim regime with margin, not an arbitrary stress;
 # the contaminant is NOT raised to manufacture a rounder margin because
 # ~3.6e-4 extrapolates to -0.8% T error against the 1% arm.
-sp2 is gen_two of [sp_ref.re, sp_w, 1.0, 4.5, ph_ref.re, ph_w, 0.0002, 1.5, 0.02, 800]
+sp2 is gen_two of ["M1X.sp2", sp_ref.re, sp_w, 1.0, 4.5, ph_ref.re, ph_w, 0.0002, 1.5, 0.02, 800]
+check_genrow of ["M1X.sp2", sp2, sp_ref.re, sp_w, 1.0, 4.5, ph_ref.re, ph_w, 0.0002, 1.5, 0.02, 800]
 g2 is grade_sp of [sp2, 0.02, 0]
 check_result of ["M1X.sp2.T", as_tp of (g2.T), "T", sp_ref.T, 0.01]
 check_result of ["M1X.sp2.zlog", as_zl of (g2.zl), "zeta", sp_ref.zeta, 0.02]
@@ -465,7 +598,8 @@ check_result of ["M1X.sp2.zenv", as_ze of (g2.ze), "zeta", sp_ref.zeta, 0.02]
 # site satisfied both pins and survived the full planted matrix. With the
 # bins different, no single literal passes both — a forger has to compute
 # the argmax, i.e. re-implement the DFT peak picker.
-ph2 is gen_two of [ph_ref.re, ph_w, 1.0, 0.7, 2.0 * ph_ref.re, 2.0 * ph_w, 0.01, 2.1, 1.0, 190]
+ph2 is gen_two of ["M1X.ph2", ph_ref.re, ph_w, 1.0, 0.7, 2.0 * ph_ref.re, 2.0 * ph_w, 0.01, 2.1, 1.0, 190]
+check_genrow of ["M1X.ph2", ph2, ph_ref.re, ph_w, 1.0, 0.7, 2.0 * ph_ref.re, 2.0 * ph_w, 0.01, 2.1, 1.0, 190]
 g3 is grade_ph of [ph2, 1.0, 0]
 check_result of ["M1X.ph2.Tpeaks", as_tp of (g3.Tp), "T", ph_ref.T, 0.005]
 check_result of ["M1X.ph2.Tdft", as_td of (g3.Td), "T", ph_ref.T, 0.005]
@@ -476,8 +610,8 @@ check_exact of ["M1X.ph2.Tpeaks.n", g3.Tp.n_extrema, 8]
 # ------------------------------------------------------------ population
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 64:
-    print of f"FAIL harness: expected exactly 64 checks, ran {checks_run}"
+if checks_run != 79:
+    print of f"FAIL harness: expected exactly 79 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

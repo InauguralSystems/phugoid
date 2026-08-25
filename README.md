@@ -40,13 +40,28 @@ Rung 1 (shipped 2026-08-24) is the first model, graded by rung 0:
   solved trim must match the rung-0 A matrix entry-by-entry (S0), and its
   free responses grade to the chain's mode quantities: phugoid T within
   0.03% measured, ζ within 0.2%; short period T within 0.17%, ζ within
-  0.15% (arms in ORACLE.md, fifteen-plant fault matrix in
+  0.15% (arms in ORACLE.md, twenty-two-plant fault matrix in
   `tests/test_sim_planted.sh`).
 - **`tests/observer_check.eigs`** — the observer's verdicts graded against
   the same physics: 8 agreement pins, and 3 pinned *divergences* — the
   fixed 10-sample predicate window reads a 47 s mode at 1 Hz as
   `diverging` on its quarter-cycles (GAPS.md G4, the first measured
   instance of the proposal's two-timescale prediction).
+
+Rung 2 (shipped 2026-08-24) is the lateral model — three timescales and
+the level-set stress:
+
+- **`latsim.eigs`** — the lateral 3-DOF (exact Ixz-coupled moments,
+  exact-origin trim, mode-pure annihilator ICs via Cayley–Hamilton).
+  Jacobian parity vs the rung-0 lateral A measured at machine epsilon;
+  Dutch roll T within 0.1%, ζ 0.01%; roll and spiral t½ within 0.1%.
+- **`tests/observer_lat_check.eigs`** — the level-set grading: the value
+  channel correctly reads zero-symmetric motion the entropy channel is
+  provably blind to (the mirror pin: a +5 → −5 assignment registers
+  `why == 0` exactly), and the rung's new find — **verdicts are
+  unit-dependent below |v| ≈ 1** (the same still-decaying bank angle
+  reads `converged` in radians, `moving` in degrees; GAPS.md G5,
+  EigenScript#1045).
 
 ## Run it
 
@@ -56,9 +71,12 @@ bash tests/test_comparator.sh  # 15 tolerance boundary self-tests
 bash tests/test_modes.sh       # 180 chain checks vs published values
 bash tests/test_measure.sh     # 126 estimator checks vs synthetic truth
 bash tests/test_planted.sh     # 18 plants must each flip exactly their checks
-bash tests/test_sim.sh         # 64 rung-1 model checks vs the rung-0 chain
-bash tests/test_sim_planted.sh # 15 rung-1 plants, exact red sets + manifest
+bash tests/test_sim.sh         # 79 rung-1 model checks vs the rung-0 chain
+bash tests/test_sim_planted.sh # 22 rung-1 plants, exact red sets + manifest
 bash tests/test_observer.sh    # 11 observer-verdict checks + 2 plants
+bash tests/test_latsim.sh      # 76 rung-2 model checks vs the rung-0 chain
+bash tests/test_latsim_planted.sh # 22 rung-2 plants, exact red sets + manifest
+bash tests/test_observer_lat.sh   # 13 rung-2 observer checks + 2 plants
 ```
 
 Requires `eigenscript` on PATH (or `EIGENSCRIPT=/path/to/binary`), pinned in
@@ -70,7 +88,7 @@ CI at the version in `.devcontainer/Dockerfile`.
 |---|---|---|
 | 0 | Oracle before code: dataset, mode predictions, measurement scripts | done |
 | 1 | Longitudinal 3-DOF, trimmed; elevator pulse → phugoid, SP-subspace IC → short period, graded against rung 0; observer verdicts graded second | **done** |
-| 2 | Lateral 3-DOF: Dutch roll, spiral, roll subsidence (the level-set/value-channel stress) | — |
+| 2 | Lateral 3-DOF: Dutch roll, spiral, roll subsidence via mode-pure annihilator ICs; the level-set/value-channel stress graded | **done** |
 | 3 | 6-DOF + control tapes, byte-exact replay gate | — |
 | 4 | The swarm: N aircraft, three-arm observer cost curve (ceiling/disciplined/floor), VM-vs-AOT | — |
 
