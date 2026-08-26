@@ -27,23 +27,33 @@ NP3=$(grep -c '^p3 ac=' "$OUT" || true)
 while read -r want; do
     grep -qxF "$want" "$OUT" || { echo "FAIL: P3 row drifted: $want"; grep '^p3 ' "$OUT"; exit 1; }
 done <<'P3ROWS'
-p3 ac=0 spread=0.02 cadence=74 reads=109 converged=98 oscillating=1 other=10
-p3 ac=0 spread=0.02 cadence=94 reads=86 converged=75 oscillating=1 other=10
-p3 ac=0 spread=0.02 cadence=148 reads=55 converged=44 oscillating=1 other=10
-p3 ac=0 spread=0.05 cadence=74 reads=109 converged=73 oscillating=1 other=35
-p3 ac=0 spread=0.05 cadence=94 reads=86 converged=25 oscillating=41 other=20
-p3 ac=0 spread=0.05 cadence=148 reads=55 converged=0 oscillating=36 other=19
-p3 ac=1 spread=0.02 cadence=74 reads=109 converged=97 oscillating=1 other=11
-p3 ac=1 spread=0.02 cadence=94 reads=86 converged=55 oscillating=17 other=14
-p3 ac=1 spread=0.02 cadence=148 reads=55 converged=0 oscillating=36 other=19
-p3 ac=1 spread=0.05 cadence=74 reads=109 converged=0 oscillating=1 other=108
-p3 ac=1 spread=0.05 cadence=94 reads=86 converged=0 oscillating=61 other=25
-p3 ac=1 spread=0.05 cadence=148 reads=55 converged=0 oscillating=36 other=19
+p3 ac=0 sp=0.02 cad=74 reads=109 conv=98 osc=1 moving=9 stable=1 equil=0 improving=0
+p3 ac=0 sp=0.02 cad=94 reads=86 conv=75 osc=1 moving=9 stable=1 equil=0 improving=0
+p3 ac=0 sp=0.02 cad=148 reads=55 conv=44 osc=1 moving=0 stable=10 equil=0 improving=0
+p3 ac=0 sp=0.05 cad=74 reads=109 conv=73 osc=1 moving=10 stable=0 equil=25 improving=0
+p3 ac=0 sp=0.05 cad=94 reads=86 conv=25 osc=41 moving=10 stable=1 equil=9 improving=0
+p3 ac=0 sp=0.05 cad=148 reads=55 conv=0 osc=36 moving=10 stable=6 equil=3 improving=0
+p3 ac=1 sp=0.02 cad=74 reads=109 conv=97 osc=1 moving=10 stable=0 equil=1 improving=0
+p3 ac=1 sp=0.02 cad=94 reads=86 conv=55 osc=17 moving=10 stable=0 equil=4 improving=0
+p3 ac=1 sp=0.02 cad=148 reads=55 conv=0 osc=36 moving=10 stable=2 equil=7 improving=0
+p3 ac=1 sp=0.05 cad=74 reads=109 conv=0 osc=1 moving=11 stable=65 equil=32 improving=0
+p3 ac=1 sp=0.05 cad=94 reads=86 conv=0 osc=61 moving=10 stable=15 equil=0 improving=0
+p3 ac=1 sp=0.05 cad=148 reads=55 conv=0 osc=36 moving=13 stable=6 equil=0 improving=0
 P3ROWS
 grep -q '^p3 total reads across the sweep: 1000$' "$OUT" || { echo "FAIL: P3 sweep population changed"; exit 1; }
 # The finding IS the disagreement, so it gets its own assertion: at cadence
 # 74 and the shipped dispersion, the two aircraft must differ by a lot.
-A0=$(grep -oP '^p3 ac=0 spread=0.05 cadence=74 .*converged=\K[0-9]+' "$OUT")
-A1=$(grep -oP '^p3 ac=1 spread=0.05 cadence=74 .*converged=\K[0-9]+' "$OUT")
-[ "$A0" -gt 50 ] && [ "$A1" -eq 0 ] || { echo "FAIL: the per-aircraft disagreement P3 rests on is gone (ac0=$A0 ac1=$A1)"; exit 1; }
-echo "PASS: P3's twelve-row table reproduces, and two aircraft in one fleet disagree ($A0 vs $A1 converged)"
+# P3's claim is that a verdict-driven detector FIRES on healthy aircraft,
+# and that lives at cadence 94. Round 8: the previous assertion pinned the
+# `converged` column at cadence 74 and would have passed identically
+# whether aircraft 1 read `stable` 97 times or `diverging` 97 times -- it
+# pinned a number, not the claim. This pins the claim.
+O0=$(grep -oP '^p3 ac=0 sp=0.05 cad=94 .* osc=\K[0-9]+' "$OUT")
+O1=$(grep -oP '^p3 ac=1 sp=0.05 cad=94 .* osc=\K[0-9]+' "$OUT")
+[ "$O0" -ge 30 ] && [ "$O1" -ge 30 ] || { echo "FAIL: P3's registered prediction is gone — a healthy phugoid no longer reads oscillating at cadence 94 (ac0=$O0 ac1=$O1)"; exit 1; }
+# ...and at cadence 74 BOTH aircraft must be quiescent, which is what round
+# 8 found the headline had inverted.
+Q0=$(grep -oP '^p3 ac=0 sp=0.05 cad=74 .* osc=\K[0-9]+' "$OUT")
+Q1=$(grep -oP '^p3 ac=1 sp=0.05 cad=74 .* osc=\K[0-9]+' "$OUT")
+[ "$Q0" -le 2 ] && [ "$Q1" -le 2 ] || { echo "FAIL: cadence 74 is no longer the quiescent regime (ac0=$Q0 ac1=$Q1)"; exit 1; }
+echo "PASS: P3's twelve-row seven-class table reproduces; quiescent at cadence 74, oscillating at 94 ($O0/$O1)"

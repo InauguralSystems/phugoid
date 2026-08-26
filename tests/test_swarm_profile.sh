@@ -139,7 +139,6 @@ printf "%4s %9s %12s %8s %9s %9s\n" N ceiling disciplined floor unarmed "ceil/fl
 # curve whether or not they carry a verdict.
 WORST=99
 NVALID=0
-SKIPPED=""
 LADDER_N=3
 for n in 1 4 16; do
     c=$(mins tests/swarm_profile.eigs ceiling "$n")
@@ -190,9 +189,12 @@ done
 # spread at N=1 and N=4, having correctly refused to gate on them. The
 # curve is still REPORTED across the whole ladder; what changes is which
 # points carry a verdict.
-# Every ladder point must produce a ratio. NVALID is incremented on every
-# iteration now, so round 6 correctly called the old `>= 3` vacuous; the
-# count is compared against the ladder itself instead.
+# This detects LADDER-LENGTH DRIFT, not ratio production -- NVALID is
+# incremented unconditionally, so it equals the loop count by construction.
+# Round 6 called the `>= 3` form vacuous and round 8 pointed out the
+# replacement is the same tautology written differently. Kept for what it
+# actually does (someone editing the `for` list without the constant), and
+# described as that rather than as a coverage guarantee.
 [ "$NVALID" = "$LADDER_N" ] || { echo "FAIL: $NVALID of $LADDER_N ladder points produced a ratio"; exit 1; }
 echo "worst ceiling/floor across N = $WORST  (bound: > $CF_BOUND)"
 ratio_ok "$WORST" "$CF_BOUND" || {

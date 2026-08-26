@@ -207,8 +207,9 @@ define run_ceiling1(n, frames, dt, spread, tstate, P, sched) as:
 # NOTE: an earlier version of this comment said deleting `never_read` would
 # unarm the module and silently turn this arm into `floor`. That is FALSE
 # -- four other functions in this file hold predicates, so the module stays
-# armed either way (verified with EIGS_OBS_GATE_STATS both with and without
-# it). It is kept only so this arm reads the same in isolation.
+# armed either way -- eight other functions in this file hold predicates,
+# not four as an earlier version of this comment said (verified with
+# EIGS_OBS_GATE_STATS both with and without it). It is kept only so this arm reads the same in isolation.
 define never_read(z) as:
     if diverging of z:
         return 1
@@ -255,11 +256,20 @@ define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
 #   cadence   84    94   104   114
 #   oscillating 52    61    67    61      (spread 0.05, same 8000 frames)
 #
-# Non-monotone, with an optimum near 104 -- so there is no threshold AND no
-# monotone continuum. The verdict is a function of (cadence, timescale,
-# amplitude) with an interior maximum in cadence, which is the strongest
-# form of P3's point yet. 94 is chosen because the fleet-vs-solo oracle
-# binds well there, not because it is a boundary or a peak.
+# Draft 4 called that non-monotone with an optimum near 104. Round 8: the
+# READ POPULATION shrinks across the sweep (96 / 86 / 77 / 71), so raw
+# counts are not comparable. As RATES the picture changes:
+#
+#   cadence      84     94    104    114
+#   ac0       0.250  0.477  0.714  0.761   strictly monotone
+#   ac1/2     0.542  0.709  0.870  0.859   peaks at 104 by 0.011 = ONE read
+#   ac3       0.323  0.523  0.831  0.859   strictly monotone
+#
+# So "non-monotone with an interior optimum" does not survive
+# normalisation -- two of four aircraft are strictly monotone and the other
+# two peak by a single read. Rising, with no threshold. 94 is chosen
+# because the fleet-vs-solo oracle binds well there, not because it is a
+# boundary or a peak.
 define run_named4(frames, dt, spread, cadence, tstate, P, sched, shared) as:
     local fleet is fleet_ic of [tstate, 4, spread]
     local q0 is 0.0

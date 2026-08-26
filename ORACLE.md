@@ -1844,7 +1844,9 @@ column — the arm with no observer in it — so neither number was the
 observer's marginal cost.
 
 Fitted properly, `ceiling − floor` against N: **45.0 µs per aircraft-frame**
-from the 3000-frame table, **41.6 µs** from the 1500-frame harness. Against
+from the 3000-frame table, **~28 µs** from one run of the 1500-frame harness (unrecorded and
+unreproducible as published — an earlier figure of 41.6 µs has no committed
+producer, round 8). Against
 C6's ~0.154 µs per observed scalar write that implies ~270–290 observed
 assignments per aircraft-frame, against a hand count of ~150 for four
 `deriv` calls plus RK4 — **~1.9x, not the ~1.5x first published**.
@@ -1872,12 +1874,11 @@ single minima while the headline ratio had moved on, so it still failed at
 small N for the reason the headline had already fixed. Three consecutive
 green runs on a contended box (1.37 / 1.38 / 1.46).
 
-The measurement points themselves are now DERIVED. A one-frame run gives
-the fixed cost (interpreter start, parse, trim solve); any N where that
-exceeds 5% of the run is excluded and named in the output, because at
-N = 1 it is 11–13% and contention jitter swamps a signal five times
-smaller. Round 3's gate failed at 1.12 on a loaded box, all of it at
-N = 1.
+The fixed cost is measured with a one-frame run and SUBTRACTED from every
+arm — it is a bias present in both numerator and denominator. There is no
+exclusion filter and no `NVALID >= 2` guard; an earlier version of this
+paragraph described both in the present tense after the code had dropped
+them (round 8). Every ladder point produces a ratio.
 
 **And the filter then failed CI — correctly.** The devcontainer is ~3x
 faster than this box, so the same 1500-frame runs put fixed cost at 19%
@@ -1915,51 +1916,52 @@ negative share is impossible, so the split is noise at these sizes. Two
 explanations remain live and this rung cannot separate them. **Not
 published as a mechanism.**
 
-**P3 — the sharpest result the rung has, and it took four rounds to state
-because each write-up held a different variable fixed without saying so.**
+**P3 — CONFIRMED, at the cadence the previous write-up demoted. Five
+rewrites, and the fourth was refuted by a bucket of its own making.**
 
-Round 1 reported "converged 98 of 109 — a separation detector would report
-a calm sky" and read it as a property of the observer. Round 2 showed it
-was cadence-dependent. Round 6 showed the `converged` column was also
-DISPERSION-dependent and that round 5 had changed the dispersion without
-re-measuring. **Round 7 found the fourth variable: WHICH AIRCRAFT.** The
-table had been sampling `fleet[1]`, and the shipped fleet already spans a
-factor of two in amplitude (0.0240 / 0.0466 / 0.0473 / 0.0258 at spread
-0.05) — the same range the "dispersion" axis sweeps. Dispersion was a
-proxy for per-channel amplitude, and the index was hidden.
+Round 1 read the result as a property of the observer; round 2 found it
+cadence-dependent; round 6 found it dispersion-dependent; round 7 found a
+fourth variable (which aircraft) and headlined *"two aircraft in the same
+airspace disagree completely — a calm sky over half the fleet and
+continuous motion over the other half"*. **Round 8 refuted that**, and the
+cause was the driver's own bucketing: it collapsed five of the seven
+verdict classes into an unlabelled `other`, and the row being headlined was
+108 `other`.
 
-`tests/swarm_p3.eigs` now sweeps all three, and the result is stronger than
-any of the four framings:
+Expanded — `report` returns seven labels and the driver now records all
+seven:
 
-| aircraft | amp | cadence | converged | oscillating |
-|---|---|---|---|---|
-| 0 | 0.0240 | 74 | **73** / 109 | 1 |
-| 1 | 0.0466 | 74 | **0** / 109 | 1 |
-| 0 | 0.0240 | 94 | 25 / 86 | 41 |
-| 1 | 0.0466 | 94 | 0 / 86 | 61 |
+| aircraft | cadence | conv | osc | moving | stable | equil |
+|---|---|---|---|---|---|---|
+| 0 (amp .0240) | 74 | 73 | 1 | 10 | 0 | 25 |
+| 1 (amp .0466) | 74 | **0** | 1 | 11 | **65** | **32** |
+| 0 | 94 | 25 | **41** | 10 | 1 | 9 |
+| 1 | 94 | 0 | **61** | 10 | 15 | 0 |
 
-**At one cadence, one timescale and one dispersion, two aircraft in the
-same airspace disagree completely** — one reads `converged` on two thirds
-of its reads while the other never does. A separation detector watching
-this fleet sees a calm sky over half of it and continuous motion over the
-other half, and the difference is a factor of two in pitch-rate amplitude.
+At cadence 74 **both aircraft are quiescent** — 98 of 109 reads for one,
+97 of 109 for the other. There is no "continuous motion" in either stream.
+They differ only in WHICH quiescent band applies, and the predicate lattice
+nests them (`converged` implies `stable`), so one verdict entails the
+other. "Disagree completely" was wrong.
 
-Two things round 6 published as surviving are RETRACTED:
-- *"At the shipped 0.05, `converged` is zero at every cadence"* — false.
-  True for aircraft 1 and 2; aircraft 0 reads it on 67% of reads at
-  cadence 74.
-- *"`oscillating` is genuinely cadence-driven at both dispersions"* — on
-  aircraft 0 at 0.02 it is 1 → 1 → 1, flat, and by this repo's own
-  accounting that single hit is the initialiser sample
-  (EigenScript#1049). So below an amplitude threshold, cadence does
-  nothing at all.
+**Where P3 actually holds is cadence 94**, which the round-7 rewrite
+demoted in favour of the `converged` column: both aircraft report
+`oscillating` on 41 and 61 of their reads while flying a smoothly decaying
+phugoid. That IS the registered prediction — a verdict-driven detector
+firing on healthy aircraft — and it is confirmed.
 
-**And the amplitude axis is not new — it is G5 firing inside one fleet.**
-The value channel's relative step `Δv/(1+|v|)` degenerates to an ABSOLUTE
-deadband for sub-unit magnitudes (GAPS G5, EigenScript#1045), so scaling a
-sub-unit binding by 2x is arithmetically the same as changing its unit by
-2x. Rung 2 found that across units; rung 4 finds it across aircraft in one
-airspace, which is the consumer-facing form.
+What survives from round 7 and was independently re-verified: the amplitude
+attribution is sound and there is no fifth variable. Flying aircraft 0 at
+the dispersion that matches aircraft 1's amplitude reproduces aircraft 1's
+rows exactly, with no residue — so the index reduces to amplitude, and the
+band difference at cadence 74 is G5 (EigenScript#1045) firing across a 2x
+amplitude gap inside one fleet.
+
+**The gate could not have caught this**, which is the transferable part: it
+asserted only on the `converged` column, so it would have passed identically
+whether aircraft 1 read `stable` 97 times or `diverging` 97 times. A check
+that pins the number instead of the claim is the §99 shape this rung has now
+fixed five times. All seven columns are pinned now.
 
 **P4 — CONFIRMED, but the finding is WEAKER than first published, and the
 first version was false.** What broke first was not the physics: it was

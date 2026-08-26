@@ -4,6 +4,13 @@
 # throwaway probe. That is the third time in this rung (round 1: the cost
 # table; round 4: run_closure_n "verified at N = 32"), so it ships now.
 #
+# It reports ALL SEVEN verdict classes. Round 8: the previous version
+# collapsed everything but `converged` and `oscillating` into an unlabelled
+# `other`, and that bucket hid the answer -- the row the bar headlined was
+# 108 `other`, which is 65 `stable` + 32 `equilibrium` + 11 `moving`, i.e.
+# QUIESCENT. The headline read it as "continuous motion". A three-way
+# bucketing cannot support a claim about a seven-class lattice.
+#
 # It sweeps BOTH axes the verdict depends on. The first write-up varied
 # cadence and held dispersion fixed without saying so, and round 5 then
 # changed the dispersion without re-measuring — at which point the
@@ -22,7 +29,10 @@ define p3_row(idx, sp, cad) as:
     local rd is 0
     local cv is 0
     local os is 0
-    local ot is 0
+    local mv is 0
+    local st is 0
+    local eq is 0
+    local im is 0
     local t is 0.0
     local f is 0
     loop while f < 8000:
@@ -37,13 +47,19 @@ define p3_row(idx, sp, cad) as:
                     cv is cv + 1
                 elif rp == "oscillating":
                     os is os + 1
-                else:
-                    ot is ot + 1
+                elif rp == "moving":
+                    mv is mv + 1
+                elif rp == "stable":
+                    st is st + 1
+                elif rp == "equilibrium":
+                    eq is eq + 1
+                elif rp == "improving":
+                    im is im + 1
         unobserved:
             t is t + 0.05
         f is f + 1
-    print of f"p3 ac={idx} spread={sp} cadence={cad} reads={rd} converged={cv} oscillating={os} other={ot}"
-    return [rd, cv, os, ot]
+    print of f"p3 ac={idx} sp={sp} cad={cad} reads={rd} conv={cv} osc={os} moving={mv} stable={st} equil={eq} improving={im}"
+    return [rd, cv, os, mv, st, eq, im]
 
 # The sweep is over THREE axes, not two. Round 7: the previous version
 # sampled fleet[1] and reported the row as a property of the dispersion --
