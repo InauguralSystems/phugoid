@@ -1,0 +1,200 @@
+# swarm.eigs — rung 4: N independent aircraft, each rung 1's longitudinal
+# 3-DOF model, with per-aircraft observed state.
+#
+# The physics is NOT new. Every aircraft integrates rung-1 `deriv` with the
+# same RK4, so each one's free response still grades to the rung-0 chain
+# through the same estimators. This rung adds LOAD, not truth — the load
+# profile that single-aircraft rungs 0-3 could not produce (~12 bindings at
+# 60 Hz there, N x that here).
+#
+# The observed channel per aircraft is its pitch rate q, which is what a
+# supervisory layer reads and what rungs 3's C4/C5 graded. Predicates are
+# written in the `<pred> of <channel>` form throughout, because the BARE
+# form reads the last-observed binding and with N aircraft assigned per
+# frame that can only ever see the last one (measured 2026-08-26; the same
+# fact blocks the AOT arm, ouroboros#119).
+
+load_file of "data/b747_approach.eigs"
+load_file of "sim.eigs"
+
+# ---------------------------------------------------------------- fleet
+# N aircraft trimmed identically, then dispersed in pitch rate so their
+# phugoids are at different phases — a fleet in the same airspace, not N
+# copies of one trajectory. The dispersion is deterministic (no RNG: the
+# tape/replay seam does not exist yet, and a swarm whose ICs come from a
+# clock is not reproducible).
+define fleet_ic(tstate, n, spread) as:
+    local fleet is []
+    local i is 0
+    loop while i < n:
+        local s is []
+        local j is 0
+        loop while j < 4:
+            append of [s, tstate[j]]
+            j is j + 1
+        # deterministic phase spread on q, symmetric about trim
+        s[2] is s[2] + spread * (sin of (i * 0.7))
+        append of [fleet, s]
+        i is i + 1
+    return fleet
+
+# One integration frame for the whole fleet. `sched` is a fixed elevator
+# schedule (no control input: rung 4 measures observation cost, and a
+# controller would confound it with rung 3's loop).
+define frame_step(fleet, t, dt, sched, P) as:
+    local i is 0
+    loop while i < (len of fleet):
+        fleet[i] is rk4_step of [fleet[i], t, dt, sched, P]
+        i is i + 1
+    return fleet
+
+# ------------------------------------------------------- the three arms
+# Each arm is a SEPARATE top-level program (run_ceiling / run_disciplined /
+# run_floor) rather than a flag, so the measurement cannot silently blur
+# them and each one's executed work can be pinned independently — rung 3's
+# C6 lesson, where a gate that measured LESS still printed OK.
+
+# ceiling — every assignment observed, nothing wrapped. This is the naive
+# all-on shape: an armed unit pays the entropy walk on EVERY assignment,
+# scratch included, because emission is gated per unit and not per binding.
+define run_ceiling(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is fleet_ic of [tstate, n, spread]
+    local hits is 0
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        fleet is frame_step of [fleet, t, dt, sched, P]
+        local i is 0
+        loop while i < n:
+            local qobs is fleet[i][2] + 0.0
+            if diverging of qobs:
+                hits is hits + 1
+            i is i + 1
+        t is t + dt
+        f is f + 1
+    print of f"ceiling {n} {frames} {hits}"
+    return hits
+
+# disciplined — the best a programmer can write today: the hot math inside
+# `unobserved:`, and observation only on the state the predicates read.
+define run_disciplined(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is []
+    local hits is 0
+    local t is 0.0
+    unobserved:
+        fleet is fleet_ic of [tstate, n, spread]
+    local f is 0
+    loop while f < frames:
+        unobserved:
+            fleet is frame_step of [fleet, t, dt, sched, P]
+        local i is 0
+        loop while i < n:
+            local qobs is fleet[i][2] + 0.0
+            if diverging of qobs:
+                hits is hits + 1
+            i is i + 1
+        unobserved:
+            t is t + dt
+        f is f + 1
+    print of f"disciplined {n} {frames} {hits}"
+    return hits
+
+# floor — everything wrapped. Pure compute, no observer at all: the
+# denominator the other two arms are measured against.
+define run_floor(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is []
+    local hits is 0
+    unobserved:
+        fleet is fleet_ic of [tstate, n, spread]
+        local t is 0.0
+        local f is 0
+        loop while f < frames:
+            fleet is frame_step of [fleet, t, dt, sched, P]
+            local i is 0
+            loop while i < n:
+                local qobs is fleet[i][2] + 0.0
+                i is i + 1
+            t is t + dt
+            f is f + 1
+    print of f"floor {n} {frames} {hits}"
+    return hits
+
+# P1's discriminator — the disciplined shape with only ONE aircraft reading
+# a verdict. EigenScript#1046 says arming is per-EigsState and monotonic,
+# so this should cost the same on the WRITE side as the N-reader arm, and
+# differ only by the reads it does not do. If it is markedly cheaper than
+# `disciplined`, P1 is refuted and arming is finer than #1046 established.
+define run_onereader(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is []
+    local hits is 0
+    local t is 0.0
+    unobserved:
+        fleet is fleet_ic of [tstate, n, spread]
+    local f is 0
+    loop while f < frames:
+        unobserved:
+            fleet is frame_step of [fleet, t, dt, sched, P]
+        local qobs is fleet[0][2] + 0.0
+        if diverging of qobs:
+            hits is hits + 1
+        unobserved:
+            t is t + dt
+        f is f + 1
+    print of f"onereader {n} {frames} {hits}"
+    return hits
+
+# P1's real discriminator, added at rung 4 after the first attempt could not
+# separate: comparing DISCIPLINED against ONEREADER cannot test arming,
+# because both wrap the integration, so neither pays write cost whatever the
+# arming granularity is. The test has to be in the CEILING shape, where
+# nothing is wrapped and the write cost is actually paid.
+#
+# Same as run_ceiling, but only aircraft 0 is ever read. If arming is
+# per-`EigsState` (EigenScript#1046), this is armed exactly as hard as the
+# N-reader ceiling and should cost the SAME on the write side, differing
+# only by the N-1 reads it skips. If it comes out markedly cheaper, arming
+# is finer than #1046 established and P1 is refuted.
+define run_ceiling1(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is fleet_ic of [tstate, n, spread]
+    local hits is 0
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        fleet is frame_step of [fleet, t, dt, sched, P]
+        local qobs is fleet[0][2] + 0.0
+        if diverging of qobs:
+            hits is hits + 1
+        t is t + dt
+        f is f + 1
+    print of f"ceiling1 {n} {frames} {hits}"
+    return hits
+
+# ...and the ZERO-reader ceiling, which separates the two things
+# run_ceiling1 cannot. If ceiling1 ~= ceilingN, that is consistent with
+# EITHER "arming is per-state so the writes stay armed" OR "reads are a
+# negligible share of this shape's observed operations". This arm removes
+# the reads entirely while KEEPING the module armed (the dead function
+# below holds a predicate, which arms per G7 without ever executing), so
+# ceilingN - ceiling0 is the whole read cost and ceiling0 - floor is the
+# whole write/arming cost. Do not delete `never_read` believing it dead:
+# deleting it unarms the module and this arm silently becomes `floor`.
+define never_read(z) as:
+    if diverging of z:
+        return 1
+    return 0
+
+define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is fleet_ic of [tstate, n, spread]
+    local acc is 0.0
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        fleet is frame_step of [fleet, t, dt, sched, P]
+        local i is 0
+        loop while i < n:
+            acc is acc + fleet[i][2]
+            i is i + 1
+        t is t + dt
+        f is f + 1
+    print of f"ceiling0 {n} {frames} 0"
+    return 0

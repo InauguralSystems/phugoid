@@ -1782,3 +1782,52 @@ SS97-100).
    rounds); if the cap is exceeded, say so and why.
 5. CI green on the pushed branch, and the shipped entry points exercised —
    a dry loop certifies only the surface its critics ran.
+
+## First measurements (2026-08-26) — recorded before the gate exists
+
+Taken at 3000 frames (50 s at 60 Hz), n=5 per point, on the 2-core/4GB dev
+box. **Minima, not medians**: the spread between the fastest and slowest of
+five reached 28% under contention, and the minimum is the least-contended
+sample. Medians are shown where the spread matters.
+
+| N | ceiling | floor | ceiling/floor |
+|---|---|---|---|
+| 1 | 0.399 | 0.297 | 1.34 |
+| 2 | 0.750 | 0.524 | 1.43 |
+| 4 | 1.456 | 1.022 | 1.42 |
+| 8 | 2.829 | 1.983 | 1.43 |
+| 16 | 6.090 | 4.093 | 1.49 |
+| 32 | 13.011 | 8.741 | 1.49 |
+
+**The headline: naive all-on observation costs ~1.4x the unobserved floor,
+and that ratio is FLAT in N from 1 to 32 aircraft.** A flat ratio means the
+observer cost is proportional to total work, which is proportional to N —
+so cost is LINEAR in N, and **P2's linearity holds**. The slight rise
+(1.34 -> 1.49) is at the edge of this box's resolution and is not claimed
+as a trend.
+
+**`unobserved:` buys back essentially the whole penalty.** The disciplined
+arm measured indistinguishable from the floor at every N. That answers the
+question the three arms were built for: `ceiling - disciplined` is nearly
+the entire observer cost, and `disciplined - floor` is below resolution
+here. A programmer who wraps the hot math pays almost nothing for the
+observation they actually want — at this shape.
+
+**P1 is CONFIRMED in its practical form and its MECHANISM IS NOT
+RESOLVED.** Dropping 31 of 32 readers per frame (`run_ceiling1`) saves
+nothing measurable — 12.394 s against 12.732 s at N=32, the one-reader arm
+sometimes slower. That is the prediction. But the follow-up decomposition
+into read cost versus arming cost did NOT resolve: across N = 8, 16, 32 the
+read share came out **-21.5%, -4.8%, +29.8%** of the observer total, and a
+negative share is impossible, so the split is pure noise at these sizes.
+Two explanations remain live and this rung cannot yet separate them —
+arming keeps the writes expensive whatever the reads do, or reads are
+simply a tiny share of this shape's observed operations (roughly one read
+per aircraft-frame against the many assignments inside four RK4 `deriv`
+calls). **Not published as a mechanism.** Resolving it needs either a
+quieter machine or a shape where reads are not a small fraction of
+observed operations.
+
+Note the contrast with rung 3's C6, where reads dominated writes ~2:1 on a
+deliberately read-heavy micro-shape. That conclusion is SHAPE-SPECIFIC, not
+a property of the observer, and this rung is the counter-example.

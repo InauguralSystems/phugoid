@@ -1,0 +1,75 @@
+# swarm_unarmed.eigs — rung 4's ARMING control.
+#
+# The disciplined arm's shape with NO predicate and no observer NAME
+# anywhere, so this module compiles UNARMED. That difference alone is the
+# measurement.
+#
+# Why it has to be a separate program. `EIGS_OBS_GATE_STATS=1` on the main
+# swarm reports `observed` for EVERY unit — including `sim.eigs` and the
+# dataset, which contain no observer construct at all — because arming is
+# per-`EigsState` and monotonic (GAPS.md G7 / EigenScript#1046). So the
+# `floor` arm inside swarm.eigs is "everything wrapped in `unobserved:`
+# inside an ARMED process", which is NOT the same thing as an unarmed
+# program, and calling it the floor would have measured one no-walk state
+# against another — a tautology, exactly the circularity rung 3's round 13
+# caught in the C6 attribution.
+#
+# This file must stay predicate-free AND observer-NAME-free: the gate also
+# scans the constant pool, so a bare string "report" arms it just as well.
+# tests/test_swarm_profile.sh pins that with a whole-file hash.
+
+load_file of "data/b747_approach.eigs"
+load_file of "sim_core.eigs"
+
+# The trim, PINNED as literals rather than solved. `trim_solve` needs
+# `import linalg`, and any import arms the observer for the whole
+# interpreter state (src/chunk.c:1167 lists OP_IMPORT as a reader opcode;
+# measured at +49% to +84% on a write loop for one unused import,
+# EigenScript#1046). So an unarmed control cannot call it.
+# These are not magic numbers: tests/test_swarm.sh re-solves the trim with
+# the real solver and asserts these literals match it, so they cannot
+# drift from the physics they stand in for.
+define trim_pinned as:
+    return [279.09999958677514, 0.0 - 0.015187564279792735, 0.0, 0.0 - 5.441621027333612e-05]
+
+define de_pinned as:
+    return 5.274186534184886e-05
+
+define fleet_ic_u(tstate, n, spread) as:
+    local fleet is []
+    local i is 0
+    loop while i < n:
+        local s is []
+        local j is 0
+        loop while j < 4:
+            append of [s, tstate[j]]
+            j is j + 1
+        s[2] is s[2] + spread * (sin of (i * 0.7))
+        append of [fleet, s]
+        i is i + 1
+    return fleet
+
+define frame_step_u(fleet, t, dt, sched, P) as:
+    local i is 0
+    loop while i < (len of fleet):
+        fleet[i] is rk4_step of [fleet[i], t, dt, sched, P]
+        i is i + 1
+    return fleet
+
+# The disciplined arm's work, minus the verdict reads: same integration,
+# same per-frame touch of each aircraft's q, no observation of any kind.
+define run_unarmed(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is fleet_ic_u of [tstate, n, spread]
+    local acc is 0.0
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        fleet is frame_step_u of [fleet, t, dt, sched, P]
+        local i is 0
+        loop while i < n:
+            acc is acc + fleet[i][2]
+            i is i + 1
+        t is t + dt
+        f is f + 1
+    print of f"unarmed {n} {frames} 0"
+    return 0
