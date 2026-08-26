@@ -265,38 +265,18 @@ define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
 #   ac1/2     0.542  0.709  0.870  0.859   peaks at 104 by 0.011 = ONE read
 #   ac3       0.323  0.523  0.831  0.859   strictly monotone
 #
-# Round 11 -- this sweep now has a COMMITTED PRODUCER. It had lived only
-# here, as a table in a comment, through three contradictory readings:
-# draft 4 called it non-monotone with an optimum near 104; round 8
-# normalised it to rates, saw 84..114 rising, and retracted the optimum;
-# round 9 saw cadence 148 below 114 and retracted the retraction. All
-# three were reading RAW osc/reads over whatever range was to hand.
+# Round 15 -- the cadence table that used to live here as a comment is
+# GONE, and with it the last producerless claim in this row. It had been
+# read four different ways (draft 4, rounds 8, 9, 12) and every reading
+# was wrong in a different way, because a table in a comment cannot be
+# re-measured when the driver changes underneath it. By round 15 the
+# numbers here were simply stale: they still carried round 12's `.010`
+# detection at cadence 74, which rounds 13 and 14 retracted as a channel
+# seeding artifact and the suite now pins as 0.
 #
-# Round 12 -- and a FOURTH reading was wrong, this one mine. Measured
-# full-window with a primed, evenly-spaced channel, detect rate:
-#
-#   cadence     74    84    94   104   114   124   134   148
-#   ac0       .010  .276  .532  .809  .871  .946  .706  .783
-#   ac1       .010  .598  .792  .985  .984  .929  .706  .783
-#
-# Round 11 read two conclusions off this table and both were artifacts of
-# reading ONE column:
-#
-#   * "a local minimum at 134, recovering at 148" -- the DETECTION COUNT
-#     is frozen at 36 across both cadences for both aircraft. Only the
-#     denominator moves (51 -> 46 full-window reads). Nothing recovers.
-#   * "from 134 on the two aircraft are identical, the amplitude
-#     dependence vanishes as in the unit axis" -- true of `fosc` only. At
-#     134 the small-amplitude aircraft issues a false all-clear on 14 of
-#     51 reads and the large one on 0. The dependence moved into the
-#     dangerous column; it did not vanish. And the unit-axis mechanism
-#     drives false-all-clear to 0 for BOTH aircraft, which is exactly
-#     what does not happen here, so the attribution was wrong too.
-#
-# The peaks are aircraft-dependent (ac1 at 104, ac0 at 124). Both are
-# pinned in tests/p3claims.sh as claim P3.tail, with plants, because this
-# is the third time in this rung a conclusion came from one column of a
-# multi-column table.
+# tests/swarm_p3.eigs sweeps a UNIFORM grid -- 3 units x 2 aircraft x 2
+# dispersions x 8 cadences -- and every row is pinned in
+# tests/test_swarm.sh. Read the numbers there.
 #
 # 94 is chosen because the fleet-vs-solo oracle binds well there, not
 # because it is a boundary or a peak.

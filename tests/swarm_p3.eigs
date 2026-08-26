@@ -271,37 +271,34 @@ define p3_row(idx, sp, cad, uscale, uname) as:
 # amplitude and the aircraft index was a hidden variable. Round 10 adds
 # the unit, which subsumes BOTH of those: amplitude and unit enter the
 # deadband the same way, as the numeric magnitude of the channel.
+# ONE UNIFORM SWEEP over every axis: 3 units x 2 aircraft x 2 dispersions
+# x 8 cadences = 96 rows.
+#
+# Round 15. This used to be three sweeps with different coverage -- rad at
+# 3 cadences x 2 dispersions, deg/mrad at 3 cadences x 1 dispersion, and a
+# separate rad-only cadence ladder at sp=0.05 -- and every gap in that
+# coverage produced a published claim that the missing cells refuted:
+#
+#   R6/R7  dispersion and aircraft read as separate axes (they are one)
+#   R10    the whole headline was a property of the radian scaling
+#   R11    the cadence ladder existed only in a code comment
+#   R14    "the aircraft differ at long cadence in degrees", generalised
+#          from two cells of a sweep that had never been extended -- and
+#          refuted by the driver's own pins, where 3 of the 4 deg cells at
+#          cadence 148 are byte-identical and the fourth differs by ONE
+#          read.
+#
+# Six producerless generalisations in one row. The sweep is uniform now so
+# that "we did not measure that cell" stops being available as a way to be
+# wrong.
 rows is 0
-for ac in [0, 1]:
-    for sp in [0.02, 0.05]:
-        for cd in [74, 94, 148]:
-            r is p3_row of [ac, sp, cd, 1.0, "rad"]
-            rows is rows + r[0]
-# Round 11: the unit axis now runs at BOTH dispersions. ORACLE's downgrade
-# of round 6 rests on "in degrees, dispersions 0.02 and 0.05 produce
-# byte-identical rows" -- which was true but had no committed producer,
-# the fifth published-without-a-producer claim in this rung.
-for uac in [0, 1]:
-    for usp in [0.02, 0.05]:
-        for ucd in [74, 94, 148]:
-            rd is p3_row of [uac, usp, ucd, 57.29577951308232, "deg"]
-            rows is rows + rd[0]
-            rmr is p3_row of [uac, usp, ucd, 1000.0, "mrad"]
-            rows is rows + rmr[0]
+for uu in [[1.0, "rad"], [57.29577951308232, "deg"], [1000.0, "mrad"]]:
+    for ac in [0, 1]:
+        for sp in [0.02, 0.05]:
+            for cd in [74, 84, 94, 104, 114, 124, 134, 148]:
+                r is p3_row of [ac, sp, cd, uu[0], uu[1]]
+                rows is rows + r[0]
 print of f"p3 total reads across the sweep: {rows}"
-
-# The CADENCE sweep, which until round 11 lived only as a table in
-# swarm.eigs's comments with no committed producer. Round 8 normalised it
-# to rates and concluded "rising, no threshold"; round 9 retracted that
-# after seeing cadence 148 turn over. Both were reading raw osc/reads over
-# a range that stopped at 114. Produced here full-window so the shape is
-# measured rather than argued.
-cadrows is 0
-for cac in [0, 1]:
-    for ccd in [84, 104, 114, 124, 134]:
-        rc is p3_row of [cac, 0.05, ccd, 1.0, "rad"]
-        cadrows is cadrows + rc[9]
-print of f"p3cad total full-window reads across the cadence sweep: {cadrows}"
 
 # ---------------------------------------------------------------------
 # The N axis. P3 as registered predicts a detector that fires on healthy

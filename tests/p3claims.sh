@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# p3claims.sh -- P3's six CLAIM assertions, as one shared implementation.
-# IDs: P3.truth.alive, P3.rows, P3.blind74, P3.unitdep, P3.nuisance,
-# P3.tail, P3.nfleet.
+# p3claims.sh -- P3's CLAIM assertions, as one shared implementation.
+# IDs: P3.truth.alive, P3.rows, P3.blind74, P3.unitdep, P3.phase,
+# P3.partition, P3.nuisance, P3.tail, P3.nfleet.
 #
 # Why this is a library and not inline in test_swarm.sh: round 8 wrote two
 # claim assertions inline and placed them AFTER the exact-row pins, which
@@ -67,14 +67,28 @@ p3_claims() {
     # lacked for eight rounds: five successive write-ups graded the
     # verdict columns against nothing and inverted the classification
     # each time.
-    local ul0 ul1
-    ul0=$(_num '^p3truth ac=0 sp=0.05 .* u_pp_last=\K[0-9-]+')
-    ul1=$(_num '^p3truth ac=1 sp=0.05 .* u_pp_last=\K[0-9-]+')
-    if [ -z "$ul0" ] || [ -z "$ul1" ]; then
-        _cf P3.truth.alive "physics truth row absent from driver output (vacuous check)"
-    elif [ "$ul0" -lt 300 ] || [ "$ul1" -lt 600 ]; then
-        _cf P3.truth.alive "the phugoid is no longer swinging in the final period (u_pp_last ac0=$ul0 ac1=$ul1 hundredths m/s); P3's truth table has changed"
-    fi
+    # ALL FOUR truth rows, not just sp=0.05. Round 15: this read only the
+    # two sp=0.05 rows while the claims below grade rows at BOTH
+    # dispersions -- six of the twelve cadence-74 rows P3.blind74 pins,
+    # and the radmax P3.unitdep reads, come from sp=0.02. Zeroing both
+    # sp=0.02 truth rows left every claim green. A truth check must cover
+    # the population it licenses.
+    #
+    # The bounds are per-dispersion because the aircraft genuinely swing
+    # different amounts: at sp=0.02 the final-period swing is 1.81 and
+    # 3.52 m/s, at sp=0.05 it is 4.52 and 8.80. ORACLE attached "4.5-8.8
+    # m/s" to all twelve cadence-74 rows; that is true of six of them.
+    local nt=0 tv ta tsp
+    while read -r ta tsp tv; do
+        nt=$((nt+1))
+        case "$ta/$tsp" in
+            0/0.02) [ "$tv" -ge 120 ] || _cf P3.truth.alive "ac0 sp=0.02 phugoid has died (u_pp_last=$tv)" ;;
+            1/0.02) [ "$tv" -ge 240 ] || _cf P3.truth.alive "ac1 sp=0.02 phugoid has died (u_pp_last=$tv)" ;;
+            0/0.05) [ "$tv" -ge 300 ] || _cf P3.truth.alive "ac0 sp=0.05 phugoid has died (u_pp_last=$tv)" ;;
+            1/0.05) [ "$tv" -ge 600 ] || _cf P3.truth.alive "ac1 sp=0.05 phugoid has died (u_pp_last=$tv)" ;;
+        esac
+    done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) .* u_pp_last=\([0-9-]*\).*/\1 \2 \3/p' "$out")
+    [ "$nt" -eq 4 ] || _cf P3.truth.alive "$nt of 4 physics truth rows found (vacuous check)"
 
     # Pull every row as "unit ac sp cad full fosc fquiet".
     local rowfile
@@ -180,15 +194,64 @@ p3_claims() {
     # false and is not asserted. What is true at every phase tested is
     # that the observer detects AT MOST ONE read out of ~99 while the
     # aircraft swings 4.5-8.8 m/s peak-to-peak. That is the claim.
-    local ph nph=0 phmax=-1 phv
-    while read -r _a _c _p full fosc; do
+    local nph=0 phmax=-1 phminfull=999999 pa pc pp pfull pfosc
+    local phkeys=""
+    while read -r pa pc pp pfull pfosc; do
         nph=$((nph+1))
-        [ "$fosc" -gt "$phmax" ] && phmax=$fosc
+        phkeys="$phkeys $pa:$pp"
+        [ "$pc" = "74" ] || _cf P3.phase "phase cell ac=$pa phase=$pp is at cadence $pc, not 74"
+        [ "$pfosc" -gt "$phmax" ] && phmax=$pfosc
+        [ "$pfull" -lt "$phminfull" ] && phminfull=$pfull
     done < <(sed -n 's/^p3ph ac=\([0-9]*\) cad=\([0-9]*\) phase=\([0-9]*\) full=\([0-9]*\) fosc=\([0-9]*\).*/\1 \2 \3 \4 \5/p' "$out")
+    # The DENOMINATOR is asserted too. Round 15: the claim checked only the
+    # numerator, so zeroing every `full` on the phase rows left it green --
+    # "at most one detection in ~99 reads" with no reads at all. And the
+    # twelve cells must be twelve DISTINCT (aircraft, phase) pairs: twelve
+    # copies of phase 0 would have certified the claim about all phases.
+    local nuniq
+    nuniq=$(printf '%s\n' $phkeys | sort -u | wc -l)
     if [ "$nph" -ne 12 ]; then
         _cf P3.phase "$nph of 12 phase cells found (vacuous check)"
+    elif [ "$nuniq" -ne 12 ]; then
+        _cf P3.phase "the 12 phase cells cover only $nuniq distinct (aircraft, phase) pairs — the sweep is not sweeping"
+    elif [ "$phminfull" -lt 90 ]; then
+        _cf P3.phase "a phase cell has only $phminfull full-window reads; 'at most one detection in ~99' is not supported by that denominator"
     elif [ "$phmax" -gt 1 ]; then
         _cf P3.phase "at some grid phase the observer detects $phmax reads at cadence 74; it is no longer blind independently of phase"
+    fi
+
+    # --- claim: in a NON-RADIAN unit the aircraft and dispersion axes
+    # collapse. This is the evidence for the round-6/7 downgrade, and it
+    # has now been mis-stated twice from partial sweeps.
+    #
+    # Round 6 read the band difference as a property of the dispersion;
+    # round 7 as a property of which aircraft; round 10 showed both are
+    # the channel's MAGNITUDE entering an absolute deadband, so in a unit
+    # far from the deadband they should collapse. Round 14 then claimed
+    # they collapse only at cadence 74 and "the amplitude axis survives
+    # the rescaling once the cadence is long enough" -- generalised from
+    # two cells of a sweep covering one dispensation at three cadences.
+    #
+    # Measured over the uniform grid (round 15): in degrees the four
+    # (aircraft x dispersion) cells are BYTE-IDENTICAL at six of eight
+    # cadences -- 74, 84, 94, 104, 114 and 134 -- and at the other two
+    # (124, 148) they differ by exactly ONE read. Cadence 134 is longer
+    # than 124 and identical, so there is no "long enough" boundary. The
+    # collapse is near-universal; round 14 had it backwards.
+    local ncad=0 nident=0 cd lo hi spread
+    for cd in 74 84 94 104 114 124 134 148; do
+        lo=$(awk -v c="$cd" '$1=="deg" && $4==c {print $6}' "$rowfile" | sort -n | head -1)
+        hi=$(awk -v c="$cd" '$1=="deg" && $4==c {print $6}' "$rowfile" | sort -n | tail -1)
+        [ -n "$lo" ] && [ -n "$hi" ] || continue
+        ncad=$((ncad+1))
+        spread=$(( hi - lo ))
+        [ "$spread" -eq 0 ] && nident=$((nident+1))
+        [ "$spread" -le 1 ] || _cf P3.unitid "in degrees at cadence $cd the four aircraft/dispersion cells span $spread reads; rescaling no longer collapses the amplitude axis"
+    done
+    if [ "$ncad" -lt 8 ]; then
+        _cf P3.unitid "only $ncad of 8 cadences have degree rows (vacuous check)"
+    elif [ "$nident" -lt 6 ]; then
+        _cf P3.unitid "the four degree cells are identical at only $nident of 8 cadences (expected at least 6)"
     fi
 
     # --- claim 5: the full-window buckets must PARTITION `full`.

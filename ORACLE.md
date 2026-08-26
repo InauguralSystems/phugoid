@@ -2057,8 +2057,10 @@ the FIFTH hidden variable found in this single row — after cadence,
 dispersion, aircraft and unit — and each of the previous four inverted a
 published claim the moment it was swept. So the strong form is retired.
 What holds at every phase tested, and is what the gate asserts, is that
-the observer detects **at most one read out of ~99** while the aircraft
-swings 4.5–8.8 m/s peak-to-peak. Blind in effect, not blind by
+the observer detects **at most one read out of ~99**. (The swing figures
+quoted above are the sp=0.05 aircraft; the sp=0.02 pair swing 1.81 and
+3.52 m/s in the final period. Round 15: this section had attached
+"4.5–8.8 m/s" to all twelve cadence-74 rows, which is true of six.) Blind in effect, not blind by
 construction.
 
 **The unit-DEPENDENT half — the severity.** *Which* wrong answer you get
@@ -2087,14 +2089,22 @@ the sole evidence for the round-6 downgrade, and nothing produced it).
 Round 12 found that round 11's own priming had *broken* this identity in
 a partial-window read, and fixed the priming rather than the claim.
 
-**Scoped at round 14, which found the identity does NOT hold at long
-cadence.** In degrees at cadence 148 the two aircraft differ (`fosc` 34 vs
-35), and similarly at 124 — so the amplitude axis *survives* the
-rescaling once the cadence is long enough, and "amplitude and unit enter
-the deadband identically" is true near the deadband and false away from
-it. The round-6/7 downgrade stands where it was argued — at cadence 74,
-where the band difference lives — and is withdrawn as a general claim
-about the two axes being the same axis. What
+**Round 14 scoped this to cadence 74 and had it backwards; round 15
+measured the whole grid.** Round 14 read two cells of a sweep that covered
+one dispersion at three cadences and concluded the amplitude axis
+"survives the rescaling once the cadence is long enough". Over the uniform
+grid, in degrees, the four (aircraft × dispersion) cells are
+**byte-identical at six of eight cadences** — 74, 84, 94, 104, 114 and
+134 — and at the other two (124, 148) they differ by exactly **one read**.
+Cadence 134 is *longer* than 124 and identical, so there is no "long
+enough" boundary at all. The collapse is near-universal and the two
+exceptions are single-read deadband crossings.
+
+Round 14's own claim was refutable from the rows it shipped without
+running anything: three of the four degree cells at cadence 148 are
+identical (`fosc=34`) and only the largest-amplitude cell is 35. The
+downgrade of rounds 6 and 7 therefore stands **more** strongly than
+round 14 allowed, and is pinned as claim `P3.unitid`. What
 round 7 called "two aircraft in one fleet disagreeing" is one deadband
 crossing seen twice.
 
@@ -2106,11 +2116,11 @@ number. Round 10 asserted `max detect < 90%` and called it "no clean
 row" — a bound set by where the data happened to stop (nothing had
 exceeded 80% in a sweep ending at cadence 148). Round 11 forced a
 committed producer for the cadence sweep, which extended it, and
-detection reaches **98.5%** at cadence 104. The round-10 gate would have
+detection reaches **100%** at cadence 104 (in degrees; 98.5% in radians). The round-10 gate would have
 declared P3 *refuted* at the exact point the evidence for it is
 strongest. The claim now asserts the direction P3 actually predicts:
 some cadence must make the detector fire on a measurably healthy
-aircraft, and one does, on 98 of every 100 reads.
+aircraft, and one does, on every read of a 67-read window.
 
 So there is no usable operating point, rather than no clean row: below the
 window the detector is blind (0%) and, in radians, issues a false

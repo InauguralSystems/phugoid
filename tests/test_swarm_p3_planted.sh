@@ -98,7 +98,7 @@ plant c4 P3.unitdep 1 f_setbucket '^p3 unit=deg ac=0 sp=0\.05 cad=74 ' fquiet 50
 # P3's registered refutation condition ("a clean verdict stream") actually
 # firing. Caps only the high-detection cadences, so the cadence-74
 # blindness claim must stay green and only P3.nuisance may move.
-plant c5 P3.nuisance 1 f_setbucket '^p3 unit=rad ac=[01] sp=0\.05 cad=(104|114|124) ' fosc 10
+plant c5 P3.nuisance 1 f_setbucket '^p3 unit=[a-z]+ ac=[01] sp=0\.0[25] cad=(104|114|124|134|148) ' fosc 10
 # c6: the fleet alert rate falls with N -- channels sharing state again,
 # which is rung 4's P4 defect returning.
 plant c6 P3.nfleet 1 f_sed 's/^(p3n n=16 .*)fleet_permille=[0-9]+/\1fleet_permille=400/'
@@ -116,7 +116,7 @@ plant c8 P3.rows 1 f_sed '/^p3 unit=/d'
 # (tests/observer_lat_check.eigs); rung 4 did not carry it forward, and
 # nothing noticed until a critic re-expressed the channel in degrees and
 # watched every substantive claim invert while the gate still printed OK.
-plant c9 'P3.blind74 P3.unitdep' 2 f_sed '/^p3 unit=(deg|mrad) /d'
+plant c9 'P3.blind74 P3.unitdep P3.unitid' 3 f_sed '/^p3 unit=(deg|mrad) /d'
 # c10: THE SEED REGRESSION. Restore the one `oscillating` per cadence-74
 # row that reverting the channel seed to 0.0 produces. Round 14 found the
 # previous bound (`fosc -gt 1`, inherited from round 12's withdrawn "1 of
@@ -131,6 +131,15 @@ plant c10 P3.blind74 12 f_mvdetect 'cad=74 ' 1
 # in this row.
 plant c13 P3.phase 1 f_sed 's/^(p3ph ac=1 cad=74 phase=7 .*)fosc=[0-9]+/\1fosc=4/'
 plant c14 P3.phase 1 f_sed '/^p3ph ac=0 /d'
+# c16/c17: the unit-collapse claim -- the sole evidence for the round-6/7
+# downgrade, mis-stated twice from partial sweeps.
+plant c16 P3.unitid 2 f_setbucket '^p3 unit=deg ac=0 sp=0\.02 cad=94 ' fosc 20
+plant c17 P3.unitid 1 f_sed '/^p3 unit=deg .* cad=134 /d'
+# c18: the physics truth must cover BOTH dispersions.
+plant c18 P3.truth.alive 1 f_sed 's/^(p3truth ac=1 sp=0\.02 .*)u_pp_last=[0-9]+/\1u_pp_last=10/'
+# c19/c20: the phase claim's denominator and its distinctness.
+plant c19 P3.phase 1 f_sed 's/^(p3ph ac=[01] cad=74 phase=[0-9]+ )full=[0-9]+/\1full=3/'
+plant c20 P3.phase 1 f_sed 's/^p3ph ac=1 cad=74 phase=[0-9]+ /p3ph ac=1 cad=74 phase=7 /'
 # c15: the buckets must partition the full-window count.
 plant c15 P3.partition 1 f_sed 's/^(p3 unit=rad ac=0 sp=0\.05 cad=94 .*)fother=[0-9]+/\1fother=7/'
 
@@ -154,4 +163,4 @@ PN=$(grep -n "^P3ROWS$" tests/test_swarm.sh | head -1 | cut -d: -f1)
 [ "$CL" -lt "$PN" ] || { echo "FAIL: P3's claim assertions (line $CL) run AFTER the exact-row pins (line $PN) — they are unreachable, which is the round-8 defect"; exit 1; }
 echo "--- ordering: claims at line $CL precede the row pins at line $PN"
 
-echo "PASS: all 15 P3 claim plants red exactly their own claim set, and the claims precede the row pins"
+echo "PASS: all 20 P3 claim plants red exactly their own claim set, and the claims precede the row pins"
