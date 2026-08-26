@@ -1975,15 +1975,35 @@ unit. Two things are then graded separately, because round 9's single
   contradictions inflated every round-9 rate by exactly 9 reads per row —
   the published "best cell 29% divergent" is **20.8%** once excluded,
   which sat on the 20% boundary the gate itself used. All rates below are
-  full-window.
+  full-window, including `p3_fleet`'s — round 11 found that one had no
+  exclusion at all while this sentence claimed otherwise, which moves the
+  fleet rate from 0.709 to **0.779**.
 
 **The unit-INVARIANT half — the detection failure.** At cadence 74 a
-10-sample window spans 0.79 of a phugoid period, so `oscillating` cannot
-fire whatever the numbers are scaled to. Measured, all twelve cadence-74
-rows across all three units: **detection = 1.0%**. The observer misses a
-live mode on 99 of 100 full-window reads, in radians, degrees and
-milliradians alike. This is what the window/period argument explains, and
-it is the half that is genuinely about observers.
+10-sample window spans 0.79 of a phugoid period. Measured, all **twelve**
+cadence-74 rows (2 aircraft x 2 dispersions x 3 units): **detection = 0
+reads out of 100**, in radians, degrees and milliradians alike. The
+observer misses the live mode entirely.
+
+*Round 11 corrected this paragraph three times over.* Round 10 said
+"detection = 1.0%" and "all twelve rows" of a sweep that then had eight;
+both were wrong, and the 1.0% was not a detection at all. It was the
+channel's `local q is 0.0` initialiser: a fictitious jump from 0 to the
+trim pitch rate, which the oscillation family reads as a reversal, firing
+exactly once per channel at the read where the window first fills. Primed
+with the aircraft's real initial value — same reads, same physics —
+`oscillating` goes to **zero across all 109 reads** in every unit. This
+is round 5's own finding ("the initialiser is a sample") reaching a second
+site: rung 4 applied it to channel CONSTRUCTION (#1049) and never to the
+channel's initial VALUE, though `swarm_check.eigs` had been accounting for
+it all along ("exactly 1 per channel is the initialiser sample").
+
+Round 10 also wrote that `oscillating` "cannot fire whatever the numbers
+are scaled to". That was false on its own pinned rows — the deg/mrad
+cadence-74 rows showed `osc=5`, all inside the window-fill region. The
+oscillation family has partial-window paths with no full-window guard, so
+the correct statement is that it cannot fire on the PHYSICS at this
+cadence, not that it cannot fire.
 
 **The unit-DEPENDENT half — the severity.** *Which* wrong answer you get
 is EigenScript#1045's absolute zero-band, so it depends on the numeric
@@ -1991,9 +2011,9 @@ magnitude of the channel, not its shape:
 
 | unit, cadence 74 | detect | **false all-clear** |
 |---|---|---|
-| rad (shipped) | 1.0% | **97–98%** |
-| deg | 1.0% | **0%** |
-| mrad | 1.0% | **0%** |
+| rad (shipped) | 0% | **97–98%** |
+| deg | 0% | **0%** |
+| mrad | 0% | **0%** |
 
 Identical physics, identical cadence, identical window. In radians the
 per-sample step (~6e-4 rad/s) straddles the `dh_zero` = 1e-3 deadband and
@@ -2005,20 +2025,36 @@ signature of a threshold rather than a scale.
 **So rounds 6 and 7 are downgraded.** The dispersion axis and the aircraft
 axis were the same axis as the unit: amplitude and unit enter the deadband
 identically, as the magnitude of the channel. In degrees, aircraft 0 and 1
-and dispersions 0.02 and 0.05 all produce byte-identical rows. What
+and dispersions 0.02 and 0.05 all produce byte-identical rows — now
+measured by a committed producer (round 11 added the sp=0.02 unit rows;
+this had been the sole evidence for the round-6 downgrade, and nothing
+produced it). What
 round 7 called "two aircraft in one fleet disagreeing" is one deadband
 crossing seen twice.
 
-**No clean stream exists anywhere.** Best row in the whole 24-row sweep
-detects **80%** of a live mode; the worst detects 1%. At the shipped unit
-the smallest aircraft is 97.8% false-all-clear even at cadence 148, where
-the window is ample. P3's registered refutation condition was "a clean
-verdict stream"; no unit, cadence, dispersion or aircraft produces one.
+**P3's registered confirmation — the nuisance rate — and a threshold that
+was tuned to the data.** P3 predicts a detector that *fires on healthy
+aircraft*, refutable by "a clean verdict stream". Truth is `oscillating`,
+so detection rate and alert-on-a-healthy-aircraft rate are the same
+number. Round 10 asserted `max detect < 90%` and called it "no clean
+row" — a bound set by where the data happened to stop (nothing had
+exceeded 80% in a sweep ending at cadence 148). Round 11 forced a
+committed producer for the cadence sweep, which extended it, and
+detection reaches **97.1%** at cadence 104. The round-10 gate would have
+declared P3 *refuted* at the exact point the evidence for it is
+strongest. The claim now asserts the direction P3 actually predicts:
+some cadence must make the detector fire on a measurably healthy
+aircraft, and one does, on 97 of every 100 reads.
+
+So there is no usable operating point, rather than no clean row: below the
+window the detector is blind (0%) and, in radians, issues a false
+all-clear on 97–98% of reads; at a cadence where it sees the mode it
+alerts almost continuously on entirely normal flight.
 
 **The N half — CONFIRMED, but construction-bound, and that is a weaker
 statement than round 9 made.** P3 predicts a rate "that does not fall with
 N". Measured (`p3_fleet`, one closure channel per aircraft): exactly
-0.709 from N=2 to N=16. But `fleet_ic` gives aircraft *i* an N-independent
+0.779 from N=2 to N=16. But `fleet_ic` gives aircraft *i* an N-independent
 initial condition, `frame_step` has no inter-aircraft coupling, and each
 aircraft owns its channel — so each alert set is N-independent and the
 union is monotone in N. **The rate cannot fall, by construction.** It is
@@ -2032,10 +2068,17 @@ as its consumer **does not exist** — "alert" here is `verdict ==
 **Two corrections to round 9's own numbers.** The claim that the observer
 "reports `converged`/`stable`/`equilibrium` on 108 of 109 reads" was
 false — 108 was `div`, which includes 10 `moving`. The quiescent-label
-counts are **98** and **97**. And round 8's retraction of the cadence
-sweep's interior optimum is itself retracted: continuing to 148 turns the
-curve over (0.761→0.655, 0.859→0.655), and the two producers agree exactly
-where they overlap.
+counts are **98** and **97**. The cadence sweep now has a committed
+producer (round 11 — it had lived only in `swarm.eigs` comments, the fifth
+producerless claim in this rung), and full-window it is **not a single
+interior optimum** either: ac0 rises to 92.9% at cadence 124 while ac1
+peaks earlier at 97.1% at 104, both fall to 68.6% at 134, and 148 comes
+back **up** to 76.1%. Round 8 called it monotone, round 9 "a peak
+somewhere in 114..148, then falling"; measured over a producer it is
+non-monotone with aircraft-dependent peaks and a local minimum at 134.
+From cadence 134 on, ac0 and ac1 are identical — the amplitude dependence
+disappears once the per-sample step clears the deadband, the same
+mechanism as the unit axis.
 
 **The transferable part, and why six gates missed it.** Every gate so far
 pinned the observer's OUTPUT — first the `converged` column, then all

@@ -33,6 +33,14 @@
 # (fquiet/full) is the dangerous direction. Both are graded, and the unit
 # is a first-class axis.
 #
+# ROUND 11: the channel is PRIMED with the aircraft's real initial value.
+# An unprimed `local q is 0.0` injects a fictitious 0 -> trim transient
+# that the oscillation family reads as a reversal, manufacturing exactly
+# one `oscillating` per channel at the read where the window fills. That
+# artifact was round 10's headline "1.0% detection". Primed, cadence-74
+# detection is 0 in every unit -- so claim 2 asserts EXACTLY zero, which
+# is what makes the regression visible.
+#
 # Every claim reports independently (no early exit) so a planted fault can
 # assert an EXACT red set rather than "something failed".
 #
@@ -89,12 +97,23 @@ p3_claims() {
     while read -r u a s c full fosc fq; do
         [ "$c" = "74" ] || continue
         nb74=$((nb74+1))
-        det=$(( fosc * 100 / full ))
-        if [ "$det" -gt 5 ]; then
-            _cf P3.blind74 "cadence 74 is no longer blind for unit=$u ac=$a sp=$s (detects ${det}% of a live mode)"
+        # EXACTLY zero, not "below 5%". Round 11: the un-primed channel
+        # (`local q is 0.0`) manufactures exactly ONE `oscillating` per
+        # channel -- the read where the window first fills, whose window
+        # content is entirely the startup transient from a fictitious 0 to
+        # the trim pitch rate. Round 10 published that single artifact as
+        # "detection = 1.0%, the unit-invariant half". A <=5% bound cannot
+        # tell 1 artifact from 0 physics, so the bound is 0 and the
+        # priming regression reds here.
+        if [ "$fosc" -ne 0 ]; then
+            _cf P3.blind74 "cadence 74 is no longer blind for unit=$u ac=$a sp=$s ($fosc of $full full-window reads detect a live mode; if this is 1 per row, the channel initialiser is unprimed again)"
         fi
     done < "$rowfile"
-    [ "$nb74" -ge 6 ] || _cf P3.blind74 "only $nb74 cadence-74 rows found across units (vacuous check)"
+    # EXACT population. A ">= 6" bound tolerated losing both mrad rows
+    # silently, which is the same shape as a check that examined zero
+    # items and passed. The sweep produces 2 aircraft x 2 dispersions x 3
+    # units = 12 cadence-74 rows.
+    [ "$nb74" -eq 12 ] || _cf P3.blind74 "$nb74 cadence-74 rows found, expected 12 (vacuous check)"
 
     # --- claim 3: the SEVERITY of that failure is unit-dependent, and the
     # dangerous direction exists in the shipped unit. In radians the
@@ -121,14 +140,28 @@ p3_claims() {
         [ "$degmax" -eq 0 ] || _cf P3.unitdep "a false all-clear has appeared in a non-radian unit (max ${degmax}%) — the deadband attribution is wrong"
     fi
 
-    # --- claim 4: no clean verdict stream exists ANYWHERE in the sweep.
-    # P3's registered refutation condition. Graded over every row in every
-    # unit, not the six rows round 9 happened to iterate.
+    # --- claim 4: P3's REGISTERED CONFIRMATION, restated at round 11.
+    #
+    # P3 predicts "a detector built on verdicts FIRES ON HEALTHY AIRCRAFT",
+    # refutable by "a clean verdict stream" -- i.e. by the detector NOT
+    # firing on a healthy aircraft. Truth is `oscillating`, so the
+    # detection rate and the alert-on-healthy rate are the SAME number.
+    #
+    # Round 10 asserted the opposite inequality (max detect < 90%, "no
+    # clean row") because the sweep stopped at 148 and nothing had
+    # exceeded 80%. That threshold was tuned to the data, not to the
+    # claim: extending the cadence sweep to 104 and 124 -- which round 11
+    # forced by demanding a committed producer -- puts detection at 97.1%,
+    # which would have "refuted" P3 while actually being its strongest
+    # confirmation. The aircraft is measured healthy (claim 1), and a
+    # verdict-driven detector alerts on 97% of its reads.
+    local u a s c full fosc fq det fac best=-1 bestrow=""
     while read -r u a s c full fosc fq; do
+        [ "$full" -gt 0 ] || { _cf P3.nuisance "row unit=$u ac=$a sp=$s cad=$c has zero full-window reads (vacuous check)"; continue; }
         det=$(( fosc * 100 / full ))
-        [ "$det" -gt "$worstdet" ] && worstdet=$det
+        if [ "$det" -gt "$best" ]; then best=$det; bestrow="unit=$u ac=$a sp=$s cad=$c"; fi
     done < "$rowfile"
-    [ "$worstdet" -lt 90 ] || _cf P3.noclean "a clean verdict row has appeared (best row detects ${worstdet}% of a live mode); P3 is REFUTED, re-grade the rung"
+    [ "$best" -ge 90 ] || _cf P3.nuisance "no cadence makes the detector fire on a healthy aircraft (best ${best}% at $bestrow); P3 is REFUTED, re-grade the rung"
 
     # --- claim 5: the fleet alert rate does not FALL with N.
     #
@@ -143,7 +176,7 @@ p3_claims() {
     # as evidence about observers at scale.
     local np=() n v
     for n in 2 4 8 16; do
-        v=$(grep -oP "^p3n n=$n .* fleet_permille=\K[0-9]+" "$out" 2>/dev/null | head -1)
+        v=$(grep -oP "^p3n n=$n .* ffleet_permille=\K[0-9]+" "$out" 2>/dev/null | head -1)
         [ -n "$v" ] && np+=("$v")
     done
     if [ "${#np[@]}" -ne 4 ]; then
@@ -159,7 +192,7 @@ p3_claims() {
 
     rm -f "$rowfile"
     if [ "$failed" -eq 0 ]; then
-        echo "P3CLAIMS OK rows=$nrows best_detect=${worstdet}% rad_falseallclear_max=${radmax}% nonrad_max=${degmax}% fleet=${np[*]:-?}"
+        echo "P3CLAIMS OK rows=$nrows best_detect=${best}% (at $bestrow) rad_falseallclear_max=${radmax}% nonrad_max=${degmax}% fleet=${np[*]:-?}"
         return 0
     fi
     return 1

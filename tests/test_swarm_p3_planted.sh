@@ -53,9 +53,11 @@ plant c3 P3.unitdep 1 's/^(p3 unit=rad .* cad=74 .*)fquiet=[0-9]+/\1fquiet=10/'
 # c4: a false all-clear appears in a NON-radian unit, which would refute
 # the deadband attribution (EigenScript#1045) the write-up now rests on.
 plant c4 P3.unitdep 1 's/^(p3 unit=deg ac=0 sp=0\.05 cad=74 .*)fquiet=[0-9]+/\1fquiet=50/'
-# c5: a clean verdict row appears. P3's registered refutation condition
-# actually firing.
-plant c5 P3.noclean 1 's/^(p3 unit=rad ac=1 sp=0\.05 cad=94 .*)fosc=[0-9]+/\1fosc=75/'
+# c5: the detector stops firing on healthy aircraft at EVERY cadence --
+# P3's registered refutation condition ("a clean verdict stream") actually
+# firing. Caps only the high-detection cadences, so the cadence-74
+# blindness claim must stay green and only P3.nuisance may move.
+plant c5 P3.nuisance 1 's/^(p3 unit=rad ac=[01] sp=0\.05 cad=(104|114|124) .*)fosc=[0-9]+/\1fosc=10/'
 # c6: the fleet alert rate falls with N -- channels sharing state again,
 # which is rung 4's P4 defect returning.
 plant c6 P3.nfleet 1 's/^(p3n n=16 .*)fleet_permille=[0-9]+/\1fleet_permille=400/'
@@ -74,6 +76,14 @@ plant c8 P3.rows 1 '/^p3 unit=/d'
 # nothing noticed until a critic re-expressed the channel in degrees and
 # watched every substantive claim invert while the gate still printed OK.
 plant c9 'P3.blind74 P3.unitdep' 2 '/^p3 unit=(deg|mrad) /d'
+# c10: THE PRIMING REGRESSION. Restore the one `oscillating` per
+# cadence-74 channel that an unprimed `local q is 0.0` manufactures. This
+# is the exact artifact round 10 published as "detection = 1.0%, the
+# unit-invariant half", and a <=5% bound could not distinguish it from
+# zero. Round 5 of this rung had already found that "the initialiser is a
+# sample"; rung 4 applied it to channel CONSTRUCTION and not to the
+# channel's initial VALUE.
+plant c10 P3.blind74 12 's/^(p3 unit=[a-z]+ ac=[01] sp=0\.0[25] cad=74 .*)fosc=0/\1fosc=1/'
 
 # The round-8 defect itself, checked mechanically: the claim assertions
 # must run BEFORE the exact-row pins. If the pins come first they exit 1
@@ -85,4 +95,4 @@ PN=$(grep -n "^P3ROWS$" tests/test_swarm.sh | head -1 | cut -d: -f1)
 [ "$CL" -lt "$PN" ] || { echo "FAIL: P3's claim assertions (line $CL) run AFTER the exact-row pins (line $PN) — they are unreachable, which is the round-8 defect"; exit 1; }
 echo "--- ordering: claims at line $CL precede the row pins at line $PN"
 
-echo "PASS: all 9 P3 claim plants red exactly their own claim set, and the claims precede the row pins"
+echo "PASS: all 10 P3 claim plants red exactly their own claim set, and the claims precede the row pins"

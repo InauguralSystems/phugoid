@@ -54,8 +54,11 @@ PERIOD is 940
 # `agree`/`divergence` against a physics truth requires the label, and a
 # hit-counter can only ever see one of the seven classes. Construction is
 # likewise NOT inside `unobserved:` -- EigenScript#1049, see run_closure_n in swarm.eigs.
-define make_vchannel as:
-    local q is 0.0
+define make_vchannel(v0) as:
+    # PRIMED for the same reason p3_row is (round 11): a 0.0 first sample
+    # is a fictitious transient that the oscillation family reads as a
+    # reversal, and it manufactures exactly one `oscillating` per channel.
+    local q is v0 + 0.0
     define read_ch(v) as:
         q is v + 0.0
         return report of q
@@ -159,7 +162,20 @@ print of f"p3truth total final-period airspeed swing across the four rows: {trut
 define p3_row(idx, sp, cad, uscale, uname) as:
     local fleet is fleet_ic of [tr.state, 4, sp]
     local s is fleet[idx]
-    local q is 0.0
+    # PRIMED, round 11. `local q is 0.0` made the channel's first sample a
+    # fictitious 0, and the jump from 0 to the trim pitch rate is a huge
+    # transient that the oscillation family reads as a reversal. It
+    # produced exactly one `oscillating` read per channel, at the read
+    # where the window first fills -- and round 10 published that single
+    # artifact as "detection = 1.0%, the unit-invariant half". Primed with
+    # the aircraft's actual pre-step state, `oscillating` goes to ZERO at
+    # cadence 74 in every unit, across all 109 reads. This is round 5's
+    # own finding ("the initialiser is a sample") reaching a second site:
+    # rung 4 applied it to channel CONSTRUCTION (#1049) and not to the
+    # channel's initial VALUE. swarm_check.eigs already accounted for it
+    # ("exactly 1 per channel is the initialiser sample"); the P3 write-up
+    # did not.
+    local q is (s[2] * uscale) + 0.0
     local rd is 0
     local cv is 0
     local os is 0
@@ -231,13 +247,31 @@ for ac in [0, 1]:
         for cd in [74, 94, 148]:
             r is p3_row of [ac, sp, cd, 1.0, "rad"]
             rows is rows + r[0]
+# Round 11: the unit axis now runs at BOTH dispersions. ORACLE's downgrade
+# of round 6 rests on "in degrees, dispersions 0.02 and 0.05 produce
+# byte-identical rows" -- which was true but had no committed producer,
+# the fifth published-without-a-producer claim in this rung.
 for uac in [0, 1]:
-    for ucd in [74, 94, 148]:
-        rd is p3_row of [uac, 0.05, ucd, 57.29577951308232, "deg"]
-        rows is rows + rd[0]
-        rmr is p3_row of [uac, 0.05, ucd, 1000.0, "mrad"]
-        rows is rows + rmr[0]
+    for usp in [0.02, 0.05]:
+        for ucd in [74, 94, 148]:
+            rd is p3_row of [uac, usp, ucd, 57.29577951308232, "deg"]
+            rows is rows + rd[0]
+            rmr is p3_row of [uac, usp, ucd, 1000.0, "mrad"]
+            rows is rows + rmr[0]
 print of f"p3 total reads across the sweep: {rows}"
+
+# The CADENCE sweep, which until round 11 lived only as a table in
+# swarm.eigs's comments with no committed producer. Round 8 normalised it
+# to rates and concluded "rising, no threshold"; round 9 retracted that
+# after seeing cadence 148 turn over. Both were reading raw osc/reads over
+# a range that stopped at 114. Produced here full-window so the shape is
+# measured rather than argued.
+cadrows is 0
+for cac in [0, 1]:
+    for ccd in [84, 104, 114, 124, 134]:
+        rc is p3_row of [cac, 0.05, ccd, 1.0, "rad"]
+        cadrows is cadrows + rc[9]
+print of f"p3cad total full-window reads across the cadence sweep: {cadrows}"
 
 # ---------------------------------------------------------------------
 # The N axis. P3 as registered predicts a detector that fires on healthy
@@ -272,7 +306,7 @@ define p3_fleet(n, sp, cad) as:
     local per is []
     local i is 0
     loop while i < n:
-        append of [chans, make_vchannel of null]
+        append of [chans, make_vchannel of (fleet[i][2])]
         append of [per, 0]
         i is i + 1
     local t is 0.0
@@ -281,6 +315,8 @@ define p3_fleet(n, sp, cad) as:
     local alerts is 0
     local sweeps is 0
     local firing is 0
+    local fsweeps is 0
+    local ffiring is 0
     local first is -1
     local last is -1
     loop while f < 8000:
@@ -305,12 +341,21 @@ define p3_fleet(n, sp, cad) as:
                     if first < 0:
                         first is sweeps - 1
                     last is sweeps - 1
+                # Every channel is read in lockstep, so per-channel read
+                # count == sweeps and the window is full from sweep 10.
+                # Round 11: p3_fleet had NO window exclusion at all while
+                # ORACLE said "all rates below are full-window".
+                if sweeps > 9:
+                    fsweeps is fsweeps + 1
+                    if any == 1:
+                        ffiring is ffiring + 1
         unobserved:
             t is t + 0.05
         f is f + 1
     local pa is round of ((alerts * 1000.0) / reads)
     local pf is round of ((firing * 1000.0) / sweeps)
-    print of f"p3n n={n} sp={sp} cad={cad} reads={reads} alerts={alerts} per_ac_permille={pa} sweeps={sweeps} firing={firing} fleet_permille={pf} first={first} last={last} per={per}"
+    local pff is round of ((ffiring * 1000.0) / fsweeps)
+    print of f"p3n n={n} sp={sp} cad={cad} reads={reads} alerts={alerts} per_ac_permille={pa} sweeps={sweeps} firing={firing} fleet_permille={pf} fsweeps={fsweeps} ffiring={ffiring} ffleet_permille={pff} first={first} last={last} per={per}"
     return [n, reads, alerts, pa, sweeps, firing, pf]
 
 print of "# N axis: does the nuisance-alert rate fall as the fleet grows?"
