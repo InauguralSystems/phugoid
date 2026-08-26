@@ -1,0 +1,160 @@
+# swarm_check.eigs — the rung-4 W checks.
+# Run from the repo root:  eigenscript tests/swarm_check.eigs [plant]
+#
+# Rung 4 adds LOAD, not truth. So most of what there is to check is that
+# the swarm is still N of rung 1's aircraft, and that the ARMS — which
+# differ only in observation — do not differ in physics. That second one
+# is the strong oracle here: observation must not change the trajectory,
+# so the arms are a differential against each other, and it caught a real
+# divergence on its first run (the unarmed control flew with thrust 0
+# because trim_solve folds the solved thrust back into P and the control
+# never called it).
+#
+# Plants: w1 fleet dispersion collapsed (all aircraft identical),
+# w2 an arm silently integrates fewer frames, w3 the pinned trim literals
+# drift from the solver, w4 the unarmed control gains an observer name
+# (so it is no longer a control), w5 digest saturates to a constant.
+
+load_file of "data/b747_approach.eigs"
+load_file of "swarm.eigs"
+load_file of "swarm_unarmed.eigs"
+load_file of "tests/checklib.eigs"
+
+cli is args of null
+plant is ""
+if (len of cli) > 0:
+    plant is cli[0]
+
+checks_run is 0
+failures is 0
+
+define check_exact(name, val, want) as:
+    checks_run is checks_run + 1
+    if val == want:
+        print of f"PASS {name} exact={want} val={val}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} exact={want} val={val}"
+
+define check_below(name, val, bound) as:
+    checks_run is checks_run + 1
+    local v is val
+    # w3 displaces by an ABSOLUTE epsilon, not a multiple of the bound.
+    # The first version used 1.1 * bound, and every bound here is exactly
+    # 0.0 (these are identity checks, not tolerance checks), so the plant
+    # displaced by zero and was inert -- a declared plant that could not
+    # fail, which is the defect this repo's manifest rules exist to catch.
+    if plant == "w3":
+        v is (abs of v) + 1e-9
+    if (abs of v) <= bound:
+        print of f"PASS {name} below={bound} val={v}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} below={bound} val={v}"
+
+define check_distinct(name, xs) as:
+    checks_run is checks_run + 1
+    local dup is 0
+    local i is 0
+    loop while i < (len of xs):
+        local j is i + 1
+        loop while j < (len of xs):
+            if xs[i] == xs[j]:
+                dup is dup + 1
+            j is j + 1
+        i is i + 1
+    if dup == 0:
+        print of f"PASS {name} distinct n={len of xs}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} distinct n={len of xs} dups={dup}"
+
+# ------------------------------------------------------------ setup
+data is b747_approach of null
+P0 is sim_params of [data, ctl_nominal of null]
+tr is trim_solve of (P0)
+sched is [[0.0, tr.de]]
+NA is 6
+FR is 200
+DT is 0.0166667
+SP is 0.02
+
+# W1 — the pinned trim literals in the unarmed control MUST match the
+# solver. They exist only because `trim_solve` needs `import linalg` and
+# any import arms the observer (EigenScript#1046), so the control cannot
+# call it. That is a real constraint, but it must not become a place
+# where the control quietly flies a different aircraft.
+tp is trim_pinned of null
+i is 0
+loop while i < 4:
+    check_below of [f"W1.trim{i}", tr.state[i] - tp[i], 0.0]
+    i is i + 1
+check_below of ["W1.de", tr.de - (de_pinned of null), 0.0]
+check_below of ["W1.thrust", tr.thrust - (thrust_pinned of null), 0.0]
+
+# W2 — the ARM DIFFERENTIAL. Observation must not change the physics, so
+# every arm's fleet digest must be identical. This is the check that
+# catches an arm silently doing less work — rung 3's C6 defect, where a
+# variant that measured LESS still printed OK.
+# Each arm returns its fleet digest. The linter caught the first version
+# of this block computing six digests and never comparing them, with a
+# `check_exact [1, 1]` standing in for the comparison — a tautology, and
+# exactly the vacuous check rung 3 spent twenty-five rounds learning to
+# detect. Compared for real now, including the UNARMED control, which is a
+# separate program and the one that actually diverged when it was added.
+Pu is sim_params of [data, ctl_nominal of null]
+Pu.thrust is thrust_pinned of null
+dg is []
+# w2 makes ONE arm integrate fewer frames -- rung 3's C6 defect, an arm
+# that silently does less work while still printing a result.
+fr_w2 is FR
+if plant == "w2":
+    fr_w2 is FR - 10
+append of [dg, run_ceiling of [NA, fr_w2, DT, SP, tr.state, tr.P, sched]]
+append of [dg, run_disciplined of [NA, FR, DT, SP, tr.state, tr.P, sched]]
+append of [dg, run_floor of [NA, FR, DT, SP, tr.state, tr.P, sched]]
+append of [dg, run_onereader of [NA, FR, DT, SP, tr.state, tr.P, sched]]
+append of [dg, run_ceiling1 of [NA, FR, DT, SP, tr.state, tr.P, sched]]
+append of [dg, run_ceiling0 of [NA, FR, DT, SP, tr.state, tr.P, sched]]
+append of [dg, run_unarmed of [NA, FR, DT, SP, trim_pinned of null, Pu, [[0.0, de_pinned of null]]]]
+ai is 1
+loop while ai < (len of dg):
+    check_exact of [f"W2.arm{ai}.digest", dg[ai], dg[0]]
+    ai is ai + 1
+# ...and the digest must not be a constant: a saturating or zeroed digest
+# would make every comparison above pass while comparing nothing.
+check_distinct of ["W2.digest.live", [dg[0], fleet_digest of (fleet_ic of [tr.state, NA, SP])]]
+
+# W3 — the fleet is a FLEET, not N copies. Each aircraft must start at a
+# distinct pitch rate, or the swarm is a single trajectory measured N
+# times and the load profile is real while the physics is not.
+# w1 collapses the dispersion: every aircraft starts identically, so the
+# "swarm" is one trajectory measured N times. The load profile would still
+# be real and the physics would not.
+sp_w1 is SP
+if plant == "w1":
+    sp_w1 is 0.0
+fl0 is fleet_ic of [tr.state, NA, sp_w1]
+qs is []
+i is 0
+loop while i < NA:
+    append of [qs, fl0[i][2]]
+    i is i + 1
+check_distinct of ["W3.dispersion", qs]
+
+# W4 — each aircraft is still rung 1's aircraft: with zero dispersion the
+# fleet must sit exactly at the trim state, which is the rung-1 property
+# every earlier rung already grades.
+flt is fleet_ic of [tr.state, NA, 0.0]
+i is 0
+loop while i < NA:
+    local j is 0
+    loop while j < 4:
+        check_below of [f"W4.trim.a{i}s{j}", flt[i][j] - tr.state[j], 0.0]
+        j is j + 1
+    i is i + 1
+
+print of f"CHECKS_RUN {checks_run}"
+print of f"FAILURES {failures}"
+if checks_run != 38:
+    print of f"FAIL harness: expected exactly 38 checks, ran {checks_run}"

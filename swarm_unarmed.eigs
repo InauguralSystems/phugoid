@@ -35,6 +35,30 @@ define trim_pinned as:
 define de_pinned as:
     return 5.274186534184886e-05
 
+# The solved THRUST, which trim_solve folds back into P and which the
+# un-trimmed P does not carry. Missing it was a real divergence, caught by
+# the cross-arm digest on the oracle's first run: the unarmed control flew
+# a different aircraft (thrust 0 against 51919) and its digest disagreed
+# with all six armed arms. The digest exists for exactly that.
+define thrust_pinned as:
+    return 51919.293822831365
+
+define int_of_u(x) as:
+    if x < 0.0:
+        return 0 - (floor of (0.0 - x))
+    return floor of x
+
+define fleet_digest_u(fleet) as:
+    local acc is 0
+    local i is 0
+    loop while i < (len of fleet):
+        local j is 0
+        loop while j < 4:
+            acc is acc + (int_of_u of (fleet[i][j] * 1000000.0))
+            j is j + 1
+        i is i + 1
+    return acc
+
 define fleet_ic_u(tstate, n, spread) as:
     local fleet is []
     local i is 0
@@ -71,5 +95,5 @@ define run_unarmed(n, frames, dt, spread, tstate, P, sched) as:
             i is i + 1
         t is t + dt
         f is f + 1
-    print of f"unarmed {n} {frames} 0"
-    return 0
+    print of f"unarmed {n} {frames} 0 {fleet_digest_u of (fleet)}"
+    return fleet_digest_u of (fleet)

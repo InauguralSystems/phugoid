@@ -17,6 +17,28 @@
 load_file of "data/b747_approach.eigs"
 load_file of "sim.eigs"
 
+# A digest of the whole fleet's state, printed by every arm. The arms
+# differ ONLY in observation, which must not change the physics — so the
+# digest is a DIFFERENTIAL ORACLE across arms, and it is what catches an
+# arm that silently does less work (rung 3's C6 lesson, where a variant
+# that measured less still printed OK). Integer-valued so it cannot drift
+# on a last-bit difference between platforms.
+define fleet_digest(fleet) as:
+    local acc is 0
+    local i is 0
+    loop while i < (len of fleet):
+        local j is 0
+        loop while j < 4:
+            acc is acc + (int_of of (fleet[i][j] * 1000000.0))
+            j is j + 1
+        i is i + 1
+    return acc
+
+define int_of(x) as:
+    if x < 0.0:
+        return 0 - (floor of (0.0 - x))
+    return floor of x
+
 # ---------------------------------------------------------------- fleet
 # N aircraft trimmed identically, then dispersed in pitch rate so their
 # phugoids are at different phases — a fleet in the same airspace, not N
@@ -72,8 +94,8 @@ define run_ceiling(n, frames, dt, spread, tstate, P, sched) as:
             i is i + 1
         t is t + dt
         f is f + 1
-    print of f"ceiling {n} {frames} {hits}"
-    return hits
+    print of f"ceiling {n} {frames} {hits} {fleet_digest of (fleet)}"
+    return fleet_digest of (fleet)
 
 # disciplined — the best a programmer can write today: the hot math inside
 # `unobserved:`, and observation only on the state the predicates read.
@@ -96,8 +118,8 @@ define run_disciplined(n, frames, dt, spread, tstate, P, sched) as:
         unobserved:
             t is t + dt
         f is f + 1
-    print of f"disciplined {n} {frames} {hits}"
-    return hits
+    print of f"disciplined {n} {frames} {hits} {fleet_digest of (fleet)}"
+    return fleet_digest of (fleet)
 
 # floor — everything wrapped. Pure compute, no observer at all: the
 # denominator the other two arms are measured against.
@@ -116,8 +138,8 @@ define run_floor(n, frames, dt, spread, tstate, P, sched) as:
                 i is i + 1
             t is t + dt
             f is f + 1
-    print of f"floor {n} {frames} {hits}"
-    return hits
+    print of f"floor {n} {frames} {hits} {fleet_digest of (fleet)}"
+    return fleet_digest of (fleet)
 
 # P1's discriminator — the disciplined shape with only ONE aircraft reading
 # a verdict. EigenScript#1046 says arming is per-EigsState and monotonic,
@@ -140,8 +162,8 @@ define run_onereader(n, frames, dt, spread, tstate, P, sched) as:
         unobserved:
             t is t + dt
         f is f + 1
-    print of f"onereader {n} {frames} {hits}"
-    return hits
+    print of f"onereader {n} {frames} {hits} {fleet_digest of (fleet)}"
+    return fleet_digest of (fleet)
 
 # P1's real discriminator, added at rung 4 after the first attempt could not
 # separate: comparing DISCIPLINED against ONEREADER cannot test arming,
@@ -166,8 +188,8 @@ define run_ceiling1(n, frames, dt, spread, tstate, P, sched) as:
             hits is hits + 1
         t is t + dt
         f is f + 1
-    print of f"ceiling1 {n} {frames} {hits}"
-    return hits
+    print of f"ceiling1 {n} {frames} {hits} {fleet_digest of (fleet)}"
+    return fleet_digest of (fleet)
 
 # ...and the ZERO-reader ceiling, which separates the two things
 # run_ceiling1 cannot. If ceiling1 ~= ceilingN, that is consistent with
@@ -196,5 +218,5 @@ define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
             i is i + 1
         t is t + dt
         f is f + 1
-    print of f"ceiling0 {n} {frames} 0"
-    return 0
+    print of f"ceiling0 {n} {frames} 0 {fleet_digest of (fleet)}"
+    return fleet_digest of (fleet)
