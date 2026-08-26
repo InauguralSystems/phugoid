@@ -71,6 +71,8 @@ mins() {  # minimum of 5 wall-clock seconds
     done | sort -n | head -1
 }
 
+DU_BOUND=1.20
+[ "$DU_BOUND" = "1.20" ] || { echo "FAIL: DU_BOUND is $DU_BOUND, declared 1.20"; exit 1; }
 CF_BOUND=1.15
 [ "$CF_BOUND" = "1.15" ] || { echo "FAIL: CF_BOUND is $CF_BOUND, declared 1.15 — a widened bound must be re-justified in ORACLE.md"; exit 1; }
 
@@ -91,10 +93,17 @@ echo "fixed overhead (1 frame): ${OVH}s — N with overhead above ${OVH_MAX}% of
 
 echo "--- swarm cost curve (1500 frames, minima of 5) ---"
 printf "%4s %9s %12s %8s %9s %9s\n" N ceiling disciplined floor unarmed "ceil/floor"
+# The ladder is 4/16/32, not 1/4/16. Round 3's first version failed on CI:
+# the container is ~3x faster than this box, so the same 1500-frame runs
+# put fixed cost at 19% (N=1) and 6% (N=4) there, both correctly excluded,
+# leaving ONE point — and the NVALID guard refused to call that a curve.
+# That is the filter working: it declined to measure rather than report a
+# one-point "curve". The fix is more work per point, not a looser filter —
+# N=32 is valid on both machines, so two points survive everywhere.
 WORST=99
 NVALID=0
 SKIPPED=""
-for n in 1 4 16; do
+for n in 4 16 32; do
     c=$(mins tests/swarm_profile.eigs ceiling "$n")
     d=$(mins tests/swarm_profile.eigs disciplined "$n")
     f=$(mins tests/swarm_profile.eigs floor "$n")
@@ -109,6 +118,19 @@ for n in 1 4 16; do
     printf "%4s %9s %12s %8s %9s %9s\n" "$n" "$c" "$d" "$f" "$u" "$r"
     NVALID=$((NVALID+1))
     WORST=$(awk -v w="$WORST" -v r="$r" 'BEGIN{ print (r<w)?r:w }')
+    # The disciplined and unarmed arms are judged on THESE numbers, not on
+    # a second independent measurement. The first version re-measured in a
+    # separate loop and failed on a contended box comparing 3.230 against a
+    # 2.316 printed seconds earlier for the same arm -- two measurements of
+    # one quantity disagree under load, so the check must judge what it
+    # reported.
+    for pair in "disciplined:$d" "unarmed:$u"; do
+        nm=${pair%%:*}; v=${pair##*:}
+        ratio_ok "$(awk -v a="$c" -v b="$v" 'BEGIN{printf "%.4f", a/b}')" "$DU_BOUND" || {
+            echo "FAIL: at N=$n the $nm arm ($v) is within ${DU_BOUND}x of the ceiling ($c) —"
+            echo "      either it stopped eliding observation, or the ceiling stopped paying for it."
+            exit 1; }
+    done
 done
 [ -n "$SKIPPED" ] && echo "excluded N:$SKIPPED (fixed cost above ${OVH_MAX}% — not silently dropped)"
 [ "$NVALID" -ge 2 ] || { echo "FAIL: only $NVALID valid measurement points survived the overhead filter — the curve is not measurable on this box"; exit 1; }
@@ -127,20 +149,6 @@ echo "PASS: the ceiling arm costs ${WORST}x the floor at its weakest N"
 # floor at one N, so the noise floor is ~10% and "indistinguishable" is not
 # resolvable. The defensible claim is that BOTH sit far below the ceiling,
 # i.e. `unobserved:` bought the penalty back; that is what is gated.
-DU_BOUND=1.20
-[ "$DU_BOUND" = "1.20" ] || { echo "FAIL: DU_BOUND is $DU_BOUND, declared 1.20"; exit 1; }
-for n in 4 16; do
-    c=$(mins tests/swarm_profile.eigs ceiling "$n")
-    d=$(mins tests/swarm_profile.eigs disciplined "$n")
-    u=$(mins tests/swarm_profile_unarmed.eigs "$n")
-    for pair in "disciplined:$d" "unarmed:$u"; do
-        nm=${pair%%:*}; v=${pair##*:}
-        ratio_ok "$(awk -v a="$c" -v d="$v" 'BEGIN{printf "%.4f", a/d}')" "$DU_BOUND" || {
-            echo "FAIL: at N=$n the $nm arm ($v) is within ${DU_BOUND}x of the ceiling ($c) —"
-            echo "      either it stopped eliding observation, or the ceiling stopped paying for it."
-            exit 1; }
-    done
-done
 echo "PASS: disciplined and unarmed both sit >${DU_BOUND}x below the ceiling at every N"
 # ...and the bound must be able to fail: a ratio of 1.00 is what "unobserved:
 # buys nothing" would look like.

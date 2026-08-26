@@ -1845,6 +1845,22 @@ N = 1 it is 11–13% and contention jitter swamps a signal five times
 smaller. Round 3's gate failed at 1.12 on a loaded box, all of it at
 N = 1.
 
+**And the filter then failed CI — correctly.** The devcontainer is ~3x
+faster than this box, so the same 1500-frame runs put fixed cost at 19%
+(N = 1) and 6% (N = 4) there; both were excluded, one point survived, and
+the `NVALID >= 2` guard refused to call that a curve. That is the gate
+declining to measure rather than reporting a one-point line, which is the
+behaviour the derived filter exists to produce. The fix was more work per
+point, not a looser filter: the ladder is now 4/16/32, and N = 32 is valid
+on both machines.
+
+One further methodological fix from the same failure: the disciplined and
+unarmed arms are now judged on the numbers the table PRINTED, not on a
+second independent measurement. The first version re-measured in its own
+loop and failed on a contended box comparing 3.230 against a 2.316 printed
+seconds earlier for the same arm — two measurements of one quantity
+disagree under load, so a check must judge what it reported.
+
 **`unobserved:` buys back essentially the whole penalty** — the
 disciplined arm measures within noise of the floor and of the unarmed
 control at every N. "Within noise" is the honest phrasing: round 2
