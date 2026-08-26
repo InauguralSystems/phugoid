@@ -1,0 +1,20 @@
+# The UNARMED control's driver. Separate program, no imports, no observer
+# name — see swarm_unarmed.eigs's header for why it cannot share the file
+# above.
+load_file of "data/b747_approach.eigs"
+load_file of "swarm_unarmed.eigs"
+
+FRAMES is 1500
+DT is 0.0166667
+SPREAD is 0.02
+
+cli is args of null
+n is 8
+if (len of cli) > 0:
+    n is num of cli[0]
+
+P is sim_params of [b747_approach of null, ctl_nominal of null]
+P.thrust is thrust_pinned of null
+sched is [[0.0, de_pinned of null]]
+r is run_unarmed of [n, FRAMES, DT, SPREAD, trim_pinned of null, P, sched]
+print of f"profiled unarmed n={n} digest={r}"

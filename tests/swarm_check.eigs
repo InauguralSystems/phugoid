@@ -123,7 +123,14 @@ loop while ai < (len of dg):
     ai is ai + 1
 # ...and the digest must not be a constant: a saturating or zeroed digest
 # would make every comparison above pass while comparing nothing.
-check_distinct of ["W2.digest.live", [dg[0], fleet_digest of (fleet_ic of [tr.state, NA, SP])]]
+# w5 saturates the digest to a constant: every arm comparison would then
+# agree while comparing nothing. W2.digest.live is what catches it.
+d_live is dg[0]
+d_init is fleet_digest of (fleet_ic of [tr.state, NA, SP])
+if plant == "w5":
+    d_live is 0
+    d_init is 0
+check_distinct of ["W2.digest.live", [d_live, d_init]]
 
 # W3 — the fleet is a FLEET, not N copies. Each aircraft must start at a
 # distinct pitch rate, or the swarm is a single trajectory measured N
@@ -154,7 +161,57 @@ loop while i < NA:
         j is j + 1
     i is i + 1
 
+# W5 — the verdict stream, which round 1 found PRINTED AND NEVER ASSERTED.
+# Every arm above reads all N aircraft through one loop-local binding, so
+# their `hits` is an interleave artifact (a monotonically decaying
+# trajectory reads `oscillating` when it shares a binding). run_named4 is
+# the only shape whose verdicts mean anything: four STATICALLY NAMED
+# channels, which is the only addressable form EigenScript has
+# (EigenScript#1048 -- dict fields, list elements and function parameters
+# all carry no trajectory, so N is bounded at authoring time).
+#
+# The oracle: a per-aircraft verdict count taken from the FLEET must equal
+# the count that aircraft produces flown ALONE. Nothing to interleave with
+# is the control for interleaving.
+CAD is 74
+FRL is 8000
+hs is run_named4 of [FRL, 0.05, 0.02, CAD, tr.state, tr.P, sched]
+ai2 is 0
+loop while ai2 < 4:
+    local solo is run_solo of [ai2, FRL, 0.05, 0.02, CAD, tr.state, tr.P, sched]
+    check_exact of [f"W5.fleet.eq.solo.a{ai2}", hs[ai2], solo]
+    ai2 is ai2 + 1
+# ...and the counts must not be vacuously zero, which is how round 1's
+# stream passed for the wrong reason: at dt=0.05 read every frame, the
+# 10-sample window spans 1% of the phugoid period and NOTHING ever fires.
+# The cadence is rung 3's C5.ph.p370 result, not a tuning knob.
+tot is hs[0] + hs[1] + hs[2] + hs[3]
+# w4 breaks the CONTROL: it reads the fleet through one shared binding
+# again, so the per-aircraft counts become interleave artifacts and stop
+# matching the solo runs. This is the round-1 defect itself, planted.
+if plant == "w4":
+    local shared is 0
+    local qs2 is 0.0
+    local fl2 is fleet_ic of [tr.state, 4, SP]
+    local t2 is 0.0
+    local f2 is 0
+    loop while f2 < FRL:
+        unobserved:
+            fl2 is frame_step of [fl2, t2, 0.05, sched, tr.P]
+        if (f2 % CAD) == 0:
+            local a2 is 0
+            loop while a2 < 4:
+                qs2 is fl2[a2][2] + 0.0
+                if oscillating of qs2:
+                    shared is shared + 1
+                a2 is a2 + 1
+        unobserved:
+            t2 is t2 + 0.05
+        f2 is f2 + 1
+    tot is shared
+check_exact of ["W5.stream.live", tot, 4]
+
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 38:
-    print of f"FAIL harness: expected exactly 38 checks, ran {checks_run}"
+if checks_run != 43:
+    print of f"FAIL harness: expected exactly 43 checks, ran {checks_run}"

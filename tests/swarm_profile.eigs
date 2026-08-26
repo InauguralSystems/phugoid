@@ -1,0 +1,41 @@
+# swarm_profile.eigs — rung 4's cost-curve driver.
+# Run: eigenscript tests/swarm_profile.eigs <arm> <N>
+#
+# Round 1 found rung 4's headline table unreproducible from the artifact:
+# the numbers were measured with a throwaway driver that was never
+# committed. This is the shipped entry point, pinned by whole-file hash in
+# tests/test_swarm_profile.sh so the measured workload cannot silently
+# become a different workload (rung 3's C6 defect).
+
+load_file of "data/b747_approach.eigs"
+load_file of "swarm.eigs"
+
+FRAMES is 1500
+DT is 0.0166667
+SPREAD is 0.02
+
+cli is args of null
+arm is "ceiling"
+if (len of cli) > 0:
+    arm is cli[0]
+n is 8
+if (len of cli) > 1:
+    n is num of cli[1]
+
+P0 is sim_params of [b747_approach of null, ctl_nominal of null]
+tr is trim_solve of (P0)
+sched is [[0.0, tr.de]]
+
+if arm == "ceiling":
+    r is run_ceiling of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+elif arm == "disciplined":
+    r is run_disciplined of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+elif arm == "floor":
+    r is run_floor of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+elif arm == "ceiling1":
+    r is run_ceiling1 of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+elif arm == "ceiling0":
+    r is run_ceiling0 of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+else:
+    r is run_onereader of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+print of f"profiled {arm} n={n} digest={r}"

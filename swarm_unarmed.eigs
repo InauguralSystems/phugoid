@@ -68,7 +68,14 @@ define fleet_ic_u(tstate, n, spread) as:
         loop while j < 4:
             append of [s, tstate[j]]
             j is j + 1
-        s[2] is s[2] + spread * (sin of (i * 0.7))
+        # MUST match swarm.eigs's fleet_ic exactly. This file cannot load
+        # swarm.eigs -- doing so would arm it and destroy the control -- so
+        # the duplication is forced by the language gap (EigenScript#1048,
+        # and the import-arming clause of #1046). The cross-arm digest is
+        # what keeps the copies honest, and it earned that at round 1's fix:
+        # changing the phase offset here and not there was caught
+        # immediately by W2.arm6.
+        s[2] is s[2] + spread * (sin of (0.5 + i * 0.7))
         append of [fleet, s]
         i is i + 1
     return fleet

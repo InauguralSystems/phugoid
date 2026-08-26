@@ -1799,34 +1799,75 @@ sample. Medians are shown where the spread matters.
 | 16 | 6.090 | 4.093 | 1.49 |
 | 32 | 13.011 | 8.741 | 1.49 |
 
-**The headline: naive all-on observation costs ~1.4x the unobserved floor,
-and that ratio is FLAT in N from 1 to 32 aircraft.** A flat ratio means the
-observer cost is proportional to total work, which is proportional to N —
-so cost is LINEAR in N, and **P2's linearity holds**. The slight rise
-(1.34 -> 1.49) is at the edge of this box's resolution and is not claimed
-as a trend.
+**The headline: naive all-on observation costs ~1.4-1.6x the unobserved
+floor, and the ratio does not grow with N** across 1 to 32 aircraft.
+
+**P2 — linearity holds, and round 1 corrected the REASONING.** The first
+version argued "the ratio is flat, therefore cost is linear in N". That is
+a non-sequitur: a flat ratio is consistent with any common functional form,
+including both arms being quadratic. Linearity has to come from fitting an
+arm against N, and it does — the floor fits **0.021 + 0.113 N** with R^2
+near 1. The conclusion was right and the stated argument was invalid, which
+is the recurring rung-3 pattern arriving in rung 4's first write-up.
+
+P2's refutation criterion also asks for the slope against the C6-derived
+prediction, which the first version skipped. C6 gives ~0.154 us per
+observed scalar write; the measured observer slope is ~33.5 us per
+aircraft-frame, implying ~218 observed assignments per aircraft-frame
+against a hand count of ~150 for four `deriv` calls plus RK4 — within
+~1.5x, with the gap plausibly the scalar-vs-container walk. Published as
+a comparison, not as agreement.
 
 **`unobserved:` buys back essentially the whole penalty.** The disciplined
-arm measured indistinguishable from the floor at every N. That answers the
-question the three arms were built for: `ceiling - disciplined` is nearly
-the entire observer cost, and `disciplined - floor` is below resolution
-here. A programmer who wraps the hot math pays almost nothing for the
-observation they actually want — at this shape.
+arm measures indistinguishable from the floor at every N, and from the
+unarmed control too. The full four-arm table is in
+`tests/test_swarm_profile.sh`'s output, which is the shipped harness —
+round 1 found the first table unreproducible from the artifact, measured
+with a throwaway driver that was never committed.
 
 **P1 is CONFIRMED in its practical form and its MECHANISM IS NOT
-RESOLVED.** Dropping 31 of 32 readers per frame (`run_ceiling1`) saves
-nothing measurable — 12.394 s against 12.732 s at N=32, the one-reader arm
-sometimes slower. That is the prediction. But the follow-up decomposition
-into read cost versus arming cost did NOT resolve: across N = 8, 16, 32 the
-read share came out **-21.5%, -4.8%, +29.8%** of the observer total, and a
-negative share is impossible, so the split is pure noise at these sizes.
-Two explanations remain live and this rung cannot yet separate them —
-arming keeps the writes expensive whatever the reads do, or reads are
-simply a tiny share of this shape's observed operations (roughly one read
-per aircraft-frame against the many assignments inside four RK4 `deriv`
-calls). **Not published as a mechanism.** Resolving it needs either a
-quieter machine or a shape where reads are not a small fraction of
-observed operations.
+RESOLVED.** Dropping 31 of 32 readers per frame saves nothing measurable.
+The decomposition into read cost versus arming cost did NOT resolve: across
+N = 8, 16, 32 the read share came out **-21.5%, -4.8%, +29.8%**, and a
+negative share is impossible, so the split is noise at these sizes. Two
+explanations remain live and this rung cannot separate them. **Not
+published as a mechanism.**
+
+**P3 — CONFIRMED in substance, REFUTED in the direction it predicted.**
+P3 said a verdict-driven detector would "fire on healthy aircraft, at a
+rate that does not fall with N". Measured on four properly-channelled
+aircraft over 109 reads at the rung-3 cadence, a healthy phugoid in
+continuous oscillation reports:
+
+| verdict | count |
+|---|---|
+| converged | 98 |
+| moving | 9 |
+| oscillating | 1 |
+| stable | 1 |
+
+So the observer does not fire wrongly — it goes **silent**, calling an
+actively oscillating aircraft `converged` in 90% of reads. A separation
+detector built on it would report a calm sky over a fleet in continuous
+phugoid motion. The underlying claim (verdicts are unreliable for a
+controller) holds; the predicted direction was wrong, and is recorded as
+wrong.
+
+**P4 — CONFIRMED, and it is the rung's largest finding.** What broke first
+was not the physics. It was that **EigenScript has no addressable observer
+channel for a runtime-sized population** (EigenScript#1048). Only
+statically-named bindings carry trajectory; dict fields, list elements and
+function parameters all report `equilibrium`, i.e. no history. Round 1
+found every arm in this rung's first draft reading all N aircraft through
+ONE loop-local binding, which makes the observer's window the round-robin
+interleave and MANUFACTURES verdicts — measured, a monotonically decaying
+trajectory reads `oscillating` when it shares a binding. The verdict stream
+was degenerate at every N and `hits` was printed and never asserted.
+`run_named4` is now the only shape whose verdicts mean anything: four
+statically-named channels, capped at four because that is the only
+addressable form the language has. Its oracle is `run_solo` — a
+per-aircraft count taken from the fleet must equal that aircraft flown
+alone, which is the control for interleaving.
 
 Note the contrast with rung 3's C6, where reads dominated writes ~2:1 on a
 deliberately read-heavy micro-shape. That conclusion is SHAPE-SPECIFIC, not

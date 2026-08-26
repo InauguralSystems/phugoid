@@ -234,3 +234,29 @@ relying on field access erroring. Likely intended fail-soft semantics
 (the #971/#975 reform track owns the policy); recorded so rung-2+
 checkers keep the pattern: pin a field only via a comparison a null
 cannot pass.
+
+### G8 — no addressable observer channel for a runtime-sized population
+Found at rung-4 blind-critic round 1, 2026-08-26, `eigenscript` v0.41.0.
+Upstreamed as **EigenScript#1048**.
+
+Observer trajectory is keyed to the **binding**, and only a statically-named
+binding carries it. Every construct that would key a channel by a runtime
+index carries none:
+
+| form | aircraft a (monotone decay) | aircraft b (oscillating) |
+|---|---|---|
+| distinct named bindings | `moving` | `oscillating` |
+| dict fields `ch.a` / `ch.b` | `equilibrium` | `equilibrium` |
+| list elements `xs[0]` / `xs[1]` | `equilibrium` | `equilibrium` |
+| function parameter | `equilibrium` | `equilibrium` |
+
+Worse than losing resolution, a shared binding **manufactures** verdicts:
+the window becomes the round-robin interleave, which alternates by
+construction, so a monotonically decaying trajectory reads `oscillating`.
+Rung 4's own first draft did exactly this in every arm.
+
+Consequence for this repo: the swarm's verdicts are only meaningful with
+N unrolled named channels (`run_named4`, capped at 4), so P3 can only be
+evaluated at small fixed N until the gap closes. The workarounds are
+bounding N at authoring time, or re-implementing the predicate lattice in
+userland — which is the feature not being used.

@@ -54,8 +54,13 @@ define fleet_ic(tstate, n, spread) as:
         loop while j < 4:
             append of [s, tstate[j]]
             j is j + 1
-        # deterministic phase spread on q, symmetric about trim
-        s[2] is s[2] + spread * (sin of (i * 0.7))
+        # Deterministic phase spread on q. The phase offset 0.5 is not
+        # decoration: with `sin of (i * 0.7)` aircraft 0 landed at sin(0) = 0,
+        # i.e. exactly at trim with no phugoid at all -- and BOTH P1
+        # discriminator arms read aircraft 0, so they were comparing the one
+        # aircraft with no dynamics. Found at round 1. No integer i puts
+        # 0.5 + 0.7i on a multiple of pi.
+        s[2] is s[2] + spread * (sin of (0.5 + i * 0.7))
         append of [fleet, s]
         i is i + 1
     return fleet
@@ -220,3 +225,83 @@ define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
         f is f + 1
     print of f"ceiling0 {n} {frames} 0 {fleet_digest of (fleet)}"
     return fleet_digest of (fleet)
+
+# ---------------------------------------------------- REAL channels
+# Four aircraft observed through four STATICALLY NAMED bindings.
+#
+# This is the only shape in which the verdicts mean anything. Observer
+# trajectory is keyed to the BINDING, so reading N aircraft through one
+# loop-local variable makes the window the round-robin interleave and
+# manufactures verdicts -- measured, a monotonically decaying trajectory
+# reads `oscillating` when it shares a binding. Round 1 found every arm
+# above doing exactly that, with `hits` printed and never asserted.
+#
+# It is capped at four because EigenScript has no addressable channel for
+# a runtime-sized population: dict fields, list elements and function
+# parameters all carry NO trajectory (EigenScript#1048). Unrolling named
+# bindings is the only correct form available, so N is bounded at
+# authoring time -- which is precisely the gap the issue reports, and the
+# reason P3 can only be evaluated at small fixed N until it lands.
+# `cadence` is not a tuning knob -- it is rung 3's result applied here.
+# The window is 10 SAMPLES, so its span is 10*cadence*dt, and rung 3
+# measured the phugoid first visible at a 3.70 s sampling interval
+# (C5.ph.p370). Read every frame at dt=0.05 and the window spans 0.5 s
+# against a 47 s period -- 1% of it -- so `oscillating` never fires and the
+# verdict stream is empty for a reason that has nothing to do with the
+# swarm. Round 1 shipped exactly that.
+define run_named4(frames, dt, spread, cadence, tstate, P, sched) as:
+    local fleet is fleet_ic of [tstate, 4, spread]
+    local q0 is 0.0
+    local q1 is 0.0
+    local q2 is 0.0
+    local q3 is 0.0
+    local h0 is 0
+    local h1 is 0
+    local h2 is 0
+    local h3 is 0
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        unobserved:
+            fleet is frame_step of [fleet, t, dt, sched, P]
+        if (f % cadence) == 0:
+            q0 is fleet[0][2] + 0.0
+            if oscillating of q0:
+                h0 is h0 + 1
+            q1 is fleet[1][2] + 0.0
+            if oscillating of q1:
+                h1 is h1 + 1
+            q2 is fleet[2][2] + 0.0
+            if oscillating of q2:
+                h2 is h2 + 1
+            q3 is fleet[3][2] + 0.0
+            if oscillating of q3:
+                h3 is h3 + 1
+        unobserved:
+            t is t + dt
+        f is f + 1
+    print of f"named4 {frames} {h0} {h1} {h2} {h3} {fleet_digest of (fleet)}"
+    return [h0, h1, h2, h3]
+
+# The same aircraft flown ALONE, one channel, nothing to interleave with.
+# This is the oracle for the block above: a per-aircraft verdict count from
+# the fleet must equal the count that aircraft produces on its own.
+define run_solo(idx, frames, dt, spread, cadence, tstate, P, sched) as:
+    local fleet is fleet_ic of [tstate, 4, spread]
+    local s is fleet[idx]
+    local q is 0.0
+    local h is 0
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        unobserved:
+            s is rk4_step of [s, t, dt, sched, P]
+        if (f % cadence) == 0:
+            q is s[2] + 0.0
+            if oscillating of q:
+                h is h + 1
+        unobserved:
+            t is t + dt
+        f is f + 1
+    print of f"solo {idx} {frames} {h}"
+    return h
