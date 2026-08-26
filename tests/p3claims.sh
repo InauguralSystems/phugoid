@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # p3claims.sh -- P3's CLAIM assertions, as one shared implementation.
 # IDs: P3.truth.alive, P3.rows, P3.blind74, P3.unitdep, P3.phase,
-# P3.partition, P3.nuisance, P3.tail, P3.nfleet.
+# P3.partition, P3.control, P3.nuisance, P3.tail, P3.nfleet.
 #
 # Why this is a library and not inline in test_swarm.sh: round 8 wrote two
 # claim assertions inline and placed them AFTER the exact-row pins, which
@@ -89,6 +89,24 @@ p3_claims() {
         esac
     done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) .* u_pp_last=\([0-9-]*\).*/\1 \2 \3/p' "$out")
     [ "$nt" -eq 4 ] || _cf P3.truth.alive "$nt of 4 physics truth rows found (vacuous check)"
+    # The OBSERVED channel is pitch rate, not airspeed. Round 16: every
+    # verdict in this rung is a verdict on s[2], and the deadband
+    # mechanism is stated in rad/s -- yet this check read only u_pp_last.
+    # Zeroing q_pp_last on all four rows left the gate certifying "the
+    # observer says settled about an aircraft that is swinging" while the
+    # truth table said the observed channel had flat-lined. Units:
+    # hundred-thousandths of a rad/s.
+    local nq=0 qv
+    while read -r ta tsp qv; do
+        nq=$((nq+1))
+        case "$ta/$tsp" in
+            0/0.02) [ "$qv" -ge 70 ]  || _cf P3.truth.alive "ac0 sp=0.02 observed channel has flat-lined (q_pp_last=$qv)" ;;
+            1/0.02) [ "$qv" -ge 130 ] || _cf P3.truth.alive "ac1 sp=0.02 observed channel has flat-lined (q_pp_last=$qv)" ;;
+            0/0.05) [ "$qv" -ge 170 ] || _cf P3.truth.alive "ac0 sp=0.05 observed channel has flat-lined (q_pp_last=$qv)" ;;
+            1/0.05) [ "$qv" -ge 330 ] || _cf P3.truth.alive "ac1 sp=0.05 observed channel has flat-lined (q_pp_last=$qv)" ;;
+        esac
+    done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) .* q_pp_last=\([0-9-]*\).*/\1 \2 \3/p' "$out")
+    [ "$nq" -eq 4 ] || _cf P3.truth.alive "$nq of 4 observed-channel truth rows found (vacuous check)"
 
     # Pull every row as "unit ac sp cad full fosc fquiet".
     local rowfile
@@ -142,21 +160,40 @@ p3_claims() {
     # it is why a claim about the observer is not a claim until its unit
     # is stated. Round 9 published the false-all-clear as if it were a
     # property of the observer rather than of the radian scaling.
-    local radmax=-1 degmax=-1 nrad=0 nnonrad=0
+    # WHOLE GRID, not cadence 74. Round 16: round 15 grew the population
+    # from 46 rows to 96 and did not re-scope a single claim to it, so 84
+    # of 96 rows were invisible here -- and `fquiet`, the DANGEROUS
+    # direction and the whole point of round 10's split, was read by only
+    # two claims covering 14 rows. Moving every non-radian row's
+    # `fnoclaim` bucket into `fquiet` at every cadence except 74 (634
+    # reads, partition preserved) left the gate printing `nonrad_max=0%`
+    # and certifying.
+    #
+    # The shipped data supports the stronger claim for free: 0 of the 64
+    # deg/mrad rows carry a false all-clear at ANY of the 8 cadences,
+    # while every radian cadence has at least three of four cells
+    # carrying one. The finding is not "at cadence 74 the unit decides
+    # which wrong answer you get" but "across the whole grid, the false
+    # all-clear exists only in radians".
+    local radmax=-1 degmax=-1 nrad=0 nnonrad=0 radcad="" ncadr
     while read -r u a s c full fosc fq fnc fot; do
-        [ "$c" = "74" ] || continue
         fac=$(( fq * 100 / full ))
         if [ "$u" = "rad" ]; then
             nrad=$((nrad+1)); [ "$fac" -gt "$radmax" ] && radmax=$fac
+            [ "$fq" -gt 0 ] && radcad="$radcad $c"
         else
             nnonrad=$((nnonrad+1)); [ "$fac" -gt "$degmax" ] && degmax=$fac
+            [ "$fq" -eq 0 ] || _cf P3.unitdep "a false all-clear appeared in unit=$u ac=$a sp=$s cad=$c ($fq of $full reads) — the deadband attribution is wrong"
         fi
     done < "$rowfile"
-    if [ "$nrad" -lt 2 ] || [ "$nnonrad" -lt 2 ]; then
-        _cf P3.unitdep "unit axis missing from the sweep (rad rows=$nrad, non-rad rows=$nnonrad) — the claim cannot be evaluated"
+    # EXACT populations. A ">= 2" bound is the shape this file condemns
+    # further up and P3.blind74 already fixed.
+    if [ "$nrad" -ne 32 ] || [ "$nnonrad" -ne 64 ]; then
+        _cf P3.unitdep "unit axis mis-populated (rad rows=$nrad expected 32, non-rad rows=$nnonrad expected 64)"
     else
-        [ "$radmax" -ge 90 ] || _cf P3.unitdep "the false all-clear is gone from the radian rows at cadence 74 (max ${radmax}%)"
-        [ "$degmax" -eq 0 ] || _cf P3.unitdep "a false all-clear has appeared in a non-radian unit (max ${degmax}%) — the deadband attribution is wrong"
+        [ "$radmax" -ge 90 ] || _cf P3.unitdep "the false all-clear is gone from the radian rows (max ${radmax}%)"
+        ncadr=$(printf '%s\n' $radcad | sort -u | grep -c .)
+        [ "$ncadr" -eq 8 ] || _cf P3.unitdep "radian rows carry a false all-clear at only $ncadr of 8 cadences"
     fi
 
     # --- claim 4: P3's REGISTERED CONFIRMATION, restated at round 11.
@@ -238,21 +275,57 @@ p3_claims() {
     # (124, 148) they differ by exactly ONE read. Cadence 134 is longer
     # than 124 and identical, so there is no "long enough" boundary. The
     # collapse is near-universal; round 14 had it backwards.
-    local ncad=0 nident=0 cd lo hi spread
+    # Round 16 added the two vacuity guards this claim was missing -- the
+    # same ones round 15 shipped for P3.phase in the very same commit and
+    # did not apply here. Without them, deleting three of four cells at
+    # seven cadences certified "the FOUR cells are identical" from ONE
+    # cell, and four relabelled copies of a single cell certified it too.
+    # It also compared `fosc` alone while claiming "byte-identical"; it
+    # compares the whole full-window signature now.
+    local ncad=0 nident=0 cd ncell npair nsig lo hi
     for cd in 74 84 94 104 114 124 134 148; do
+        ncell=$(awk -v c="$cd" '$1=="deg" && $4==c' "$rowfile" | wc -l)
+        [ "$ncell" -gt 0 ] || continue
+        ncad=$((ncad+1))
+        if [ "$ncell" -ne 4 ]; then
+            _cf P3.unitid "cadence $cd has $ncell degree cells, expected 4 (vacuous check)"
+            continue
+        fi
+        npair=$(awk -v c="$cd" '$1=="deg" && $4==c {print $2"/"$3}' "$rowfile" | sort -u | wc -l)
+        if [ "$npair" -ne 4 ]; then
+            _cf P3.unitid "cadence $cd's four degree cells are not four distinct aircraft/dispersion pairs"
+            continue
+        fi
+        nsig=$(awk -v c="$cd" '$1=="deg" && $4==c {print $5,$6,$7,$8,$9}' "$rowfile" | sort -u | wc -l)
+        [ "$nsig" -eq 1 ] && nident=$((nident+1))
+        [ "$nsig" -le 2 ] || _cf P3.unitid "in degrees at cadence $cd the four cells give $nsig distinct full-window signatures; rescaling no longer collapses the amplitude axis"
+        # ...and where they differ, they must differ by ONE read. The
+        # signature count alone bounds how many kinds of row there are,
+        # not how far apart they are: two signatures 40 reads apart would
+        # pass it. Both are asserted.
         lo=$(awk -v c="$cd" '$1=="deg" && $4==c {print $6}' "$rowfile" | sort -n | head -1)
         hi=$(awk -v c="$cd" '$1=="deg" && $4==c {print $6}' "$rowfile" | sort -n | tail -1)
-        [ -n "$lo" ] && [ -n "$hi" ] || continue
-        ncad=$((ncad+1))
-        spread=$(( hi - lo ))
-        [ "$spread" -eq 0 ] && nident=$((nident+1))
-        [ "$spread" -le 1 ] || _cf P3.unitid "in degrees at cadence $cd the four aircraft/dispersion cells span $spread reads; rescaling no longer collapses the amplitude axis"
+        [ "$(( hi - lo ))" -le 1 ] || _cf P3.unitid "in degrees at cadence $cd the four cells span $(( hi - lo )) detections; the collapse is more than a single-read deadband crossing"
     done
     if [ "$ncad" -lt 8 ]; then
         _cf P3.unitid "only $ncad of 8 cadences have degree rows (vacuous check)"
     elif [ "$nident" -lt 6 ]; then
         _cf P3.unitid "the four degree cells are identical at only $nident of 8 cadences (expected at least 6)"
     fi
+
+    # --- the NEGATIVE CONTROL. A trimmed aircraft has no phugoid, so
+    # `oscillating` must never fire on it -- above all at cadence 104 in
+    # degrees, the cell where the live fleet detects on 100% of reads.
+    # Round 16: without this, "the observer detects the mode" and "the
+    # observer fires whenever its window exceeds one period" are the same
+    # measurement, and the 100% cell cannot be told from a stuck alarm.
+    local nnc=0 cu cc cfull cfosc
+    while read -r cu cc cfull cfosc; do
+        nnc=$((nnc+1))
+        [ "$cfull" -ge 40 ] || _cf P3.control "control cell unit=$cu cad=$cc has only $cfull full-window reads (vacuous check)"
+        [ "$cfosc" -eq 0 ] || _cf P3.control "the observer reports oscillating $cfosc times on an EQUILIBRIUM aircraft (unit=$cu cad=$cc); detection is not evidence of a mode"
+    done < <(sed -n 's/^p3nc unit=\([a-z]*\) cad=\([0-9]*\) full=\([0-9]*\) fosc=\([0-9]*\).*/\1 \2 \3 \4/p' "$out")
+    [ "$nnc" -eq 6 ] || _cf P3.control "$nnc of 6 negative-control cells found (vacuous check)"
 
     # --- claim 5: the full-window buckets must PARTITION `full`.
     # Round 14 found `fosc` graded at asn>9 and `fquiet`/`fnoclaim` at
@@ -324,7 +397,7 @@ p3_claims() {
 
     rm -f "$rowfile"
     if [ "$failed" -eq 0 ]; then
-        echo "P3CLAIMS OK rows=$nrows best_detect=${best}% (at $bestrow) rad_falseallclear_max=${radmax}% nonrad_max=${degmax}% fleet=${np[*]:-?}"
+        echo "P3CLAIMS OK rows=$nrows best_detect=${best}% (at $bestrow) rad_falseallclear_max=${radmax}% nonrad_max=${degmax}% (whole grid) fleet=${np[*]:-?}"
         return 0
     fi
     return 1

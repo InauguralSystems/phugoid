@@ -88,12 +88,16 @@ plant c1 P3.truth.alive 1 f_sed 's/^(p3truth ac=0 sp=0\.05 .*)u_pp_last=[0-9]+/\
 # window/period failure would be gone.
 plant c2 P3.blind74 1 f_mvdetect '^p3 unit=rad ac=0 sp=0\.05 cad=74 ' 50
 
-# c3: the FALSE ALL-CLEAR vanishes from the radian rows. The dangerous
-# direction is what makes P3 a safety finding rather than a curiosity.
-plant c3 P3.unitdep 1 f_setbucket '^p3 unit=rad .* cad=74 ' fquiet 10
+# c3: the FALSE ALL-CLEAR shrinks below the bound on EVERY radian row.
+# The dangerous direction is what makes P3 a safety finding rather than a
+# curiosity. Round 16: this used to zero cadence 74 alone, which no longer
+# refutes anything now the claim ranges over the whole grid -- the other
+# seven radian cadences still carry it. A claim over 96 rows needs a plant
+# over 96 rows.
+plant c3 'P3.tail P3.unitdep' 2 f_setbucket '^p3 unit=rad ' fquiet 10
 # c4: a false all-clear appears in a NON-radian unit, which would refute
 # the deadband attribution (EigenScript#1045) the write-up now rests on.
-plant c4 P3.unitdep 1 f_setbucket '^p3 unit=deg ac=0 sp=0\.05 cad=74 ' fquiet 50
+plant c4 'P3.unitdep P3.unitid' 2 f_setbucket '^p3 unit=deg ac=0 sp=0\.05 cad=74 ' fquiet 50
 # c5: the detector stops firing on healthy aircraft at EVERY cadence --
 # P3's registered refutation condition ("a clean verdict stream") actually
 # firing. Caps only the high-detection cadences, so the cadence-74
@@ -104,7 +108,7 @@ plant c5 P3.nuisance 1 f_setbucket '^p3 unit=[a-z]+ ac=[01] sp=0\.0[25] cad=(104
 plant c6 P3.nfleet 1 f_sed 's/^(p3n n=16 .*)fleet_permille=[0-9]+/\1fleet_permille=400/'
 # c7/c8: vacuity. A field or a whole table that vanishes must FAIL, never
 # pass quietly.
-plant c7 P3.truth.alive 1 f_sed '/^p3truth ac=0 sp=0\.05 /d'
+plant c7 P3.truth.alive 2 f_sed '/^p3truth ac=0 sp=0\.05 /d'
 plant c8 P3.rows 1 f_sed '/^p3 unit=/d'
 # c9: THE ROUND-10 REGRESSION GUARD. It reds TWO claims and that is
 # correct: without the deg/mrad rows there are also too few cadence-74
@@ -134,12 +138,37 @@ plant c14 P3.phase 1 f_sed '/^p3ph ac=0 /d'
 # c16/c17: the unit-collapse claim -- the sole evidence for the round-6/7
 # downgrade, mis-stated twice from partial sweeps.
 plant c16 P3.unitid 2 f_setbucket '^p3 unit=deg ac=0 sp=0\.02 cad=94 ' fosc 20
-plant c17 P3.unitid 1 f_sed '/^p3 unit=deg .* cad=134 /d'
+plant c17 'P3.unitdep P3.unitid' 2 f_sed '/^p3 unit=deg .* cad=134 /d'
 # c18: the physics truth must cover BOTH dispersions.
 plant c18 P3.truth.alive 1 f_sed 's/^(p3truth ac=1 sp=0\.02 .*)u_pp_last=[0-9]+/\1u_pp_last=10/'
 # c19/c20: the phase claim's denominator and its distinctness.
 plant c19 P3.phase 1 f_sed 's/^(p3ph ac=[01] cad=74 phase=[0-9]+ )full=[0-9]+/\1full=3/'
 plant c20 P3.phase 1 f_sed 's/^p3ph ac=1 cad=74 phase=[0-9]+ /p3ph ac=1 cad=74 phase=7 /'
+# c21: THE ROUND-16 MUTANT. Give every non-radian row at every cadence
+# except 74 a false all-clear, by moving its whole `fnoclaim` bucket into
+# `fquiet`. Partition preserved, detection untouched, cadence 74
+# untouched -- and the pre-round-16 claim, which read cadence 74 only,
+# certified 634 reads of false all-clear while printing nonrad_max=0%.
+f_nonrad_fac() {
+    awk '/^p3 unit=(deg|mrad) / && !/cad=74 / {
+      for (i=1;i<=NF;i++) { if (split($i,a,"=") < 2) { bare[i]=1; o[i]=$i } else { v[a[1]]=a[2]; o[i]=a[1] } }
+      if (v["fnoclaim"]+0 > 0) { v["fquiet"] = v["fnoclaim"]; v["fnoclaim"] = 0 }
+      s=""
+      for (i=1;i<=NF;i++) s = s (i>1?" ":"") (bare[i] ? o[i] : o[i] "=" v[o[i]])
+      print s; next
+    } { print }'
+}
+plant c21 P3.unitdep 48 f_nonrad_fac
+# c22/c23: the vacuity guards P3.unitid was missing -- population, then
+# distinctness. Both are the shape round 15 fixed for P3.phase and did
+# not apply here.
+plant c22 'P3.unitdep P3.unitid' 9 f_sed '/^p3 unit=deg ac=[01] sp=0\.02 cad=(84|94|104|114|124|134|148) /d'
+plant c23 P3.unitid 8 f_sed 's/^p3 unit=deg ac=1 sp=0\.0[25] (cad=(84|94|104|114|124|134|148) )/p3 unit=deg ac=0 sp=0.02 \1/'
+# c24: the OBSERVED channel (pitch rate) must be graded, not only airspeed.
+plant c24 P3.truth.alive 4 f_sed 's/^(p3truth .*)q_pp_last=[0-9-]+/\1q_pp_last=0/'
+# c25/c26: the negative control must exist and must be able to fail.
+plant c25 P3.control 1 f_sed 's/^(p3nc unit=deg cad=104 .*)fosc=[0-9]+/\1fosc=9/'
+plant c26 P3.control 1 f_sed '/^p3nc /d'
 # c15: the buckets must partition the full-window count.
 plant c15 P3.partition 1 f_sed 's/^(p3 unit=rad ac=0 sp=0\.05 cad=94 .*)fother=[0-9]+/\1fother=7/'
 
@@ -163,4 +192,4 @@ PN=$(grep -n "^P3ROWS$" tests/test_swarm.sh | head -1 | cut -d: -f1)
 [ "$CL" -lt "$PN" ] || { echo "FAIL: P3's claim assertions (line $CL) run AFTER the exact-row pins (line $PN) — they are unreachable, which is the round-8 defect"; exit 1; }
 echo "--- ordering: claims at line $CL precede the row pins at line $PN"
 
-echo "PASS: all 20 P3 claim plants red exactly their own claim set, and the claims precede the row pins"
+echo "PASS: all 26 P3 claim plants red exactly their own claim set, and the claims precede the row pins"

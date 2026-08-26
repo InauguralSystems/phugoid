@@ -1984,7 +1984,7 @@ unit. Two things are then graded separately, because round 9's single
   had been graded at `asn>9` while `fquiet`/`fnoclaim` were graded at
   `asn>10` — a vestige of an artifact-eviction boundary round 13 had
   already made unnecessary. They failed to sum to `full` in 38 of 46 rows,
-  so the false-all-clear rate quoted below as 97–98% was a numerator over
+  so the false-all-clear rate quoted below (98–99%) was a numerator over
   one population divided by a denominator over another, biased low. A rate
   whose numerator and denominator range over different populations is not
   a rate. Claim `P3.partition` now checks the arithmetic on every row.
@@ -2067,11 +2067,19 @@ construction.
 is EigenScript#1045's absolute zero-band, so it depends on the numeric
 magnitude of the channel, not its shape:
 
-| unit, cadence 74 | detect | **false all-clear** |
+| unit | detect at cad 74 | **false all-clear, ALL 8 cadences** |
 |---|---|---|
-| rad (shipped) | 0 | **97–98%** |
-| deg | 0 | **0%** |
-| mrad | 0 | **0%** |
+| rad (shipped) | 0 | present at **every** cadence; peak **98–99%** |
+| deg | 0 | **0 of 32 rows** |
+| mrad | 0 | **0 of 32 rows** |
+
+Round 16 widened this from cadence 74 to the whole grid, and it holds more
+strongly than the narrow version claimed: **0 of the 64 non-radian rows
+carry a false all-clear at any of the eight cadences**, while every radian
+cadence has at least three of its four cells carrying one. (The peak was
+quoted as "97–98%" through round 15; measured it is 98/99, 98/99, 98/99,
+97/99 — **98.0–99.0%**. The gate's own integer division floored 98.99 to
+98 and corroborated the wrong figure.)
 
 Identical physics, identical cadence, identical window. In radians the
 per-sample step (~6e-4 rad/s) straddles the `dh_zero` = 1e-3 deadband and
@@ -2116,7 +2124,8 @@ number. Round 10 asserted `max detect < 90%` and called it "no clean
 row" — a bound set by where the data happened to stop (nothing had
 exceeded 80% in a sweep ending at cadence 148). Round 11 forced a
 committed producer for the cadence sweep, which extended it, and
-detection reaches **100%** at cadence 104 (in degrees; 98.5% in radians). The round-10 gate would have
+detection reaches **100%** at cadence 104 (in degrees; 98.5% in radians),
+where a 10-sample window spans 1.11 phugoid periods. The round-10 gate would have
 declared P3 *refuted* at the exact point the evidence for it is
 strongest. The claim now asserts the direction P3 actually predicts:
 some cadence must make the detector fire on a measurably healthy
@@ -2124,8 +2133,16 @@ aircraft, and one does, on every read of a 67-read window.
 
 So there is no usable operating point, rather than no clean row: below the
 window the detector is blind (0%) and, in radians, issues a false
-all-clear on 97–98% of reads; at a cadence where it sees the mode it
-alerts almost continuously on entirely normal flight.
+all-clear on 98–99% of reads; at a cadence where it sees the mode it
+alerts on **every** read of entirely normal flight.
+
+**And the 100% cell is a detector, not a stuck alarm** — round 16 added the
+negative control that separates them. A fleet at dispersion 0 sits exactly
+at trim: an equilibrium, no phugoid at all. Run through the same cell
+(degrees, cadence 104) it reports `oscillating` **0 times out of 67**.
+Until that control existed, "the observer detects the mode" and "the
+observer fires whenever its window exceeds one period" were the same
+measurement, and the 100% cell could not be told from a stuck alarm.
 
 **The N half — CONFIRMED, but construction-bound, and that is a weaker
 statement than round 9 made.** P3 predicts a rate "that does not fall with
@@ -2148,7 +2165,7 @@ counts are **98** and **97**. The cadence sweep now has a committed
 producer (round 11 — it had lived only in `swarm.eigs` comments, the fifth
 producerless claim in this rung). It is non-monotone with
 **aircraft-dependent peaks**: ac1 at cadence 104 (98.5%), ac0 at 124
-(94.6%).
+(94.5%).
 
 **Five successive readings of this one curve were wrong in five different
 ways.** Round 11 said the aircraft become identical at long cadence and

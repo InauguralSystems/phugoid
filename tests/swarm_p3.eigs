@@ -394,6 +394,58 @@ define p3_fleet(n, sp, cad) as:
     return [n, reads, alerts, pa, sweeps, firing, pf]
 
 # ---------------------------------------------------------------------
+# THE NEGATIVE CONTROL. Round 16: the sweep's best cell detects 100% of
+# reads (deg, cadence 104, where a 10-sample window spans 1.11 phugoid
+# periods), and nothing in the rung fed a NON-oscillating channel through
+# that cell. So "the observer detects the mode" and "the observer fires
+# whenever its window exceeds one period" were not separated, and the
+# 100% cell could not be told apart from a stuck alarm.
+#
+# `fleet_ic` at spread 0 puts every aircraft exactly at the trim state,
+# which is an equilibrium: no phugoid, no oscillation, nothing to detect.
+# `oscillating` must therefore be 0 on every control row -- above all at
+# cadence 104 in degrees, the cell where the live fleet reads 100%.
+#
+# Printed with its own `p3nc` prefix so it cannot leak into the verdict
+# claims: these rows are a DIFFERENT aircraft (an equilibrium one), and
+# folding them into a claim about a swinging fleet is the category error
+# this rung has made in six other places.
+define p3_control(cad, uscale, uname) as:
+    local fleet is fleet_ic of [tr.state, 4, 0.0]
+    local s is fleet[0]
+    local q is (s[2] * uscale) + 0.0
+    local asn is 0
+    local fl is 0
+    local fos is 0
+    local t is 0.0
+    local f is 0
+    loop while f < 8000:
+        unobserved:
+            s is rk4_step of [s, t, 0.05, sched, tr.P]
+        if (f % cad) == (cad - 1):
+            q is (s[2] * uscale) + 0.0
+            local rp is report of q
+            unobserved:
+                asn is asn + 1
+                if asn > 9:
+                    fl is fl + 1
+                    if rp == "oscillating":
+                        fos is fos + 1
+        unobserved:
+            t is t + 0.05
+        f is f + 1
+    print of f"p3nc unit={uname} cad={cad} full={fl} fosc={fos}"
+    return [fl, fos]
+
+print of "# negative control: a trimmed aircraft with NO phugoid must never read oscillating"
+ncf is 0
+for cu in [[1.0, "rad"], [57.29577951308232, "deg"], [1000.0, "mrad"]]:
+    for ncd in [94, 104]:
+        nc is p3_control of [ncd, cu[0], cu[1]]
+        ncf is ncf + nc[1]
+print of f"p3nc total detections on the equilibrium aircraft: {ncf}"
+
+# ---------------------------------------------------------------------
 # The PHASE axis. Round 14: cadence-74 detection is 0 at the shipped grid
 # phase, and NOT at every phase -- moving where the sample grid starts,
 # with the seed and the even spacing held exactly as shipped, makes

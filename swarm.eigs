@@ -249,25 +249,16 @@ define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
 # thing three earlier drafts of this comment got wrong. Draft 1 called 74
 # "rung 3's result, not a tuning knob" (a transplanted number). Draft 2
 # derived "cadence >= 94" from a window-span argument. Draft 3 called the
-# transition a monotone CONTINUUM on the strength of 3/17/28/34 at cadence
-# 84/94/104/114 -- which was spread-0.02 data left in place after round 5
-# raised the dispersion to 0.05. Re-measured at what actually ships:
+# transition a monotone CONTINUUM on spread-0.02 data left in place after
+# round 5 raised the dispersion to 0.05. Draft 4 called it non-monotone
+# with an optimum near 104; round 8 normalised to rates and retracted the
+# optimum; round 9 retracted the retraction; round 12 read a shrinking
+# denominator as a recovery.
 #
-#   cadence   84    94   104   114
-#   oscillating 52    61    67    61      (spread 0.05, same 8000 frames)
-#
-# Draft 4 called that non-monotone with an optimum near 104. Round 8: the
-# READ POPULATION shrinks across the sweep (96 / 86 / 77 / 71), so raw
-# counts are not comparable. As RATES the picture changes:
-#
-#   cadence      84     94    104    114
-#   ac0       0.250  0.477  0.714  0.761   strictly monotone
-#   ac1/2     0.542  0.709  0.870  0.859   peaks at 104 by 0.011 = ONE read
-#   ac3       0.323  0.523  0.831  0.859   strictly monotone
-#
-# Round 15 -- the cadence table that used to live here as a comment is
-# GONE, and with it the last producerless claim in this row. It had been
-# read four different ways (draft 4, rounds 8, 9, 12) and every reading
+# Round 15 removed the cadence table that used to live here as a comment;
+# round 16 found two MORE producerless tables had survived five lines
+# above the sentence announcing it was gone, and removed those too. Every
+# reading
 # was wrong in a different way, because a table in a comment cannot be
 # re-measured when the driver changes underneath it. By round 15 the
 # numbers here were simply stale: they still carried round 12's `.010`
