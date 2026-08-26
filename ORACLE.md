@@ -1788,6 +1788,17 @@ SS97-100).
 
 ## First measurements (2026-08-26) — recorded before the gate exists
 
+**Provenance, corrected at round 7.** This table was taken at 3000 frames
+with a throwaway driver and NO committed producer — the fourth instance in
+this rung of a published measurement that nothing in the repo can
+regenerate. The shipped harness is `tests/swarm_profile.eigs` at 1500
+frames over the ladder 1/4/16, hash-pinned, and it is what
+`tests/test_swarm_profile.sh` asserts on every run. The table below is
+therefore kept as a RECORD of a one-off sweep to N=32, not as a
+reproducible artifact, and P2's fitted answers derived from it carry that
+caveat. Reproducing them needs a deliberate re-run at 3000 frames, which
+would change the pinned hash and is a decision rather than an accident.
+
 Taken at 3000 frames (50 s at 60 Hz), n=5 per point, on the 2-core/4GB dev
 box. **Minima, not medians**: the spread between the fastest and slowest of
 five reached 28% under contention, and the minimum is the least-contended
@@ -1877,12 +1888,12 @@ behaviour the derived filter exists to produce. The fix was more work per
 point, not a looser filter: the ladder stays 1/4/16 — round 4 recorded a change to 4/16/32 that was never applied, and round 5 caught the comment contradicting the code, and N = 32 is valid
 on both machines.
 
-One further methodological fix from the same failure: the disciplined and
-unarmed arms are now judged on the numbers the table PRINTED, not on a
-second independent measurement. The first version re-measured in its own
-loop and failed on a contended box comparing 3.230 against a 2.316 printed
-seconds earlier for the same arm — two measurements of one quantity
-disagree under load, so a check must judge what it reported.
+The disciplined and unarmed arms are asserted with the same PAIRED
+estimator as the headline ratio, at the largest ladder point. An earlier
+version of this paragraph claimed they were judged on the numbers the
+table printed; round 7 found that false — the assertions re-measure, which
+is unavoidable because a paired ratio cannot be assembled from two
+independent minima. Stated plainly rather than repaired into a lie.
 
 **`unobserved:` buys back essentially the whole penalty** — the
 disciplined arm measures within noise of the floor and of the unarmed
@@ -1904,45 +1915,51 @@ negative share is impossible, so the split is noise at these sizes. Two
 explanations remain live and this rung cannot separate them. **Not
 published as a mechanism.**
 
-**P3 — the verdict is a function of THREE variables, and each write-up so
-far has held one of them fixed without saying so.** The prediction was
-that a verdict-driven detector "fires on healthy aircraft at a rate that
-does not fall with N". It does not fire wrongly, and it does not go
-uniformly silent either. Measured (`tests/swarm_p3.eigs`, the shipped
-driver — round 6 found the previous table existed only in prose):
+**P3 — the sharpest result the rung has, and it took four rounds to state
+because each write-up held a different variable fixed without saying so.**
 
-| dispersion | cadence | reads | converged | oscillating | other |
-|---|---|---|---|---|---|
-| 0.02 | 74 | 109 | **97** | 1 | 11 |
-| 0.02 | 94 | 86 | 55 | 17 | 14 |
-| 0.02 | 148 | 55 | 0 | 36 | 19 |
-| 0.05 | 74 | 109 | **0** | 1 | 108 |
-| 0.05 | 94 | 86 | 0 | 61 | 25 |
-| 0.05 | 148 | 55 | 0 | 36 | 19 |
+Round 1 reported "converged 98 of 109 — a separation detector would report
+a calm sky" and read it as a property of the observer. Round 2 showed it
+was cadence-dependent. Round 6 showed the `converged` column was also
+DISPERSION-dependent and that round 5 had changed the dispersion without
+re-measuring. **Round 7 found the fourth variable: WHICH AIRCRAFT.** The
+table had been sampling `fleet[1]`, and the shipped fleet already spans a
+factor of two in amplitude (0.0240 / 0.0466 / 0.0473 / 0.0258 at spread
+0.05) — the same range the "dispersion" axis sweeps. Dispersion was a
+proxy for per-channel amplitude, and the index was hidden.
 
-Three corrections, one per round:
+`tests/swarm_p3.eigs` now sweeps all three, and the result is stronger than
+any of the four framings:
 
-- Round 1 reported "converged 98 of 109 — it goes silent; a separation
-  detector would report a calm sky" at cadence 74, treating that as a
-  property of the observer.
-- Round 2 showed it was CADENCE-dependent: at 1.58 periods `converged`
-  never fires. The write-up became "it reports whatever the sampling rate
-  makes visible".
-- Round 6 showed the `converged` column is also DISPERSION-dependent, and
-  that round 5 had raised the rung's dispersion from 0.02 to 0.05 without
-  re-measuring P3. **At the shipped 0.05, `converged` is zero at every
-  cadence** — so the entire "calm sky" reading was a small-amplitude
-  phenomenon, and the sentence carrying it had been silently invalidated
-  inside this PR. `converged` requires low ABSOLUTE entropy, so it is a
-  magnitude test; at 0.05 those reads return `stable`/`equilibrium`.
+| aircraft | amp | cadence | converged | oscillating |
+|---|---|---|---|---|
+| 0 | 0.0240 | 74 | **73** / 109 | 1 |
+| 1 | 0.0466 | 74 | **0** / 109 | 1 |
+| 0 | 0.0240 | 94 | 25 / 86 | 41 |
+| 1 | 0.0466 | 94 | 0 / 86 | 61 |
 
-What survives, and it is the stronger claim: **`oscillating` is genuinely
-cadence-driven at both dispersions** (1 → 17 → 36 at 0.02, 1 → 61 → 36 at
-0.05), so a controller's view of a healthy mode depends on the
-(cadence, timescale, amplitude) triple. A consumer cannot pick a sampling
-rate from the physics alone, and cannot pick it from cadence and timescale
-alone either. That is the same window-versus-timescale family as G4 and
-G5, with a third axis this rung added.
+**At one cadence, one timescale and one dispersion, two aircraft in the
+same airspace disagree completely** — one reads `converged` on two thirds
+of its reads while the other never does. A separation detector watching
+this fleet sees a calm sky over half of it and continuous motion over the
+other half, and the difference is a factor of two in pitch-rate amplitude.
+
+Two things round 6 published as surviving are RETRACTED:
+- *"At the shipped 0.05, `converged` is zero at every cadence"* — false.
+  True for aircraft 1 and 2; aircraft 0 reads it on 67% of reads at
+  cadence 74.
+- *"`oscillating` is genuinely cadence-driven at both dispersions"* — on
+  aircraft 0 at 0.02 it is 1 → 1 → 1, flat, and by this repo's own
+  accounting that single hit is the initialiser sample
+  (EigenScript#1049). So below an amplitude threshold, cadence does
+  nothing at all.
+
+**And the amplitude axis is not new — it is G5 firing inside one fleet.**
+The value channel's relative step `Δv/(1+|v|)` degenerates to an ABSOLUTE
+deadband for sub-unit magnitudes (GAPS G5, EigenScript#1045), so scaling a
+sub-unit binding by 2x is arithmetically the same as changing its unit by
+2x. Rung 2 found that across units; rung 4 finds it across aircraft in one
+airspace, which is the consumer-facing form.
 
 **P4 — CONFIRMED, but the finding is WEAKER than first published, and the
 first version was false.** What broke first was not the physics: it was

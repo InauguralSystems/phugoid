@@ -15,9 +15,9 @@ load_file of "swarm.eigs"
 tr is trim_solve of (sim_params of [b747_approach of null, ctl_nominal of null])
 sched is [[0.0, tr.de]]
 
-define p3_row(sp, cad) as:
+define p3_row(idx, sp, cad) as:
     local fleet is fleet_ic of [tr.state, 4, sp]
-    local s is fleet[1]
+    local s is fleet[idx]
     local q is 0.0
     local rd is 0
     local cv is 0
@@ -42,12 +42,19 @@ define p3_row(sp, cad) as:
         unobserved:
             t is t + 0.05
         f is f + 1
-    print of f"p3 spread={sp} cadence={cad} reads={rd} converged={cv} oscillating={os} other={ot}"
+    print of f"p3 ac={idx} spread={sp} cadence={cad} reads={rd} converged={cv} oscillating={os} other={ot}"
     return [rd, cv, os, ot]
 
+# The sweep is over THREE axes, not two. Round 7: the previous version
+# sampled fleet[1] and reported the row as a property of the dispersion --
+# but the shipped fleet already spans a factor of two in amplitude
+# (0.0240 / 0.0466 / 0.0473 / 0.0258 at spread 0.05), which is the same
+# range the dispersion axis sweeps. "Dispersion" was a proxy for
+# per-channel amplitude, and the aircraft index was a hidden variable.
 rows is 0
-for sp in [0.02, 0.05]:
-    for cd in [74, 94, 148]:
-        r is p3_row of [sp, cd]
-        rows is rows + r[0]
+for ac in [0, 1]:
+    for sp in [0.02, 0.05]:
+        for cd in [74, 94, 148]:
+            r is p3_row of [ac, sp, cd]
+            rows is rows + r[0]
 print of f"p3 total reads across the sweep: {rows}"

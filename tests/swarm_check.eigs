@@ -232,8 +232,11 @@ loop while ai2 < 4:
 # the cadence ORACLE.md's own P3 section derives as too short -- a
 # 10-sample window at cadence 74 spans 0.79 of a phugoid period, so
 # `oscillating` essentially cannot fire, and these four checks were
-# comparing 1 == 1. Containing a fold needs cadence*dt >= T_ph/10, i.e.
-# cadence >= 94. At 94 with the shipped dispersion 0.05 they compare
+# comparing 1 == 1. Cadence is 94 -- chosen because the oracle binds well
+# there, NOT because a
+# threshold exists: swarm.eigs records the re-measured sweep, which is
+# non-monotone with an interior optimum. At 94 with the shipped dispersion
+# 0.05 they compare
 # 41/61/61/45 against the solo oracle -- of which exactly 1 per channel is
 # the initialiser sample (EigenScript#1049) and the rest is physics. The sentence that used
 # to sit here called 74 "rung 3's result, not a tuning knob" -- the exact

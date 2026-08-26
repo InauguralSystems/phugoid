@@ -4,8 +4,9 @@
 #
 # The measurement discipline is rung 3's C6, inherited wholesale and NOT
 # re-derived: ratios rather than wall times (absolute budgets flake on
-# shared runners), minima rather than medians (the fastest of five is the
-# least-contended sample; the spread here reached 28% under load), the
+# shared runners); the ARM columns are minima of five (the fastest is the
+# least-contended sample) while every asserted RATIO is the median of five
+# PAIRED runs -- see the estimator note below for why those differ; the
 # executed workload pinned by whole-file hash so it cannot silently become
 # a different workload, and bound literals identity-pinned.
 set -euo pipefail
@@ -33,8 +34,8 @@ fi
 rm -rf "$FP"
 echo "PASS: file_pin planted fault rejected (the real file_pin rejects a halved FRAMES)"
 
-file_pin tests/swarm_profile.eigs         27b48d89472b 28
-file_pin tests/swarm_profile_unarmed.eigs 646088f6531a 14
+file_pin tests/swarm_profile.eigs         3bd07186c79d 28
+file_pin tests/swarm_profile_unarmed.eigs ec298d5e32df 14
 file_pin swarm.eigs                       dd252ed85bd1 240
 # sim_core.eigs holds `deriv` and `rk4_step`, where essentially ALL the
 # measured time goes -- round 3 found the pin covering the four swarm files
@@ -128,7 +129,7 @@ echo "fixed cost (1 frame): ${OVH}s — subtracted from every arm before the rat
 # a bias, and the gate should say so instead of reporting a ratio.
 
 
-echo "--- swarm cost curve (1500 frames, minima of 5) ---"
+echo "--- swarm cost curve (1500 frames; arms are minima of 5, ratios are medians of 5 PAIRED runs) ---"
 printf "%4s %9s %12s %8s %9s %9s\n" N ceiling disciplined floor unarmed "ceil/floor"
 # The ladder is 1/4/16. Round 3 proposed moving it to 4/16/32 and round 4
 # recorded that as done -- it was not, and round 5 caught the comment
@@ -145,30 +146,40 @@ for n in 1 4 16; do
     d=$(mins tests/swarm_profile.eigs disciplined "$n")
     f=$(mins tests/swarm_profile.eigs floor "$n")
     u=$(mins tests/swarm_profile_unarmed.eigs "$n")
-    # The ratio is taken as the MINIMUM over five PAIRED runs -- the most
-    # pessimistic reading the box produced -- rather than filtered for
-    # resolvability. Three earlier versions of this block tried to decide
-    # whether a point was measurable: exclude on overhead share (round 3,
-    # discarded usable data), subtract the bias then skip on arm spread
-    # (round 4, correct about bias), then skip on the worse of two arms'
-    # spread (round 5, called every point unresolvable under load while the
-    # ratios were steady at 1.47/1.49). All three confused "imprecise" with
-    # "contradicts the claim". A conservative estimator needs neither: if
-    # even the WORST paired ratio clears the bound, the claim holds however
-    # noisy the box is, and noise can only make the gate stricter.
-    # Correlated load cancels in a ratio, which is why the runs are paired.
+    # The estimator is the MEDIAN of five PAIRED ratios, with the measured
+    # fixed cost subtracted. Round 6 was told this comment said MINIMUM
+    # while the code computed a median, and the edit landed on a different
+    # block -- round 7 found the original still here, so this is the second
+    # attempt at the same correction.
+    #
+    # Four estimators were tried. Exclude points on overhead share:
+    # discarded usable data and hard-failed CI. Subtract the fixed cost:
+    # correct, it is a BIAS in both numerator and denominator, but silent
+    # on noise. Skip points on ARM spread: called every point unresolvable
+    # on a loaded box while the ratios were steady at 1.47/1.49. Minimum of
+    # paired ratios: an extreme order statistic, so one contention event
+    # dominated it and produced 0.79 and 0.89 -- paired runs where the
+    # ceiling came out FASTER than the floor.
+    #
+    # There is no resolvability filter. The minimum justified that with
+    # "noise can only make the gate stricter", which is one-sided and does
+    # NOT hold for a median. The honest reason is weaker: the median of
+    # five paired ratios measured stable across consecutive runs on a
+    # contended box (1.37 / 1.38 / 1.46). If it flakes, the fix is more
+    # pairs, not a wider bound.
     rmed=$(paired_ratio ceiling floor "$n")
     # loop-only times: the ratio the rung actually claims
     r=$(awk -v x="$rmed" 'BEGIN{ printf "%.2f", x }')
     printf "%4s %9s %12s %8s %9s %9s\n" "$n" "$c" "$d" "$f" "$u" "$r"
     NVALID=$((NVALID+1))
     WORST=$(awk -v w="$WORST" -v r="$r" 'BEGIN{ print (r<w)?r:w }')
-    # The disciplined and unarmed arms are judged on THESE numbers, not on
-    # a second independent measurement. The first version re-measured in a
-    # separate loop and failed on a contended box comparing 3.230 against a
-    # 2.316 printed seconds earlier for the same arm -- two measurements of
-    # one quantity disagree under load, so the check must judge what it
-    # reported.
+    # NOTE (round 7): an earlier comment here claimed the disciplined and
+    # unarmed arms are judged on THESE printed numbers. They are not -- the
+    # DU assertions below call paired_ratio again at the largest N, which
+    # is ten fresh runs whose numbers appear nowhere in this table. That is
+    # deliberate now (a paired estimator cannot be assembled from two
+    # independent minima) but the claim was false, so it is stated plainly
+    # rather than repaired into a lie.
     LASTN="$n"
 done
 # ONE resolvable point is the requirement, not two. Signal-to-noise rises

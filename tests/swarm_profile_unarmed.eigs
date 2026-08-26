@@ -6,7 +6,10 @@ load_file of "swarm_unarmed.eigs"
 
 FRAMES is 1500
 DT is 0.0166667
-SPREAD is 0.02
+# 0.05, matching tests/swarm_check.eigs. Round 5 raised the rung's
+# dispersion there and left these two drivers at 0.02, so the cost curve
+# and the verdict checks were flying different fleets.
+SPREAD is 0.05
 
 cli is args of null
 n is 8

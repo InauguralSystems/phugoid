@@ -245,15 +245,21 @@ define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
 # same thing at runtime N. Two earlier drafts of this comment claimed a
 # limit that does not exist (GAPS G8, EigenScript#1048).
 # `cadence` IS a knob, and there is NO threshold to derive -- a third
-# thing two earlier drafts of this comment got wrong. Draft 1 called 74
+# thing three earlier drafts of this comment got wrong. Draft 1 called 74
 # "rung 3's result, not a tuning knob" (a transplanted number). Draft 2
-# derived "cadence >= 94" from a window-span argument. Measured, the
-# transition is a CONTINUUM with no cutoff: oscillating hits over the same
-# 8000 frames go 3 / 17 / 28 / 34 at cadence 84 / 94 / 104 / 114. So the
-# verdict is a continuous function of the (cadence, timescale) pair, which
-# is a stronger version of P3's point than any threshold would be. 94 is
-# chosen because it gives the fleet-vs-solo oracle enough signal to bind
-# (17 hits against 1 at cadence 74), not because it is a boundary.
+# derived "cadence >= 94" from a window-span argument. Draft 3 called the
+# transition a monotone CONTINUUM on the strength of 3/17/28/34 at cadence
+# 84/94/104/114 -- which was spread-0.02 data left in place after round 5
+# raised the dispersion to 0.05. Re-measured at what actually ships:
+#
+#   cadence   84    94   104   114
+#   oscillating 52    61    67    61      (spread 0.05, same 8000 frames)
+#
+# Non-monotone, with an optimum near 104 -- so there is no threshold AND no
+# monotone continuum. The verdict is a function of (cadence, timescale,
+# amplitude) with an interior maximum in cadence, which is the strongest
+# form of P3's point yet. 94 is chosen because the fleet-vs-solo oracle
+# binds well there, not because it is a boundary or a peak.
 define run_named4(frames, dt, spread, cadence, tstate, P, sched, shared) as:
     local fleet is fleet_ic of [tstate, 4, spread]
     local q0 is 0.0
@@ -368,7 +374,7 @@ define run_closure_n(n, frames, dt, spread, cadence, tstate, P, sched) as:
     # its window for up to WINDOW_N subsequent reads, so wrapping this construction -- the
     # obvious thing to do, since building N channels is setup -- shifted
     # every channel's verdict count by one and broke agreement with
-    # run_solo ([0,16,16,0] against [1,17,17,1]). EigenScript#1049.
+    # run_solo ([0,16,16,0] against [1,17,17,1] at the dispersion then in use). EigenScript#1049.
     loop while i < n:
         append of [chans, make_channel of null]
         append of [counts, 0]
