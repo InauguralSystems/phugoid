@@ -235,7 +235,12 @@ loop while ai2 < 4:
 # comparing 1 == 1. Cadence is 94 -- chosen because the oracle binds well
 # there, NOT because a
 # threshold exists: swarm.eigs records the re-measured sweep, which is
-# non-monotone with an interior optimum. At 94 with the shipped dispersion
+# non-monotone with an interior optimum -- rising to a peak in 114..148
+# and falling after, confirmed at round 9 by continuing the sweep to 148
+# in tests/swarm_p3.eigs. (Round 8 briefly retracted the optimum after
+# normalising the rates correctly but only over 84..114, where the curve
+# is still rising. The normalisation stands; the retraction did not.)
+# At 94 with the shipped dispersion
 # 0.05 they compare
 # 41/61/61/45 against the solo oracle -- of which exactly 1 per channel is
 # the initialiser sample (EigenScript#1049) and the rest is physics. The sentence that used

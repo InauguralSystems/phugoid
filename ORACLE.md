@@ -1785,6 +1785,16 @@ SS97-100).
    rounds); if the cap is exceeded, say so and why.
 5. CI green on the pushed branch, and the shipped entry points exercised —
    a dry loop certifies only the surface its critics ran.
+6. **Every claim about what the AIRCRAFT is doing graded against a
+   measured physics truth, not against a verdict column.** Added at round
+   9, which found P3 had been rewritten five times without one: each
+   rewrite read the observer's own labels and reported them as the state
+   of the world, so `converged` became "the aircraft is quiescent" while
+   it was swinging 4.5–8.8 m/s peak-to-peak. Rungs 1 and 2 both write the
+   truth table first; rung 4 did not, and inverted its headline five times
+   in a row as a direct result. The observer is the thing under test and
+   cannot be its own oracle. Pinning every column of the wrong table still
+   cannot catch a wrong table.
 
 ## First measurements (2026-08-26) — recorded before the gate exists
 
@@ -1916,52 +1926,107 @@ negative share is impossible, so the split is noise at these sizes. Two
 explanations remain live and this rung cannot separate them. **Not
 published as a mechanism.**
 
-**P3 — CONFIRMED, at the cadence the previous write-up demoted. Five
-rewrites, and the fourth was refuted by a bucket of its own making.**
+**P3 — CONFIRMED, in BOTH of its registered halves, and for the first time
+against a measured physics truth. Six rewrites. The previous five were all
+graded by reading the observer's own verdict columns, which is not a
+measurement — it is a restatement of the claim under test.**
 
 Round 1 read the result as a property of the observer; round 2 found it
 cadence-dependent; round 6 found it dispersion-dependent; round 7 found a
-fourth variable (which aircraft) and headlined *"two aircraft in the same
-airspace disagree completely — a calm sky over half the fleet and
-continuous motion over the other half"*. **Round 8 refuted that**, and the
-cause was the driver's own bucketing: it collapsed five of the seven
-verdict classes into an unlabelled `other`, and the row being headlined was
-108 `other`.
+fourth variable (which aircraft); round 8 found the driver's own three-way
+bucket had hidden five classes. **Round 9 found the error underneath all
+five: rung 4 had no physics truth table.** Rungs 1 and 2 each write the
+physics truth first and label every read `agree` or `divergence` against
+it. Rung 4 classified rows by eye — so when the observer said `converged`,
+the write-up recorded "the aircraft is quiescent". The observer was being
+used as its own oracle.
 
-Expanded — `report` returns seven labels and the driver now records all
-seven:
+**The truth, measured with the observer uninvolved** (whole integration
+inside `unobserved:`, nothing reported — `truth_row` in
+`tests/swarm_p3.eigs`), peak-to-peak over the first and the LAST phugoid
+period of the 400 s run, at the shipped dispersion 0.05:
 
-| aircraft | cadence | conv | osc | moving | stable | equil |
-|---|---|---|---|---|---|---|
-| 0 (amp .0240) | 74 | 73 | 1 | 10 | 0 | 25 |
-| 1 (amp .0466) | 74 | **0** | 1 | 11 | **65** | **32** |
-| 0 | 94 | 25 | **41** | 10 | 1 | 9 |
-| 1 | 94 | 0 | **61** | 10 | 15 | 0 |
+| aircraft | u p-p, first period | u p-p, **last period** | q p-p, last period |
+|---|---|---|---|
+| 0 (amp .0240) | 8.44 m/s | **4.52 m/s** | 0.00257 rad/s |
+| 1 (amp .0466) | 16.41 m/s | **8.80 m/s** | 0.00501 rad/s |
 
-At cadence 74 **both aircraft are quiescent** — 98 of 109 reads for one,
-97 of 109 for the other. There is no "continuous motion" in either stream.
-They differ only in WHICH quiescent band applies, and the predicate lattice
-nests them (`converged` implies `stable`), so one verdict entails the
-other. "Disagree completely" was wrong.
+The phugoid is decaying (ζ≈0.013, ~7–8% per cycle) but **alive for the
+entire run** — airspeed is still swinging ±2.3 and ±4.4 m/s in the final
+period. So the physics truth is `oscillating` at every read, at every
+cadence. Every other label is a read that contradicts the aircraft.
 
-**Where P3 actually holds is cadence 94**, which the round-7 rewrite
-demoted in favour of the `converged` column: both aircraft report
-`oscillating` on 41 and 61 of their reads while flying a smoothly decaying
-phugoid. That IS the registered prediction — a verdict-driven detector
-firing on healthy aircraft — and it is confirmed.
+Graded that way, the twelve rows read:
 
-What survives from round 7 and was independently re-verified: the amplitude
-attribution is sound and there is no fifth variable. Flying aircraft 0 at
-the dispersion that matches aircraft 1's amplitude reproduces aircraft 1's
-rows exactly, with no residue — so the index reduces to amplitude, and the
-band difference at cadence 74 is G5 (EigenScript#1045) firing across a 2x
-amplitude gap inside one fleet.
+| aircraft | disp | cadence | reads | **divergences** | rate |
+|---|---|---|---|---|---|
+| 0 | .02 | 74 | 109 | 108 | 99% |
+| 0 | .05 | 74 | 109 | 108 | 99% |
+| 1 | .02 | 74 | 109 | 108 | 99% |
+| 1 | .05 | 74 | 109 | 108 | 99% |
+| 0 | .05 | 94 | 86 | 45 | 52% |
+| 1 | .05 | 94 | 86 | 25 | **29%** |
+| 0 | .05 | 148 | 55 | 19 | 35% |
+| 1 | .05 | 148 | 55 | 19 | 35% |
 
-**The gate could not have caught this**, which is the transferable part: it
-asserted only on the `converged` column, so it would have passed identically
-whether aircraft 1 read `stable` 97 times or `diverging` 97 times. A check
-that pins the number instead of the claim is the §99 shape this rung has now
-fixed five times. All seven columns are pinned now.
+**There is no clean row anywhere in the sweep.** The best cell measured —
+the largest-amplitude aircraft at the cadence chosen to suit the oracle —
+still contradicts the physics on 29% of its reads. P3's registered
+refutation condition was "a clean verdict stream"; no cadence, dispersion
+or aircraft produces one.
+
+**The two failure directions live at different cadences, and round 8 had
+them backwards.** At **cadence 74** the observer reports `converged` /
+`stable` / `equilibrium` on 108 of 109 reads *while the aircraft swings
+4.5–8.8 m/s peak-to-peak* — a **false negative**, the observer going blind
+to a live mode, and the dangerous direction for a separation detector.
+Round 8 read those quiescent labels as evidence the aircraft was quiescent
+and cleared the row. The repo's own harness already said otherwise
+(`tests/swarm_check.eigs`: a 10-sample window at cadence 74 spans 0.79 of
+a period, so `oscillating` essentially cannot fire) — that is the
+INSTRUMENT going blind, not the sky going quiet. At **cadence 94** the
+verdict is correct on the reads where it fires, and the defect is that a
+detector built on it alerts on a perfectly healthy aircraft — the
+**nuisance** direction. Both are G4/G5 at fleet scale.
+
+**The N axis — the half of P3 that was never measured at all.** P3 predicts
+the detector fires "at a rate that does not fall with N". Until round 9 no
+verdict measurement in this rung had an N axis: `p3_row` hardcodes a fleet
+of 4 and reads one aircraft, and P3 was reported CONFIRMED regardless.
+Measured now (`p3_fleet`, one closure channel per aircraft, cadence 94,
+dispersion 0.05), fraction of sweep points where at least one aircraft
+alerts:
+
+| N | 2 | 4 | 8 | 16 |
+|---|---|---|---|---|
+| fleet alert rate | 0.709 | 0.709 | 0.709 | 0.709 |
+
+**Exactly invariant from N=2 to N=16** — the registered prediction, in the
+strongest form it could take. It is invariant rather than merely
+non-decreasing because the alerting aircraft fire on the SAME sweeps
+(`first=9`, `last=85`, and the per-aircraft list pins which), so widening
+the fleet adds no new alert points. The per-aircraft mean drifts *down*
+(0.593 → 0.526) purely because near-zero-amplitude aircraft join the
+average alerting once each — G5's small-magnitude deadband diluting the
+mean, not the nuisance abating. Reporting only that mean would have
+manufactured a refutation of P3.
+
+What survives from round 7 and was independently re-verified: the
+amplitude attribution is sound and there is no fifth variable. Flying
+aircraft 0 at the dispersion that matches aircraft 1's amplitude
+reproduces aircraft 1's rows exactly, with no residue — so the index
+reduces to amplitude, and the band difference at cadence 74 is G5
+(EigenScript#1045) firing across a 2x amplitude gap inside one fleet. The
+closure channels independently reproduce the solo rows exactly (41 and 61
+at N=4), which cross-checks the two producers against each other.
+
+**The transferable part is why five gates in a row missed this.** Each one
+pinned the verdict columns — first `converged` alone, then all seven. But
+a verdict column is the observer's output, and the claim was about the
+AIRCRAFT. Pinning every column of the wrong table still cannot catch a
+wrong table. The gate now asserts the divergence rate against measured
+physics, and the physics rows are pinned alongside the verdict rows, so
+the truth and the claim about it drift together or not at all.
 
 **P4 — CONFIRMED, but the finding is WEAKER than first published, and the
 first version was false.** What broke first was not the physics: it was

@@ -1,19 +1,41 @@
-# swarm_p3.eigs — the shipped driver for P3's evidence table.
+# swarm_p3.eigs -- the shipped driver for P3's evidence table.
 #
 # Round 6 found P3's table living only in ORACLE.md prose, measured with a
 # throwaway probe. That is the third time in this rung (round 1: the cost
 # table; round 4: run_closure_n "verified at N = 32"), so it ships now.
 #
-# It reports ALL SEVEN verdict classes. Round 8: the previous version
-# collapsed everything but `converged` and `oscillating` into an unlabelled
-# `other`, and that bucket hid the answer -- the row the bar headlined was
-# 108 `other`, which is 65 `stable` + 32 `equilibrium` + 11 `moving`, i.e.
-# QUIESCENT. The headline read it as "continuous motion". A three-way
-# bucketing cannot support a claim about a seven-class lattice.
+# ROUND 9 -- THE PHYSICS TRUTH IS MEASURED FIRST, AND EVERY READ IS GRADED
+# AGAINST IT. This is the structural fix. Rungs 1 and 2 each write a
+# physics truth table first and label every pinned read `agree` or
+# `divergence` (ORACLE.md's rung-1 and rung-2 sections). Rung 4 did not:
+# it classified rows BY EYE, and got the classification backwards five
+# times running. Reading a verdict column and calling it "quiescent" is
+# not a measurement of anything -- it is a restatement of the observer's
+# own claim. The observer cannot be its own oracle.
+#
+# So `truth_row` measures what the AIRCRAFT is doing, with no observer
+# involved (everything inside `unobserved:`), and prints peak-to-peak
+# airspeed and pitch rate over the first and the LAST phugoid period.
+# Truth is then not a matter of opinion: if the final-period swing is
+# large, the mode is alive at the end of the run, and `oscillating` is the
+# correct verdict at every read, at every cadence. `div` counts the reads
+# that contradict it.
+#
+# Round 8 expanded the verdict buckets after a three-way collapse hid the
+# answer -- the row the bar headlined was 108 `other`, which is 65
+# `stable` + 32 `equilibrium` + 11 `moving`. But round 8 then read those
+# quiescent labels as evidence the AIRCRAFT was quiescent, which is the
+# same error one level up. The labels are the thing under test.
+#
+# It reports all seven classes `report` can return -- oscillating,
+# diverging, improving, converged, equilibrium, stable, moving -- plus an
+# `other` residual that must stay 0. Round 8's header claimed seven and
+# the chain implemented six: there was no `diverging` arm and no residual,
+# so an unmodelled label would have been silently dropped into nothing.
 #
 # It sweeps BOTH axes the verdict depends on. The first write-up varied
 # cadence and held dispersion fixed without saying so, and round 5 then
-# changed the dispersion without re-measuring — at which point the
+# changed the dispersion without re-measuring -- at which point the
 # `converged` column the headline rested on went to zero everywhere.
 
 load_file of "data/b747_approach.eigs"
@@ -22,6 +44,73 @@ load_file of "swarm.eigs"
 tr is trim_solve of (sim_params of [b747_approach of null, ctl_nominal of null])
 sched is [[0.0, tr.de]]
 
+# One phugoid period at dt = 0.05 is 938 frames (T = 46.9 s, measured in
+# rung 1 and re-measured here from the peak spacing). 940 is that period
+# rounded up, so a window of 940 frames always contains a full cycle.
+PERIOD is 940
+
+# ---------------------------------------------------------------------
+# The physics truth. No observer touches this: the whole integration runs
+# inside `unobserved:` and nothing is `report`ed. It answers one question
+# -- is the phugoid still swinging at the end of the run? -- in the units
+# a pilot would use.
+# ---------------------------------------------------------------------
+define truth_row(idx, sp) as:
+    local fleet is fleet_ic of [tr.state, 4, sp]
+    local s is fleet[idx]
+    local t is 0.0
+    local f is 0
+    local au is -1e9
+    local bu is 1e9
+    local aq is -1e9
+    local bq is 1e9
+    local cu is -1e9
+    local du is 1e9
+    local cq is -1e9
+    local dq is 1e9
+    unobserved:
+        loop while f < 8000:
+            s is rk4_step of [s, t, 0.05, sched, tr.P]
+            if f < PERIOD:
+                if s[0] > au:
+                    au is s[0]
+                if s[0] < bu:
+                    bu is s[0]
+                if s[2] > aq:
+                    aq is s[2]
+                if s[2] < bq:
+                    bq is s[2]
+            if f >= (8000 - PERIOD):
+                if s[0] > cu:
+                    cu is s[0]
+                if s[0] < du:
+                    du is s[0]
+                if s[2] > cq:
+                    cq is s[2]
+                if s[2] < dq:
+                    dq is s[2]
+            t is t + 0.05
+            f is f + 1
+    # Pinned as integers so the row is stable across platforms: airspeed in
+    # hundredths of a m/s, pitch rate in hundred-thousandths of a rad/s.
+    local u1 is round of ((au - bu) * 100.0)
+    local u2 is round of ((cu - du) * 100.0)
+    local q1 is round of ((aq - bq) * 100000.0)
+    local q2 is round of ((cq - dq) * 100000.0)
+    print of f"p3truth ac={idx} sp={sp} u_pp_first={u1} u_pp_last={u2} q_pp_first={q1} q_pp_last={q2}"
+    return [u1, u2, q1, q2]
+
+print of "# physics truth: peak-to-peak over the FIRST and LAST phugoid period, observer uninvolved"
+truths is 0
+for tac in [0, 1]:
+    for tsp in [0.02, 0.05]:
+        tt is truth_row of [tac, tsp]
+        truths is truths + tt[1]
+print of f"p3truth total final-period airspeed swing across the four rows: {truths}"
+
+# ---------------------------------------------------------------------
+# The verdict stream, graded against that truth.
+# ---------------------------------------------------------------------
 define p3_row(idx, sp, cad) as:
     local fleet is fleet_ic of [tr.state, 4, sp]
     local s is fleet[idx]
@@ -33,6 +122,8 @@ define p3_row(idx, sp, cad) as:
     local st is 0
     local eq is 0
     local im is 0
+    local dg is 0
+    local ot is 0
     local t is 0.0
     local f is 0
     loop while f < 8000:
@@ -55,11 +146,19 @@ define p3_row(idx, sp, cad) as:
                     eq is eq + 1
                 elif rp == "improving":
                     im is im + 1
+                elif rp == "diverging":
+                    dg is dg + 1
+                else:
+                    ot is ot + 1
         unobserved:
             t is t + 0.05
         f is f + 1
-    print of f"p3 ac={idx} sp={sp} cad={cad} reads={rd} conv={cv} osc={os} moving={mv} stable={st} equil={eq} improving={im}"
-    return [rd, cv, os, mv, st, eq, im]
+    # Truth is `oscillating` at every read (the mode is alive for the whole
+    # run -- see the p3truth rows above), so every other label is a read
+    # that contradicts the physics.
+    local dv is rd - os
+    print of f"p3 ac={idx} sp={sp} cad={cad} reads={rd} conv={cv} osc={os} moving={mv} stable={st} equil={eq} improving={im} diverging={dg} other={ot} div={dv}"
+    return [rd, cv, os, mv, st, eq, im, dg, ot, dv]
 
 # The sweep is over THREE axes, not two. Round 7: the previous version
 # sampled fleet[1] and reported the row as a property of the dispersion --
@@ -74,3 +173,84 @@ for ac in [0, 1]:
             r is p3_row of [ac, sp, cd]
             rows is rows + r[0]
 print of f"p3 total reads across the sweep: {rows}"
+
+# ---------------------------------------------------------------------
+# The N axis. P3 as registered predicts a detector that fires on healthy
+# aircraft "at a rate that does not fall with N" -- and until round 9 NO
+# verdict measurement in this rung had an N axis at all: p3_row hardcodes
+# a fleet of 4 and reads one aircraft. Half of P3 was reported CONFIRMED
+# without being measured.
+#
+# Each aircraft gets its OWN closure channel (make_vchannel), because the
+# rung's P4 finding is that N aircraft sharing one loop-local binding
+# makes the window the round-robin interleave and MANUFACTURES verdicts.
+# Construction stays outside `unobserved:` -- EigenScript#1049.
+#
+# Two rates, because they answer different questions:
+#   per_ac  -- mean fraction of per-aircraft reads that alert. fleet_ic
+#              gives aircraft i the SAME initial condition for every n, so
+#              each aircraft's own rate is N-invariant; the MEAN is not,
+#              because widening the fleet changes which aircraft are in
+#              the average. It drifts DOWN only because near-zero-amplitude
+#              aircraft join it (the `per` list below shows them alerting
+#              once each) -- that is EigenScript#1045's small-magnitude
+#              deadband diluting the mean, not the nuisance abating.
+#   fleet   -- fraction of sweep points where AT LEAST ONE aircraft
+#              alerts. This is what a sector controller actually sees, and
+#              it is the rate P3's registered prediction is about.
+# `first`/`last`/`per` are printed so the fleet figure cannot be read as a
+# coincidence: the alerting aircraft fire on the SAME sweeps, which is why
+# the union does not grow.
+define p3_fleet(n, sp, cad) as:
+    local fleet is fleet_ic of [tr.state, n, sp]
+    local chans is []
+    local per is []
+    local i is 0
+    loop while i < n:
+        append of [chans, make_vchannel of null]
+        append of [per, 0]
+        i is i + 1
+    local t is 0.0
+    local f is 0
+    local reads is 0
+    local alerts is 0
+    local sweeps is 0
+    local firing is 0
+    local first is -1
+    local last is -1
+    loop while f < 8000:
+        unobserved:
+            fleet is frame_step of [fleet, t, 0.05, sched, tr.P]
+        if (f % cad) == 0:
+            local any is 0
+            local a is 0
+            loop while a < n:
+                local v is chans[a] of (fleet[a][2])
+                unobserved:
+                    reads is reads + 1
+                    if v == "oscillating":
+                        alerts is alerts + 1
+                        per[a] is per[a] + 1
+                        any is 1
+                a is a + 1
+            unobserved:
+                sweeps is sweeps + 1
+                if any == 1:
+                    firing is firing + 1
+                    if first < 0:
+                        first is sweeps - 1
+                    last is sweeps - 1
+        unobserved:
+            t is t + 0.05
+        f is f + 1
+    local pa is round of ((alerts * 1000.0) / reads)
+    local pf is round of ((firing * 1000.0) / sweeps)
+    print of f"p3n n={n} sp={sp} cad={cad} reads={reads} alerts={alerts} per_ac_permille={pa} sweeps={sweeps} firing={firing} fleet_permille={pf} first={first} last={last} per={per}"
+    return [n, reads, alerts, pa, sweeps, firing, pf]
+
+print of "# N axis: does the nuisance-alert rate fall as the fleet grows?"
+nalerts is 0
+for nn in [2, 4, 8, 16]:
+    nr is p3_fleet of [nn, 0.05, 94]
+    nalerts is nalerts + nr[2]
+print of f"p3n total alerts across the N sweep: {nalerts}"

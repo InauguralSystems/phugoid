@@ -265,11 +265,23 @@ define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
 #   ac1/2     0.542  0.709  0.870  0.859   peaks at 104 by 0.011 = ONE read
 #   ac3       0.323  0.523  0.831  0.859   strictly monotone
 #
-# So "non-monotone with an interior optimum" does not survive
-# normalisation -- two of four aircraft are strictly monotone and the other
-# two peak by a single read. Rising, with no threshold. 94 is chosen
-# because the fleet-vs-solo oracle binds well there, not because it is a
-# boundary or a peak.
+# Round 9 -- the interior optimum is REAL, and round 8 missed it by
+# stopping the sweep at 114. tests/swarm_p3.eigs continues the same
+# measurement to cadence 148 and it turns over:
+#
+#   cadence      84     94    104    114        148
+#   ac0       0.250  0.477  0.714  0.761  ->  0.655
+#   ac1       0.542  0.709  0.870  0.859  ->  0.655
+#
+# The two producers agree EXACTLY where they overlap (both give 41/86 and
+# 61/86 at cadence 94), so the comparison is legitimate and the fall is
+# not an artifact of a different driver. So: rising to a peak somewhere in
+# 114..148, then falling -- which is what a window/period interaction
+# should do once the cadence starts aliasing the mode. Round 8's "rising,
+# with no threshold" was true only of the range it happened to sample; the
+# normalisation it introduced was right and its conclusion outran the
+# data. 94 is chosen because the fleet-vs-solo oracle binds well there,
+# not because it is a boundary or a peak.
 define run_named4(frames, dt, spread, cadence, tstate, P, sched, shared) as:
     local fleet is fleet_ic of [tstate, 4, spread]
     local q0 is 0.0
@@ -373,6 +385,18 @@ define make_channel as:
             hits is hits + 1
         return hits
     return feed_ch
+
+# Same mechanism as make_channel, but it returns the VERDICT LABEL rather
+# than a count of `oscillating`. Round 9 needed this: grading a read
+# `agree`/`divergence` against a physics truth requires the label, and a
+# hit-counter can only ever see one of the seven classes. Construction is
+# likewise NOT inside `unobserved:` -- EigenScript#1049, see below.
+define make_vchannel as:
+    local q is 0.0
+    define read_ch(v) as:
+        q is v + 0.0
+        return report of q
+    return read_ch
 
 define run_closure_n(n, frames, dt, spread, cadence, tstate, P, sched) as:
     local fleet is fleet_ic of [tstate, n, spread]
