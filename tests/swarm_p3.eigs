@@ -437,6 +437,78 @@ define p3_control(cad, uscale, uname) as:
     print of f"p3nc unit={uname} cad={cad} full={fl} fosc={fos}"
     return [fl, fos]
 
+# THE MONOTONE CONTROL -- the one that actually excludes the hypothesis.
+#
+# Round 17: the equilibrium control above is DEGENERATE. Trim pitch rate
+# is exactly 0, so at dispersion 0 the channel spans 3.3e-17 rad/s --
+# fourteen orders of magnitude inside `dh_zero` = 1e-3 -- and, because
+# 0.0 x 57.3 == 0.0 x 1000, its three "units" are one measurement written
+# three times. It rules out an alarm that fires on a FROZEN channel, which
+# is not the hypothesis in question.
+#
+# The hypothesis is "the observer fires whenever its window exceeds one
+# period", and the control that excludes it must be MOVING but not
+# oscillating, at the phugoid's own magnitude. These channels decay or
+# ramp monotonically from A = 0.0257 rad/s, which is the shipped fleet's
+# own initial pitch-rate amplitude. `oscillating` must be 0 on every one.
+#
+# They also carry the sharpest unit-dependence evidence in the rung: ONE
+# monotone decay is classified differently in each of the three units.
+define p3_monotone(kind, cad, uscale, uname) as:
+    local q is 0.0
+    local asn is 0
+    local fl is 0
+    local fos is 0
+    local cv is 0
+    local st is 0
+    local mv is 0
+    local dg is 0
+    local eq is 0
+    local t is 0.0
+    local f is 0
+    loop while f < 8000:
+        if (f % cad) == (cad - 1):
+            local a is 0.0
+            unobserved:
+                if kind == "decay_slow":
+                    a is 0.0257 * (exp of (0.0 - (t / 350.0)))
+                elif kind == "decay_fast":
+                    a is 0.0257 * (exp of (0.0 - (t / 90.0)))
+                else:
+                    a is 0.0257 * (t / 400.0)
+            q is (a * uscale) + 0.0
+            local rp is report of q
+            unobserved:
+                asn is asn + 1
+                if asn > 9:
+                    fl is fl + 1
+                    if rp == "oscillating":
+                        fos is fos + 1
+                    elif rp == "converged":
+                        cv is cv + 1
+                    elif rp == "stable":
+                        st is st + 1
+                    elif rp == "moving":
+                        mv is mv + 1
+                    elif rp == "diverging":
+                        dg is dg + 1
+                    elif rp == "equilibrium":
+                        eq is eq + 1
+        unobserved:
+            t is t + 0.05
+        f is f + 1
+    print of f"p3mono kind={kind} unit={uname} cad={cad} full={fl} fosc={fos} conv={cv} stable={st} moving={mv} diverging={dg} equil={eq}"
+    return [fl, fos]
+
+print of "# monotone control: a MOVING but non-oscillating channel at the phugoid's own amplitude"
+monf is 0
+for mk in ["decay_slow", "decay_fast", "ramp"]:
+    for mu in [[1.0, "rad"], [57.29577951308232, "deg"], [1000.0, "mrad"]]:
+        for mcd in [94, 104]:
+            mr is p3_monotone of [mk, mcd, mu[0], mu[1]]
+            monf is monf + mr[1]
+print of f"p3mono total detections on monotone channels: {monf}"
+
 print of "# negative control: a trimmed aircraft with NO phugoid must never read oscillating"
 ncf is 0
 for cu in [[1.0, "rad"], [57.29577951308232, "deg"], [1000.0, "mrad"]]:

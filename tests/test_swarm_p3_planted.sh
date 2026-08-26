@@ -169,6 +169,32 @@ plant c24 P3.truth.alive 4 f_sed 's/^(p3truth .*)q_pp_last=[0-9-]+/\1q_pp_last=0
 # c25/c26: the negative control must exist and must be able to fail.
 plant c25 P3.control 1 f_sed 's/^(p3nc unit=deg cad=104 .*)fosc=[0-9]+/\1fosc=9/'
 plant c26 P3.control 1 f_sed '/^p3nc /d'
+# c27: the RADIAN half of unitdep, per row. Erase the false all-clear
+# from 22 of the 32 radian rows -- 1045 of 1285 dangerous-direction reads,
+# partition preserved -- which the pre-round-17 max-plus-existence bounds
+# certified with the headline number unchanged.
+f_erase_rad_fac() {
+    awk '/^p3 unit=rad (ac=0 sp=0.02|ac=1 sp=0.02|ac=1 sp=0.05) / {
+      for (i=1;i<=NF;i++) { if (split($i,a,"=") < 2) { bare[i]=1; o[i]=$i } else { v[a[1]]=a[2]; o[i]=a[1] } }
+      v["fnoclaim"] += v["fquiet"]; v["fquiet"] = 0
+      s=""
+      for (i=1;i<=NF;i++) s = s (i>1?" ":"") (bare[i] ? o[i] : o[i] "=" v[o[i]])
+      print s; next
+    } { print }'
+}
+plant c27 P3.unitdep 9 f_erase_rad_fac
+# c28: radian rows deleted -- the nrad population guard was unplanted.
+plant c28 P3.unitdep 1 f_sed '/^p3 unit=rad ac=1 sp=0\.05 cad=(84|104) /d'
+# c29/c30: the MONOTONE control -- a moving, non-oscillating channel at
+# the phugoid's own amplitude. The equilibrium control it replaces was
+# degenerate (channel span 3.3e-17, and 0.0 x 57.3 == 0.0 x 1000, so its
+# three units were one measurement).
+plant c29 P3.monotone 1 f_sed 's/^(p3mono kind=decay_fast unit=deg cad=104 .*)fosc=[0-9]+/\1fosc=6/'
+plant c30 'P3.monoclass P3.monotone' 2 f_sed '/^p3mono kind=ramp unit=mrad /d'
+# c31/c32: the three-unit verdict divergence, and the ramp's contrasting
+# unit-INVARIANCE.
+plant c31 P3.monoclass 1 f_sed 's/^(p3mono kind=decay_slow unit=deg cad=94 .*)stable=[0-9]+/\1stable=2/'
+plant c32 P3.monoclass 1 f_sed 's/^(p3mono kind=ramp unit=rad .*)diverging=[0-9]+/\1diverging=3/'
 # c15: the buckets must partition the full-window count.
 plant c15 P3.partition 1 f_sed 's/^(p3 unit=rad ac=0 sp=0\.05 cad=94 .*)fother=[0-9]+/\1fother=7/'
 
@@ -192,4 +218,4 @@ PN=$(grep -n "^P3ROWS$" tests/test_swarm.sh | head -1 | cut -d: -f1)
 [ "$CL" -lt "$PN" ] || { echo "FAIL: P3's claim assertions (line $CL) run AFTER the exact-row pins (line $PN) — they are unreachable, which is the round-8 defect"; exit 1; }
 echo "--- ordering: claims at line $CL precede the row pins at line $PN"
 
-echo "PASS: all 26 P3 claim plants red exactly their own claim set, and the claims precede the row pins"
+echo "PASS: all 32 P3 claim plants red exactly their own claim set, and the claims precede the row pins"

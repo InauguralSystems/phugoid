@@ -43,7 +43,7 @@ NP3=$(grep -c '^p3 unit=' "$OUT" || true)
 NT=$(grep -c '^p3truth ac=' "$OUT" || true)
 [ "$NT" = "4" ] || { echo "FAIL: P3 truth table produced $NT rows, expected 4"; exit 1; }
 while read -r want; do
-    grep -qxF "$want" "$OUT" || { echo "FAIL: P3 row drifted: $want"; grep -E '^p3(truth| unit=|n |ph |nc )' "$OUT"; exit 1; }
+    grep -qxF "$want" "$OUT" || { echo "FAIL: P3 row drifted: $want"; grep -E '^p3(truth| unit=|n |ph |nc |mono )' "$OUT"; exit 1; }
 done <<'P3ROWS'
 p3truth ac=0 sp=0.02 u_pp_first=337 u_pp_last=181 q_pp_first=1057 q_pp_last=103
 p3truth ac=0 sp=0.05 u_pp_first=844 u_pp_last=452 q_pp_first=2643 q_pp_last=257
@@ -145,6 +145,24 @@ p3 unit=mrad ac=1 sp=0.05 cad=114 reads=70 conv=0 osc=60 moving=10 stable=0 equi
 p3 unit=mrad ac=1 sp=0.05 cad=124 reads=64 conv=0 osc=51 moving=13 stable=0 equil=0 improving=0 diverging=0 other=0 full=55 fosc=51 fquiet=0 fnoclaim=4 fother=0
 p3 unit=mrad ac=1 sp=0.05 cad=134 reads=59 conv=0 osc=35 moving=24 stable=0 equil=0 improving=0 diverging=0 other=0 full=50 fosc=35 fquiet=0 fnoclaim=15 fother=0
 p3 unit=mrad ac=1 sp=0.05 cad=148 reads=54 conv=0 osc=35 moving=19 stable=0 equil=0 improving=0 diverging=0 other=0 full=45 fosc=35 fquiet=0 fnoclaim=10 fother=0
+p3mono kind=decay_slow unit=rad cad=94 full=76 fosc=0 conv=75 stable=0 moving=1 diverging=0 equil=0
+p3mono kind=decay_slow unit=rad cad=104 full=67 fosc=0 conv=66 stable=0 moving=1 diverging=0 equil=0
+p3mono kind=decay_slow unit=deg cad=94 full=76 fosc=0 conv=0 stable=75 moving=1 diverging=0 equil=0
+p3mono kind=decay_slow unit=deg cad=104 full=67 fosc=0 conv=0 stable=66 moving=1 diverging=0 equil=0
+p3mono kind=decay_slow unit=mrad cad=94 full=76 fosc=0 conv=0 stable=0 moving=76 diverging=0 equil=0
+p3mono kind=decay_slow unit=mrad cad=104 full=67 fosc=0 conv=0 stable=0 moving=67 diverging=0 equil=0
+p3mono kind=decay_fast unit=rad cad=94 full=76 fosc=0 conv=71 stable=0 moving=1 diverging=0 equil=4
+p3mono kind=decay_fast unit=rad cad=104 full=67 fosc=0 conv=60 stable=1 moving=1 diverging=0 equil=5
+p3mono kind=decay_fast unit=deg cad=94 full=76 fosc=0 conv=0 stable=41 moving=35 diverging=0 equil=0
+p3mono kind=decay_fast unit=deg cad=104 full=67 fosc=0 conv=0 stable=33 moving=34 diverging=0 equil=0
+p3mono kind=decay_fast unit=mrad cad=94 full=76 fosc=0 conv=0 stable=0 moving=76 diverging=0 equil=0
+p3mono kind=decay_fast unit=mrad cad=104 full=67 fosc=0 conv=0 stable=0 moving=67 diverging=0 equil=0
+p3mono kind=ramp unit=rad cad=94 full=76 fosc=0 conv=0 stable=0 moving=0 diverging=76 equil=0
+p3mono kind=ramp unit=rad cad=104 full=67 fosc=0 conv=0 stable=0 moving=0 diverging=67 equil=0
+p3mono kind=ramp unit=deg cad=94 full=76 fosc=0 conv=0 stable=0 moving=0 diverging=76 equil=0
+p3mono kind=ramp unit=deg cad=104 full=67 fosc=0 conv=0 stable=0 moving=0 diverging=67 equil=0
+p3mono kind=ramp unit=mrad cad=94 full=76 fosc=0 conv=0 stable=0 moving=0 diverging=76 equil=0
+p3mono kind=ramp unit=mrad cad=104 full=67 fosc=0 conv=0 stable=0 moving=0 diverging=67 equil=0
 p3nc unit=rad cad=94 full=76 fosc=0
 p3nc unit=rad cad=104 full=67 fosc=0
 p3nc unit=deg cad=94 full=76 fosc=0
@@ -171,8 +189,9 @@ P3ROWS
 grep -q '^p3 total reads across the sweep: 7332$' "$OUT" || { echo "FAIL: P3 sweep population changed"; exit 1; }
 grep -q '^p3ph total detections across the phase sweep: 3$' "$OUT" || { echo "FAIL: P3 phase-sweep population changed"; exit 1; }
 grep -q '^p3nc total detections on the equilibrium aircraft: 0$' "$OUT" || { echo "FAIL: negative-control population changed"; exit 1; }
+grep -q '^p3mono total detections on monotone channels: 0$' "$OUT" || { echo "FAIL: monotone-control population changed"; exit 1; }
 # `other` is the residual for a label the driver does not model. Round 8's
 # header claimed all seven classes and the chain implemented six (no
 # `diverging` arm, no residual), so an unmodelled label vanished silently.
 grep -E '^p3 unit=.* other=[1-9]|^p3 unit=.* fother=[1-9]' "$OUT" && { echo "FAIL: an unmodelled verdict label appeared in the residual"; exit 1; }
-echo "PASS: P3's 122 pinned rows reproduce (4 physics truth, 96 verdict over a uniform 3 units x 2 aircraft x 2 dispersions x 8 cadences grid, 12 phase cells, 6 negative controls, 4 N-axis)"
+echo "PASS: P3's 140 pinned rows reproduce (4 physics truth, 96 verdict over a uniform 3x2x2x8 grid, 12 phase cells, 6 equilibrium + 18 monotone controls, 4 N-axis)"

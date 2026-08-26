@@ -2136,13 +2136,39 @@ window the detector is blind (0%) and, in radians, issues a false
 all-clear on 98–99% of reads; at a cadence where it sees the mode it
 alerts on **every** read of entirely normal flight.
 
-**And the 100% cell is a detector, not a stuck alarm** — round 16 added the
-negative control that separates them. A fleet at dispersion 0 sits exactly
-at trim: an equilibrium, no phugoid at all. Run through the same cell
-(degrees, cadence 104) it reports `oscillating` **0 times out of 67**.
-Until that control existed, "the observer detects the mode" and "the
-observer fires whenever its window exceeds one period" were the same
-measurement, and the 100% cell could not be told from a stuck alarm.
+**And the 100% cell is a detector, not a stuck alarm — but round 16's
+control did not show that, and round 17's does.** Round 16 ran a fleet at
+dispersion 0: exactly at trim, no phugoid, `oscillating` 0 of 67 through
+the same cell. That control is **degenerate**. Trim pitch rate is exactly
+0, so its channel spans 3.3e-17 rad/s — fourteen orders inside `dh_zero`
+— and because `0.0 × 57.3 == 0.0 × 1000` its three "units" are one
+measurement written three times. It excludes an alarm that fires on a
+*frozen* channel, which was never the hypothesis.
+
+The hypothesis is "the observer fires whenever its window exceeds one
+period", and excluding it needs a channel that **moves without
+oscillating**, at the phugoid's own magnitude. Three were added — two
+exponential decays (τ = 350 s, 90 s) and a linear ramp, all from
+A = 0.0257 rad/s, the shipped fleet's own initial pitch-rate amplitude —
+through both cadences in all three units. **`oscillating` fires 0 times in
+all 18 cells.** The detector is a detector.
+
+**That control also produced the sharpest unit-dependence evidence in the
+rung.** One identical monotone decay — same trajectory, same cadence,
+same window — lands in three *different* verdict classes depending only
+on the unit:
+
+| channel | rad | deg | mrad |
+|---|---|---|---|
+| decay, τ=350 s | `converged` 75/76 | `stable` 75/76 | `moving` 76/76 |
+| linear ramp | `diverging` 76/76 | `diverging` 76/76 | `diverging` 76/76 |
+
+This is stronger than the deg-equals-mrad byte-identity the unit claim had
+been resting on, because here the units **disagree** rather than agree, on
+a channel with no oscillation to argue about. And the ramp row is the
+control on the control: a signal that is *growing* is detected at every
+scale, so the unit does not decide everything — it is specifically the
+small-magnitude end of the lattice that the absolute deadband distorts.
 
 **The N half — CONFIRMED, but construction-bound, and that is a weaker
 statement than round 9 made.** P3 predicts a rate "that does not fall with

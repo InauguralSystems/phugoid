@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # p3claims.sh -- P3's CLAIM assertions, as one shared implementation.
 # IDs: P3.truth.alive, P3.rows, P3.blind74, P3.unitdep, P3.phase,
-# P3.partition, P3.control, P3.nuisance, P3.tail, P3.nfleet.
+# P3.partition, P3.control, P3.monotone, P3.nuisance, P3.tail, P3.nfleet.
 #
 # Why this is a library and not inline in test_swarm.sh: round 8 wrote two
 # claim assertions inline and placed them AFTER the exact-row pins, which
@@ -175,7 +175,7 @@ p3_claims() {
     # carrying one. The finding is not "at cadence 74 the unit decides
     # which wrong answer you get" but "across the whole grid, the false
     # all-clear exists only in radians".
-    local radmax=-1 degmax=-1 nrad=0 nnonrad=0 radcad="" ncadr
+    local radmax=-1 degmax=-1 nrad=0 nnonrad=0 radcad="" ncadr nradfq cd ncell
     while read -r u a s c full fosc fq fnc fot; do
         fac=$(( fq * 100 / full ))
         if [ "$u" = "rad" ]; then
@@ -194,6 +194,22 @@ p3_claims() {
         [ "$radmax" -ge 90 ] || _cf P3.unitdep "the false all-clear is gone from the radian rows (max ${radmax}%)"
         ncadr=$(printf '%s\n' $radcad | sort -u | grep -c .)
         [ "$ncadr" -eq 8 ] || _cf P3.unitdep "radian rows carry a false all-clear at only $ncadr of 8 cadences"
+        # PER-ROW, like its non-radian twin. Round 17: the non-radian half
+        # was made per-row and exact at round 16 while the radian half --
+        # the one carrying the safety finding -- stayed a max-over-rows
+        # plus one-cell-per-cadence. Erasing `fquiet` from 22 of the 32
+        # radian rows (1045 of 1285 dangerous-direction reads, partition
+        # preserved) left both bounds satisfied and the headline
+        # `rad_falseallclear_max=98%` unchanged. Measured, 30 of 32 radian
+        # rows carry a false all-clear -- 4 of 4 cells at six cadences and
+        # 3 of 4 at cadences 104 and 114 -- so that is what is asserted.
+        local nradfq
+        nradfq=$(awk '$1=="rad" && $7>0' "$rowfile" | wc -l)
+        [ "$nradfq" -ge 30 ] || _cf P3.unitdep "only $nradfq of 32 radian rows carry a false all-clear (expected at least 30); the dangerous direction has largely vanished"
+        for cd in 74 84 94 104 114 124 134 148; do
+            ncell=$(awk -v c="$cd" '$1=="rad" && $4==c && $7>0' "$rowfile" | wc -l)
+            [ "$ncell" -ge 3 ] || _cf P3.unitdep "at cadence $cd only $ncell of 4 radian cells carry a false all-clear (expected at least 3)"
+        done
     fi
 
     # --- claim 4: P3's REGISTERED CONFIRMATION, restated at round 11.
@@ -312,6 +328,53 @@ p3_claims() {
     elif [ "$nident" -lt 6 ]; then
         _cf P3.unitid "the four degree cells are identical at only $nident of 8 cadences (expected at least 6)"
     fi
+
+    # --- the MONOTONE CONTROL. Round 17: the equilibrium control below is
+    # DEGENERATE -- trim pitch rate is exactly 0, so its channel spans
+    # 3.3e-17 rad/s (fourteen orders inside dh_zero) and its three "units"
+    # are one measurement, since 0.0 x 57.3 == 0.0 x 1000. It excludes an
+    # alarm that fires on a FROZEN channel, which was not the hypothesis.
+    #
+    # The hypothesis is "the observer fires whenever its window exceeds
+    # one period". Excluding it needs a channel that MOVES without
+    # oscillating, at the phugoid's own magnitude. These do.
+    local nmono=0 mk mu mc mfull mfosc
+    while read -r mk mu mc mfull mfosc; do
+        nmono=$((nmono+1))
+        [ "$mfull" -ge 40 ] || _cf P3.monotone "monotone cell $mk/$mu/cad$mc has only $mfull full-window reads (vacuous check)"
+        [ "$mfosc" -eq 0 ] || _cf P3.monotone "the observer reports oscillating $mfosc times on a MONOTONE channel ($mk, $mu, cadence $mc) at the phugoid's own amplitude; detection is not evidence of a mode"
+    done < <(sed -n 's/^p3mono kind=\([a-z_]*\) unit=\([a-z]*\) cad=\([0-9]*\) full=\([0-9]*\) fosc=\([0-9]*\).*/\1 \2 \3 \4 \5/p' "$out")
+    [ "$nmono" -eq 18 ] || _cf P3.monotone "$nmono of 18 monotone-control cells found (vacuous check)"
+
+    # --- the SHARPEST unit-dependence evidence in the rung, found while
+    # building the monotone control (round 17).
+    #
+    # ONE identical monotone decay -- same trajectory, same cadence, same
+    # window -- is classified into THREE DIFFERENT verdict classes by the
+    # three units: `converged` in radians, `stable` in degrees, `moving`
+    # in milliradians. That is a cleaner demonstration than the
+    # deg-equals-mrad byte-identity the unit claim had been resting on,
+    # because here the units DISAGREE rather than agree, on a channel with
+    # no oscillation to argue about.
+    #
+    # The contrast is pinned too: a monotone RAMP reads `diverging` in all
+    # three units. So the unit does not decide everything -- a signal that
+    # is growing is detected at any scale, and it is specifically the
+    # SMALL-magnitude end of the lattice that the absolute deadband
+    # distorts (EigenScript#1045).
+    local mdom
+    for mu in rad deg mrad; do
+        mdom=$(sed -n "s/^p3mono kind=decay_slow unit=$mu cad=94 .*/&/p" "$out")
+        [ -n "$mdom" ] || { _cf P3.monoclass "decay_slow/$mu/cad94 row absent (vacuous check)"; continue; }
+        case "$mu" in
+            rad)  echo "$mdom" | grep -qE 'conv=(6[5-9]|7[0-9]|8[0-9]) '   || _cf P3.monoclass "in radians a monotone decay no longer reads `converged` ($mdom)" ;;
+            deg)  echo "$mdom" | grep -qE 'stable=(6[5-9]|7[0-9]|8[0-9]) ' || _cf P3.monoclass "in degrees a monotone decay no longer reads `stable` ($mdom)" ;;
+            mrad) echo "$mdom" | grep -qE 'moving=(6[5-9]|7[0-9]|8[0-9]) ' || _cf P3.monoclass "in milliradians a monotone decay no longer reads `moving` ($mdom)" ;;
+        esac
+    done
+    local nramp
+    nramp=$(sed -n 's/^p3mono kind=ramp unit=[a-z]* cad=[0-9]* .* diverging=\([0-9]*\).*/\1/p' "$out" | awk '$1>=60' | wc -l)
+    [ "$nramp" -eq 6 ] || _cf P3.monoclass "a monotone RAMP reads diverging in only $nramp of 6 unit/cadence cells; the unit-invariance of the growing case is gone"
 
     # --- the NEGATIVE CONTROL. A trimmed aircraft has no phugoid, so
     # `oscillating` must never fire on it -- above all at cadence 104 in
