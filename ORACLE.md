@@ -1980,6 +1980,15 @@ unit. Two things are then graded separately, because round 9's single
   found its boundary off by one, for precisely the reason round 12 gave
   for moving it. The fleet rate is **0.789**.
 
+  **Round 14: the buckets now PARTITION the full-window count.** `fosc`
+  had been graded at `asn>9` while `fquiet`/`fnoclaim` were graded at
+  `asn>10` — a vestige of an artifact-eviction boundary round 13 had
+  already made unnecessary. They failed to sum to `full` in 38 of 46 rows,
+  so the false-all-clear rate quoted below as 97–98% was a numerator over
+  one population divided by a denominator over another, biased low. A rate
+  whose numerator and denominator range over different populations is not
+  a rate. Claim `P3.partition` now checks the arithmetic on every row.
+
 **The unit-INVARIANT half — the detection failure.** At cadence 74 a
 10-sample window spans 0.79 of a phugoid period. Measured, all **twelve**
 cadence-74 rows (2 aircraft x 2 dispersions x 3 units): **detection = 0**,
@@ -2038,8 +2047,19 @@ of the harness's own channel priming rather than of the observer.
 Round 12 corrected round 10's "`oscillating` cannot fire whatever the
 numbers are scaled to" by pointing at `osc=5` in the deg/mrad cadence-74
 rows. Those five reads were the seed artifact too: with a real seed they
-are `osc=0`. The original sentence was right after all, for the physics —
-recorded because the correction was published and is now withdrawn.
+are `osc=0`.
+
+**But the original sentence is not right either, and round 14 found the
+reason: PHASE.** Holding the seed and the even spacing exactly as shipped
+and moving only where the sample grid starts, `oscillating` fires in **3
+of 12** phase cells (ac0 at phase 37; ac1 at phases 7 and 37). Phase is
+the FIFTH hidden variable found in this single row — after cadence,
+dispersion, aircraft and unit — and each of the previous four inverted a
+published claim the moment it was swept. So the strong form is retired.
+What holds at every phase tested, and is what the gate asserts, is that
+the observer detects **at most one read out of ~99** while the aircraft
+swings 4.5–8.8 m/s peak-to-peak. Blind in effect, not blind by
+construction.
 
 **The unit-DEPENDENT half — the severity.** *Which* wrong answer you get
 is EigenScript#1045's absolute zero-band, so it depends on the numeric
@@ -2061,12 +2081,20 @@ signature of a threshold rather than a scale.
 **So rounds 6 and 7 are downgraded.** The dispersion axis and the aircraft
 axis were the same axis as the unit: amplitude and unit enter the deadband
 identically, as the magnitude of the channel. In degrees, aircraft 0 and 1
-and dispersions 0.02 and 0.05 all produce byte-identical rows — now
-measured by a committed producer (round 11 added the sp=0.02 unit rows;
-this had been the sole evidence for the round-6 downgrade, and nothing
-produced it). Round 12 found that round 11's own priming had *broken*
-this identity in a partial-window read, and fixed the priming rather than
-the claim. What
+and dispersions 0.02 and 0.05 all produce byte-identical rows **at cadence 74** — now measured by a
+committed producer (round 11 added the sp=0.02 unit rows; this had been
+the sole evidence for the round-6 downgrade, and nothing produced it).
+Round 12 found that round 11's own priming had *broken* this identity in
+a partial-window read, and fixed the priming rather than the claim.
+
+**Scoped at round 14, which found the identity does NOT hold at long
+cadence.** In degrees at cadence 148 the two aircraft differ (`fosc` 34 vs
+35), and similarly at 124 — so the amplitude axis *survives* the
+rescaling once the cadence is long enough, and "amplitude and unit enter
+the deadband identically" is true near the deadband and false away from
+it. The round-6/7 downgrade stands where it was argued — at cadence 74,
+where the band difference lives — and is withdrawn as a general claim
+about the two axes being the same axis. What
 round 7 called "two aircraft in one fleet disagreeing" is one deadband
 crossing seen twice.
 

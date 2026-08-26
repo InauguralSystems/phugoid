@@ -80,7 +80,7 @@ p3_claims() {
     local rowfile
     rowfile=$(mktemp)
     grep -oP '^p3 unit=\K\S+(?=.*)' "$out" >/dev/null 2>&1
-    sed -n 's/^p3 unit=\([a-z]*\) ac=\([0-9]*\) sp=\([0-9.]*\) cad=\([0-9]*\) .*full=\([0-9]*\) fosc=\([0-9]*\) fquiet=\([0-9]*\) fnoclaim=[0-9]* flate=\([0-9]*\).*/\1 \2 \3 \4 \5 \6 \7 \8/p' "$out" > "$rowfile"
+    sed -n 's/^p3 unit=\([a-z]*\) ac=\([0-9]*\) sp=\([0-9.]*\) cad=\([0-9]*\) .*full=\([0-9]*\) fosc=\([0-9]*\) fquiet=\([0-9]*\) fnoclaim=\([0-9]*\) fother=\([0-9]*\).*/\1 \2 \3 \4 \5 \6 \7 \8 \9/p' "$out" > "$rowfile"
     local nrows
     nrows=$(wc -l < "$rowfile")
 
@@ -94,33 +94,24 @@ p3_claims() {
     # one the window/period argument actually explains: a 10-sample window
     # at cadence 74 spans 0.79 of a phugoid period, so `oscillating`
     # cannot fire whatever the numbers are scaled to.
-    local u a s c full fosc fq flate det fac worstdet=-1 nb74=0
-    while read -r u a s c full fosc fq flate; do
+    local u a s c full fosc fq fnc fot det fac worstdet=-1 nb74=0
+    while read -r u a s c full fosc fq fnc fot; do
         [ "$c" = "74" ] || continue
         nb74=$((nb74+1))
-        # Graded on LATE reads -- strictly after the first full window.
+        # EXACTLY zero, and graded on `fosc` itself.
         #
-        # The bound has now been wrong three ways. Round 10 used "<=5%"
-        # and reported 1.0% detection that was really the unprimed
-        # `local q is 0.0` initialiser. Round 11 primed, measured 0, and
-        # asserted EXACTLY zero -- but its priming sat one FRAME before
-        # the first read while every later gap is one CADENCE, and that
-        # uneven gap suppressed the one true detection. Round 12 primes
-        # from inside the loop so every gap is a cadence, and the honest
-        # number is 1 of 100: the observer fires once, at asn=10, the
-        # first window that is full, which spans the run's
-        # largest-amplitude cycle. That is a REAL detection.
-        #
-        # The finding is that it never fires again. `flate` counts
-        # detections after that first full window, and it must be 0 while
-        # the aircraft is still swinging 4.5-8.8 m/s peak-to-peak. This
-        # bound is about the physics rather than about an artifact, so it
-        # cannot be re-tuned by a future priming change.
-        if [ "$flate" -ne 0 ]; then
-            _cf P3.blind74 "cadence 74 is no longer blind for unit=$u ac=$a sp=$s ($flate detections after the first full window, on a mode the window cannot span)"
-        fi
-        if [ "$fosc" -gt 1 ]; then
-            _cf P3.blind74 "cadence 74 detects $fosc of $full full-window reads for unit=$u ac=$a sp=$s (expected at most the single first-full-window read)"
+        # This bound has now been wrong in four rounds running, and the
+        # last time it was wrong it could not fail on the very regression
+        # it was written for. Round 12 set `fosc -gt 1` while publishing
+        # "1 of 100 is a real detection"; round 13 withdrew that and made
+        # detection 0, but left the bound at `-gt 1` and moved the
+        # assertion onto `flate` -- which is `fosc` minus exactly the one
+        # read the artifact ever lands on, i.e. structurally blind to it.
+        # Reverting round 13's seed restored the artifact in all twelve
+        # cadence-74 rows and every claim stayed green. `flate` is gone;
+        # the assertion is on the number ORACLE actually states.
+        if [ "$fosc" -ne 0 ]; then
+            _cf P3.blind74 "cadence 74 is no longer blind for unit=$u ac=$a sp=$s ($fosc of $full full-window reads detect a live mode; if this is 1 per row, the channel seed has been reverted to 0.0)"
         fi
     done < "$rowfile"
     # EXACT population. A ">= 6" bound tolerated losing both mrad rows
@@ -138,7 +129,7 @@ p3_claims() {
     # is stated. Round 9 published the false-all-clear as if it were a
     # property of the observer rather than of the radian scaling.
     local radmax=-1 degmax=-1 nrad=0 nnonrad=0
-    while read -r u a s c full fosc fq flate; do
+    while read -r u a s c full fosc fq fnc fot; do
         [ "$c" = "74" ] || continue
         fac=$(( fq * 100 / full ))
         if [ "$u" = "rad" ]; then
@@ -169,13 +160,50 @@ p3_claims() {
     # which would have "refuted" P3 while actually being its strongest
     # confirmation. The aircraft is measured healthy (claim 1), and a
     # verdict-driven detector alerts on 97% of its reads.
-    local u a s c full fosc fq flate det fac best=-1 bestrow=""
-    while read -r u a s c full fosc fq flate; do
+    local u a s c full fosc fq fnc fot det fac best=-1 bestrow=""
+    while read -r u a s c full fosc fq fnc fot; do
         [ "$full" -gt 0 ] || { _cf P3.nuisance "row unit=$u ac=$a sp=$s cad=$c has zero full-window reads (vacuous check)"; continue; }
         det=$(( fosc * 100 / full ))
         if [ "$det" -gt "$best" ]; then best=$det; bestrow="unit=$u ac=$a sp=$s cad=$c"; fi
     done < "$rowfile"
     [ "$best" -ge 90 ] || _cf P3.nuisance "no cadence makes the detector fire on 90%+ of reads of a healthy aircraft (best ${best}% at $bestrow) — re-grade the rung; note this bound is a strong-form check, and P3 is only truly refuted by a stream that is quiet at EVERY cadence"
+
+    # --- claim: the PHASE axis. Round 14 found that "cadence 74 detects
+    # nothing" is phase-specific: holding the seed and the even spacing
+    # exactly as shipped and moving only where the sample grid starts,
+    # `oscillating` fires in 3 of 12 cells (ac0 at phase 37; ac1 at 7 and
+    # 37). Phase is the FIFTH hidden variable found in this one row, after
+    # cadence, dispersion, aircraft and unit -- and each of the previous
+    # four inverted a published claim when it was finally swept.
+    #
+    # So the strong form ("`oscillating` cannot fire at this cadence") is
+    # false and is not asserted. What is true at every phase tested is
+    # that the observer detects AT MOST ONE read out of ~99 while the
+    # aircraft swings 4.5-8.8 m/s peak-to-peak. That is the claim.
+    local ph nph=0 phmax=-1 phv
+    while read -r _a _c _p full fosc; do
+        nph=$((nph+1))
+        [ "$fosc" -gt "$phmax" ] && phmax=$fosc
+    done < <(sed -n 's/^p3ph ac=\([0-9]*\) cad=\([0-9]*\) phase=\([0-9]*\) full=\([0-9]*\) fosc=\([0-9]*\).*/\1 \2 \3 \4 \5/p' "$out")
+    if [ "$nph" -ne 12 ]; then
+        _cf P3.phase "$nph of 12 phase cells found (vacuous check)"
+    elif [ "$phmax" -gt 1 ]; then
+        _cf P3.phase "at some grid phase the observer detects $phmax reads at cadence 74; it is no longer blind independently of phase"
+    fi
+
+    # --- claim 5: the full-window buckets must PARTITION `full`.
+    # Round 14 found `fosc` graded at asn>9 and `fquiet`/`fnoclaim` at
+    # asn>10 -- a vestige of an artifact-eviction boundary that round 13
+    # had already made unnecessary. The buckets failed to partition in 38
+    # of 46 rows, and the false-all-clear RATE (the dangerous direction,
+    # the number ORACLE quotes as 97-98%) was a numerator over asn>=11
+    # divided by a denominator over asn>=10. A rate whose numerator and
+    # denominator range over different populations is not a rate.
+    local nbad=0
+    while read -r u a s c full fosc fq fnc fot; do
+        [ "$(( fosc + fq + fnc + fot ))" -eq "$full" ] || nbad=$((nbad+1))
+    done < "$rowfile"
+    [ "$nbad" -eq 0 ] || _cf P3.partition "$nbad of $nrows rows have buckets that do not sum to the full-window count; every rate below is over mismatched populations"
 
     # --- claim 5: the long-cadence tail. Round 11 concluded "from cadence
     # 134 on, ac0 and ac1 are identical -- the amplitude dependence
@@ -201,7 +229,7 @@ p3_claims() {
     if [ -z "$t0q" ] || [ -z "$t1q" ]; then
         _cf P3.tail "cadence 134 rows absent from the sweep (vacuous check)"
     elif [ "$(( t0q - t1q ))" -lt 5 ]; then
-        _cf P3.tail "the amplitude dependence has left the false-all-clear column at cadence 134 (ac0 $t0q vs ac1 $t1q); round 11's retracted claim that it vanishes at long cadence would be right"
+        _cf P3.tail "the amplitude dependence has left the false-all-clear column at cadence 134 IN RADIANS (ac0 $t0q vs ac1 $t1q); round 11's retracted claim that it vanishes at long cadence would be right"
     fi
 
     # --- claim 6: the fleet alert rate does not FALL with N.
