@@ -235,51 +235,42 @@ relying on field access erroring. Likely intended fail-soft semantics
 checkers keep the pattern: pin a field only via a comparison a null
 cannot pass.
 
-### G8 — the only addressable observer channel is a LEXICAL NAME, so a runtime-sized population must generate its own source
-Found at rung-4 blind-critic round 1 and **substantially corrected at round
-2**, 2026-08-26, `eigenscript` v0.41.0. Upstreamed as
-**EigenScript#1048**.
+### G8 — observer trajectory lives on an ENVIRONMENT SLOT, so containers cannot carry it
+Found at rung-4 round 1; **rewritten at round 2 and again at round 3**,
+2026-08-26. Upstreamed as **EigenScript#1048**.
 
-Observer trajectory is keyed to the **binding**, and only a named binding
-carries it. Every construct that would key a channel by a runtime index
-carries none:
+**Two earlier versions of this entry were false, and both failed the same
+way.** Round 1 claimed a runtime-sized population "cannot be observed
+per-aircraft at all" — refuted by `eval`. Round 2 weakened that to "only a
+lexical name, so it forces generated source, costing lint and AOT" —
+refuted by closures, which do it with ordinary lintable source. Each was a
+NEGATIVE claim published after testing a handful of forms. The entry now
+states the mechanism, from which every case follows.
 
-| form | aircraft a (monotone decay) | aircraft b (oscillating) |
+**The mechanism.** Observer trajectory is keyed to an environment slot:
+`env_obs_slot(Env *e, int idx)` returns `e->obs[idx]`
+(`src/eigenscript.h:1352`), and line 346 says outright *"The Value carries
+no observer state."* A per-entity channel therefore needs a persistent env
+slot per entity.
+
+| form | persistent env slot? | trajectory |
 |---|---|---|
-| distinct named bindings | `moving` | `oscillating` |
-| dict fields `ch.a` / `ch.b` | `equilibrium` | `equilibrium` |
-| list elements `xs[0]` / `xs[1]` | `equilibrium` | `equilibrium` |
-| function parameter | `equilibrium` | `equilibrium` |
+| distinct named locals | yes | works |
+| closure captured local | yes | works, N at runtime |
+| `eval`-generated names | yes | works, N at runtime |
+| dict field `ch.a` | no — a Value in a container | none |
+| list element `xs[0]` | no — a Value in a container | none |
+| function parameter | frame dies each call | none |
 
-Worse than losing resolution, a shared binding **manufactures** verdicts:
-the window becomes the round-robin interleave, which alternates by
-construction, so a monotonically decaying trajectory reads `oscillating`.
-Rung 4's own first draft did exactly this in every arm.
+**What the gap actually is:** containers cannot carry observer state, so a
+fleet (a list) or a registry (a dict) cannot be observed element-wise, and
+per-entity observation needs one binding per entity. The failure mode is
+sharp — the obvious loop reading `fleet[i]` through one local does not lose
+resolution, it MANUFACTURES verdicts, because the window becomes the
+round-robin interleave and a monotonically decaying trajectory reads
+`oscillating`. Rung 4's first draft shipped exactly that in every arm.
 
-**The first version of this entry claimed a runtime-sized fleet "cannot be
-observed per-aircraft at all". That is FALSE and was corrected at round
-2.** `eval` synthesizes named bindings at runtime and they carry
-trajectory correctly:
-
-```
-NCH is 4                      # runtime value
-loop: decl is decl + "ch" + (str of k) + " is 0.0\n"
-eval of decl                  # ch0..ch3 become real named bindings
-  ch0 -> moving        ch1 -> oscillating
-  ch2 -> moving        ch3 -> oscillating
-```
-
-Verified at N = 32 with per-aircraft counts matching this repo's own
-`run_solo` oracle. The generated `define` can be eval'd once at startup, so
-the hot loop is a compiled call paying no `eval` cost.
-
-**The lesson, which cost two wrong upstream claims:** a NEGATIVE claim
-("cannot be done") requires an exhaustive search of the alternatives. Four
-addressing forms were tried, all dead, and the search stopped there.
-
-What remains is an ergonomics gap, not an impossibility: observing a
-runtime-sized population requires building source strings and `eval`ing
-them, which forfeits lint, static checking and AOT compilation. The
-upstream ask is unchanged — make dict-field and list-element assignment
-carry trajectory keyed by (container identity, key) — but it is now filed
-at that weight.
+Upstream ask, now correctly weighted: make dict-field and list-element
+assignment carry trajectory keyed by (container identity, key) — with
+closures available this is convenience, not necessity, but it is the form
+consumers reach for first and its absence fails silently.

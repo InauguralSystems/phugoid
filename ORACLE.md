@@ -1823,12 +1823,27 @@ strict proportionality at N ≥ 16. Reported as "approximately linear with
 a small superlinear drift at the top", not as linearity confirmed.
 
 P2's refutation criterion also asks for the slope against the C6-derived
-prediction. C6 gives ~0.154 µs per observed scalar write; the measured
-observer slope is ~33.5 µs per aircraft-frame (round 2 independently
-measured 32.4), implying ~218 observed assignments per aircraft-frame
-against a hand count of ~150 for four `deriv` calls plus RK4 — within
-~1.5x, with the gap plausibly the scalar-vs-container walk. Published as
-a comparison, not as agreement.
+prediction, and **round 3 found the published number was not a slope**.
+The 33.5 µs figure was the N = 1 POINT, not a fit; and the fit that was
+published alongside it (0.272 N − 0.083) is an OLS fit of the FLOOR
+column — the arm with no observer in it — so neither number was the
+observer's marginal cost.
+
+Fitted properly, `ceiling − floor` against N: **45.0 µs per aircraft-frame**
+from the 3000-frame table, **41.6 µs** from the 1500-frame harness. Against
+C6's ~0.154 µs per observed scalar write that implies ~270–290 observed
+assignments per aircraft-frame, against a hand count of ~150 for four
+`deriv` calls plus RK4 — **~1.9x, not the ~1.5x first published**.
+Reported as a comparison that does not close: either the hand count is
+short, or a container walk costs more than a scalar write, and this rung
+has not separated them.
+
+The measurement points themselves are now DERIVED. A one-frame run gives
+the fixed cost (interpreter start, parse, trim solve); any N where that
+exceeds 5% of the run is excluded and named in the output, because at
+N = 1 it is 11–13% and contention jitter swamps a signal five times
+smaller. Round 3's gate failed at 1.12 on a loaded box, all of it at
+N = 1.
 
 **`unobserved:` buys back essentially the whole penalty** — the
 disciplined arm measures within noise of the floor and of the unarmed
@@ -1905,18 +1920,31 @@ Verified here at four channels (two decaying, two oscillating, correct
 `moving`/`oscillating` per channel) and by the reviewer at N = 32 matching
 `run_solo` exactly.
 
-That was a NEGATIVE claim — "cannot be done" — published to two upstream
-repos after testing four addressing forms and stopping. A negative claim
-needs an exhaustive search of the alternatives, and four is not exhaustive.
-Corrected in EigenScript#1048, ouroboros#119 and GAPS G8.
+**Both the original claim and its first correction were false, and round 3
+refuted the correction the same way round 2 refuted the original.** Round 1
+said a runtime-sized population could not be observed at all (`eval`
+refutes it). Round 2 replaced that with "only a lexical name, so it forces
+generated source, costing lint, static checking and AOT" — and a CLOSURE
+does it with ordinary static source that lints normally, N chosen at
+runtime, verified at N = 32 against this rung's own `run_solo` oracle with
+zero mismatches.
 
-What survives is real but much weaker: **the only addressable channel is a
-lexical name, so a runtime-sized population forces a program to generate
-its own source.** That costs lint, static checking, and any prospect of
-AOT compilation. The concrete upstream ask is unchanged and cheap — make
-dict-field and list-element assignment carry trajectory keyed by
-(container identity, key) — but it is an ergonomics fix, not an
-impossibility fix, and is now filed as such.
+Three rounds, three negative claims published after testing a handful of
+forms — two of them to upstream repos. The fix is not a fourth patch but a
+different kind of statement: **observer trajectory is keyed to an
+ENVIRONMENT SLOT** (`env_obs_slot(Env*, int)` returns `e->obs[idx]`,
+`src/eigenscript.h:1352`; line 346: *"The Value carries no observer
+state"*). Every case follows from that — named locals, closure captures and
+eval'd names each own a persistent slot and work; dict fields and list
+elements are Values inside containers and carry nothing; a function
+parameter's frame dies each call. A mechanism does not acquire exceptions
+the way an enumeration does.
+
+What survives as the gap: **containers cannot carry observer state**, so a
+fleet cannot be observed element-wise and per-entity observation needs one
+binding per entity. The failure is silent — the obvious loop manufactures
+verdicts rather than refusing. That is the ask now filed upstream, weighted
+as convenience rather than impossibility.
 
 Note the contrast with rung 3's C6, where reads dominated writes ~2:1 on a
 deliberately read-heavy micro-shape. That conclusion is SHAPE-SPECIFIC, not

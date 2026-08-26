@@ -173,7 +173,7 @@ loop while i < NA:
 # The oracle: a per-aircraft verdict count taken from the FLEET must equal
 # the count that aircraft produces flown ALONE. Nothing to interleave with
 # is the control for interleaving.
-CAD is 74
+CAD is 94
 FRL is 8000
 # w4 injects the round-1 defect INTO run_named4 (all four channels read
 # through one binding), so the fleet-vs-solo checks below are what catches
@@ -190,9 +190,17 @@ loop while ai2 < 4:
 # ...and the counts must not be vacuously zero, which is how round 1's
 # stream passed for the wrong reason: at dt=0.05 read every frame, the
 # 10-sample window spans 1% of the phugoid period and NOTHING ever fires.
-# The cadence is rung 3's C5.ph.p370 result, not a tuning knob.
+# The cadence is 94, not 74. Round 3: the harness was still running at
+# the cadence ORACLE.md's own P3 section derives as too short -- a
+# 10-sample window at cadence 74 spans 0.79 of a phugoid period, so
+# `oscillating` essentially cannot fire, and these four checks were
+# comparing 1 == 1. Containing a fold needs cadence*dt >= T_ph/10, i.e.
+# cadence >= 94. At 94 they compare 1/17/17/1 against the solo oracle,
+# which is the same check ~17x stronger, for free. The sentence that used
+# to sit here called 74 "rung 3's result, not a tuning knob" -- the exact
+# transplanted number ORACLE.md retracts.
 tot is hs[0] + hs[1] + hs[2] + hs[3]
-check_exact of ["W5.stream.live", tot, 4]
+check_exact of ["W5.stream.live", tot, 36]
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
