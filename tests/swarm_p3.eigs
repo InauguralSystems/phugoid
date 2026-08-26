@@ -49,6 +49,18 @@ sched is [[0.0, tr.de]]
 # rounded up, so a window of 940 frames always contains a full cycle.
 PERIOD is 940
 
+# Same mechanism as make_channel, but it returns the VERDICT LABEL rather
+# than a count of `oscillating`. Round 9 needed this: grading a read
+# `agree`/`divergence` against a physics truth requires the label, and a
+# hit-counter can only ever see one of the seven classes. Construction is
+# likewise NOT inside `unobserved:` -- EigenScript#1049, see run_closure_n in swarm.eigs.
+define make_vchannel as:
+    local q is 0.0
+    define read_ch(v) as:
+        q is v + 0.0
+        return report of q
+    return read_ch
+
 # ---------------------------------------------------------------------
 # The physics truth. No observer touches this: the whole integration runs
 # inside `unobserved:` and nothing is `report`ed. It answers one question

@@ -386,17 +386,15 @@ define make_channel as:
         return hits
     return feed_ch
 
-# Same mechanism as make_channel, but it returns the VERDICT LABEL rather
-# than a count of `oscillating`. Round 9 needed this: grading a read
-# `agree`/`divergence` against a physics truth requires the label, and a
-# hit-counter can only ever see one of the seven classes. Construction is
-# likewise NOT inside `unobserved:` -- EigenScript#1049, see below.
-define make_vchannel as:
-    local q is 0.0
-    define read_ch(v) as:
-        q is v + 0.0
-        return report of q
-    return read_ch
+# NOTE: make_vchannel -- the verdict-LABEL twin of make_channel, used by
+# P3's grading driver -- deliberately does NOT live here. It lives in
+# tests/swarm_p3.eigs. This file is the MEASURED WORKLOAD for the cost
+# curve and is pinned by identity and code-line count in
+# tests/test_swarm_profile.sh; round 9 added the helper here and CI
+# correctly rejected it as workload drift (240 -> 246 code lines). A
+# test-only helper does not belong in the file whose cost is the finding.
+# Its #1049 construction rule (never build a channel inside `unobserved:`)
+# applies wherever it is defined.
 
 define run_closure_n(n, frames, dt, spread, cadence, tstate, P, sched) as:
     local fleet is fleet_ic of [tstate, n, spread]
