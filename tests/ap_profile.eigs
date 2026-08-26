@@ -1,0 +1,92 @@
+# ap_profile.eigs — the rung-3 C6 read-path profile.
+# Run: eigenscript tests/ap_profile.eigs [read|write|floor]
+#
+# The autopilot shape: state channels written per frame, plus verdict
+# reads. Rungs 0-2 exercised only the WRITE path (what EigenScript#915's
+# gate optimises). A controller polling verdicts exercises the READ path,
+# which no consumer had put under load — and on this shape the read path
+# dominates, so the gate cannot help here by construction.
+# The three variants isolate it:
+#   read  — observed writes + 4 verdict reads per frame (the autopilot)
+#   write — observed writes only (what rungs 0-2 did)
+#   floor — everything inside `unobserved:` (no observer at all)
+
+cli is args of null
+mode is "read"
+if (len of cli) > 0:
+    mode is cli[0]
+
+N is 120000
+
+# The read path's declared population: 4 predicate reads per frame.
+# The hit total run_read returns does NOT pin this — `oscillating of u`
+# fires 0 times on a sinusoid, so a quarter of the read work contributes
+# nothing to the total and can be deleted or duplicated invisibly.
+# tests/test_ap_profile.sh checks this literal against the source.
+READ_SITES is 4
+
+define run_read(n) as:
+    local u is 0.0
+    local w is 0.0
+    local q is 0.0
+    local th is 0.0
+    local hits is 0
+    local i is 0
+    loop while i < n:
+        u is 280.0 + (sin of (i * 0.01))
+        w is 2.0 + (cos of (i * 0.01))
+        q is 0.01 * (sin of (i * 0.03))
+        th is 0.02 * (cos of (i * 0.02))
+        if oscillating of u:
+            hits is hits + 1
+        if converged of w:
+            hits is hits + 1
+        if stable of q:
+            hits is hits + 1
+        if diverging of th:
+            hits is hits + 1
+        i is i + 1
+    print of f"read {hits} {i * READ_SITES}"
+
+define run_write(n) as:
+    local u is 0.0
+    local w is 0.0
+    local q is 0.0
+    local th is 0.0
+    local i is 0
+    loop while i < n:
+        u is 280.0 + (sin of (i * 0.01))
+        w is 2.0 + (cos of (i * 0.01))
+        q is 0.01 * (sin of (i * 0.03))
+        th is 0.02 * (cos of (i * 0.02))
+        i is i + 1
+    print of f"write {i}"
+
+define run_floor(n) as:
+    local u is 0.0
+    local w is 0.0
+    local q is 0.0
+    local th is 0.0
+    local i is 0
+    unobserved:
+        loop while i < n:
+            u is 280.0 + (sin of (i * 0.01))
+            w is 2.0 + (cos of (i * 0.01))
+            q is 0.01 * (sin of (i * 0.03))
+            th is 0.02 * (cos of (i * 0.02))
+            i is i + 1
+    print of f"floor {i}"
+
+# Each variant PRINTS ITS OWN LINE, from its own loop counter. Round 8
+# found the call site the last unpinned surface: `run_floor of (0)` left
+# every pin matching (body hash, line count, site count, `floor 120000`
+# via `0 + N`) while the measured "unobserved floor" became 0.008 s of
+# interpreter startup and write/floor reported 28.75 instead of 1.44. A
+# token computed at the call site can be fabricated there; one printed by
+# the loop that earned it cannot.
+if mode == "read":
+    run_read of (N)
+elif mode == "write":
+    run_write of (N)
+else:
+    run_floor of (N)

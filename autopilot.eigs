@@ -1,0 +1,185 @@
+# autopilot.eigs — rung 3: closed-loop control on the rung-1 longitudinal
+# plant, plus the observer as the SUPERVISORY layer.
+#
+# Contract (ORACLE.md rung 3): the controlled model's Jacobian at trim
+# equals A + B*K, so the closed-loop eigenvalues the oracle predicts are
+# the eigenvalues of the plant actually being flown. The inner loop is
+# classical pitch-rate feedback evaluated at every integrator stage — a
+# continuous closed loop, which is what those eigenvalues describe.
+#
+# The observer does NOT damp the inner loop. A windowed verdict cannot:
+# seeing an oscillation fold needs a window spanning a period, and such a
+# window delays the verdict by half a period (ORACLE.md rung-3 prediction
+# 1). The observer runs the SUPERVISORY layer instead — engaging and
+# disengaging the damper by regime — which is the job hand-written mode
+# logic does in a conventional stack.
+#
+# Depends on the rung-1 plant (sim.eigs: deriv, trim_solve) and the
+# rung-0 chain (modes.eigs: dim_derivs_lon). Loaded here so this module
+# is self-sufficient and lints clean on its own.
+
+load_file of "modes.eigs"
+load_file of "sim.eigs"
+
+# Elevator control column for [u, w, q, theta], carrying the same Zwdot /
+# Mwdot folds as a_lon so that B is expressed in the SAME coordinates as
+# the rung-0 A matrix (without this the A + B*K prediction would describe
+# a different system than the one flown).
+define ctl_column(data, ctl) as:
+    local c is data.cond
+    local d is dim_derivs_lon of (data)
+    local Q is 0.5 * c.rho * c.u0 * c.u0
+    local QS is Q * c.S
+    local m is c.W / c.g
+    local Zde is (0.0 - QS * ctl.CLde) / m
+    local Mde is QS * c.cbar * ctl.Cmde / c.Iy
+    local zden is 1.0 - d.Zwdot
+    local Bw is Zde / zden
+    return [0.0, Bw, Mde + d.Mwdot * Bw, 0.0]
+
+# A_cl = A + B*K for the gain ROW K (law: de = de_trim + K . x).
+define a_closed(A, B, K) as:
+    local out is []
+    for i in range of 4:
+        local row is []
+        for j in range of 4:
+            append of [row, A[i][j] + B[i] * K[j]]
+        append of [out, row]
+    return out
+
+# The inner-loop law: pitch-rate feedback. kq > 0 adds short-period
+# damping AND improves the phugoid (the reference table in ORACLE.md);
+# the opposite sign destabilises the phugoid, which is why the sign is
+# pinned by a plant rather than trusted.
+define elevator_cmd(s, de_trim, kq) as:
+    return de_trim + kq * s[2]
+
+# Closed-loop derivative: the plant of rung 1 with the loop closed.
+define deriv_cl(s, de_trim, kq, P) as:
+    return deriv of [s, elevator_cmd of [s, de_trim, kq], P]
+
+# Central-difference Jacobian of deriv_cl (the C0 parity oracle).
+define cl_jacobian(state, de_trim, kq, P) as:
+    local J is []
+    for i in range of 4:
+        append of [J, [0.0, 0.0, 0.0, 0.0]]
+    for j in range of 4:
+        local h is 1e-6 * (abs of state[j])
+        if h < 1e-8:
+            h is 1e-8
+        local sp is [state[0], state[1], state[2], state[3]]
+        local sm is [state[0], state[1], state[2], state[3]]
+        sp[j] is sp[j] + h
+        sm[j] is sm[j] - h
+        local dp is deriv_cl of [sp, de_trim, kq, P]
+        local dm is deriv_cl of [sm, de_trim, kq, P]
+        for i in range of 4:
+            J[i][j] is (dp[i] - dm[i]) / (2.0 * h)
+    return J
+
+# RK4 with the controller evaluated at EVERY stage (continuous closed
+# loop). A zero-order hold at the frame rate would add its own lag and
+# shift the poles away from the A_cl prediction; that is a separate
+# question, deliberately not conflated with this one.
+define cl_rk4_step(s, dt, de_trim, kq, P) as:
+    local k1 is deriv_cl of [s, de_trim, kq, P]
+    local s2 is []
+    for i in range of 4:
+        append of [s2, s[i] + 0.5 * dt * k1[i]]
+    local k2 is deriv_cl of [s2, de_trim, kq, P]
+    local s3 is []
+    for i in range of 4:
+        append of [s3, s[i] + 0.5 * dt * k2[i]]
+    local k3 is deriv_cl of [s3, de_trim, kq, P]
+    local s4 is []
+    for i in range of 4:
+        append of [s4, s[i] + dt * k3[i]]
+    local k4 is deriv_cl of [s4, de_trim, kq, P]
+    local out is []
+    for i in range of 4:
+        append of [out, s[i] + dt / 6.0 * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i])]
+    return out
+
+define cl_euler_step(s, dt, de_trim, kq, P) as:
+    local k1 is deriv_cl of [s, de_trim, kq, P]
+    local out is []
+    for i in range of 4:
+        append of [out, s[i] + dt * k1[i]]
+    return out
+
+# Closed-loop run at a FIXED gain. rn is the row name whose executed
+# parameters are emitted for manifest identity (rung-2 round-7 rule).
+define cl_run(rn, state0, de_trim, kq, dt, nsteps, decim, P, method) as:
+    print of f"ROW {rn} params={kq}|{dt}|{decim}|{nsteps}|{state0[0]}|{state0[1]}|{state0[2]}|{state0[3]}"
+    local s is [state0[0], state0[1], state0[2], state0[3]]
+    local rec is {"t": [], "u": [], "w": [], "q": [], "th": []}
+    append of [rec.t, 0.0]
+    append of [rec.u, s[0]]
+    append of [rec.w, s[1]]
+    append of [rec.q, s[2]]
+    append of [rec.th, s[3]]
+    local n is 0
+    unobserved:
+        loop while n < nsteps:
+            if method == "euler":
+                s is cl_euler_step of [s, dt, de_trim, kq, P]
+            else:
+                s is cl_rk4_step of [s, dt, de_trim, kq, P]
+            n is n + 1
+            if n % decim == 0:
+                append of [rec.t, n * dt]
+                append of [rec.u, s[0]]
+                append of [rec.w, s[1]]
+                append of [rec.q, s[2]]
+                append of [rec.th, s[3]]
+    return rec
+
+# The SUPERVISORY run: the damper's engagement is decided by the
+# observer's verdict on an observed binding sampled every `cadence`
+# steps — no hand-written trigger. The integrator math stays inside
+# `unobserved:` (the proposal's "disciplined" arm) while the sampled
+# state assignment and the verdict read are the only observed work.
+# `freeze` pins the verdict stream: "frozen" -> always `stable` (plant
+# s7, supervisory layer inert), "forced" -> always `oscillating` (plant
+# s12, the dual — without it the blind-cadence rows, which pin ZERO
+# oscillating verdicts, could never be shown able to fail).
+# `method` selects the integrator, as in cl_run.
+define sup_run(rn, state0, de_trim, kq, dt, nsteps, decim, cadence, P, method, freeze) as:
+    print of f"ROW {rn} params={kq}|{dt}|{decim}|{cadence}|{nsteps}|{state0[0]}|{state0[1]}|{state0[2]}|{state0[3]}"
+    local s is [state0[0], state0[1], state0[2], state0[3]]
+    local rec is {"t": [], "q": [], "engaged": [], "verdict": [], "reads": 0, "toggles": 0}
+    local gain is 0.0
+    local qobs is 0.0
+    local n is 0
+    local reads is 0
+    local toggles is 0
+    loop while n < nsteps:
+        unobserved:
+            if method == "euler":
+                s is cl_euler_step of [s, dt, de_trim, gain, P]
+            else:
+                s is cl_rk4_step of [s, dt, de_trim, gain, P]
+            n is n + 1
+        if n % cadence == 0:
+            # The ONLY observed assignment: the sampled pitch rate.
+            qobs is s[2] + 0.0
+            local v is report of qobs
+            if freeze == "frozen":
+                v is "stable"
+            if freeze == "forced":
+                v is "oscillating"
+            reads is reads + 1
+            local newgain is 0.0
+            if v == "oscillating":
+                newgain is kq
+            if newgain != gain:
+                toggles is toggles + 1
+            gain is newgain
+            append of [rec.verdict, v]
+        if n % decim == 0:
+            append of [rec.t, n * dt]
+            append of [rec.q, s[2]]
+            append of [rec.engaged, gain]
+    rec.reads is reads
+    rec.toggles is toggles
+    return rec

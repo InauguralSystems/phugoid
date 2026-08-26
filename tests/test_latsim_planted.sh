@@ -216,30 +216,24 @@ echo "PASS: R16 red pattern exact (round-2 review: check_rel — the third compa
 
 # ------------------------------------------------------------------
 echo "--- manifest: identity + full red-set coverage + class vocabulary ---"
+. "$(dirname "$0")/manifestlib.sh"
 "$EIGS" tests/latsim_check.eigs > "$WORK/clean_lat" 2>&1 || { echo "FAIL: unplanted latsim_check nonzero"; exit 1; }
 grep -E '^(PASS|FAIL) ' "$WORK/clean_lat" | awk '{print $2, $3}' | sort > "$WORK/names_lat"
-grep '^lat ' tests/latsim_manifest.txt | awk '{print $2, $4}' | sort > "$WORK/man_lat"
-diff -u "$WORK/man_lat" "$WORK/names_lat" > /dev/null || { echo "FAIL: lat check-name set drifted from manifest"; diff "$WORK/man_lat" "$WORK/names_lat" || true; exit 1; }
-# Bridge-row generator parameters are identity-checked too (rung-0's
-# round-20 rowparams class, inherited at rung-2 round 3: a zeroed
-# contaminant amplitude never enters any expected truth, so only the
-# emitted-args identity can see it).
 grep '^ROW ' "$WORK/clean_lat" | awk '{print $2, $3}' | sort > "$WORK/rows_lat"
-grep '^rowparams ' tests/latsim_manifest.txt | awk '{print $2, $3}' | sort > "$WORK/man_rows_lat"
-diff -u "$WORK/man_rows_lat" "$WORK/rows_lat" > /dev/null || { echo "FAIL: bridge-row parameter set drifted from manifest"; diff "$WORK/man_rows_lat" "$WORK/rows_lat" || true; exit 1; }
 sort -u "$WORK/red_union" > "$WORK/redu_lat"
-BAD=0
-while read -r kind name klass tolspec; do
-    [ "$kind" = lat ] || continue
-    if [ "$klass" = plantable ] && ! grep -qx "$name" "$WORK/redu_lat"; then
-        echo "FAIL: plantable check '$name' never went red under any plant"; BAD=1
-    fi
-    if [ "$klass" = structural ] && grep -qx "$name" "$WORK/redu_lat"; then
-        echo "FAIL: structural check '$name' went red — exemption list is stale"; BAD=1
-    fi
-    case "$klass" in plantable|structural) ;; *) echo "FAIL: unknown manifest class '$klass' for '$name'"; BAD=1;; esac
-done < <(grep -v '^#' tests/latsim_manifest.txt)
-[ "$BAD" -eq 0 ] || exit 1
+
+# Round 25/26: these five arms shipped with NO executed plants, in a
+# near-identical copy of three other suites' blocks. One shared
+# implementation now, and mf_validate plants each arm against the REAL
+# function every run.
+mf_validate tests/latsim_manifest.txt lat "$WORK/names_lat" "$WORK/rows_lat" "$WORK/redu_lat" "$WORK" lat rowparams plantable structural || exit 1
+echo "PASS: all five manifest-enforcement arms rejected an in-class planted fault"
+
+mf_identity   tests/latsim_manifest.txt lat "$WORK/names_lat" "$WORK" || { echo "FAIL: lat check-name set drifted from manifest"; diff "$WORK/_mfi" "$WORK/names_lat" || true; exit 1; }
+mf_rowparams  tests/latsim_manifest.txt "$WORK/rows_lat" "$WORK"      || { echo "FAIL: bridge-row parameter set drifted from manifest"; diff "$WORK/_mfr" "$WORK/rows_lat" || true; exit 1; }
+mf_coverage   tests/latsim_manifest.txt lat "$WORK/redu_lat"          || { echo "FAIL: a plantable check never went red under any plant"; exit 1; }
+mf_structural tests/latsim_manifest.txt lat "$WORK/redu_lat"          || { echo "FAIL: a structural check went red — exemption list is stale"; exit 1; }
+mf_class      tests/latsim_manifest.txt lat rowparams plantable structural || { echo "FAIL: unknown manifest class or kind token"; exit 1; }
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
 echo "PASS: all 22 rung-2 plants flip exactly their declared checks"

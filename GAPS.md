@@ -95,6 +95,110 @@ roll mode (t½ = 0.56 s) reads `stable` mid-decay when the 10-sample
 window spans only 0.36 t½, and `improving` correctly when the cadence
 puts ~3.6 t½ in the window (`O2.roll.fast` / `O2.roll.matched`).
 
+### G6 — `linalg.solve_linear` returns null on a singular system, silently
+**Hit at rung 3 (2026-08-25).** Building the "controller inert" plant by
+zeroing the sim's control derivatives crashed the rung-1 trim solver with
+`cannot index null` at `x[j] is x[j] + step[j]` — three frames away from
+the cause. Root: with the elevator column of the trim Jacobian identically
+zero the system is singular, and `lib/linalg.solve_linear` returns **null**
+rather than raising (verified directly: a 3x3 with a zero row returns null,
+no error). The caller then indexes it. Same silent-null family as W4, but
+in a numeric routine where the caller cannot distinguish "singular" from
+"bug in my matrix construction". **Candidate upstream API:** raise, or
+return a result carrying an `ok` flag like this repo's own estimators do —
+a solver that cannot say "singular" forces every caller to re-detect it.
+Local mitigation: the plant was rebuilt to zero the GAIN instead (which is
+the more faithful inert-controller fault anyway); `trim_solve` still does
+not check, which is recorded here rather than silently patched, because
+the honest fix is upstream.
+Upstreamed as **EigenScript#1047**.
+
+### G7 — #915's write-path gate arms PER-INTERPRETER-STATE and monotonically; a bare string arms it
+Found at rung-3 blind-critic round 10, corrected at round 11, 2026-08-25,
+`eigenscript` v0.41.0 / EigenScript@301026d. Upstreamed as
+**EigenScript#1046**.
+
+Round 10 measured the effect and published the wrong mechanism ("arms per
+module"). Round 11 refuted it from the source and the runtime. The truth
+is broader:
+
+`obs_needed` is **one flag on `EigsState`** (`src/eigenscript.h:561`), set
+in `compile_ast` (`src/compiler.c:3717`) and documented there as
+*"Monotonic: a later unit that reads the observer turns it on for good."*
+There is no per-module arming to make finer — there is a single bit per
+interpreter state (one per process for the CLI; an embedder running
+several `EigsState`s gets one each, which the header stresses was "a real
+bug when it was not"). So:
+
+**One verdict read anywhere in the process — in a dead function, in a
+different file, in an eagerly-resolved `load_file` target
+(`obs_gate_resolve_static_loads`), or as a bare string constant — arms
+entropy bookkeeping for every assignment in every module of that program.**
+
+Reproduction. `wlib.eigs` is a 200k-frame observed write loop containing
+no observer construct of any kind. It is loaded from four different mains.
+n=5 medians, two rounds, plus the gate's own verdict:
+
+| main | `EIGS_OBS_GATE_STATS` for wlib | 1 | 2 |
+|---|---|---|---|
+| A: loads wlib only | `unobserved` | 0.153 | 0.151 |
+| B: loads a **different file** holding a never-called `if oscillating of z:` | **`observed`** | 0.219 | 0.219 |
+| C: same, but `if z > 0.0:` (control) | `unobserved` | 0.155 | 0.154 |
+| D: `msg is "report"` at module level, no observer construct at all | **`observed`** | 0.223 | 0.223 |
+
+Row B is the refutation of "per-module": a read-free module compiles as
+`observed` because a *different file* held a dead read. Row D is the wider
+trigger: `const_pool_names_observer` scans the constant pool for bare
+names, so a string literal `"report"` costs +48% on a program that uses no
+observer feature.
+
+Consequences measured in this repo's own C6 gate (`tests/test_ap_profile.sh`):
+- `write/floor` was read as "observed writes cost +44% over the unobserved
+  floor". It is not measuring intrinsic write cost. Neutering only the four
+  predicate reads inside `run_read` — a function the `write` variant never
+  enters, identical line count so parse and layout costs are held fixed —
+  drops it from ~1.45 to ~1.03, and forcing the gate open for both files
+  (`EIGS_OBS_FORCE=1`) collapses the differential entirely (write/noread
+  1.09, 0.91), proving the two workloads are equivalent and the spread is
+  all arming.
+- Against a read-free control module (`tests/ap_profile_noread.eigs`),
+  `noread/floor` is **1.0 within noise** (1.02–1.11 quiet across ten n=5
+  rounds). In a program with NO verdict read anywhere, an observed scalar
+  write really is ~free — which is what the pre-rung-3 probe reported, and
+  rung 3's round-1 review withdrew it as unreproducible. **The claim was
+  true in its regime and the withdrawal was wrong**; nobody had identified
+  the regime variable. It does not generalise to a program that reads
+  verdicts, which is the case that matters for a consumer.
+- Attribution, corrected twice more since this entry was written. The
+  "intrinsic write cost is indistinguishable from zero" framing is
+  CIRCULAR: `noread` and `floor` are both states in which the entropy walk
+  does not run (an unarmed program, and an `unobserved:` block), so their
+  ratio is a tautology of the definition, not a measurement about writes.
+  Stated correctly for a program that reads verdicts at all — which an
+  autopilot does — the split is **reads-direct ~75% and observed-write
+  bookkeeping ~25%**, and #915 elides the 25% only where no read exists
+  anywhere. The instrument is not clean either: `run_read` executes 133,286
+  more observed assignments than `run_write`, so the numerator contains
+  write cost; a confound-free variant reads 76.7/23.3 against the shipped
+  formula's 81.6/18.4. Read it as "roughly three-quarters", not to a digit.
+  What does NOT survive is the 22% "writes" first published, or the "94/6"
+  that briefly replaced it.
+- Pinned live as `write/noread > 1.15` with a planted fault, so the day
+  upstream scopes arming, C6 fails and says to re-attribute and close G7.
+
+What a fix has to cover, which is more than "make it per-binding": the
+single `EigsState` bit, `obs_gate_resolve_static_loads`'s eager
+resolution, the always-conservative `OP_IMPORT` path, and the constant-pool
+name scan. Splitting observer-reading code into its own module — round
+10's suggested workaround, and what EigenScript#1046 originally
+recommended — **does not work**; row B measures it not working.
+
+This strengthens rung 3's upstream argument rather than weakening it: the
+reason #915's gate cannot help an autopilot is not only that reads
+dominate, but that a single read anywhere in the program disarms the write
+optimisation everywhere. `unobserved:` remains the workaround, and is what
+rung 3's `sup_run` already does.
+
 ## Watch (not yet blocking)
 
 ### W1 — `dft` is O(n²); fine at rung 0, will not scale to swarm telemetry

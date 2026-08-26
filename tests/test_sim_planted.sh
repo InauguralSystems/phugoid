@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The rung-1 planted-fault matrix (ORACLE.md): each q-plant must flip
 # EXACTLY its declared red set while everything else stays green, every
-# plant run must execute the full pinned 64-check population, and the
+# plant run must execute the full pinned 79-check population, and the
 # manifest rules hold (identity incl. tolerance tokens; every plantable
 # name in some red set; structural names in none). Counts measured
 # 2026-08-24; a drift in any of them is a real change in the checkers'
@@ -218,35 +218,24 @@ echo "PASS: Q18 red pattern exact (rung-2 round 4's find applied to both rungs: 
 # ------------------------------------------------------------------
 # Manifest enforcement (same rules as test_planted.sh): identity over
 # name + tolerance token; plantable coverage; structural exclusion.
-echo "--- manifest: identity + full red-set coverage ---"
+echo "--- manifest: identity + full red-set coverage + class vocabulary ---"
+. "$(dirname "$0")/manifestlib.sh"
 "$EIGS" tests/sim_check.eigs > "$WORK/clean_sim" 2>&1 || { echo "FAIL: unplanted sim_check nonzero"; exit 1; }
 grep -E '^(PASS|FAIL) ' "$WORK/clean_sim" | awk '{print $2, $3}' | sort > "$WORK/names_sim"
-grep '^sim ' tests/sim_manifest.txt | awk '{print $2, $4}' | sort > "$WORK/man_sim"
-diff -u "$WORK/man_sim" "$WORK/names_sim" > /dev/null || { echo "FAIL: sim check-name set drifted from manifest"; diff "$WORK/man_sim" "$WORK/names_sim" || true; exit 1; }
-# Bridge-row generator parameters are identity-checked too (rung-0's
-# round-20 rowparams class, inherited at rung-2 round 3: a zeroed
-# contaminant amplitude never enters any expected truth, so only the
-# emitted-args identity can see it).
 grep '^ROW ' "$WORK/clean_sim" | awk '{print $2, $3}' | sort > "$WORK/rows_sim"
-grep '^rowparams ' tests/sim_manifest.txt | awk '{print $2, $3}' | sort > "$WORK/man_rows_sim"
-diff -u "$WORK/man_rows_sim" "$WORK/rows_sim" > /dev/null || { echo "FAIL: bridge-row parameter set drifted from manifest"; diff "$WORK/man_rows_sim" "$WORK/rows_sim" || true; exit 1; }
 sort -u "$WORK/red_union" > "$WORK/redu_sim"
-BAD=0
-while read -r kind name klass tolspec; do
-    [ "$kind" = sim ] || continue
-    if [ "$klass" = plantable ] && ! grep -qx "$name" "$WORK/redu_sim"; then
-        echo "FAIL: plantable check '$name' never went red under any plant"; BAD=1
-    fi
-    if [ "$klass" = structural ] && grep -qx "$name" "$WORK/redu_sim"; then
-        echo "FAIL: structural check '$name' went red — exemption list is stale"; BAD=1
-    fi
-    # Round 8: an unknown class token silently EXEMPTED a check from
-    # coverage enforcement (mutation: 'plantable' -> 'plantablee' passed
-    # the whole matrix with identity intact — class is the one manifest
-    # column the identity checks do not cover).
-    case "$klass" in plantable|structural) ;; *) echo "FAIL: unknown manifest class '$klass' for '$name'"; BAD=1;; esac
-done < <(grep -v '^#' tests/sim_manifest.txt)
-[ "$BAD" -eq 0 ] || exit 1
+
+# Round 25/26: these five arms shipped with NO executed plants. They now
+# share one implementation with the other three suites, and mf_validate
+# plants each of them against the REAL function every run.
+mf_validate tests/sim_manifest.txt sim "$WORK/names_sim" "$WORK/rows_sim" "$WORK/redu_sim" "$WORK" sim rowparams plantable structural || exit 1
+echo "PASS: all five manifest-enforcement arms rejected an in-class planted fault"
+
+mf_identity   tests/sim_manifest.txt sim "$WORK/names_sim" "$WORK" || { echo "FAIL: sim check-name set drifted from manifest"; diff "$WORK/_mfi" "$WORK/names_sim" || true; exit 1; }
+mf_rowparams  tests/sim_manifest.txt "$WORK/rows_sim" "$WORK"      || { echo "FAIL: bridge-row parameter set drifted from manifest"; diff "$WORK/_mfr" "$WORK/rows_sim" || true; exit 1; }
+mf_coverage   tests/sim_manifest.txt sim "$WORK/redu_sim"          || { echo "FAIL: a plantable check never went red under any plant"; exit 1; }
+mf_structural tests/sim_manifest.txt sim "$WORK/redu_sim"          || { echo "FAIL: a structural check went red — exemption list is stale"; exit 1; }
+mf_class      tests/sim_manifest.txt sim rowparams plantable structural          || { echo "FAIL: unknown manifest class token"; exit 1; }
 echo "PASS: manifest identity holds; all plantable checks proven able to fail"
 
 echo "PASS: all 22 rung-1 plants flip exactly their declared checks"

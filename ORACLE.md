@@ -942,3 +942,739 @@ rung 3 should re-measure them when the model grows.
 2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds —
    the rung-1 cap, with the identity armor arriving pre-built this time.
 3. CI green on the pushed branch (devcontainer, EIGS_REF=v0.41.0).
+
+
+---
+
+# Rung 3 — the autopilot: closed-loop control, and the observer as the supervisory layer
+
+Written before the controller, per the grader-first rule. The reference
+values below were computed from the rung-0 chain BEFORE any control code
+existed (`A_cl = A + B·K`, then the same `charpoly4 → dk_roots →
+modes_of`), so the closed-loop truth table is a prediction, not a
+description.
+
+## Scope, and what is deliberately NOT in this rung
+
+The ladder listed rung 3 as "6-DOF + control tapes, byte-exact replay
+gate". Two deliberate changes, both recorded so they are decisions rather
+than drift:
+
+- **6-DOF is deferred.** None of this rung's three predictions need it;
+  the longitudinal 3-DOF plant of rung 1 already carries the modes the
+  controller acts on. 6-DOF is a large lift orthogonal to the question
+  being asked, and would dilute it.
+- **The byte-exact replay gate is deferred, because today it would be
+  VACUOUS by construction.** The sim contains no nondeterminism — no RNG,
+  no clock, no human input — so a same-seed two-process diff passes
+  trivially and would certify nothing. The replay gate arrives with its
+  nondeterminism source (sensor noise, or human control input), not
+  before. Recorded as known-unexercised rather than shipped as a green
+  check that measures nothing.
+
+What this rung IS: the first phugoid model that **acts**. Rungs 0–2 grade
+free responses; nothing ever consumed a verdict. Here a controller closes
+the loop, and the observer is graded as a component of that loop.
+
+## The pipeline under test
+
+```
+longitudinal 3-DOF plant (rung 1, unchanged)
+  + elevator control column B from the nominal control derivatives
+  → inner loop: classical pitch-rate feedback, de = de_trim + kq·q   (C0, C2)
+  → closed-loop Jacobian vs A + B·K                                  (C0)
+  → measured closed-loop modes vs predicted eigenvalues, 3 gains     (C2)
+  → invariances: dt, amplitude, gain-scaling                         (C3)
+  → supervisory layer: damper ENGAGED/DISENGAGED by observer verdict (C4)
+  → the three pre-registered predictions                             (C5)
+  → observer read-path cost profile                                  (C6)
+```
+
+## The closed-loop reference (computed 2026-08-25, before the controller)
+
+`B = [0, −8.4264, −0.5574, 0]` from the nominal C_Lδe/C_mδe, with the same
+Zẇ/Mẇ folds as `a_lon`. Law `de = de_trim + kq·q`, so `A_cl = A + B·K`
+with `K = [0,0,kq,0]`:
+
+| kq | SP T (s) | SP ζ | phugoid T (s) | phugoid ζ |
+|---|---|---|---|---|
+| 0.00 | 9.1341 | 0.62542 | 46.918 | 0.013245 |
+| 0.25 | 9.1510 | 0.66997 | 49.233 | 0.024916 |
+| 0.50 | 9.2681 | 0.71236 | 51.438 | 0.035855 |
+| 1.00 | 9.8615 | 0.79164 | 55.580 | 0.055945 |
+
+Monotone in both modes, which is itself a check: a controller that damps
+the short period while *degrading* the phugoid has the sign wrong (the
+first gain tried during design did exactly that — phugoid ζ went to
+−0.045 — and the chain caught it before any sim ran).
+
+## Checks and tolerances (claims first; measurements recorded after)
+
+- **C0 — closed-loop parity (16):** central-difference Jacobian of the
+  CONTROLLED derivative function at trim vs `A + B·K`, per-entry, with
+  **rung 1's S0 arms, not rung 2's** — corrected after measurement: this
+  is the longitudinal plant, whose trim sits at a small non-zero α, so
+  the entries that are structurally zero in the chain matrix are
+  O(u₀·α_trim) here (worst **0.01405** at a13, measured at kq = 0.5).
+  Round 15 corrected two stories attached to that number. It is NOT
+  `−w_trim`: measured, `−w_trim = 0.015188` against `J[0][2] = 0.014054`,
+  7.5% apart, so the identity was an approximation stated as an equality.
+  And `0.01428` is not "rung 1's sibling row" — it is **rung 3's own value
+  at kq = 0**. The residual is linearly gain-DEPENDENT (0.014283, 0.014168,
+  0.014054, 0.013825, 0.013366 at kq = 0, 0.25, 0.5, 1, 2), because
+  `B[0] = 0` makes the *reference* `A_cl[0][2]` gain-free while the
+  measured sim Jacobian moves — the elevator reaches `w` and `q`, which
+  feed `u̇` through the nonlinear aero. C0 runs at kq = 0.5 only, so the
+  residual's gain-dependence is real, small, and unmeasured. Rung
+  2 reached machine epsilon only because its lateral trim is the exact
+  origin. Arms: rel 3·10⁻³ with per-entry absolute arms as in rung 1.
+  This pins that the controller's linearization is the matrix the
+  predictions were computed from — without it, C2 could pass against a
+  plant that is not the one the oracle describes.
+- **C1 — trim preserved (5):** with kq = 0 the closed-loop model must
+  reproduce rung 1's S1 exactly (residuals ≤ 1e-9, 60 s hold), proving
+  the controller is a no-op at zero gain rather than a new plant.
+- **C2 — closed-loop modes graded (22):** nine graded rows plus their
+  identity pins and the four separate `C2.ph.*` rows — for kq ∈ {0.25, 0.5, 1.0}, the
+  SP-subspace free response of the CLOSED loop, graded by rung-0's
+  estimators against the predicted A_cl eigenvalues above: T within
+  **1%**, ζ within **2%**, plus the identity pins (k/n_extrema/n_ratios,
+  values distinct per site per the one-literal rule). `C2.ph.zlog`, the
+  separate phugoid-IC row, ships a **5%** ζ arm — the phugoid's log
+  decrement is read off a longer, softer envelope than the three kq rows'
+  — and residual 0.16%, so the arm is loose but not load-bearing. It was
+  declared nowhere until round 8 found it.
+- **C3 — invariances (8):** dt halved < 0.1%; excitation amplitude halved
+  < 0.5% (declared here and MISSING from the first draft — added at
+  round 1); and a **gain-USE witness** — the measured ζ must MOVE with kq
+  in the predicted direction and magnitude (rung-2 round-8's lesson: an
+  invariance row is only a test if the varied parameter reaches the
+  dynamics; here the gain is the parameter, so its effect is the pin).
+- **C4 — supervisory layer (population pinned in harness):** the damper
+  is engaged/disengaged by `report of q`, not by a hand-written trigger.
+  Physics truth table written first: engaged during the transient,
+  disengaged once settled. Rung 3 ships no `agree`/`divergence` manifest labels (rungs 1–2 used them
+because those rungs graded verdicts as their deliverable); here the
+distinction lives in each pin's own comment, and the DIVERGENT ones —
+verdicts that contradict physics — are `C5.p1.inner.{diverging,converged}`
+(a decaying mode reported as diverging half the time) and the blind
+cadences `C5.sp.{c010,c020,c040,c102}` (round 18: this enumeration was written at round 5 and never grew when rounds 15 and 17 added two more blind rows).
+- **C5 — the three pre-registered predictions** (below). Since round 12
+  the inner verdict stream is pinned for run STRUCTURE as well as content
+  (`runs = 37`, `maxrun = 260`) — and since round 16 for order proper.
+  Round 15 wrote down that run count is reversal-invariant and then round
+  16 found the same is true of `maxrun`, so "pinned for ORDER" had been
+  false for this stream: reversing all 8000 verdicts passed 96/96, every
+  plant and the manifest, while turning decaying run lengths (260, 258,
+  256…) into growing ones — the verdict signature of an *amplifying* mode,
+  which is the one thing a supervisory layer exists to distinguish from a
+  healthy one. `C5.p1.inner.didx` and `C4.ph.oidx` (index sums over one named class per
+  stream (round 19: this said "dominant class", but `inner` keys on
+  `diverging` at 3934 against `converged` at 4056 — the second largest) bind it; round 15 had applied that checksum to
+  `C5.p4` alone, the fourth twinning miss in this loop. The counts alone could not
+  see it: a count-preserving repack (group by category in first-appearance
+  order, so the multiset is exactly what the trajectory produced and every
+  plant still reds) turned 37 maximal runs into 4 and left 85/85, all 16
+  plants, the manifest and lint green — while "an autopilot would fight a
+  healthy mode half the time" silently became "it flips once in 400 s".
+  Round 12 justified `maxrun` as "a quarter period — T/4 = 257 samples vs
+  260 measured". **Round 13 refuted that, and it was wrong twice in
+  cancelling directions.** This stream never engages the gain (`.osc` and
+  `.engagements` are both pinned at 0, so `sup_run` holds kq at 0.0 for all
+  8000 steps), so the plant flown is `A`, not `A + B·K` — period 46.918 s,
+  T/4 = 234.6 samples, not 257. And the segments in a cycle are
+  260/220/198/260, so the longest is 0.277 of a period, not 0.25, and it
+  *decays* (260, 258, 256, 254…), making it an initial-condition transient
+  rather than a period invariant. A wrong plant (−9%) cancelled a wrong
+  fraction (+11%) into an agreement that looked exact. `maxrun` is an order
+  FINGERPRINT and is labelled as one. What genuinely ties to the physics is
+  `runs`. **Round 18 corrected the decomposition, which was itself two
+  cancelling errors** — the same pattern round 13 condemned, inside round
+  13's own replacement sentence. Published: "4 × 400 s / 46.918 s = 34.1
+  transitions plus 3 start-up runs = 37". That charges the non-cyclic
+  start-up window to the 4-per-period law (+1.08) and omits the
+  `runs = transitions + 1` term (−1.00), netting +0.08 onto 37.10. There
+  are also **four** start-up segments, not three — `stable:9`,
+  `equilibrium:1`, `diverging:32`, `converged:211` (253 samples = 12.65 s);
+  the 211-sample `converged` run belonged to no cycle and was named
+  nowhere. Correct: 3 start-up transitions + 4 × (400 − 12.65) / 46.918 =
+  33.02 cyclic transitions + 1 = **37.02**. Verified against the segment
+  dump: the first cycle is 260+220+198+260 = 938 against T/dt = 938.35, and
+  later cycles sum to 939 — agreement to within a sample, not exact.
+  **Round 14 deleted a second false clause from this same sentence.** Round
+  13's replacement added "and it tracks gain across the ramp (kq 0.5 → 35,
+  kq 1.0 → 31)", which is refuted by the premise six lines above it: if the
+  gain never reaches the dynamics, nothing derived from this trajectory can
+  track it. Measured — quadrupling `eff_gain` to 2.0 leaves every one of
+  the nine `C5.p1.inner` rows bit-identical, and plants s1 (gain sign
+  flipped) and s2 (gain inert) red **zero** of them. Three consecutive
+  rounds got this one pin's justification wrong.
+  What that actually establishes is worth more than the clause it replaces:
+  **`kq` is provably inert on this row**, and its inertness is the
+  refutation itself — `osc = 0` means the supervisory layer never engages,
+  so the gain is never applied. The two rows pinned at 0 (`.osc`,
+  `.engagements`) ARE the witness. The row's ROW token still carries
+  `params=0.5`; it is carried for identity, not because the run uses it,
+  and that is now stated rather than left to look like a USE witness. This is the repack class round 3 closed for `C5.p4`'s onset and
+  round 4 for `C4.ph`'s horizon, never applied to the one stream that IS
+  the result.
+- **C6 — read-path profile (a RATIO gate, not an absolute budget):** the shipped gate asserts
+  three ratio FLOORS — read/write, write/floor, and (since round 10)
+  write/noread — plus a CEILING on write/floor (3.0). No µs/read and no
+  µs/frame is asserted anywhere; the absolutes below are context, not
+  arms. FIVE planted faults: one per arm, plus `file_pin`'s (round 23). read/write has no ceiling deliberately (load
+  INFLATES it — 3.38 measured on unmutated code); write/floor can have one
+  because load DEFLATES it (0.98 measured at round 7), so the arm cannot
+  flake in the direction load pushes. Baseline
+  probe measured 2026-08-25 before this rung: **0.70 µs/read**, read path
+  = 64% of a write+read workload, and observed *scalar* writes ≈ free
+  (0.31 s vs a 0.30 s fully-unobserved floor over 200k frames, n=5
+  medians). **Numbers
+  corrected at round 1** — n=5 medians on the shipped program (120k
+  frames): read 0.501 s, write 0.243 s, floor 0.169 s, so read/write =
+  2.06 and write/floor = 1.44; repeated runs land in **1.95–2.13** for
+  read/write — the first draft's "2.09–2.8×" was falsified at round 4 and
+  round 5 measured 1.94 on a quiet box. Round 8 then measured **1.81** on a
+  quiet box, below that floor, so the honest reproduction spread across
+  ~20 whole-gate runs here is **1.75–2.50**, plus 3.38 under concurrent
+  load. The margin over the 1.5 bound is ~17% at the low end. Both
+  bound literals are identity-pinned against their declared values, and
+  each variant's EXECUTED work is pinned too (round 5 halved the floor
+  variant's loop and the gate reported a greener ratio while every suite
+  stayed green). That spread is a REPRODUCTION note, not an arm —
+  read/write has no ceiling, deliberately: a concurrent-load run on this box
+  measured read/write = 3.38 on unmutated code, so a ratio ceiling there
+  would flake on a shared runner. (write/floor's ceiling is safe for the
+  opposite reason — load deflates that ratio.) What pins the workload instead is the read
+  POPULATION: round 6 measured the per-predicate split and found
+  `oscillating of u` fires **0** times in 120k frames (conv 11563, stable
+  65157, div 56566 = the pinned 133286), so a hit count cannot see that
+  read at all — deleting it (−25% of the read path, ratio 1.98 → 1.67,
+  outside this very window) and adding three more copies (+75%, → 2.91)
+  both left the pin matching and the suite green. The four read sites are
+  also counted against the source, and `READ_SITES` is published in the
+  variant's own output as `read 133286 480000`. Round 7 then showed both
+  of those layers bind something other than the executed loop body, and
+  that round 6 fixed only `run_read` while its two siblings kept the
+  counter-only pin — the repo's own twin-the-fix rule (mechanical-gates
+  §94) broken by the fix for the finding that motivated it. Deleting TWO
+  of `run_floor`'s four per-frame writes left `floor 120000` matching,
+  collapsed the floor 45%, and turned write/floor from 1.44 into **2.59**,
+  taking the published 78/22 read/write split with it (round 8 re-measured
+  the mutant at 57/43 rather than the 67/33 first recorded — a DERIVED
+  number that was never itself measured); moving the
+  zero-hit read out of the measured loop, and adding a fifth read spelled
+  `if not (oscillating of q):`, both evaded the site grep entirely. The
+  three measured bodies are now pinned by IDENTITY (comment- and
+  blank-stripped hash plus line count, so a body that hashed to nothing
+  cannot pass vacuously); round 8 retired the grep, which caught nothing
+  the hashes miss. Round 8 also found the CALL SITE free —
+  `run_floor of (0)` kept every layer matching while the measured floor
+  became 0.008 s of interpreter startup and write/floor read 28.75 against
+  a published 1.44 — so each variant now prints its own line from its own
+  loop counter and the gate matches the whole output exactly. Round 9 then
+  found the pins stop at the three function bodies while the MODULE LEVEL
+  stayed free: eight lines of `unobserved:` busywork before the dispatch —
+  definitionally not read-path cost — left every body hash, line count and
+  exact output matching while moving the published read/write from 2.13 to
+  **3.47**. That is the one direction with no arm, since read/write has no
+  ceiling, and "the read path dominates" is this rung's whole upstream
+  argument; everything outside the three bodies is now pinned by the same
+  comment-stripped hash. Verified: all three round-7 mutants, an
+  equal-line-count constant swap, `run_floor of (0)`, a fabricated extra
+  output line, round 9's warmup insertion and an `N` change all fail
+  loudly; a FULL-LINE comment — at module level or inside a body — does
+  not (a comment appended to a code line does red the gate: fail-safe, and
+  round 8 corrected that claim, which had been stated unscoped). Both bounds are
+  single-sourced constants shared with their planted faults, after round
+  4 found that editing a gate's literal alone left its own fault citing
+  the old value and the suite green. The gate takes **median of 5**, not 3 —
+  round-2 review caught an unmutated write/floor pair reading 0.96 under
+  median-of-3, which is below the bound; three samples do not insulate a
+  20% margin on a shared runner. The first attribution here — "of the 0.332 s of
+  observer cost, 78% is reads and 22% is writes" — was **wrong about the
+  22%**, and so was this section's withdrawal of the earlier probe.
+  Round 10 measured the missing regime variable. Against a read-FREE
+  module (`tests/ap_profile_noread.eigs`) an observed scalar write is
+  **indistinguishable from the unobserved floor** — noread/floor measured
+  0.88, 1.04, 1.11, 1.21, 0.88 across five n=5 rounds, i.e. 1.0 within
+  noise — which is what the withdrawn probe reported.
+  The +44% is EigenScript#915's arming penalty, and round 10 published the
+  wrong MECHANISM for it — "module-granular" — which round 11 refuted from
+  the source and the runtime. `obs_needed` is a single flag on `EigsState`
+  (`src/eigenscript.h:561`), set in `compile_ast` and documented there as
+  monotonic. So arming is scoped to the **interpreter state**: a verdict read in a dead
+  function, in a *different file*, or even a bare string constant
+  `"report"` arms bookkeeping for every assignment in every module of the
+  program (GAPS.md **G7**, upstreamed as EigenScript#1046 — whose first
+  version carried round 10's wrong granularity and a workaround, "split
+  reads into their own module", that is measurably ineffective).
+  Round 13 then showed the "intrinsic write cost is
+  indistinguishable from zero" framing is **circular**: `noread` and
+  `floor` are BOTH states in which the entropy walk does not run (an
+  unarmed program, and an `unobserved:` block), confirmed by
+  `EIGS_OBS_GATE_STATS` — read/write/floor compile `observed`, `noread`
+  `unobserved`. So `noread − floor ≈ 0` is a tautology of the definition,
+  not a measurement about writes, and it invites exactly the wrong
+  conclusion for a program like `sup_run`. Stated correctly: **for a
+  program that reads verdicts at all — which an autopilot does — the split
+  is reads-direct ~75% and observed-write bookkeeping ~25%** (write 0.231
+  vs floor 0.160), and #915 can elide that 25% only in a program with no
+  reads anywhere, i.e. never here. That is why `sup_run` wraps its
+  integrator in `unobserved:`. The 22% first published and the "94/6" round
+  10 replaced it with were both wrong; this is the third attribution and
+  the first that names its regime. This makes the rung's
+  upstream argument stronger: #915's gate cannot help an autopilot not
+  merely because reads dominate, but because one read anywhere in the
+  program disarms the write optimisation everywhere in it.
+  The gate asserts all three ratios plus the ceiling (so `floor` and
+  `noread` are load-bearing rather than numbers nobody reads), and each
+  arm carries a planted fault proving it can reject. `write/noread` is the
+  noisiest pair in the gate (1.21-1.59 across five rounds, two separate
+  processes), so it re-measures once before failing, as `write/floor`
+  already does. Shipped as
+  `tests/ap_profile.eigs` + `tests/test_ap_profile.sh`, gating the
+  read/write RATIO (measured 1.75–2.50×, bound 1.5×) rather than a wall
+  time, because absolute budgets flake on shared CI runners while the
+  ratio is a property of the runtime. If reads are ever made O(1) the
+  gate fails BY DESIGN and says so in its own failure message — that is
+  the signal to re-measure and re-justify, not a regression.
+
+## The three pre-registered predictions (recorded before the build)
+
+1. **Verdict-driven INNER-loop damping will limit-cycle.** A controller
+   that modulates the damper gain continuously on a discrete verdict at
+   inner-loop rate will chatter at the band boundary — the same failure
+   Eigen-Geometric-Control shows (99% of ticks sign-flipping, 94% of
+   control budget spent fighting itself), sourced here from the observer's
+   band quantization rather than from the control law. Measurable: command
+   sign flips per tick, and the estimators reporting a spurious oscillation
+   at the sampling frequency.
+2. **Verdict-driven SUPERVISORY control will hold, at a measurable lag.**
+   Engagement latency ≈ the window duration; the closed-loop response
+   while engaged still matches the C2 predictions.
+3. **No single observation cadence serves both longitudinal modes.**
+   The window is 10 SAMPLES, so the window's SPAN scales with cadence, and
+   the mode is visible only inside a band of spans.
+   Short period (T = 9.13 s) and phugoid (T = 46.9 s) differ by 5.1×, so
+   the cadence that makes one observable makes the other useless. This is
+   G4 escalated from "wrong verdict" to "unsatisfiable requirement", and
+   it is the strongest argument EigenScript#1044 will get.
+
+**Both predictions 1 and 2 were REFUTED by measurement, and the
+refutations are the rung's main result.** Recorded here in full, since a
+pre-registered prediction that survives contact unchanged teaches less
+than one that does not:
+
+- **Prediction 1 (inner-loop chatter) — WRONG, and "blind" understated
+  it.** At inner-loop rate the 10-sample window spans 1% of a cycle, and
+  on a smoothly DECAYING phugoid the classifier never once says
+  `oscillating` (0 of 8000 reads). But it is not silent — it alternates
+  between **`diverging` (3934, 49%)** and **`converged` (4056, 51%)**,
+  because a window that short sees a locally monotone slice of a sinusoid
+  and calls it a trend. The ACTUATOR is silent (0 engagements, since only
+  `oscillating` triggers it); the OBSERVER is loud and wrong. An autopilot
+  acting on this would command corrective action against a healthy
+  decaying mode half the time. Pinned as `C5.p1.inner.{osc,diverging,
+  converged,engagements}`.
+- **Prediction 2 (supervisory holds cleanly) — HALF WRONG.** Supervision
+  does act on a persistent regime (**56** `oscillating` verdicts in 80
+  reads on the phugoid at a matched cadence), but the engagement
+  **flickers 17 times** in a single phugoid episode, because the raw
+  verdict carries no hysteresis at the band boundary. A damper cycling on
+  and off 17 times is not "holds". A control consumer needs a debounce
+  the predicates do not provide. Pinned as `C5.p2.sup.toggles = 17`,
+  `C4.ph.osc = 56`, and — since the layer's actual output is the
+  actuator timeline — `C4.ph.first_engaged = 19`. Round 4 justified that
+  row as "recorded at decim 50 against cadence 100, so it is an
+  independent read rather than an alias of the verdict onset"; round 11
+  showed the arithmetic does not support it — with `cadence/decim = 2`
+  exactly, 19 is the identity `2·onset + 1` = 2·9+1. The row still earns
+  its place, but for a different reason than the one published: it is the
+  only row that proves the gain reaches `rec.engaged` at all, and plants
+  s7 and s12 red it. (These are the
+  round-1 re-measurements on the corrected IC; the first draft published
+  59 and 15 from the looping trajectory.)
+- **Prediction 3 — CONFIRMED; its stated MECHANISM was refuted at round
+  15.** The conclusion holds: for the short period there is no usable
+  cadence at all. The explanation published with it — "blind because the
+  window is shorter than a period" — was falsified by the rung's own
+  shipped row. `C5.sp.c050` has a window spanning **0.55** of the SP period
+  and reports `oscillating`. Swept, the response is a two-sided BAND, and
+  only the lower edge had ever been published:
+
+  | cadence | window span | span / T_sp | verdict |
+  |---|---|---|---|
+  | 0.4 s (`c040`) | 4 s | 0.438 | blind — last blind |
+  | 0.42 s (`c042`) | 4.2 s | 0.460 | **sighted** — visibility starts near HALF a period |
+  | 0.5 s (`c050`) | 5 s | 0.547 | sighted — the row that refuted the story |
+  | 1.0 s (`c100`) | 10 s | 1.095 | sighted — last sighted |
+  | 1.02 s (`c102`) | 10.2 s | 1.117 | blind again — the FIRST blind |
+
+  (Spans are against the **kq = 0** short-period T = 9.1341 s. Round 15's
+  first version of this table quoted the kq = 0.5 period and put the edges
+  at cadence 22 and 60; round 16 corrected both — the runs fly at gain 0,
+  and swept at one-cadence resolution the edges are 21 and 51 — and round 16's own replacement pinned 52 without testing 51, so the lower edge was bracketed adjacently and the upper was not. Round 17 measured a 2% sensitivity change moving the upper edge a full cadence with all 98 checks and every plant green. Both edges are adjacent now. That is the
+  wrong-plant error round 13 caught on `maxrun`, recurring inside the fix
+  for round 15's finding.)
+
+  The two edges have different causes: below, too little of a fold in the
+  window to classify; above, the G5 horizon — by the time the window fills
+  (10 reads; the window is 10 deltas, so it is full at read index 9, at
+  10·cadence·dt — which is how the table above computes 4.2 s at cadence
+  21) the mode is under the deadband. Prediction 3 and the horizon
+  law were written up as separate findings and they meet here. All four
+  edge rows are now pinned, so no windowing change can restore the monotone
+  "fast = blind, slow = too late" story — the same defect round 2 closed
+  for `C5.p4`'s ramp, recurring in the neighbouring table.
+  The sighted rows all report exactly once, *after* the mode has decayed
+  (t ≥ 4.2 s for a mode gone by ~5 s; at the earliest sighted cadence the
+  latency is still ~2.3 decay constants). Detection latency and phase lag
+  are the same quantity, so a windowed verdict cannot act on a well-damped
+  transient. **Prediction 3's PHUGOID half was asserted and never measured
+  until round 18.** The claim is that no single cadence serves both modes;
+  only the SP side had been swept. Measured, the phugoid never says `oscillating` at
+  any cadence inside the SP's sighted band and is first sighted at a 3.70 s
+  interval, so the two bands are DISJOINT and the pre-registered claim
+  holds on both sides — shipped as `C5.ph.{p045,p100}`. **"Blind" is the
+  wrong word**, as this rung's own prediction-1 write-up says: the observer
+  is not silent, it is loud and wrong. At 1 Hz — the literal case G4 /
+  EigenScript#1044 is built on — the phugoid yields FIVE verdict classes and
+  **120 `diverging` reads on a healthy decaying mode**, which strengthens
+  prediction 3. Round 19 also found `improving` (30 reads at 1 Hz)
+  pinned nowhere. Round 20 corrected the count in both directions: the
+  runtime's numeric `report` vocabulary is exactly SEVEN
+  (`obs_num_report` — oscillating, diverging, improving, converged,
+  equilibrium, stable, moving), so `improving` is the seventh class and
+  `moving` (round 13, "a FIFTH verdict class") the sixth. The rung now
+  exhibits all seven. The "six classes at 1 Hz" figure counted six pinned
+  ROWS, one of which is a zero. Both rows now carry a closed
+  distribution and an order checksum; round 18 shipped them pinning only
+  `osc = 0`, so relabelling the whole stream to `diverging` — the exact
+  mutation round 18 had just closed on a020 — passed 116/116 and every
+  plant. Round 18 also flew 0.40 s, the SP's LAST BLIND cadence, outside
+  the band it was meant to overlap; the in-band cadence is 0.45 s.
+  Note "visibility starts near HALF a period" does NOT generalise: the
+  phugoid's lower edge is a 37 s window span against T = 46.9 s, i.e. 0.79
+  of a period. The complement holds
+  too: the lightly-damped phugoid (ζ = 0.036, ringing for many periods)
+  IS actionable — 56 of 80 reads at a matched cadence.
+
+**The design law, corrected at round 1 — it takes TWO conditions, and the
+first draft named only one.** Round-1 review swept the excitation
+amplitude and found the verdict fraction moving, which looked like a
+refutation of the persistence law. Re-measured on a physically valid
+trajectory (see the IC correction below), the truth is sharper than
+either version:
+
+| phugoid excitation | onset read | last `oscillating` read | verdicts / 80 |
+|---|---|---|---|
+| uamp 0.2 | — | — | **0** |
+| uamp 0.25 | 9 | 18 | 7 |
+| uamp 0.30 | 9 | 38 | 23 |
+| uamp 0.35 | 9 | 53 | 34 |
+| uamp 0.40 | 9 | 58 | 40 |
+| uamp 0.45 | 9 | 78 | 56 |
+| uamp 0.50 | 9 | 78 | 56 |
+| uamp ≥ 1.0 | 9 | 79 (last read) | 56 |
+
+**Corrected at round 2.** The first draft sampled only the two ends of
+this table and called the result a sharp cliff with "no graceful
+degradation". Probing the 2.5× interval between them shows a clean
+monotone **ramp**, and the mechanism is better than a threshold: the
+onset is identical at every amplitude (read 9, the window filling), and
+only the CUTOFF moves. The mode decays, |q| falls under the absolute
+band, and from that read onward `oscillating` stops for good. The
+apparent "flat 56–57 across a 16× range" was never an invariance — it is
+**saturation**, the crossing pushed past the end of the 400 s run, so the
+count is capped by the window rather than by the physics. So:
+
+> **A verdict is actionable iff (a) the regime persists beyond ~1–2
+> observation windows, AND (b) the observed channel still clears the
+> deadband — and since a decaying mode's amplitude falls, (b) is a
+> HORIZON in time, not a gate. Supervision does not switch off; it runs
+> out. Larger excitation buys a later crossing and a longer horizon,
+> monotonically.**
+
+For a sub-unit channel like pitch rate the band is absolute
+(EigenScript#1045), so that horizon depends on the unit and the
+excitation rather than on the dynamics.
+
+That is G5's third independent sighting and the first where it changes
+what an actuator does. Pinned as `C5.p4.a0{20,30,35,40}` over **nine** field names — **32** rows
+(counted from the manifest, not from memory). This sentence said "twelve"
+until round 18 and then "eight field names, 25 rows" until round 19; both
+were written by hand and both were wrong. That figure was exactly
+true at round 7 and then went stale three times over: round 14 deleted
+a020's two `-1` rows as vacuous, and rounds 14/15/17 added `runs`, `oidx`,
+`conv`, `stable`, `equil` and `cidx`. Every distribution and order family now applies to all four ramp rows
+including the clean-zero one. `runs` and `oidx` are the exception and stay
+inside the `osc > 0` guard: `oidx` is vacuous at `osc = 0`, and a020's
+`cidx = 3124` is the maximum possible index sum for 71 converged reads in
+0…79, so `conv` + `cidx` already determine that stream uniquely and
+`a020.runs` would be an equivalent mutant. Round 19 checked that rather
+than assuming it,
+four rows spanning the ramp plus the clean zero, all sited MID-ramp
+rather than at the saturated end, since a row at saturation (uamp 0.5:
+horizon 78 against a last read of 79) flips by one under any perturbing
+plant and measures brittleness rather than signal.
+
+## The round-1 correction: the phugoid IC was flying loops
+
+Recorded because it invalidated the first version of every headline
+number. `sp_subspace_ic` (rung 1) normalises the excitation on the **w**
+channel — correct for the w-dominant short period it was written for.
+Rung 3 reused it for the PHUGOID, which is u-dominant (|v_u/v_w| = 6.75
+on the annihilator column used), so normalising on w rather than u
+over-scales the excitation by **6.75×**; demanding 5 ft/s of w landed at
+a scale factor of 938 only because the raw column's normalisation is
+arbitrary. The fix moved both knobs at once — `w=5.0` (scale 938.4) to
+`u=2.0` (scale 55.6), a **16.9×** reduction — of which the channel is
+6.75× and the remaining 2.5× is the amplitude literal. (Round-5 review:
+the first draft called that 938 a component ratio — wrong by ~137×.
+Round-6 review: the fix's own text then attributed the whole 16.9× to
+the channel. The measured consequences below were right both times; the
+stated cause was wrong both times. A causal story is a hypothesis
+however precise it sounds.) The
+"phugoid episode" started 97° nose-down and flew **7 complete pitch
+loops**, with airspeed swinging from −9 to 714 ft/s on a linear-aero
+model valid near Mach 0.25. Nothing in the rung could see it — the
+supervisory rows graded no mode quantity, and the excitation amplitude
+appeared in no ROW token.
+
+Three fixes, all inherited from lessons rungs 1–2 had already paid for:
+`mode_ic` now takes a scale CHANNEL (rung 2's `lat_mode_ic` had this
+from the start — the twin was never applied to rung 1's helper); the ROW
+token carries the whole initial condition, so any change to the
+excitation breaks manifest identity; and **C2.ph grades the supervisory
+IC at fixed gain against the phugoid prediction** (T +0.036%, ζ −0.16%),
+so the run is now proven to be the mode it is named after. On the
+corrected trajectory every qualitative finding survived — the numbers
+moved (osc 59→56, toggles 15→17) but blindness, flicker and the cadence
+law all held.
+
+## Rung-3 planted-fault matrix
+
+Same rules, and the rung-1/2 armor arrives PRE-BUILT from the first
+commit (identity pins with distinct values, read-site accessors, ROW
+tokens on every generator AND graded run, USE witnesses on every varied
+parameter, displacement plants at 1.1× executed tolerance for all three
+comparators, no-refusals guards on fabricating plants, manifest identity
++ class vocabulary). Plants planned, red sets measured then pinned:
+The SHIPPED matrix, with red counts measured from
+`eigenscript tests/ap_check.eigs <plant>` — rung 2's convention, which
+this section's first draft did not follow. (Round-8 review: the list here
+was the *planned* one and had gone wrong for five plants — s5, s12 and
+s13 were mis-described, s15 as written did not exist, and s16 was missing
+while the exit gate counted 16. A planned list left in place reads as a
+measured one.)
+
+| Plant | Injected into | Reds |
+|---|---|---|
+| s1 | gain sign flipped (the design error the chain caught before any sim ran) | 73 |
+| s2 | gain never reaches the dynamics — controller inert, every row still claiming its gain | 71 |
+| s3 | Euler instead of RK4 | 60 |
+| s4 | trim offset by 0.01 rad | 133 |
+| s5 | amplitude/linearity witness vacuity (`C3.lin.shrinks`) | 1 |
+| s6 | grading-dt dilation (estimator side only) | 6 |
+| s7 | verdict stream frozen — supervisory layer inert | 132 |
+| s8 | ζ/T constant-replaced with the identity field carried | 13 |
+| s9 | broad dataset poison (CLa/Cma/Cmq/W) | 110 |
+| s10 | dt-rerun grading separator | 1 |
+| s11 | ζ estimator slot alias | 16 |
+| s12 | verdicts forced to `oscillating` — the dual of s7 | 141 |
+| s13 | `check_below`/`check_relabs` displacement at 1.1× the executed tolerance | 17 |
+| s14 | `check_rel` displacement at 1.1× the executed tolerance | 19 |
+| s15 | phugoid DFT slot aliased to `period_peaks` (makes `as_td` live) | 2 |
+| s16 | its mirror — the extrema slot fed by the DFT (makes `as_tp` live) | 1 |
+
+C6's four RATIO planted faults live in `tests/test_ap_profile.sh` — one per arm
+(read/write floor, write/floor floor, write/floor ceiling, write/noread
+floor) — and are counted separately; they are not part of this 16.
+
+**Two arms, one measurement (round 15).** Since `noread/floor` is ~1.0 by
+construction, `write/noread` and `write/floor` are near-duplicates — 1.42
+and 1.40 in the same run, same bound, both faults at ratio 1.00.
+`write/noread` earns its place by naming the regime (its denominator is an
+unarmed *program*, not an `unobserved:` block), so its failure is the
+diagnostic that says "upstream scoped the arming, re-attribute and close
+G7". It is not extra coverage, and the four-arm count should not be read
+as four independent facts.
+
+**Instrument confound in the read/write split (round 14).** `run_read`
+executes 133,286 more observed assignments than `run_write` — the `hits`
+counter, itself pinned — so `(read − write)`, the numerator of the "~75%",
+contains write cost. A confound-free variant with an identical assignment
+population (bare predicate statements instead of `if …: hits is hits + 1`)
+measures 76.7/23.3 against the shipped formula's 81.6/18.4 in the same
+session, and the shipped formula's own run-to-run spread is 74–82%. The
+published ~75/25 survives, but the instrument is not clean and the number
+should be read as "roughly three-quarters", not to a digit.
+
+**The twinning failure became a GATE (round 20).** Eight consecutive
+rounds found the same defect — a row family added to one verdict stream
+and not its siblings — five of them inside the fix for the previous
+round's finding, and twice with accompanying text asserting the fix was
+complete. Prose did not stop it. `tests/ap_manifest.txt` now carries a
+`streamfam` matrix declaring, per stream, which row families it has and
+why any are absent; `tests/test_ap_planted.sh` enumerates the streams from
+their ROW tokens and fails if one has no line, or if a declared family's
+rows are missing. Round 20 validated it with three planted faults —
+a new undeclared stream, a deleted family row, and a vacuous stream list —
+and the third caught a real bug in the gate itself (`set -e` aborted at an
+empty `grep` before the vacuity check could speak).
+
+**But round 21 showed the gate did not bind its own defect class, and that
+those three plants are why.** All three are declaration↔manifest
+consistency faults; not one is a *twinning* fault. The gate read each line
+in isolation and never compared a stream to its peers, so adding `cidx` to
+one of five converged-bearing streams passed fully green — and the tree was
+shipping exactly that: `cidx` sat on the four SMALLEST converged-bearing
+streams and was absent, silently, from the three largest, because an
+absence inside a comma list is not a missing line. Rebuilt as a matrix:
+the stream count is identity-pinned, every ROW token must end `.run` (a
+rename removed two streams from the enumeration undetected), and every
+stream must carry each index family any PEER carries or name it in a
+`skip=<fam>:<why>` token. Re-validated with three NEW plants of the right
+class — a family on one sibling only, a renamed ROW token, and a dropped
+stream count — plus the original three.
+
+The lesson generalises past this repo: **a gate's planted faults must come
+from the defect class the gate exists to stop — and the fault must exercise
+the REAL gate, not a copy of its logic.** Round 23 found the second half
+the hard way: round 22's two new plants each re-implemented their gate's
+logic against a synthetic input, so `file_pin() { : ; }` and `peer_ok() {
+return 0; }` each gutted a gate with its own plant still printing PASS —
+verbatim the failure round 22 had just closed, one round later. Both now
+call the real function over a dirty input and require nonzero, the shape
+`tests/test_lint.sh` had used all along.
+
+**Round 24 then found the SAME defect in round 23's own new plants**, in
+the commit that named it: the three manifest-enforcement plants were two
+inline copies of the gate's pipeline plus one tautology (it grepped a name
+the manifest declares `structural` against the plantable branch, which can
+never see it), and two of the five arms had no plant at all. Gutting all
+five left the suite at exit 0 still printing PASS. All five arms are now
+extracted as functions — `manifest_identity`, `rowparams_identity`,
+`coverage_ok`, `structural_ok`, `class_ok` — each with an in-class plant
+that calls it on a dirty input and a guard that the mutation applied; each
+verified to reject its fault, accept the clean input, and have its plant
+fire when the arm is gutted.
+
+Three rounds running, the fix for "the plant does not exercise the gate"
+had that same defect. The property is now checkable rather than asserted:
+every enforcement arm in this rung is a named function with an executed
+in-class plant, and gutting any one of them reds — round 25 verified that
+for all five independently.
+
+**The geometric reading, which is what terminates the recursion.** Each of
+these layers exists to certify the one below it, and the recurring defect
+was always that the new layer lay *parallel* to the old one rather than
+transverse to it — a plant that re-implements its gate is the same point
+drawn twice, so it has no component along the axis that matters. It looks
+like a layer (it has code, it prints PASS, it could fail in principle) and
+detects nothing. **"Delete the gate and require its plant to red" is the
+transversality measurement**: parallel layers don't move when the thing
+beneath them is removed; transverse ones must. That test is what makes the
+property checkable instead of an assertion, and it is why this stops here
+rather than needing a further layer to certify the certifier. Round 25 also
+made the last DECLARED exemption derivable — `skip=<fam>:<why>` reasons are
+now proved against the manifest's own rows (an absent class must either
+have an `exact=0` row or fall out of a closed distribution; a skipped
+`oidx` on a stream that oscillates must have a position pin), which needed
+`reads` rows on the four ramp streams to make the closure total.
+**CLOSED for all four rungs.** Rungs 0, 1 and 2 carried near-identical
+COPIES of these arms with no plants at all — and four copies of a check is
+itself the defect class this loop kept finding, so the fix is one shared
+implementation (`tests/manifestlib.sh`) with one set of plants, not four
+more copies. `mf_validate` runs an in-class fault against each real arm on
+every suite run. Verified by gutting each of the five arms to `return 0`
+and confirming its plant reds — 15 combinations across the three suites,
+plus a control showing the clean library passes all five.
+Converting them surfaced two defects the copies had hidden: rung 0's class
+arm `continue`d on every kind but two, so its 15 `comparator` rows never
+reached it at all (the derived-exemption failure one layer down, and
+exactly what round 25 predicted); and no copy rejected an unexpected
+manifest KIND, only an unexpected class — a new kind could enter any
+manifest and escape coverage silently. Both now fail loudly, each with its
+own plant. The `file_pin` plant also gained
+the two guards its sibling had and it lacked: a `cmp -s` check that the
+mutation applied at all, and a single-sourced hash (it had duplicated the
+constant, breaking this file's own round-4 rule). Round 22 applied it back
+across the repo and found two more instances, both now fixed: C6's four
+plants all synthesise a ratio and feed it to the comparator, so `file_pin`
+— the layer that actually stops "the measured workload silently became a
+different workload", the defect rounds 5, 8 and 9 found — had **no plant at
+all**; and the streamfam gate's own six validating faults existed only as
+prose, so relaxing the peer rule back to round 20's form left the suite
+green. Both now ship as executed plants that run every time. Three faults that all
+probe the same easy axis certify that axis and nothing else, and read as
+thorough validation.
+**Round 22 found the second reason it did not bind — and it was worse than
+the first.** `dist=none` was both the blanket exemption from the peer rule
+AND the truthful declaration of an under-covered stream, so the seven
+`C5.sp.*` rows that emitted verdicts and pinned nothing escaped by the very
+token that declared the gap. The rule ran on exactly the eight streams
+already covered: it could not fire on the shipped tree, and could not fire
+if the hole were widened. The hole was live — relabelling `C5.sp.c010`'s
+300 reads to `diverging`, the same mutation this rung records as closed for
+`a020` and `C5.ph`, passed 137/137 and every plant.
+Both fixed: all seven cadence streams now carry the full distribution,
+`runs`, `maxrun` and both index sums (56 rows, and their `.equil`
+classifications were corrected twice by the manifest's own
+structural/plantable guard), and the exemption is now DERIVED rather than
+declared — a `cl_run` ROW token carries 8 params and a `sup_run` token 9,
+so a stream that emits verdicts cannot claim `dist=none` however its line
+reads. Verified by plant.
+Absences that remain are declared AND proved: `C5.p4.a020` is `equiv` for
+`runs`/`maxrun` (its `cidx` is the maximum possible index sum, which forces
+the order), and the `C2/C3` rows emit no verdicts at all — now checkable
+from their ROW arity rather than taken on trust.
+It also made an inconsistency visible that no round had named: the same
+family is spelled three ways across streams (`diverging`/`div`,
+`converged`/`conv`, `equilibrium`/`equil`). The gate declares actual
+suffixes rather than papering over it; normalising the spellings would
+churn ~20 pins and is deferred, not forgotten.
+
+**Margin note (round 12).** Two arms ship with sub-15% headroom on a
+shared runner: `write/floor` (bound 1.15, measured 0.98 once under load at
+round 7) and `write/noread` (bound 1.15, measured 1.21–1.59). Each gets
+exactly one re-measure before failing. `read/write` was given no ceiling
+because load inflates it; these two floors are the mirror risk and the
+retry is the whole mitigation. If either flakes on CI, the fix is to widen
+with a re-justification here — not to add retries.
+
+**Known-unexercised (deliberate, bounded), rung 3:** (a) the three ratio
+arms bound each pair but not the read/write SPLIT they support — with all
+of them green the split could in principle move a long way, and it is
+published as a measurement, not asserted; (b) C0's gain-independence is
+structural (`B[0] = 0`), stated but not measured — all 16 C0 rows run at
+kq = 0.5; (c) the C6 absolutes (read/write/floor/noread wall times) are
+context and are asserted nowhere; (d) the shell harnesses' own FAIL
+branches, as in rungs 1 and 2; (e) the `at`/`onset`, `horizon` and `reads` row families sit outside the streamfam matrix entirely — it peer-compares `idx` families only, so a future stream missing one of those is invisible to the gate (round 23; `C5.sp.*`'s interiors, which this entry described until round 22 pinned them, are now covered); (f) **prediction 2's
+second clause is not measured** — "the closed-loop response while engaged still matches the C2
+predictions" was pre-registered, and no shipped check grades the
+supervisory trajectory against the C2 predictions (`C2.ph` certifies the
+EXCITATION, explicitly, not that run). Round 13 caught it missing from
+both the write-up and this list. It is neither confirmed nor refuted; it
+is UNMEASURED, and rung 3 ships saying so rather than quietly dropping a
+pre-registered clause.
+
+## Exit gate for rung 3
+
+1. All C checks green (217, population pinned); every one of the 16
+   plants red in exactly the declared way; the C6 gate green including
+   all FIVE of its planted faults (one per arm, plus file_pin's);
+   rungs 0–2 suites untouched and green.
+2. Blind-critic rounds: until dry (two consecutive clean) or 8 rounds.
+   **This was exceeded, deliberately and on the record.** The cap round
+   (8) returned FAIL with a live forgery hole, so shipping on it would have
+   shipped an unverified fix; every round since has also found a real
+   defect, so the find rate never justified stopping. Rounds 13-21 were
+   dominated by two self-inflicted classes — an invented causal story, and
+   a fix reaching one member of a symmetric set — the second of which is
+   now a gate. A round cap is the wrong terminator when the find rate is
+   undiminished; the honest report is the round count and what each found.
+3. CI green on the pushed branch.
+4. The three predictions each reported with their measurement — including
+   any that failed to reproduce.

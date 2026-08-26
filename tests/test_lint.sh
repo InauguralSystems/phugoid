@@ -29,7 +29,7 @@ lint_tree() {
 }
 
 N=$(find . -name '*.eigs' | wc -l)
-[ "$N" -ge 5 ] || { echo "FAIL: lint saw only $N files — glob broken"; exit 1; }
+[ "$N" -ge 17 ] || { echo "FAIL: lint saw only $N files — glob broken"; exit 1; }
 echo "--- --lint over $N .eigs files ---"
 lint_tree "$ROOT" || exit 1
 echo "PASS: all $N .eigs files lint clean"

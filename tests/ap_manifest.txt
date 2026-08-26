@@ -1,0 +1,280 @@
+ap C1.res.udot plantable below=1e-09
+ap C1.res.wdot plantable below=1e-09
+ap C1.res.qdot plantable below=1e-11
+ap C1.hold.u plantable below=1e-06
+ap C1.hold.q plantable below=1e-09
+ap C0.a11 plantable relabs=0.003|0.001
+ap C0.a12 plantable relabs=0.003|0.001
+ap C0.a13 plantable relabs=0.003|0.03
+ap C0.a14 plantable relabs=0.003|0.001
+ap C0.a21 plantable relabs=0.003|0.001
+ap C0.a22 plantable relabs=0.003|0.001
+ap C0.a23 plantable relabs=0.003|0.001
+ap C0.a24 plantable relabs=0.003|0.004
+ap C0.a31 plantable relabs=0.003|1e-05
+ap C0.a32 plantable relabs=0.003|1e-06
+ap C0.a33 plantable relabs=0.003|0.001
+ap C0.a34 plantable relabs=0.003|1e-05
+ap C0.a41 structural relabs=0.003|0.001
+ap C0.a42 structural relabs=0.003|0.001
+ap C0.a43 structural relabs=0.003|0.001
+ap C0.a44 structural relabs=0.003|0.001
+ap C2.k025.T plantable reltol=0.01
+ap C2.k025.zlog plantable reltol=0.02
+ap C2.k025.zenv plantable reltol=0.02
+ap C2.k025.T.n plantable exact=4
+ap C2.k025.zl.nr plantable exact=2
+ap C2.k025.ze.nf plantable exact=3
+ap C2.k050.T plantable reltol=0.01
+ap C2.k050.zlog plantable reltol=0.02
+ap C2.k050.zenv plantable reltol=0.02
+ap C2.k050.T.n plantable exact=4
+ap C2.k050.zl.nr plantable exact=2
+ap C2.k050.ze.nf plantable exact=3
+ap C2.k100.T plantable reltol=0.01
+ap C2.k100.zlog plantable reltol=0.02
+ap C2.k100.zenv plantable reltol=0.02
+ap C2.k100.T.n plantable exact=4
+ap C2.k100.zl.nr plantable exact=2
+ap C2.k100.ze.nf plantable exact=3
+ap C3.dt.T plantable reltol=0.001
+ap C3.dt.zlog plantable reltol=0.001
+ap C3.dt.zenv plantable reltol=0.001
+ap C3.amp.T plantable reltol=0.005
+ap C3.amp.zlog plantable reltol=0.005
+ap C3.amp.zenv plantable reltol=0.005
+ap C3.gain.use plantable reltol=0.05
+ap C3.lin.shrinks plantable exact=1
+ap C2.ph.T plantable reltol=0.01
+ap C2.ph.Tdft plantable reltol=0.01
+ap C2.ph.zlog plantable reltol=0.05
+ap C2.ph.Tdft.k plantable exact=8
+ap C5.sp.c010.osc plantable exact=0
+ap C5.sp.c010.reads structural exact=300
+ap C5.sp.c010.div plantable exact=133
+ap C5.sp.c010.conv plantable exact=157
+ap C5.sp.c010.stable plantable exact=9
+ap C5.sp.c010.equil plantable exact=1
+ap C5.sp.c010.runs plantable exact=10
+ap C5.sp.c010.maxrun plantable exact=113
+ap C5.sp.c010.didx plantable exact=23694
+ap C5.sp.c010.cidx plantable exact=21111
+ap C5.sp.c020.osc plantable exact=0
+ap C5.sp.c020.reads structural exact=150
+ap C5.sp.c020.div plantable exact=59
+ap C5.sp.c020.conv plantable exact=81
+ap C5.sp.c020.stable plantable exact=9
+ap C5.sp.c020.equil plantable exact=1
+ap C5.sp.c020.runs plantable exact=9
+ap C5.sp.c020.maxrun plantable exact=54
+ap C5.sp.c020.didx plantable exact=5693
+ap C5.sp.c020.cidx plantable exact=5437
+ap C5.sp.c040.osc plantable exact=0
+ap C5.sp.c040.reads structural exact=75
+ap C5.sp.c040.div plantable exact=25
+ap C5.sp.c040.conv plantable exact=40
+ap C5.sp.c040.stable plantable exact=9
+ap C5.sp.c040.equil plantable exact=1
+ap C5.sp.c040.runs plantable exact=5
+ap C5.sp.c040.maxrun plantable exact=32
+ap C5.sp.c040.didx plantable exact=1350
+ap C5.sp.c040.cidx plantable exact=1380
+ap C5.sp.c042.osc plantable exact=1
+ap C5.sp.c042.reads structural exact=71
+ap C5.sp.c042.div plantable exact=23
+ap C5.sp.c042.conv plantable exact=38
+ap C5.sp.c042.stable plantable exact=9
+ap C5.sp.c042.equil plantable exact=0
+ap C5.sp.c042.runs plantable exact=5
+ap C5.sp.c042.maxrun plantable exact=31
+ap C5.sp.c042.didx plantable exact=1196
+ap C5.sp.c042.cidx plantable exact=1244
+ap C5.sp.c042.at plantable exact=9
+ap C5.sp.c050.osc plantable exact=1
+ap C5.sp.c050.reads structural exact=60
+ap C5.sp.c050.div plantable exact=20
+ap C5.sp.c050.conv plantable exact=30
+ap C5.sp.c050.stable plantable exact=9
+ap C5.sp.c050.equil plantable exact=0
+ap C5.sp.c050.runs plantable exact=5
+ap C5.sp.c050.maxrun plantable exact=25
+ap C5.sp.c050.didx plantable exact=890
+ap C5.sp.c050.cidx plantable exact=835
+ap C5.sp.c050.at plantable exact=9
+ap C5.sp.c100.osc plantable exact=1
+ap C5.sp.c100.reads structural exact=30
+ap C5.sp.c100.div plantable exact=7
+ap C5.sp.c100.conv plantable exact=13
+ap C5.sp.c100.stable plantable exact=9
+ap C5.sp.c100.equil structural exact=0
+ap C5.sp.c100.runs plantable exact=4
+ap C5.sp.c100.maxrun plantable exact=13
+ap C5.sp.c100.didx plantable exact=182
+ap C5.sp.c100.cidx plantable exact=208
+ap C5.sp.c100.at plantable exact=9
+ap C5.sp.c102.osc plantable exact=0
+ap C5.sp.c102.reads structural exact=29
+ap C5.sp.c102.div plantable exact=7
+ap C5.sp.c102.conv plantable exact=13
+ap C5.sp.c102.stable plantable exact=9
+ap C5.sp.c102.equil structural exact=0
+ap C5.sp.c102.runs plantable exact=3
+ap C5.sp.c102.maxrun plantable exact=13
+ap C5.sp.c102.didx plantable exact=175
+ap C5.sp.c102.cidx plantable exact=195
+ap C5.ph.p365.reads structural exact=109
+ap C5.ph.p365.stable plantable exact=100
+ap C5.ph.p365.moving plantable exact=9
+ap C5.ph.p365.runs plantable exact=3
+ap C5.ph.p365.maxrun plantable exact=90
+ap C5.ph.p365.osc plantable exact=0
+ap C5.ph.p370.reads structural exact=108
+ap C5.ph.p370.stable plantable exact=75
+ap C5.ph.p370.moving plantable exact=32
+ap C5.ph.p370.runs plantable exact=9
+ap C5.ph.p370.maxrun plantable exact=51
+ap C5.ph.p370.osc plantable exact=1
+ap C5.ph.p370.at plantable exact=41
+ap C5.ph.p045.osc plantable exact=0
+ap C5.ph.p045.reads structural exact=888
+ap C5.ph.p045.div plantable exact=359
+ap C5.ph.p045.conv plantable exact=520
+ap C5.ph.p045.stable plantable exact=9
+ap C5.ph.p045.equil plantable exact=0
+ap C5.ph.p045.improving plantable exact=0
+ap C5.ph.p045.runs plantable exact=35
+ap C5.ph.p045.maxrun plantable exact=33
+ap C5.ph.p045.didx plantable exact=163742
+ap C5.ph.p045.cidx plantable exact=230050
+ap C5.ph.p100.osc plantable exact=0
+ap C5.ph.p100.reads structural exact=400
+ap C5.ph.p100.div plantable exact=120
+ap C5.ph.p100.conv plantable exact=101
+ap C5.ph.p100.stable plantable exact=58
+ap C5.ph.p100.equil plantable exact=91
+ap C5.ph.p100.improving plantable exact=30
+ap C5.ph.p100.runs plantable exact=91
+ap C5.ph.p100.maxrun plantable exact=17
+ap C5.ph.p100.didx plantable exact=23583
+ap C5.ph.p100.cidx plantable exact=29322
+ap C4.ph.reads structural exact=80
+ap C4.ph.osc plantable exact=56
+ap C4.ph.onset plantable exact=9
+ap C4.ph.runs plantable exact=18
+ap C4.ph.maxrun plantable exact=13
+ap C4.ph.oidx plantable exact=2497
+ap C4.ph.stable plantable exact=18
+ap C4.ph.moving plantable exact=6
+ap C4.ph.horizon plantable exact=79
+ap C5.p1.inner.reads structural exact=8000
+ap C5.p1.inner.osc plantable exact=0
+ap C5.p1.inner.engagements plantable exact=0
+ap C5.p1.inner.diverging plantable exact=3934
+ap C5.p1.inner.converged plantable exact=4056
+ap C5.p1.inner.stable plantable exact=9
+ap C5.p1.inner.equilibrium plantable exact=1
+ap C5.p1.inner.runs plantable exact=37
+ap C5.p1.inner.didx plantable exact=16038601
+ap C5.p1.inner.cidx plantable exact=15957354
+ap C5.p1.inner.maxrun plantable exact=260
+ap C5.p2.sup.toggles plantable exact=17
+ap C4.ph.first_engaged plantable exact=19
+ap C5.p4.a020.reads structural exact=80
+ap C5.p4.a020.osc plantable exact=0
+ap C5.p4.a020.conv plantable exact=71
+ap C5.p4.a020.stable plantable exact=9
+ap C5.p4.a020.equil structural exact=0
+ap C5.p4.a020.cidx plantable exact=3124
+ap C5.p4.a030.reads structural exact=80
+ap C5.p4.a030.osc plantable exact=23
+ap C5.p4.a030.horizon plantable exact=38
+ap C5.p4.a030.onset plantable exact=9
+ap C5.p4.a030.runs plantable exact=12
+ap C5.p4.a030.conv plantable exact=42
+ap C5.p4.a030.stable plantable exact=9
+ap C5.p4.a030.equil plantable exact=6
+ap C5.p4.a030.cidx plantable exact=2447
+ap C5.p4.a030.oidx plantable exact=554
+ap C5.p4.a040.reads structural exact=80
+ap C5.p4.a040.osc plantable exact=40
+ap C5.p4.a040.horizon plantable exact=58
+ap C5.p4.a040.onset plantable exact=9
+ap C5.p4.a040.runs plantable exact=15
+ap C5.p4.a040.conv plantable exact=21
+ap C5.p4.a040.stable plantable exact=12
+ap C5.p4.a040.equil plantable exact=7
+ap C5.p4.a040.cidx plantable exact=1449
+ap C5.p4.a040.oidx plantable exact=1376
+ap C5.p4.a035.reads structural exact=80
+ap C5.p4.a035.osc plantable exact=34
+ap C5.p4.a035.horizon plantable exact=53
+ap C5.p4.a035.onset plantable exact=9
+ap C5.p4.a035.runs plantable exact=16
+ap C5.p4.a035.conv plantable exact=27
+ap C5.p4.a035.stable plantable exact=9
+ap C5.p4.a035.equil plantable exact=10
+ap C5.p4.a035.cidx plantable exact=1772
+ap C5.p4.a035.oidx plantable exact=1053
+rowparams C1.hold.run params=0|0.05|1|1200|279.09999958677514|-0.015187564279792735|0|-5.441621027333612e-05
+rowparams C2.k025.run params=0.25|0.02|1|800|279.07785528763605|-0.11518756427979274|0.0017430759622298027|-0.0014838271908876762
+rowparams C2.k050.run params=0.5|0.02|1|800|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C2.k100.run params=1|0.02|1|800|279.07732823694823|-0.11518756427979274|0.00241258481309172|-0.0015334273886992624
+rowparams C3.dt.run params=0.5|0.01|2|1600|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C3.amp.run params=0.5|0.02|1|800|279.0888805741536|-0.06518756427979273|0.000977449583953899|-0.0007750394957458047
+rowparams C3.lin.run params=1|0.02|1|800|279.09546531680974|-0.035187564279792735|0.000482516962618344|-0.00035021844595852137
+rowparams C2.ph.run params=0.5|0.05|20|8000|281.09999958677514|-0.3116147043325656|-0.0011099813433539088|-0.10030128636266476
+rowparams C5.sp.c010.run params=0.5|0.02|25|5|1500|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C5.sp.c020.run params=0.5|0.02|25|10|1500|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C5.sp.c040.run params=0.5|0.02|25|20|1500|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C5.sp.c042.run params=0.5|0.02|25|21|1500|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C5.sp.c050.run params=0.5|0.02|25|25|1500|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C5.sp.c102.run params=0.5|0.02|25|51|1500|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C5.sp.c100.run params=0.5|0.02|25|50|1500|279.0777615615321|-0.11518756427979274|0.001954899167907798|-0.0014956627812182733
+rowparams C5.ph.p365.run params=0.5|0.05|100|73|8000|281.09999958677514|-0.3116147043325656|-0.0011099813433539088|-0.10030128636266476
+rowparams C5.ph.p370.run params=0.5|0.05|100|74|8000|281.09999958677514|-0.3116147043325656|-0.0011099813433539088|-0.10030128636266476
+rowparams C5.ph.p045.run params=0.5|0.05|100|9|8000|281.09999958677514|-0.3116147043325656|-0.0011099813433539088|-0.10030128636266476
+rowparams C5.ph.p100.run params=0.5|0.05|100|20|8000|281.09999958677514|-0.3116147043325656|-0.0011099813433539088|-0.10030128636266476
+rowparams C4.ph.run params=0.5|0.05|50|100|8000|281.09999958677514|-0.3116147043325656|-0.0011099813433539088|-0.10030128636266476
+rowparams C5.p1.inner.run params=0.5|0.05|100|1|8000|281.09999958677514|-0.3116147043325656|-0.0011099813433539088|-0.10030128636266476
+rowparams C5.p4.a020.run params=0.5|0.05|100|100|8000|279.29999958677513|-0.044830278285070024|-0.00011099813433539088|-0.01007910322551248
+rowparams C5.p4.a030.run params=0.5|0.05|100|100|8000|279.39999958677515|-0.05965163528770866|-0.0001664972015030863|-0.01509144673313205
+rowparams C5.p4.a040.run params=0.5|0.05|100|100|8000|279.4999995867751|-0.0744729922903473|-0.00022199626867078177|-0.02010379024075162
+rowparams C5.p4.a035.run params=0.5|0.05|100|100|8000|279.44999958677516|-0.06706231378902798|-0.000194246735086934|-0.01759761848694183
+# streamfam — the row-family x verdict-stream coverage matrix (round 20).
+# Eight consecutive review rounds found the SAME defect: a row family added
+# to one verdict stream and not its siblings, five times inside the fix for
+# the previous round's finding, twice with accompanying text asserting the
+# fix was complete. Advice did not stop it, so it becomes a gate: every
+# stream that emits verdicts must have a line here, and every family it
+# declares must have its rows present in the manifest above. A stream added
+# without a line fails loudly -- which is exactly the eight-times failure.
+# Absences must be justified in the line, not left silent.
+streamfam C5.p1.inner  dist=diverging,converged,stable,equilibrium idx=didx,cidx skip=oidx:osc-is-0-so-vacuous runs=yes maxrun=yes
+streamfam C4.ph        dist=stable,moving idx=oidx skip=cidx:no-converged-reads skip=didx:no-diverging-reads runs=yes maxrun=yes
+streamfam C5.ph.p365   dist=stable,moving idx=none skip=didx:no-diverging-reads skip=cidx:no-converged-reads skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.ph.p370   dist=stable,moving idx=none skip=didx:no-diverging-reads skip=cidx:no-converged-reads skip=oidx:single-sighting-pinned-by-at runs=yes maxrun=yes
+streamfam C5.ph.p045   dist=div,conv,stable,equil,improving idx=didx,cidx skip=oidx:osc-is-0-so-vacuous runs=yes maxrun=yes
+streamfam C5.ph.p100   dist=div,conv,stable,equil,improving idx=didx,cidx skip=oidx:osc-is-0-so-vacuous runs=yes maxrun=yes
+streamfam C5.p4.a020   dist=conv,stable,equil idx=cidx skip=oidx:osc-is-0-so-vacuous skip=didx:no-diverging-reads runs=equiv maxrun=equiv
+streamfam C5.p4.a030   dist=conv,stable,equil idx=cidx,oidx skip=didx:no-diverging-reads runs=yes maxrun=justified
+streamfam C5.p4.a035   dist=conv,stable,equil idx=cidx,oidx skip=didx:no-diverging-reads runs=yes maxrun=justified
+streamfam C5.p4.a040   dist=conv,stable,equil idx=cidx,oidx skip=didx:no-diverging-reads runs=yes maxrun=justified
+streamfam C5.sp.c010   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.sp.c020   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.sp.c040   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.sp.c042   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.sp.c050   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.sp.c100   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C5.sp.c102   dist=div,conv,stable,equil idx=didx,cidx skip=oidx:osc-is-0-or-1-so-near-vacuous runs=yes maxrun=yes
+streamfam C1.hold      dist=none idx=none runs=none maxrun=none
+# The cl_run rows below emit no verdicts at all -- they are graded
+# trajectories, not observer streams -- so every family is legitimately
+# `none`. They are listed because the gate enumerates from ROW tokens, and
+# a stream silently absent from this file is the failure it exists to stop.
+streamfam C2.k025      dist=none idx=none runs=none maxrun=none
+streamfam C2.k050      dist=none idx=none runs=none maxrun=none
+streamfam C2.k100      dist=none idx=none runs=none maxrun=none
+streamfam C2.ph        dist=none idx=none runs=none maxrun=none
+streamfam C3.amp       dist=none idx=none runs=none maxrun=none
+streamfam C3.dt        dist=none idx=none runs=none maxrun=none
+streamfam C3.lin       dist=none idx=none runs=none maxrun=none
