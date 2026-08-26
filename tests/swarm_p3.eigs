@@ -175,7 +175,8 @@ define p3_row(idx, sp, cad, uscale, uname) as:
     # channel's initial VALUE. swarm_check.eigs already accounted for it
     # ("exactly 1 per channel is the initialiser sample"); the P3 write-up
     # did not.
-    local q is (s[2] * uscale) + 0.0
+    local q is 0.0
+    local asn is 0
     local rd is 0
     local cv is 0
     local os is 0
@@ -187,6 +188,7 @@ define p3_row(idx, sp, cad, uscale, uname) as:
     local ot is 0
     local fl is 0
     local fos is 0
+    local fla is 0
     local fqu is 0
     local fnc is 0
     local t is 0.0
@@ -196,42 +198,69 @@ define p3_row(idx, sp, cad, uscale, uname) as:
             s is rk4_step of [s, t, 0.05, sched, tr.P]
         if (f % cad) == 0:
             q is (s[2] * uscale) + 0.0
-            local rp is report of q
             unobserved:
-                rd is rd + 1
-                if rp == "converged":
-                    cv is cv + 1
-                elif rp == "oscillating":
-                    os is os + 1
-                elif rp == "moving":
-                    mv is mv + 1
-                elif rp == "stable":
-                    st is st + 1
-                elif rp == "equilibrium":
-                    eq is eq + 1
-                elif rp == "improving":
-                    im is im + 1
-                elif rp == "diverging":
-                    dg is dg + 1
-                else:
-                    ot is ot + 1
-                if rd > 9:
-                    fl is fl + 1
-                    if rp == "oscillating":
-                        fos is fos + 1
+                asn is asn + 1
+            # The sample at f = 0 PRIMES the channel and is not counted.
+            # Round 11 primed with a separate pre-loop assignment, which
+            # removed the fictitious 0 but left the first inter-sample gap
+            # at one FRAME (0.05 s) while every later gap is one CADENCE
+            # (~3.7 s). On that one-delta window the observer reported
+            # `stable` -- a false-all-clear-class label -- and it differed
+            # between deg and mrad, breaking the byte-identity that is the
+            # sole evidence for the round-6/7 downgrade. Round 12: prime
+            # from INSIDE the loop so every gap is one cadence.
+            if f > 0:
+                local rp is report of q
+                unobserved:
+                    rd is rd + 1
+                    if rp == "converged":
+                        cv is cv + 1
+                    elif rp == "oscillating":
+                        os is os + 1
                     elif rp == "moving":
-                        fnc is fnc + 1
-                    elif rp == "converged":
-                        fqu is fqu + 1
+                        mv is mv + 1
                     elif rp == "stable":
-                        fqu is fqu + 1
+                        st is st + 1
                     elif rp == "equilibrium":
-                        fqu is fqu + 1
+                        eq is eq + 1
+                    elif rp == "improving":
+                        im is im + 1
+                    elif rp == "diverging":
+                        dg is dg + 1
+                    else:
+                        ot is ot + 1
+                    # Full window = 10 evenly-spaced assignments.
+                    if asn > 9:
+                        fl is fl + 1
+                        if rp == "oscillating":
+                            fos is fos + 1
+                    # LATE reads: strictly after the first full window.
+                    # Round 12: at cadence 74 the observer fires exactly
+                    # once, at asn = 10 -- the first window that is full,
+                    # which spans the run's largest-amplitude cycle. That
+                    # is a REAL detection of a real oscillation, not an
+                    # artifact (the channel is primed and evenly spaced).
+                    # What makes it a finding is that it never fires
+                    # again: `flate` is 0 for the remaining 99 reads while
+                    # the aircraft is still swinging 4.5-8.8 m/s. Round 11
+                    # reported 0% here, which was its own uneven-gap
+                    # artifact suppressing the one true detection.
+                    if asn > 10:
+                        if rp == "oscillating":
+                            fla is fla + 1
+                        elif rp == "moving":
+                            fnc is fnc + 1
+                        elif rp == "converged":
+                            fqu is fqu + 1
+                        elif rp == "stable":
+                            fqu is fqu + 1
+                        elif rp == "equilibrium":
+                            fqu is fqu + 1
         unobserved:
             t is t + 0.05
         f is f + 1
-    print of f"p3 unit={uname} ac={idx} sp={sp} cad={cad} reads={rd} conv={cv} osc={os} moving={mv} stable={st} equil={eq} improving={im} diverging={dg} other={ot} full={fl} fosc={fos} fquiet={fqu} fnoclaim={fnc}"
-    return [rd, cv, os, mv, st, eq, im, dg, ot, fl, fos, fqu, fnc]
+    print of f"p3 unit={uname} ac={idx} sp={sp} cad={cad} reads={rd} conv={cv} osc={os} moving={mv} stable={st} equil={eq} improving={im} diverging={dg} other={ot} full={fl} fosc={fos} fquiet={fqu} fnoclaim={fnc} flate={fla}"
+    return [rd, cv, os, mv, st, eq, im, dg, ot, fl, fos, fqu, fnc, fla]
 
 # The sweep is over FOUR axes. Round 7: the previous version sampled
 # fleet[1] and reported the row as a property of the dispersion -- but the
@@ -292,8 +321,11 @@ print of f"p3cad total full-window reads across the cadence sweep: {cadrows}"
 #              because widening the fleet changes which aircraft are in
 #              the average. It drifts DOWN only because near-zero-amplitude
 #              aircraft join it (the `per` list below shows them alerting
-#              once each) -- that is EigenScript#1045's small-magnitude
+#              ZERO times) -- that is EigenScript#1045's small-magnitude
 #              deadband diluting the mean, not the nuisance abating.
+#              Round 12: this read "once each" until the channel priming
+#              was fixed. That one alert per otherwise-silent aircraft WAS
+#              the initialiser artifact.
 #   fleet   -- fraction of sweep points where AT LEAST ONE aircraft
 #              alerts. This is what a sector controller actually sees, and
 #              it is the rate P3's registered prediction is about.
@@ -328,27 +360,36 @@ define p3_fleet(n, sp, cad) as:
             loop while a < n:
                 local v is chans[a] of (fleet[a][2])
                 unobserved:
-                    reads is reads + 1
-                    if v == "oscillating":
-                        alerts is alerts + 1
-                        per[a] is per[a] + 1
-                        any is 1
+                    if f > 0:
+                        reads is reads + 1
+                        if v == "oscillating":
+                            alerts is alerts + 1
+                            per[a] is per[a] + 1
+                            any is 1
                 a is a + 1
-            unobserved:
-                sweeps is sweeps + 1
-                if any == 1:
-                    firing is firing + 1
-                    if first < 0:
-                        first is sweeps - 1
-                    last is sweeps - 1
-                # Every channel is read in lockstep, so per-channel read
-                # count == sweeps and the window is full from sweep 10.
-                # Round 11: p3_fleet had NO window exclusion at all while
-                # ORACLE said "all rates below are full-window".
-                if sweeps > 9:
-                    fsweeps is fsweeps + 1
+            # The f = 0 feed PRIMES every channel and is not counted, so
+            # each channel's counted samples are evenly cadence-spaced.
+            # Round 12: round 11 primed in the constructor, which left the
+            # first inter-sample gap at one FRAME while every later gap is
+            # one CADENCE -- and the observer reports a false-all-clear
+            # class label on that one-delta window.
+            if f > 0:
+                unobserved:
+                    sweeps is sweeps + 1
                     if any == 1:
-                        ffiring is ffiring + 1
+                        firing is firing + 1
+                        if first < 0:
+                            first is sweeps - 1
+                        last is sweeps - 1
+                    # Channels are fed in lockstep, so per-channel
+                    # assignment count == sweeps + 2 (constructor, plus the
+                    # uncounted f = 0 priming feed). Grading starts once the
+                    # constructor's unevenly-spaced sample has left the
+                    # 10-wide window, i.e. from sweeps = 9.
+                    if sweeps > 8:
+                        fsweeps is fsweeps + 1
+                        if any == 1:
+                            ffiring is ffiring + 1
         unobserved:
             t is t + 0.05
         f is f + 1

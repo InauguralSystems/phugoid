@@ -272,19 +272,31 @@ define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
 # round 9 saw cadence 148 below 114 and retracted the retraction. All
 # three were reading RAW osc/reads over whatever range was to hand.
 #
-# tests/swarm_p3.eigs now produces cadences 84/104/114/124/134 alongside
-# the main table's 74/94/148, full-window (excluding the observer's
-# window-fill reads) and with a primed channel. Measured detect rate:
+# Round 12 -- and a FOURTH reading was wrong, this one mine. Measured
+# full-window with a primed, evenly-spaced channel, detect rate:
 #
 #   cadence     74    84    94   104   114   124   134   148
-#   ac0        0.0  .264  .519  .794  .855  .929  .686  .761
-#   ac1        0.0  .586  .779  .971  .968  .911  .686  .761
+#   ac0       .010  .276  .532  .809  .871  .946  .706  .783
+#   ac1       .010  .598  .792  .985  .984  .929  .706  .783
 #
-# So it is non-monotone with AIRCRAFT-DEPENDENT peaks (ac1 at 104, ac0 at
-# 124), a local minimum at 134, and 148 back above it. None of the three
-# earlier readings survives. From 134 on the two aircraft are identical --
-# the amplitude dependence vanishes once the per-sample step clears the
-# deadband, which is the same mechanism as the unit axis (#1045).
+# Round 11 read two conclusions off this table and both were artifacts of
+# reading ONE column:
+#
+#   * "a local minimum at 134, recovering at 148" -- the DETECTION COUNT
+#     is frozen at 36 across both cadences for both aircraft. Only the
+#     denominator moves (51 -> 46 full-window reads). Nothing recovers.
+#   * "from 134 on the two aircraft are identical, the amplitude
+#     dependence vanishes as in the unit axis" -- true of `fosc` only. At
+#     134 the small-amplitude aircraft issues a false all-clear on 14 of
+#     51 reads and the large one on 0. The dependence moved into the
+#     dangerous column; it did not vanish. And the unit-axis mechanism
+#     drives false-all-clear to 0 for BOTH aircraft, which is exactly
+#     what does not happen here, so the attribution was wrong too.
+#
+# The peaks are aircraft-dependent (ac1 at 104, ac0 at 124). Both are
+# pinned in tests/p3claims.sh as claim P3.tail, with plants, because this
+# is the third time in this rung a conclusion came from one column of a
+# multi-column table.
 #
 # 94 is chosen because the fleet-vs-solo oracle binds well there, not
 # because it is a boundary or a peak.

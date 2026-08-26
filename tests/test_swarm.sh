@@ -49,58 +49,58 @@ p3truth ac=0 sp=0.02 u_pp_first=337 u_pp_last=181 q_pp_first=1057 q_pp_last=103
 p3truth ac=0 sp=0.05 u_pp_first=844 u_pp_last=452 q_pp_first=2643 q_pp_last=257
 p3truth ac=1 sp=0.02 u_pp_first=656 u_pp_last=352 q_pp_first=2055 q_pp_last=200
 p3truth ac=1 sp=0.05 u_pp_first=1641 u_pp_last=880 q_pp_first=5134 q_pp_last=501
-p3 unit=rad ac=0 sp=0.02 cad=74 reads=109 conv=98 osc=0 moving=10 stable=1 equil=0 improving=0 diverging=0 other=0 full=100 fosc=0 fquiet=98 fnoclaim=2
-p3 unit=rad ac=0 sp=0.02 cad=94 reads=86 conv=75 osc=0 moving=10 stable=1 equil=0 improving=0 diverging=0 other=0 full=77 fosc=0 fquiet=75 fnoclaim=2
-p3 unit=rad ac=0 sp=0.02 cad=148 reads=55 conv=44 osc=0 moving=0 stable=11 equil=0 improving=0 diverging=0 other=0 full=46 fosc=0 fquiet=46 fnoclaim=0
-p3 unit=rad ac=0 sp=0.05 cad=74 reads=109 conv=73 osc=0 moving=10 stable=1 equil=25 improving=0 diverging=0 other=0 full=100 fosc=0 fquiet=98 fnoclaim=2
-p3 unit=rad ac=0 sp=0.05 cad=94 reads=86 conv=25 osc=40 moving=10 stable=2 equil=9 improving=0 diverging=0 other=0 full=77 fosc=40 fquiet=35 fnoclaim=2
-p3 unit=rad ac=0 sp=0.05 cad=148 reads=55 conv=0 osc=35 moving=10 stable=7 equil=3 improving=0 diverging=0 other=0 full=46 fosc=35 fquiet=9 fnoclaim=2
-p3 unit=rad ac=1 sp=0.02 cad=74 reads=109 conv=97 osc=0 moving=10 stable=1 equil=1 improving=0 diverging=0 other=0 full=100 fosc=0 fquiet=98 fnoclaim=2
-p3 unit=rad ac=1 sp=0.02 cad=94 reads=86 conv=55 osc=16 moving=10 stable=1 equil=4 improving=0 diverging=0 other=0 full=77 fosc=16 fquiet=59 fnoclaim=2
-p3 unit=rad ac=1 sp=0.02 cad=148 reads=55 conv=0 osc=35 moving=10 stable=3 equil=7 improving=0 diverging=0 other=0 full=46 fosc=35 fquiet=9 fnoclaim=2
-p3 unit=rad ac=1 sp=0.05 cad=74 reads=109 conv=0 osc=0 moving=11 stable=66 equil=32 improving=0 diverging=0 other=0 full=100 fosc=0 fquiet=97 fnoclaim=3
-p3 unit=rad ac=1 sp=0.05 cad=94 reads=86 conv=0 osc=60 moving=10 stable=16 equil=0 improving=0 diverging=0 other=0 full=77 fosc=60 fquiet=15 fnoclaim=2
-p3 unit=rad ac=1 sp=0.05 cad=148 reads=55 conv=0 osc=35 moving=13 stable=7 equil=0 improving=0 diverging=0 other=0 full=46 fosc=35 fquiet=6 fnoclaim=5
-p3 unit=deg ac=0 sp=0.02 cad=74 reads=109 conv=0 osc=0 moving=108 stable=1 equil=0 improving=0 diverging=0 other=0 full=100 fosc=0 fquiet=0 fnoclaim=100
-p3 unit=mrad ac=0 sp=0.02 cad=74 reads=109 conv=0 osc=0 moving=109 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=0 fquiet=0 fnoclaim=100
-p3 unit=deg ac=0 sp=0.02 cad=94 reads=86 conv=0 osc=62 moving=23 stable=1 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15
-p3 unit=mrad ac=0 sp=0.02 cad=94 reads=86 conv=0 osc=62 moving=24 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15
-p3 unit=deg ac=0 sp=0.02 cad=148 reads=55 conv=0 osc=35 moving=19 stable=1 equil=0 improving=0 diverging=0 other=0 full=46 fosc=35 fquiet=0 fnoclaim=11
-p3 unit=mrad ac=0 sp=0.02 cad=148 reads=55 conv=0 osc=35 moving=20 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=35 fquiet=0 fnoclaim=11
-p3 unit=deg ac=0 sp=0.05 cad=74 reads=109 conv=0 osc=0 moving=109 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=0 fquiet=0 fnoclaim=100
-p3 unit=mrad ac=0 sp=0.05 cad=74 reads=109 conv=0 osc=0 moving=109 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=0 fquiet=0 fnoclaim=100
-p3 unit=deg ac=0 sp=0.05 cad=94 reads=86 conv=0 osc=62 moving=24 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15
-p3 unit=mrad ac=0 sp=0.05 cad=94 reads=86 conv=0 osc=62 moving=24 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15
-p3 unit=deg ac=0 sp=0.05 cad=148 reads=55 conv=0 osc=35 moving=20 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=35 fquiet=0 fnoclaim=11
-p3 unit=mrad ac=0 sp=0.05 cad=148 reads=55 conv=0 osc=35 moving=20 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=35 fquiet=0 fnoclaim=11
-p3 unit=deg ac=1 sp=0.02 cad=74 reads=109 conv=0 osc=0 moving=109 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=0 fquiet=0 fnoclaim=100
-p3 unit=mrad ac=1 sp=0.02 cad=74 reads=109 conv=0 osc=0 moving=109 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=0 fquiet=0 fnoclaim=100
-p3 unit=deg ac=1 sp=0.02 cad=94 reads=86 conv=0 osc=62 moving=24 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15
-p3 unit=mrad ac=1 sp=0.02 cad=94 reads=86 conv=0 osc=62 moving=24 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15
-p3 unit=deg ac=1 sp=0.02 cad=148 reads=55 conv=0 osc=35 moving=20 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=35 fquiet=0 fnoclaim=11
-p3 unit=mrad ac=1 sp=0.02 cad=148 reads=55 conv=0 osc=35 moving=20 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=35 fquiet=0 fnoclaim=11
-p3 unit=deg ac=1 sp=0.05 cad=74 reads=109 conv=0 osc=0 moving=109 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=0 fquiet=0 fnoclaim=100
-p3 unit=mrad ac=1 sp=0.05 cad=74 reads=109 conv=0 osc=0 moving=109 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=0 fquiet=0 fnoclaim=100
-p3 unit=deg ac=1 sp=0.05 cad=94 reads=86 conv=0 osc=62 moving=24 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15
-p3 unit=mrad ac=1 sp=0.05 cad=94 reads=86 conv=0 osc=62 moving=24 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15
-p3 unit=deg ac=1 sp=0.05 cad=148 reads=55 conv=0 osc=35 moving=20 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=35 fquiet=0 fnoclaim=11
-p3 unit=mrad ac=1 sp=0.05 cad=148 reads=55 conv=0 osc=35 moving=20 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=35 fquiet=0 fnoclaim=11
-p3 unit=rad ac=0 sp=0.05 cad=84 reads=96 conv=46 osc=23 moving=10 stable=1 equil=16 improving=0 diverging=0 other=0 full=87 fosc=23 fquiet=62 fnoclaim=2
-p3 unit=rad ac=0 sp=0.05 cad=104 reads=77 conv=12 osc=54 moving=10 stable=1 equil=0 improving=0 diverging=0 other=0 full=68 fosc=54 fquiet=12 fnoclaim=2
-p3 unit=rad ac=0 sp=0.05 cad=114 reads=71 conv=7 osc=53 moving=10 stable=1 equil=0 improving=0 diverging=0 other=0 full=62 fosc=53 fquiet=7 fnoclaim=2
-p3 unit=rad ac=0 sp=0.05 cad=124 reads=65 conv=0 osc=52 moving=10 stable=2 equil=1 improving=0 diverging=0 other=0 full=56 fosc=52 fquiet=2 fnoclaim=2
-p3 unit=rad ac=0 sp=0.05 cad=134 reads=60 conv=0 osc=35 moving=10 stable=9 equil=6 improving=0 diverging=0 other=0 full=51 fosc=35 fquiet=14 fnoclaim=2
-p3 unit=rad ac=1 sp=0.05 cad=84 reads=96 conv=0 osc=51 moving=11 stable=34 equil=0 improving=0 diverging=0 other=0 full=87 fosc=51 fquiet=33 fnoclaim=3
-p3 unit=rad ac=1 sp=0.05 cad=104 reads=77 conv=0 osc=66 moving=10 stable=1 equil=0 improving=0 diverging=0 other=0 full=68 fosc=66 fquiet=0 fnoclaim=2
-p3 unit=rad ac=1 sp=0.05 cad=114 reads=71 conv=0 osc=60 moving=10 stable=1 equil=0 improving=0 diverging=0 other=0 full=62 fosc=60 fquiet=0 fnoclaim=2
-p3 unit=rad ac=1 sp=0.05 cad=124 reads=65 conv=0 osc=51 moving=11 stable=3 equil=0 improving=0 diverging=0 other=0 full=56 fosc=51 fquiet=2 fnoclaim=3
-p3 unit=rad ac=1 sp=0.05 cad=134 reads=60 conv=0 osc=35 moving=24 stable=1 equil=0 improving=0 diverging=0 other=0 full=51 fosc=35 fquiet=0 fnoclaim=16
-p3n n=2 sp=0.05 cad=94 reads=172 alerts=100 per_ac_permille=581 sweeps=86 firing=60 fleet_permille=698 fsweeps=77 ffiring=60 ffleet_permille=779 first=11 last=85 per=[40, 60]
-p3n n=4 sp=0.05 cad=94 reads=344 alerts=204 per_ac_permille=593 sweeps=86 firing=60 fleet_permille=698 fsweeps=77 ffiring=60 ffleet_permille=779 first=11 last=85 per=[40, 60, 60, 44]
-p3n n=8 sp=0.05 cad=94 reads=688 alerts=384 per_ac_permille=558 sweeps=86 firing=60 fleet_permille=698 fsweeps=77 ffiring=60 ffleet_permille=779 first=11 last=85 per=[40, 60, 60, 44, 0, 60, 60, 60]
-p3n n=16 sp=0.05 cad=94 reads=1376 alerts=708 per_ac_permille=515 sweeps=86 firing=60 fleet_permille=698 fsweeps=77 ffiring=60 ffleet_permille=779 first=11 last=85 per=[40, 60, 60, 44, 0, 60, 60, 60, 0, 40, 60, 60, 44, 0, 60, 60]
+p3 unit=rad ac=0 sp=0.02 cad=74 reads=108 conv=98 osc=1 moving=9 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=98 fnoclaim=1 flate=0
+p3 unit=rad ac=0 sp=0.02 cad=94 reads=85 conv=75 osc=1 moving=9 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=1 fquiet=75 fnoclaim=1 flate=0
+p3 unit=rad ac=0 sp=0.02 cad=148 reads=54 conv=44 osc=1 moving=0 stable=9 equil=0 improving=0 diverging=0 other=0 full=46 fosc=1 fquiet=45 fnoclaim=0 flate=0
+p3 unit=rad ac=0 sp=0.05 cad=74 reads=108 conv=73 osc=1 moving=9 stable=0 equil=25 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=98 fnoclaim=1 flate=0
+p3 unit=rad ac=0 sp=0.05 cad=94 reads=85 conv=25 osc=41 moving=9 stable=1 equil=9 improving=0 diverging=0 other=0 full=77 fosc=41 fquiet=35 fnoclaim=1 flate=40
+p3 unit=rad ac=0 sp=0.05 cad=148 reads=54 conv=0 osc=36 moving=9 stable=6 equil=3 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=9 fnoclaim=1 flate=35
+p3 unit=rad ac=1 sp=0.02 cad=74 reads=108 conv=97 osc=1 moving=9 stable=0 equil=1 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=98 fnoclaim=1 flate=0
+p3 unit=rad ac=1 sp=0.02 cad=94 reads=85 conv=55 osc=17 moving=9 stable=0 equil=4 improving=0 diverging=0 other=0 full=77 fosc=17 fquiet=59 fnoclaim=1 flate=16
+p3 unit=rad ac=1 sp=0.02 cad=148 reads=54 conv=0 osc=36 moving=9 stable=2 equil=7 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=9 fnoclaim=1 flate=35
+p3 unit=rad ac=1 sp=0.05 cad=74 reads=108 conv=0 osc=1 moving=10 stable=65 equil=32 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=97 fnoclaim=2 flate=0
+p3 unit=rad ac=1 sp=0.05 cad=94 reads=85 conv=0 osc=61 moving=9 stable=15 equil=0 improving=0 diverging=0 other=0 full=77 fosc=61 fquiet=15 fnoclaim=1 flate=60
+p3 unit=rad ac=1 sp=0.05 cad=148 reads=54 conv=0 osc=36 moving=12 stable=6 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=6 fnoclaim=4 flate=35
+p3 unit=deg ac=0 sp=0.02 cad=74 reads=108 conv=0 osc=5 moving=103 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=0 fnoclaim=99 flate=0
+p3 unit=mrad ac=0 sp=0.02 cad=74 reads=108 conv=0 osc=5 moving=103 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=0 fnoclaim=99 flate=0
+p3 unit=deg ac=0 sp=0.02 cad=94 reads=85 conv=0 osc=67 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15 flate=61
+p3 unit=mrad ac=0 sp=0.02 cad=94 reads=85 conv=0 osc=67 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15 flate=61
+p3 unit=deg ac=0 sp=0.02 cad=148 reads=54 conv=0 osc=36 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=0 fnoclaim=10 flate=35
+p3 unit=mrad ac=0 sp=0.02 cad=148 reads=54 conv=0 osc=36 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=0 fnoclaim=10 flate=35
+p3 unit=deg ac=0 sp=0.05 cad=74 reads=108 conv=0 osc=5 moving=103 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=0 fnoclaim=99 flate=0
+p3 unit=mrad ac=0 sp=0.05 cad=74 reads=108 conv=0 osc=5 moving=103 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=0 fnoclaim=99 flate=0
+p3 unit=deg ac=0 sp=0.05 cad=94 reads=85 conv=0 osc=67 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15 flate=61
+p3 unit=mrad ac=0 sp=0.05 cad=94 reads=85 conv=0 osc=67 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15 flate=61
+p3 unit=deg ac=0 sp=0.05 cad=148 reads=54 conv=0 osc=36 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=0 fnoclaim=10 flate=35
+p3 unit=mrad ac=0 sp=0.05 cad=148 reads=54 conv=0 osc=36 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=0 fnoclaim=10 flate=35
+p3 unit=deg ac=1 sp=0.02 cad=74 reads=108 conv=0 osc=5 moving=103 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=0 fnoclaim=99 flate=0
+p3 unit=mrad ac=1 sp=0.02 cad=74 reads=108 conv=0 osc=5 moving=103 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=0 fnoclaim=99 flate=0
+p3 unit=deg ac=1 sp=0.02 cad=94 reads=85 conv=0 osc=67 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15 flate=61
+p3 unit=mrad ac=1 sp=0.02 cad=94 reads=85 conv=0 osc=67 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15 flate=61
+p3 unit=deg ac=1 sp=0.02 cad=148 reads=54 conv=0 osc=36 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=0 fnoclaim=10 flate=35
+p3 unit=mrad ac=1 sp=0.02 cad=148 reads=54 conv=0 osc=36 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=0 fnoclaim=10 flate=35
+p3 unit=deg ac=1 sp=0.05 cad=74 reads=108 conv=0 osc=5 moving=103 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=0 fnoclaim=99 flate=0
+p3 unit=mrad ac=1 sp=0.05 cad=74 reads=108 conv=0 osc=5 moving=103 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=0 fnoclaim=99 flate=0
+p3 unit=deg ac=1 sp=0.05 cad=94 reads=85 conv=0 osc=67 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15 flate=61
+p3 unit=mrad ac=1 sp=0.05 cad=94 reads=85 conv=0 osc=67 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15 flate=61
+p3 unit=deg ac=1 sp=0.05 cad=148 reads=54 conv=0 osc=36 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=0 fnoclaim=10 flate=35
+p3 unit=mrad ac=1 sp=0.05 cad=148 reads=54 conv=0 osc=36 moving=18 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=0 fnoclaim=10 flate=35
+p3 unit=rad ac=0 sp=0.05 cad=84 reads=95 conv=46 osc=24 moving=9 stable=0 equil=16 improving=0 diverging=0 other=0 full=87 fosc=24 fquiet=62 fnoclaim=1 flate=23
+p3 unit=rad ac=0 sp=0.05 cad=104 reads=76 conv=12 osc=55 moving=9 stable=0 equil=0 improving=0 diverging=0 other=0 full=68 fosc=55 fquiet=12 fnoclaim=1 flate=54
+p3 unit=rad ac=0 sp=0.05 cad=114 reads=70 conv=7 osc=54 moving=9 stable=0 equil=0 improving=0 diverging=0 other=0 full=62 fosc=54 fquiet=7 fnoclaim=1 flate=53
+p3 unit=rad ac=0 sp=0.05 cad=124 reads=64 conv=0 osc=53 moving=9 stable=1 equil=1 improving=0 diverging=0 other=0 full=56 fosc=53 fquiet=2 fnoclaim=1 flate=52
+p3 unit=rad ac=0 sp=0.05 cad=134 reads=59 conv=0 osc=36 moving=9 stable=8 equil=6 improving=0 diverging=0 other=0 full=51 fosc=36 fquiet=14 fnoclaim=1 flate=35
+p3 unit=rad ac=1 sp=0.05 cad=84 reads=95 conv=0 osc=52 moving=10 stable=33 equil=0 improving=0 diverging=0 other=0 full=87 fosc=52 fquiet=33 fnoclaim=2 flate=51
+p3 unit=rad ac=1 sp=0.05 cad=104 reads=76 conv=0 osc=67 moving=9 stable=0 equil=0 improving=0 diverging=0 other=0 full=68 fosc=67 fquiet=0 fnoclaim=1 flate=66
+p3 unit=rad ac=1 sp=0.05 cad=114 reads=70 conv=0 osc=61 moving=9 stable=0 equil=0 improving=0 diverging=0 other=0 full=62 fosc=61 fquiet=0 fnoclaim=1 flate=60
+p3 unit=rad ac=1 sp=0.05 cad=124 reads=64 conv=0 osc=52 moving=10 stable=2 equil=0 improving=0 diverging=0 other=0 full=56 fosc=52 fquiet=2 fnoclaim=2 flate=51
+p3 unit=rad ac=1 sp=0.05 cad=134 reads=59 conv=0 osc=36 moving=23 stable=0 equil=0 improving=0 diverging=0 other=0 full=51 fosc=36 fquiet=0 fnoclaim=15 flate=35
+p3n n=2 sp=0.05 cad=94 reads=170 alerts=100 per_ac_permille=588 sweeps=85 firing=60 fleet_permille=706 fsweeps=77 ffiring=60 ffleet_permille=779 first=10 last=84 per=[40, 60]
+p3n n=4 sp=0.05 cad=94 reads=340 alerts=204 per_ac_permille=600 sweeps=85 firing=60 fleet_permille=706 fsweeps=77 ffiring=60 ffleet_permille=779 first=10 last=84 per=[40, 60, 60, 44]
+p3n n=8 sp=0.05 cad=94 reads=680 alerts=384 per_ac_permille=565 sweeps=85 firing=60 fleet_permille=706 fsweeps=77 ffiring=60 ffleet_permille=779 first=10 last=84 per=[40, 60, 60, 44, 0, 60, 60, 60]
+p3n n=16 sp=0.05 cad=94 reads=1360 alerts=708 per_ac_permille=521 sweeps=85 firing=60 fleet_permille=706 fsweeps=77 ffiring=60 ffleet_permille=779 first=10 last=84 per=[40, 60, 60, 44, 0, 60, 60, 60, 0, 40, 60, 60, 44, 0, 60, 60]
 P3ROWS
-grep -q '^p3 total reads across the sweep: 3000$' "$OUT" || { echo "FAIL: P3 sweep population changed"; exit 1; }
+grep -q '^p3 total reads across the sweep: 2964$' "$OUT" || { echo "FAIL: P3 sweep population changed"; exit 1; }
 grep -q '^p3cad total full-window reads across the cadence sweep: 648$' "$OUT" || { echo "FAIL: P3 cadence-sweep population changed"; exit 1; }
 # `other` is the residual for a label the driver does not model. Round 8's
 # header claimed all seven classes and the chain implemented six (no

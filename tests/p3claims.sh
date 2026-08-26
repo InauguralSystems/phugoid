@@ -79,7 +79,7 @@ p3_claims() {
     local rowfile
     rowfile=$(mktemp)
     grep -oP '^p3 unit=\K\S+(?=.*)' "$out" >/dev/null 2>&1
-    sed -n 's/^p3 unit=\([a-z]*\) ac=\([0-9]*\) sp=\([0-9.]*\) cad=\([0-9]*\) .*full=\([0-9]*\) fosc=\([0-9]*\) fquiet=\([0-9]*\).*/\1 \2 \3 \4 \5 \6 \7/p' "$out" > "$rowfile"
+    sed -n 's/^p3 unit=\([a-z]*\) ac=\([0-9]*\) sp=\([0-9.]*\) cad=\([0-9]*\) .*full=\([0-9]*\) fosc=\([0-9]*\) fquiet=\([0-9]*\) fnoclaim=[0-9]* flate=\([0-9]*\).*/\1 \2 \3 \4 \5 \6 \7 \8/p' "$out" > "$rowfile"
     local nrows
     nrows=$(wc -l < "$rowfile")
 
@@ -93,20 +93,33 @@ p3_claims() {
     # one the window/period argument actually explains: a 10-sample window
     # at cadence 74 spans 0.79 of a phugoid period, so `oscillating`
     # cannot fire whatever the numbers are scaled to.
-    local u a s c full fosc fq det fac worstdet=-1 nb74=0
-    while read -r u a s c full fosc fq; do
+    local u a s c full fosc fq flate det fac worstdet=-1 nb74=0
+    while read -r u a s c full fosc fq flate; do
         [ "$c" = "74" ] || continue
         nb74=$((nb74+1))
-        # EXACTLY zero, not "below 5%". Round 11: the un-primed channel
-        # (`local q is 0.0`) manufactures exactly ONE `oscillating` per
-        # channel -- the read where the window first fills, whose window
-        # content is entirely the startup transient from a fictitious 0 to
-        # the trim pitch rate. Round 10 published that single artifact as
-        # "detection = 1.0%, the unit-invariant half". A <=5% bound cannot
-        # tell 1 artifact from 0 physics, so the bound is 0 and the
-        # priming regression reds here.
-        if [ "$fosc" -ne 0 ]; then
-            _cf P3.blind74 "cadence 74 is no longer blind for unit=$u ac=$a sp=$s ($fosc of $full full-window reads detect a live mode; if this is 1 per row, the channel initialiser is unprimed again)"
+        # Graded on LATE reads -- strictly after the first full window.
+        #
+        # The bound has now been wrong three ways. Round 10 used "<=5%"
+        # and reported 1.0% detection that was really the unprimed
+        # `local q is 0.0` initialiser. Round 11 primed, measured 0, and
+        # asserted EXACTLY zero -- but its priming sat one FRAME before
+        # the first read while every later gap is one CADENCE, and that
+        # uneven gap suppressed the one true detection. Round 12 primes
+        # from inside the loop so every gap is a cadence, and the honest
+        # number is 1 of 100: the observer fires once, at asn=10, the
+        # first window that is full, which spans the run's
+        # largest-amplitude cycle. That is a REAL detection.
+        #
+        # The finding is that it never fires again. `flate` counts
+        # detections after that first full window, and it must be 0 while
+        # the aircraft is still swinging 4.5-8.8 m/s peak-to-peak. This
+        # bound is about the physics rather than about an artifact, so it
+        # cannot be re-tuned by a future priming change.
+        if [ "$flate" -ne 0 ]; then
+            _cf P3.blind74 "cadence 74 is no longer blind for unit=$u ac=$a sp=$s ($flate detections after the first full window, on a mode the window cannot span)"
+        fi
+        if [ "$fosc" -gt 1 ]; then
+            _cf P3.blind74 "cadence 74 detects $fosc of $full full-window reads for unit=$u ac=$a sp=$s (expected at most the single first-full-window read)"
         fi
     done < "$rowfile"
     # EXACT population. A ">= 6" bound tolerated losing both mrad rows
@@ -124,7 +137,7 @@ p3_claims() {
     # is stated. Round 9 published the false-all-clear as if it were a
     # property of the observer rather than of the radian scaling.
     local radmax=-1 degmax=-1 nrad=0 nnonrad=0
-    while read -r u a s c full fosc fq; do
+    while read -r u a s c full fosc fq flate; do
         [ "$c" = "74" ] || continue
         fac=$(( fq * 100 / full ))
         if [ "$u" = "rad" ]; then
@@ -155,13 +168,51 @@ p3_claims() {
     # which would have "refuted" P3 while actually being its strongest
     # confirmation. The aircraft is measured healthy (claim 1), and a
     # verdict-driven detector alerts on 97% of its reads.
-    local u a s c full fosc fq det fac best=-1 bestrow=""
-    while read -r u a s c full fosc fq; do
+    local u a s c full fosc fq flate det fac best=-1 bestrow=""
+    while read -r u a s c full fosc fq flate; do
         [ "$full" -gt 0 ] || { _cf P3.nuisance "row unit=$u ac=$a sp=$s cad=$c has zero full-window reads (vacuous check)"; continue; }
         det=$(( fosc * 100 / full ))
         if [ "$det" -gt "$best" ]; then best=$det; bestrow="unit=$u ac=$a sp=$s cad=$c"; fi
     done < "$rowfile"
-    [ "$best" -ge 90 ] || _cf P3.nuisance "no cadence makes the detector fire on a healthy aircraft (best ${best}% at $bestrow); P3 is REFUTED, re-grade the rung"
+    [ "$best" -ge 90 ] || _cf P3.nuisance "no cadence makes the detector fire on 90%+ of reads of a healthy aircraft (best ${best}% at $bestrow) — re-grade the rung; note this bound is a strong-form check, and P3 is only truly refuted by a stream that is quiet at EVERY cadence"
+
+    # --- claim 5: the long-cadence tail, pinned because round 12 found
+    # all three of round 11's readings of it wrong.
+    #
+    # Round 11 concluded "from cadence 134 on, ac0 and ac1 are identical --
+    # the amplitude dependence vanishes once the step clears the deadband,
+    # the same mechanism as the unit axis". Measured, that is true of ONE
+    # column. `fosc` is equal (36 = 36), and `fquiet` is not: at cadence
+    # 134 the small-amplitude aircraft issues a false all-clear on 14 of
+    # 51 full-window reads while the large-amplitude one issues 0. The
+    # amplitude dependence did not vanish; it moved into the column this
+    # rung calls the dangerous direction. And it is NOT the unit-axis
+    # mechanism: that one drives `fquiet` to 0 for BOTH aircraft (every
+    # deg/mrad row), which is exactly what does not happen here.
+    #
+    # Round 11 also read "a local minimum at 134, recovering at 148" off
+    # the RATE. `fosc` is frozen at 36 across both cadences; only the
+    # denominator moves (51 -> 46 full-window reads). The numerator never
+    # changes, so there is no recovery to explain.
+    #
+    # This is the third time in this rung a conclusion came from reading
+    # one column of a multi-column table (round 8's three-way bucket,
+    # round 9's single `div` scalar, round 11's `fosc` ratio), so the
+    # corrected statement gets a claim of its own.
+    local t0o t0q t1o t1q t0f t1f
+    t0o=$(awk '$1=="rad" && $2=="0" && $3=="0.05" && $4=="134" {print $6}' "$rowfile")
+    t1o=$(awk '$1=="rad" && $2=="1" && $3=="0.05" && $4=="134" {print $6}' "$rowfile")
+    t0q=$(awk '$1=="rad" && $2=="0" && $3=="0.05" && $4=="134" {print $7}' "$rowfile")
+    t1q=$(awk '$1=="rad" && $2=="1" && $3=="0.05" && $4=="134" {print $7}' "$rowfile")
+    t0f=$(awk '$1=="rad" && $2=="0" && $3=="0.05" && $4=="148" {print $6}' "$rowfile")
+    t1f=$(awk '$1=="rad" && $2=="1" && $3=="0.05" && $4=="148" {print $6}' "$rowfile")
+    if [ -z "$t0o" ] || [ -z "$t1o" ] || [ -z "$t0q" ] || [ -z "$t1q" ] || [ -z "$t0f" ] || [ -z "$t1f" ]; then
+        _cf P3.tail "cadence 134/148 rows absent from the sweep (vacuous check)"
+    else
+        [ "$t0o" -eq "$t1o" ] || _cf P3.tail "the two aircraft no longer agree on DETECTION at cadence 134 ($t0o vs $t1o)"
+        [ "$t0q" -ne "$t1q" ] || _cf P3.tail "the two aircraft now agree on FALSE ALL-CLEAR at cadence 134 ($t0q vs $t1q) — the amplitude dependence really would have vanished, and round 11's retracted claim would be right"
+        [ "$t0f" -eq "$t0o" ] && [ "$t1f" -eq "$t1o" ] || _cf P3.tail "the detection COUNT is no longer frozen from 134 to 148 (ac0 $t0o->$t0f, ac1 $t1o->$t1f); the rate change there is no longer denominator-only"
+    fi
 
     # --- claim 5: the fleet alert rate does not FALL with N.
     #

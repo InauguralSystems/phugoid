@@ -76,14 +76,19 @@ plant c8 P3.rows 1 '/^p3 unit=/d'
 # nothing noticed until a critic re-expressed the channel in degrees and
 # watched every substantive claim invert while the gate still printed OK.
 plant c9 'P3.blind74 P3.unitdep' 2 '/^p3 unit=(deg|mrad) /d'
-# c10: THE PRIMING REGRESSION. Restore the one `oscillating` per
-# cadence-74 channel that an unprimed `local q is 0.0` manufactures. This
-# is the exact artifact round 10 published as "detection = 1.0%, the
-# unit-invariant half", and a <=5% bound could not distinguish it from
-# zero. Round 5 of this rung had already found that "the initialiser is a
-# sample"; rung 4 applied it to channel CONSTRUCTION and not to the
-# channel's initial VALUE.
-plant c10 P3.blind74 12 's/^(p3 unit=[a-z]+ ac=[01] sp=0\.0[25] cad=74 .*)fosc=0/\1fosc=1/'
+# c10: THE BLINDNESS REGRESSION. Make the observer detect the mode in the
+# STEADY stream at cadence 74, after the first full window. That is the
+# claim's whole content: the detector fires once on the largest cycle and
+# then never again while the aircraft is still swinging. Graded on
+# `flate` rather than on `fosc` because the fosc bound has now been wrong
+# three ways across rounds 10, 11 and 12 -- twice from an artifact of the
+# harness's own channel priming.
+plant c10 P3.blind74 12 's/^(p3 unit=[a-z]+ ac=[01] sp=0\.0[25] cad=74 .*)flate=0/\1flate=3/'
+
+# c11/c12: the long-cadence tail. Round 11 read both of these off the
+# `fosc` column alone and got both wrong.
+plant c11 P3.tail 1 's/^(p3 unit=rad ac=0 sp=0\.05 cad=134 .*)fquiet=[0-9]+/\1fquiet=0/'
+plant c12 P3.tail 1 's/^(p3 unit=rad ac=0 sp=0\.05 cad=148 .*fosc=)[0-9]+/\150/'
 
 # The round-8 defect itself, checked mechanically: the claim assertions
 # must run BEFORE the exact-row pins. If the pins come first they exit 1
@@ -95,4 +100,4 @@ PN=$(grep -n "^P3ROWS$" tests/test_swarm.sh | head -1 | cut -d: -f1)
 [ "$CL" -lt "$PN" ] || { echo "FAIL: P3's claim assertions (line $CL) run AFTER the exact-row pins (line $PN) — they are unreachable, which is the round-8 defect"; exit 1; }
 echo "--- ordering: claims at line $CL precede the row pins at line $PN"
 
-echo "PASS: all 10 P3 claim plants red exactly their own claim set, and the claims precede the row pins"
+echo "PASS: all 12 P3 claim plants red exactly their own claim set, and the claims precede the row pins"
