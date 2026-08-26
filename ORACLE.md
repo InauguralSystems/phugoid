@@ -1702,7 +1702,10 @@ observing" — in THREE arms, because emission is gated per compilation
 unit, not per binding, so an armed unit pays the walk on every assignment
 including scratch:
 
-- **ceiling** — `EIGS_OBS_FORCE=1`, no `unobserved:` blocks (naive all-on);
+- **ceiling** — no `unobserved:` blocks anywhere (naive all-on). The design
+  named `EIGS_OBS_FORCE=1` here; round 5 found nothing in the repo sets it,
+  and nothing needs to: the module holds predicates, so it is armed anyway
+  (G7). The arm is what it always measured; the description was wrong.
 - **disciplined** — `unobserved:` around the hot math, observation only on
   the state the predicates actually read (the best a programmer can write
   today);
@@ -1838,6 +1841,26 @@ Reported as a comparison that does not close: either the hand count is
 short, or a container walk costs more than a scalar write, and this rung
 has not separated them.
 
+The estimator took four attempts and the failures are worth recording,
+because each confused a different thing with noise. (1) Exclude points
+whose fixed cost exceeds a share of the run — discarded usable data, and
+on the faster CI container excluded two of three and hard-failed. (2)
+Subtract the fixed cost instead — correct, because it is a BIAS present in
+both numerator and denominator, but it does nothing about noise. (3) Skip
+points whose ARM spread is large — called every point unresolvable on a
+loaded box while the ratios themselves were steady at 1.47/1.49. (4) Take
+the MINIMUM of paired ratios — an extreme order statistic, so one
+contention event dominated it and produced ratios of 0.79 and 0.89, i.e.
+paired runs where the ceiling came out FASTER than the floor.
+
+What works: the **median of five PAIRED ratios**, with the measured fixed
+cost subtracted. Pairing makes correlated load cancel; the median absorbs
+the pairings where it did not. One implementation serves every ratio the
+gate asserts — round 5 had left the disciplined/unarmed check on unpaired
+single minima while the headline ratio had moved on, so it still failed at
+small N for the reason the headline had already fixed. Three consecutive
+green runs on a contended box (1.37 / 1.38 / 1.46).
+
 The measurement points themselves are now DERIVED. A one-frame run gives
 the fixed cost (interpreter start, parse, trim solve); any N where that
 exceeds 5% of the run is excluded and named in the output, because at
@@ -1851,7 +1874,7 @@ faster than this box, so the same 1500-frame runs put fixed cost at 19%
 the `NVALID >= 2` guard refused to call that a curve. That is the gate
 declining to measure rather than reporting a one-point line, which is the
 behaviour the derived filter exists to produce. The fix was more work per
-point, not a looser filter: the ladder is now 4/16/32, and N = 32 is valid
+point, not a looser filter: the ladder stays 1/4/16 — round 4 recorded a change to 4/16/32 that was never applied, and round 5 caught the comment contradicting the code, and N = 32 is valid
 on both machines.
 
 One further methodological fix from the same failure: the disciplined and

@@ -70,7 +70,7 @@ sched is [[0.0, tr.de]]
 NA is 6
 FR is 200
 DT is 0.0166667
-SP is 0.02
+SP is 0.05
 
 # W1 — the pinned trim literals in the unarmed control MUST match the
 # solver. They exist only because `trim_solve` needs `import linalg` and
@@ -210,15 +210,23 @@ FRL is 8000
 shared_w4 is 0
 if plant == "w4":
     shared_w4 is 1
-hs is run_named4 of [FRL, 0.05, 0.02, CAD, tr.state, tr.P, sched, shared_w4]
+hs is run_named4 of [FRL, 0.05, SP, CAD, tr.state, tr.P, sched, shared_w4]
 ai2 is 0
 loop while ai2 < 4:
-    local solo is run_solo of [ai2, FRL, 0.05, 0.02, CAD, tr.state, tr.P, sched]
+    local solo is run_solo of [ai2, 4, FRL, 0.05, SP, CAD, tr.state, tr.P, sched]
     check_exact of [f"W5.fleet.eq.solo.a{ai2}", hs[ai2], solo]
     ai2 is ai2 + 1
 # ...and the counts must not be vacuously zero, which is how round 1's
 # stream passed for the wrong reason: at dt=0.05 read every frame, the
 # 10-sample window spans 1% of the phugoid period and NOTHING ever fires.
+# The dispersion is 0.05, not 0.02. Round 5: at 0.02 the counts were
+# 1/17/17/1 and a seed probe (initialise the channel at 100.0 instead of
+# 0.0) turned them into 0/16/16/0 -- so exactly ONE hit per channel was the
+# initialiser sample, and aircraft 0 and 3 had ZERO physics-driven
+# verdicts. Those two fleet-vs-solo rows were comparing 1 == 1 where the 1
+# was an artifact, which is the same vacuity the cadence fix below claims
+# to have removed. At 0.05 all four carry physics (41/61/61/45), so all
+# four rows compare something.
 # The cadence is 94, not 74. Round 3: the harness was still running at
 # the cadence ORACLE.md's own P3 section derives as too short -- a
 # 10-sample window at cadence 74 spans 0.79 of a phugoid period, so
@@ -229,8 +237,8 @@ loop while ai2 < 4:
 # to sit here called 74 "rung 3's result, not a tuning knob" -- the exact
 # transplanted number ORACLE.md retracts.
 tot is hs[0] + hs[1] + hs[2] + hs[3]
-check_exact of ["W5.stream.live", tot, 36]
-cn is run_closure_n of [4, FRL, 0.05, 0.02, CAD, tr.state, tr.P, sched]
+check_exact of ["W5.stream.live", tot, 208]
+cn is run_closure_n of [4, FRL, 0.05, SP, CAD, tr.state, tr.P, sched]
 ci is 0
 loop while ci < 4:
     check_exact of [f"W6.closure.eq.named.a{ci}", cn[ci], hs[ci]]
