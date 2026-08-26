@@ -261,6 +261,8 @@ slot per entity.
 | dict field `ch.a` | no — a Value in a container | none |
 | list element `xs[0]` | no — a Value in a container | none |
 | function parameter | frame dies each call | none |
+| `for`-body local | fresh env per iteration | none |
+| `loop while`-body local | one env, persists | works — and INTERLEAVES if it reads several entities |
 
 **What the gap actually is:** containers cannot carry observer state, so a
 fleet (a list) or a registry (a dict) cannot be observed element-wise, and
@@ -274,3 +276,34 @@ Upstream ask, now correctly weighted: make dict-field and list-element
 assignment carry trajectory keyed by (container identity, key) — with
 closures available this is convenience, not necessity, but it is the form
 consumers reach for first and its absence fails silently.
+
+### G9 — `unobserved:` is not semantically neutral
+Found at rung-4 blind-critic round 4, 2026-08-26. Upstreamed as
+**EigenScript#1049**.
+
+`unobserved:` is documented and used as a PERFORMANCE tool, but an
+assignment inside it is not merely uncounted — it is absent from the
+observer's window. A binding whose initialiser sits inside an
+`unobserved:` block therefore carries a different history for the rest of
+the program:
+
+```
+initializer observed   : oscillating hits = 19
+initializer unobserved : oscillating hits = 18
+```
+
+Identical trajectory, identical reads, different verdict counts.
+
+**How it surfaced.** Two channel forms that must agree — four hand-written
+named locals, and N closures each capturing its own local — disagreed by
+exactly one hit on every channel (`[1,17,17,1]` against `[0,16,16,0]`).
+The only difference was that the closure form built its channels inside
+`unobserved:`, because constructing N channels is setup. Moving it out
+restored agreement exactly. This rung's fleet-vs-solo oracle is what
+caught it, and `W6.closure.eq.named.*` is now the standing tripwire.
+
+**Why it matters beyond this repo:** `unobserved:` is the sanctioned
+workaround for G7/#1046 (any import arms the observer, so it is the only
+elision tool available) — and the recommended mitigation is not
+verdict-preserving. A consumer wrapping setup for speed silently changes
+what the observer later says, with no diagnostic.

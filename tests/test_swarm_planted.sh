@@ -13,7 +13,7 @@ WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 
 run_plant() {
     "$EIGS" tests/swarm_check.eigs "$1" > "$WORK/out" 2>&1 || true
-    grep -q '^CHECKS_RUN 43$' "$WORK/out" || { echo "FAIL: plant $1 ran a different population"; tail -3 "$WORK/out"; exit 1; }
+    grep -q '^CHECKS_RUN 47$' "$WORK/out" || { echo "FAIL: plant $1 ran a different population"; tail -3 "$WORK/out"; exit 1; }
     grep '^FAIL ' "$WORK/out" | awk '{print $2}' >> "$WORK/red_union"
 }
 expect_reds() {
@@ -28,11 +28,16 @@ run_plant w1; expect_reds 1; expect_red 'W3\.dispersion'
 echo "--- W2: one arm integrates fewer frames (a variant that measures LESS) ---"
 run_plant w2; expect_reds 6; expect_red 'W2\.arm1\.digest'
 echo "--- W3: the pinned trim literals drift from the solver ---"
-run_plant w3; expect_reds 30; expect_red 'W1\.trim0' 'W1\.thrust'
+run_plant w3; expect_reds 6; expect_red 'W1\.trim0' 'W1\.de' 'W1\.thrust'
 echo "--- W4: the verdict stream read through ONE shared binding again ---"
-run_plant w4; expect_reds 5; expect_red 'W5\.fleet\.eq\.solo\.a0' 'W5\.fleet\.eq\.solo\.a3' 'W5\.stream\.live'
+# w4 now also reds the four W6 closure-vs-named rows: the shared-binding
+# defect makes run_named4 disagree with BOTH its solo oracle and the
+# closure form, which is the stronger statement.
+run_plant w4; expect_reds 9; expect_red 'W5\.fleet\.eq\.solo\.a0' 'W5\.fleet\.eq\.solo\.a3' 'W5\.stream\.live' 'W6\.closure\.eq\.named\.a0'
 echo "--- W5: the digest saturates to a constant ---"
 run_plant w5; expect_reds 1; expect_red 'W2\.digest\.live'
+echo "--- W6: the fleet the W4 checks read drifts from the trim state ---"
+run_plant w6; expect_reds 24; expect_red 'W4\.trim\.a0s0' 'W4\.trim\.a5s3'
 
 # Every check that CAN be planted must have been red by something.
 "$EIGS" tests/swarm_check.eigs > "$WORK/clean" 2>&1
@@ -51,4 +56,4 @@ if [ -s "$WORK/never" ]; then
     sed 's/^/         /' "$WORK/never"
     exit 1
 fi
-echo "PASS: all 5 rung-4 plants flip exactly their declared checks, and every check is red under some plant"
+echo "PASS: all 6 rung-4 plants flip exactly their declared checks, and every check is red under some plant"

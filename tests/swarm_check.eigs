@@ -39,13 +39,6 @@ define check_exact(name, val, want) as:
 define check_below(name, val, bound) as:
     checks_run is checks_run + 1
     local v is val
-    # w3 displaces by an ABSOLUTE epsilon, not a multiple of the bound.
-    # The first version used 1.1 * bound, and every bound here is exactly
-    # 0.0 (these are identity checks, not tolerance checks), so the plant
-    # displaced by zero and was inert -- a declared plant that could not
-    # fail, which is the defect this repo's manifest rules exist to catch.
-    if plant == "w3":
-        v is (abs of v) + 1e-9
     if (abs of v) <= bound:
         print of f"PASS {name} below={bound} val={v}"
     else:
@@ -84,13 +77,30 @@ SP is 0.02
 # any import arms the observer (EigenScript#1046), so the control cannot
 # call it. That is a real constraint, but it must not become a place
 # where the control quietly flies a different aircraft.
+# w3 perturbs the ARTIFACT -- the pinned literals themselves -- not the
+# comparator. Round 4 found the previous version injecting into
+# check_below's own local, so its 30 reds were evidence about the
+# comparison arm and nothing about the 30 call sites: every one of them
+# could be gutted to `check_below(0.0, 0.0)` with the whole suite green,
+# INCLUDING the arm that reports each check proven able to fail. Verified.
+# mechanical-gates SS99 -- the same rule round 3 applied to DU/CF, unapplied
+# to the plant covering 70% of the population.
 tp is trim_pinned of null
+de_c is de_pinned of null
+th_c is thrust_pinned of null
+if plant == "w3":
+    tp[0] is tp[0] + 1e-6
+    tp[1] is tp[1] + 1e-6
+    tp[2] is tp[2] + 1e-6
+    tp[3] is tp[3] + 1e-6
+    de_c is de_c + 1e-6
+    th_c is th_c + 1e-6
 i is 0
 loop while i < 4:
     check_below of [f"W1.trim{i}", tr.state[i] - tp[i], 0.0]
     i is i + 1
-check_below of ["W1.de", tr.de - (de_pinned of null), 0.0]
-check_below of ["W1.thrust", tr.thrust - (thrust_pinned of null), 0.0]
+check_below of ["W1.de", tr.de - de_c, 0.0]
+check_below of ["W1.thrust", tr.thrust - th_c, 0.0]
 
 # W2 — the ARM DIFFERENTIAL. Observation must not change the physics, so
 # every arm's fleet digest must be identical. This is the check that
@@ -152,7 +162,18 @@ check_distinct of ["W3.dispersion", qs]
 # W4 — each aircraft is still rung 1's aircraft: with zero dispersion the
 # fleet must sit exactly at the trim state, which is the rung-1 property
 # every earlier rung already grades.
+# w6 perturbs the FLEET the W4 checks read, for the same reason: without
+# it, W4's 24 checks had no artifact-level plant at all and were carried
+# entirely by w3's comparator injection.
 flt is fleet_ic of [tr.state, NA, 0.0]
+if plant == "w6":
+    wi is 0
+    loop while wi < NA:
+        wj is 0
+        loop while wj < 4:
+            flt[wi][wj] is flt[wi][wj] + 1e-6
+            wj is wj + 1
+        wi is wi + 1
 i is 0
 loop while i < NA:
     local j is 0
@@ -161,6 +182,14 @@ loop while i < NA:
         j is j + 1
     i is i + 1
 
+# W6 — the CLOSURE channel form must agree with the hand-written one at
+# the same N, and with run_solo. This is the form that refutes two claims
+# this rung published and retracted (a runtime-sized population CAN be
+# observed per-entity, with ordinary lintable source); round 4 found it
+# reported as "verified at N = 32" in ORACLE while living in no shipped
+# code at all. It also carries the EigenScript#1049 tripwire: building the
+# channels inside `unobserved:` shifts every count by one, and this check
+# is what caught that.
 # W5 — the verdict stream, which round 1 found PRINTED AND NEVER ASSERTED.
 # Every arm above reads all N aircraft through one loop-local binding, so
 # their `hits` is an interleave artifact (a monotonically decaying
@@ -201,8 +230,13 @@ loop while ai2 < 4:
 # transplanted number ORACLE.md retracts.
 tot is hs[0] + hs[1] + hs[2] + hs[3]
 check_exact of ["W5.stream.live", tot, 36]
+cn is run_closure_n of [4, FRL, 0.05, 0.02, CAD, tr.state, tr.P, sched]
+ci is 0
+loop while ci < 4:
+    check_exact of [f"W6.closure.eq.named.a{ci}", cn[ci], hs[ci]]
+    ci is ci + 1
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 43:
-    print of f"FAIL harness: expected exactly 43 checks, ran {checks_run}"
+if checks_run != 47:
+    print of f"FAIL harness: expected exactly 47 checks, ran {checks_run}"

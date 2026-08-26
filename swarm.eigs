@@ -236,24 +236,20 @@ define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
 # reads `oscillating` when it shares a binding. Round 1 found every arm
 # above doing exactly that, with `hits` printed and never asserted.
 #
-# It is capped at four for a WEAKER reason than the first draft claimed.
-# That draft said a runtime-sized population could not be observed at all;
-# round 2 refuted it -- `eval` synthesizes named bindings at runtime and
-# they carry trajectory correctly (GAPS G8, EigenScript#1048). Four is
-# hand-written here because hand-written is clearer for a fixed set and
-# does not forfeit lint; it is not a language limit. What IS a limit is
-# that the only addressable channel is a lexical NAME, so a runtime N
-# forces a program to generate its own source.
-# `cadence` IS a knob, and the first draft's claim that it was "rung 3's
-# result applied here" was wrong. The window is 10 SAMPLES, so its span is
-# 10*cadence*dt; rung 3's C5.ph.p370 measured a 3.70 s interval for a
-# different excitation in a different shape, and transplanting 74 without
-# re-deriving the condition fitted the answer. Re-derived: containing a
-# fold needs cadence*dt >= T_ph/10, i.e. cadence >= 94 here. At 74 the
-# window spans 0.79 of a period and `oscillating` essentially cannot fire;
-# at 148 `converged` never fires. The verdict is a property of the
-# (cadence, timescale) PAIR -- see ORACLE.md's P3 sweep. Reading every
-# frame spans 1% of a period, which is what round 1 shipped.
+# Four hand-written channels, because hand-written is clearest for a fixed
+# set. It is NOT a language limit: see run_closure_n below, which does the
+# same thing at runtime N. Two earlier drafts of this comment claimed a
+# limit that does not exist (GAPS G8, EigenScript#1048).
+# `cadence` IS a knob, and there is NO threshold to derive -- a third
+# thing two earlier drafts of this comment got wrong. Draft 1 called 74
+# "rung 3's result, not a tuning knob" (a transplanted number). Draft 2
+# derived "cadence >= 94" from a window-span argument. Measured, the
+# transition is a CONTINUUM with no cutoff: oscillating hits over the same
+# 8000 frames go 3 / 17 / 28 / 34 at cadence 84 / 94 / 104 / 114. So the
+# verdict is a continuous function of the (cadence, timescale) pair, which
+# is a stronger version of P3's point than any threshold would be. 94 is
+# chosen because it gives the fleet-vs-solo oracle enough signal to bind
+# (17 hits against 1 at cadence 74), not because it is a boundary.
 define run_named4(frames, dt, spread, cadence, tstate, P, sched, shared) as:
     local fleet is fleet_ic of [tstate, 4, spread]
     local q0 is 0.0
@@ -331,3 +327,54 @@ define run_solo(idx, frames, dt, spread, cadence, tstate, P, sched) as:
         f is f + 1
     print of f"solo {idx} {frames} {h}"
     return h
+
+# ------------------------------------------------- runtime-N channels
+# The closure form: one persistent environment per aircraft, so one
+# observer channel per aircraft, with N chosen at RUNTIME. This exists in
+# the shipped code because ORACLE.md reported it "verified at N = 32" while
+# it lived only in a review transcript -- round 1's "measured with a driver
+# that was never committed" defect, recurring at round 4.
+#
+# It is the counter-example to two claims this rung published and retracted
+# (GAPS G8, EigenScript#1048): a runtime-sized population CAN be observed
+# per-entity, with ordinary static source that lints, no `eval`.
+define make_channel as:
+    local q is 0.0
+    local hits is 0
+    define feed_ch(v) as:
+        q is v + 0.0
+        if oscillating of q:
+            hits is hits + 1
+        return hits
+    return feed_ch
+
+define run_closure_n(n, frames, dt, spread, cadence, tstate, P, sched) as:
+    local fleet is fleet_ic of [tstate, n, spread]
+    local chans is []
+    local counts is []
+    local i is 0
+    # NOT wrapped in `unobserved:`, and that is load-bearing. A binding
+    # initialised inside an unobserved block is missing that sample from
+    # its window forever after, so wrapping this construction -- the
+    # obvious thing to do, since building N channels is setup -- shifted
+    # every channel's verdict count by one and broke agreement with
+    # run_solo ([0,16,16,0] against [1,17,17,1]). EigenScript#1049.
+    loop while i < n:
+        append of [chans, make_channel of null]
+        append of [counts, 0]
+        i is i + 1
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        unobserved:
+            fleet is frame_step of [fleet, t, dt, sched, P]
+        if (f % cadence) == 0:
+            local a is 0
+            loop while a < n:
+                counts[a] is chans[a] of (fleet[a][2])
+                a is a + 1
+        unobserved:
+            t is t + dt
+        f is f + 1
+    print of f"closure_n {n} {frames} {counts}"
+    return counts

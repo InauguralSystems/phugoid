@@ -1962,6 +1962,21 @@ binding per entity. The failure is silent — the obvious loop manufactures
 verdicts rather than refusing. That is the ask now filed upstream, weighted
 as convenience rather than impossibility.
 
+**A NEW upstream finding, and the rung's second: `unobserved:` is not
+semantically neutral (GAPS G9, EigenScript#1049).** An assignment inside
+one is absent from the observer's WINDOW, not merely uncounted, so a
+binding initialised inside an `unobserved:` block carries a different
+history forever after — 19 hits against 18 on an identical trajectory
+with identical reads. It surfaced because the closure channel form
+disagreed with the hand-written one by exactly one hit per channel, and
+the only difference was that it built its channels inside `unobserved:`,
+which is the obvious thing to do with setup. `W6.closure.eq.named.*` is
+now the standing tripwire, verified to red under exactly that mutation.
+
+This matters beyond the rung: `unobserved:` is the sanctioned workaround
+for G7/#1046, so the recommended mitigation for the arming penalty is not
+verdict-preserving.
+
 Note the contrast with rung 3's C6, where reads dominated writes ~2:1 on a
 deliberately read-heavy micro-shape. That conclusion is SHAPE-SPECIFIC, not
 a property of the observer, and this rung is the counter-example.
