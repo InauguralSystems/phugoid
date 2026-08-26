@@ -1904,41 +1904,45 @@ negative share is impossible, so the split is noise at these sizes. Two
 explanations remain live and this rung cannot separate them. **Not
 published as a mechanism.**
 
-**P3 — the observer's verdict on a healthy aircraft depends on HOW OFTEN
-YOU LOOK, and round 2 showed the first write-up had fitted the cadence.**
-The first version reported "converged 98 of 109 reads, oscillating once —
-it goes silent; a separation detector would report a calm sky", at
-cadence 74. That inverts on a one-integer change. Swept over the same
-aircraft, same 8000 frames, cadence x dt x 10 = the window span:
+**P3 — the verdict is a function of THREE variables, and each write-up so
+far has held one of them fixed without saying so.** The prediction was
+that a verdict-driven detector "fires on healthy aircraft at a rate that
+does not fall with N". It does not fire wrongly, and it does not go
+uniformly silent either. Measured (`tests/swarm_p3.eigs`, the shipped
+driver — round 6 found the previous table existed only in prose):
 
-| cadence | window span | span / T_ph | reads | converged | moving | oscillating |
-|---|---|---|---|---|---|---|
-| 74 | 37.0 s | 0.79 | 109 | 97 | 10 | 1 |
-| 94 | 47.0 s | 1.00 | 86 | 55 | 10 | 17 |
-| 111 | 55.5 s | 1.18 | 73 | 33 | 10 | 30 |
-| 148 | 74.0 s | 1.58 | 55 | **0** | 10 | 36 |
+| dispersion | cadence | reads | converged | oscillating | other |
+|---|---|---|---|---|---|
+| 0.02 | 74 | 109 | **97** | 1 | 11 |
+| 0.02 | 94 | 86 | 55 | 17 | 14 |
+| 0.02 | 148 | 55 | 0 | 36 | 19 |
+| 0.05 | 74 | 109 | **0** | 1 | 108 |
+| 0.05 | 94 | 86 | 0 | 61 | 25 |
+| 0.05 | 148 | 55 | 0 | 36 | 19 |
 
-At 0.79 of a period `converged` is 89% and `oscillating` 1%; at 1.58
-periods `converged` is **zero**. The "calm sky" reading was true only
-below one full cycle — and a window shorter than a period cannot contain
-a fold, so it could not have been anything else.
+Three corrections, one per round:
 
-**The cadence justification was also wrong.** `swarm.eigs` said "cadence
-is not a tuning knob, it is rung 3's result applied here" and used 74
-because rung 3's `C5.ph.p370` first sighted the phugoid at a 3.70 s
-interval. That number was measured for a specific excitation amplitude in
-a different shape; transplanting it without re-deriving the condition is
-the same class as this loop's other carried numbers. Re-derived for a
-10-sample window: seeing a fold needs `cadence x dt >= T_ph / 10`, i.e.
-**cadence >= 94** here. 74 is below it.
+- Round 1 reported "converged 98 of 109 — it goes silent; a separation
+  detector would report a calm sky" at cadence 74, treating that as a
+  property of the observer.
+- Round 2 showed it was CADENCE-dependent: at 1.58 periods `converged`
+  never fires. The write-up became "it reports whatever the sampling rate
+  makes visible".
+- Round 6 showed the `converged` column is also DISPERSION-dependent, and
+  that round 5 had raised the rung's dispersion from 0.02 to 0.05 without
+  re-measuring P3. **At the shipped 0.05, `converged` is zero at every
+  cadence** — so the entire "calm sky" reading was a small-amplitude
+  phenomenon, and the sentence carrying it had been silently invalidated
+  inside this PR. `converged` requires low ABSOLUTE entropy, so it is a
+  magnitude test; at 0.05 those reads return `stable`/`equilibrium`.
 
-So P3's substance holds in a form stronger than predicted, and its
-predicted direction was wrong twice over: the observer neither fires
-wrongly (the original prediction) nor goes uniformly silent (the first
-write-up). **It reports whatever the sampling rate makes visible** — the
-same window-versus-timescale family as G4 and G5, now measured on a
-healthy mode at swarm scale. A consumer cannot choose a cadence from the
-physics alone; the verdict is a property of the pair.
+What survives, and it is the stronger claim: **`oscillating` is genuinely
+cadence-driven at both dispersions** (1 → 17 → 36 at 0.02, 1 → 61 → 36 at
+0.05), so a controller's view of a healthy mode depends on the
+(cadence, timescale, amplitude) triple. A consumer cannot pick a sampling
+rate from the physics alone, and cannot pick it from cadence and timescale
+alone either. That is the same window-versus-timescale family as G4 and
+G5, with a third axis this rung added.
 
 **P4 — CONFIRMED, but the finding is WEAKER than first published, and the
 first version was false.** What broke first was not the physics: it was
@@ -1989,8 +1993,11 @@ as convenience rather than impossibility.
 semantically neutral (GAPS G9, EigenScript#1049).** An assignment inside
 one is absent from the observer's WINDOW, not merely uncounted, so a
 binding initialised inside an `unobserved:` block carries a different
-history forever after — 19 hits against 18 on an identical trajectory
-with identical reads. It surfaced because the closure channel form
+history for up to WINDOW_N subsequent reads and then re-converges exactly
+— 19 hits against 18 on an identical trajectory with identical reads,
+differing at exactly the window-fill boundary. A mid-stream elision gives
+EQUAL totals (46 vs 46) and four differing reads, which is the case a
+consumer checking counts would miss. It surfaced because the closure channel form
 disagreed with the hand-written one by exactly one hit per channel, and
 the only difference was that it built its channels inside `unobserved:`,
 which is the obvious thing to do with setup. `W6.closure.eq.named.*` is

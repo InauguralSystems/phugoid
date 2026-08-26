@@ -365,7 +365,7 @@ define run_closure_n(n, frames, dt, spread, cadence, tstate, P, sched) as:
     local i is 0
     # NOT wrapped in `unobserved:`, and that is load-bearing. A binding
     # initialised inside an unobserved block is missing that sample from
-    # its window forever after, so wrapping this construction -- the
+    # its window for up to WINDOW_N subsequent reads, so wrapping this construction -- the
     # obvious thing to do, since building N channels is setup -- shifted
     # every channel's verdict count by one and broke agreement with
     # run_solo ([0,16,16,0] against [1,17,17,1]). EigenScript#1049.

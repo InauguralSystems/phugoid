@@ -195,9 +195,10 @@ loop while i < NA:
 # their `hits` is an interleave artifact (a monotonically decaying
 # trajectory reads `oscillating` when it shares a binding). run_named4 is
 # the only shape whose verdicts mean anything: four STATICALLY NAMED
-# channels, which is the only addressable form EigenScript has
-# (EigenScript#1048 -- dict fields, list elements and function parameters
-# all carry no trajectory, so N is bounded at authoring time).
+# channels. NOT because that is the only addressable form -- the W6 rows
+# below call run_closure_n, which does the same at runtime N -- but
+# because hand-written is clearest for a fixed set. Two earlier drafts of
+# this comment asserted a limit that does not exist (EigenScript#1048).
 #
 # The oracle: a per-aircraft verdict count taken from the FLEET must equal
 # the count that aircraft produces flown ALONE. Nothing to interleave with
@@ -232,8 +233,9 @@ loop while ai2 < 4:
 # 10-sample window at cadence 74 spans 0.79 of a phugoid period, so
 # `oscillating` essentially cannot fire, and these four checks were
 # comparing 1 == 1. Containing a fold needs cadence*dt >= T_ph/10, i.e.
-# cadence >= 94. At 94 they compare 1/17/17/1 against the solo oracle,
-# which is the same check ~17x stronger, for free. The sentence that used
+# cadence >= 94. At 94 with the shipped dispersion 0.05 they compare
+# 41/61/61/45 against the solo oracle -- of which exactly 1 per channel is
+# the initialiser sample (EigenScript#1049) and the rest is physics. The sentence that used
 # to sit here called 74 "rung 3's result, not a tuning knob" -- the exact
 # transplanted number ORACLE.md retracts.
 tot is hs[0] + hs[1] + hs[2] + hs[3]

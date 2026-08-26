@@ -1,0 +1,53 @@
+# swarm_p3.eigs — the shipped driver for P3's evidence table.
+#
+# Round 6 found P3's table living only in ORACLE.md prose, measured with a
+# throwaway probe. That is the third time in this rung (round 1: the cost
+# table; round 4: run_closure_n "verified at N = 32"), so it ships now.
+#
+# It sweeps BOTH axes the verdict depends on. The first write-up varied
+# cadence and held dispersion fixed without saying so, and round 5 then
+# changed the dispersion without re-measuring — at which point the
+# `converged` column the headline rested on went to zero everywhere.
+
+load_file of "data/b747_approach.eigs"
+load_file of "swarm.eigs"
+
+tr is trim_solve of (sim_params of [b747_approach of null, ctl_nominal of null])
+sched is [[0.0, tr.de]]
+
+define p3_row(sp, cad) as:
+    local fleet is fleet_ic of [tr.state, 4, sp]
+    local s is fleet[1]
+    local q is 0.0
+    local rd is 0
+    local cv is 0
+    local os is 0
+    local ot is 0
+    local t is 0.0
+    local f is 0
+    loop while f < 8000:
+        unobserved:
+            s is rk4_step of [s, t, 0.05, sched, tr.P]
+        if (f % cad) == 0:
+            q is s[2] + 0.0
+            local rp is report of q
+            unobserved:
+                rd is rd + 1
+                if rp == "converged":
+                    cv is cv + 1
+                elif rp == "oscillating":
+                    os is os + 1
+                else:
+                    ot is ot + 1
+        unobserved:
+            t is t + 0.05
+        f is f + 1
+    print of f"p3 spread={sp} cadence={cad} reads={rd} converged={cv} oscillating={os} other={ot}"
+    return [rd, cv, os, ot]
+
+rows is 0
+for sp in [0.02, 0.05]:
+    for cd in [74, 94, 148]:
+        r is p3_row of [sp, cd]
+        rows is rows + r[0]
+print of f"p3 total reads across the sweep: {rows}"

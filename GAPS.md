@@ -284,8 +284,7 @@ Found at rung-4 blind-critic round 4, 2026-08-26. Upstreamed as
 `unobserved:` is documented and used as a PERFORMANCE tool, but an
 assignment inside it is not merely uncounted — it is absent from the
 observer's window. A binding whose initialiser sits inside an
-`unobserved:` block therefore carries a different history for the rest of
-the program:
+`unobserved:` block therefore carries a different history for up to WINDOW_N reads, then re-converges:
 
 ```
 initializer observed   : oscillating hits = 19
