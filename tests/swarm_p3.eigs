@@ -437,25 +437,32 @@ define p3_control(cad, uscale, uname) as:
     print of f"p3nc unit={uname} cad={cad} full={fl} fosc={fos}"
     return [fl, fos]
 
-# THE MONOTONE CONTROL -- the one that actually excludes the hypothesis.
+# THE CONTROLS. Round 18 -- the third control in three rounds, and the
+# first with any discriminating power.
 #
-# Round 17: the equilibrium control above is DEGENERATE. Trim pitch rate
-# is exactly 0, so at dispersion 0 the channel spans 3.3e-17 rad/s --
-# fourteen orders of magnitude inside `dh_zero` = 1e-3 -- and, because
-# 0.0 x 57.3 == 0.0 x 1000, its three "units" are one measurement written
-# three times. It rules out an alarm that fires on a FROZEN channel, which
-# is not the hypothesis in question.
+#   R16  equilibrium (dispersion 0). DEGENERATE: trim pitch rate is
+#        exactly 0, so the channel spans 3.3e-17 rad/s and, since
+#        0.0 x 57.3 == 0.0 x 1000, its three "units" are one measurement.
+#        It excludes an alarm that fires on a FROZEN channel.
+#   R17  monotone decay/ramp. ALSO CANNOT FAIL, for a different reason:
+#        every arm of `obs_num_oscillating` upstream requires step-sign
+#        FLIPS or direction REVERSALS, and a strictly monotone channel has
+#        none at any amplitude, tau, cadence or unit. Swept over 1176
+#        cells it is 0 everywhere -- an outcome invariant to every knob is
+#        not a measurement. Round 17 published it as "the detector is a
+#        detector, and now that is measured rather than assumed".
+#   R18  APERIODIC NOISE at the phugoid's own peak-to-peak amplitude:
+#        stationary, no mode, no period, and full of reversals. This is
+#        the channel the predicate CAN reject, so it is the one that
+#        carries information -- and it REFUTES the round-17 conclusion.
 #
-# The hypothesis is "the observer fires whenever its window exceeds one
-# period", and the control that excludes it must be MOVING but not
-# oscillating, at the phugoid's own magnitude. These channels decay or
-# ramp monotonically from A = 0.0257 rad/s, which is the shipped fleet's
-# own initial pitch-rate amplitude. `oscillating` must be 0 on every one.
-#
-# They also carry the sharpest unit-dependence evidence in the rung: ONE
-# monotone decay is classified differently in each of the three units.
-define p3_monotone(kind, cad, uscale, uname) as:
+# The monotone arms are kept, relabelled as what they are: a statement
+# about the implementation (the predicate does not fire on drift), not
+# evidence about the fleet's 100% cell.
+define p3_control_ch(kind, amp, cad, uscale, uname) as:
+    local rs is 12345.0
     local q is 0.0
+    local seeded is 0
     local asn is 0
     local fl is 0
     local fos is 0
@@ -471,43 +478,71 @@ define p3_monotone(kind, cad, uscale, uname) as:
             local a is 0.0
             unobserved:
                 if kind == "decay_slow":
-                    a is 0.0257 * (exp of (0.0 - (t / 350.0)))
+                    a is amp * (exp of (0.0 - (t / 350.0)))
                 elif kind == "decay_fast":
-                    a is 0.0257 * (exp of (0.0 - (t / 90.0)))
+                    a is amp * (exp of (0.0 - (t / 90.0)))
+                elif kind == "ramp":
+                    a is amp * (t / 400.0)
                 else:
-                    a is 0.0257 * (t / 400.0)
+                    rs is (rs * 75.0 + 74.0) % 65537.0
+                    a is (amp / 2.0) * (((rs / 65537.0) * 2.0) - 1.0)
             q is (a * uscale) + 0.0
-            local rp is report of q
-            unobserved:
-                asn is asn + 1
-                if asn > 9:
-                    fl is fl + 1
-                    if rp == "oscillating":
-                        fos is fos + 1
-                    elif rp == "converged":
-                        cv is cv + 1
-                    elif rp == "stable":
-                        st is st + 1
-                    elif rp == "moving":
-                        mv is mv + 1
-                    elif rp == "diverging":
-                        dg is dg + 1
-                    elif rp == "equilibrium":
-                        eq is eq + 1
+            # The FIRST sample seeds and is not counted. Round 18 found
+            # `local q is 0.0` had come back here -- the exact defect that
+            # cost rounds 10 through 13 in p3_row, in the same file that
+            # carries the comment forbidding it. Its fictitious 0 -> A
+            # jump was also the ONLY sign reversal in the "monotone"
+            # control, so that channel was not monotone in its first
+            # window, and the published 75/76 vs 76/76 asymmetry between
+            # the units was entirely this artifact.
+            if seeded == 0:
+                seeded is 1
+            else:
+                local rp is report of q
+                unobserved:
+                    asn is asn + 1
+                    if asn > 9:
+                        fl is fl + 1
+                        if rp == "oscillating":
+                            fos is fos + 1
+                        elif rp == "converged":
+                            cv is cv + 1
+                        elif rp == "stable":
+                            st is st + 1
+                        elif rp == "moving":
+                            mv is mv + 1
+                        elif rp == "diverging":
+                            dg is dg + 1
+                        elif rp == "equilibrium":
+                            eq is eq + 1
         unobserved:
             t is t + 0.05
         f is f + 1
     print of f"p3mono kind={kind} unit={uname} cad={cad} full={fl} fosc={fos} conv={cv} stable={st} moving={mv} diverging={dg} equil={eq}"
     return [fl, fos]
 
-print of "# monotone control: a MOVING but non-oscillating channel at the phugoid's own amplitude"
+# AMP is ac0's measured initial pitch-rate peak-to-peak at the shipped
+# dispersion -- `truth_row` prints it as q_pp_first=2643 hundred-
+# thousandths of a rad/s. Round 18: the previous value 0.0257 was
+# described as "the shipped fleet's own initial pitch-rate amplitude" and
+# had no producer; it is aircraft 3's half-amplitude, and aircraft 3 is
+# graded in no P3 row.
+AMP is 0.02643
+
+print of "# controls: monotone (implementation) and APERIODIC NOISE (the discriminating one)"
 monf is 0
-for mk in ["decay_slow", "decay_fast", "ramp"]:
+noisemin is 999
+for mk in ["decay_slow", "decay_fast", "ramp", "noise"]:
     for mu in [[1.0, "rad"], [57.29577951308232, "deg"], [1000.0, "mrad"]]:
         for mcd in [94, 104]:
-            mr is p3_monotone of [mk, mcd, mu[0], mu[1]]
-            monf is monf + mr[1]
+            mr is p3_control_ch of [mk, AMP, mcd, mu[0], mu[1]]
+            if mk == "noise":
+                if mr[1] < noisemin:
+                    noisemin is mr[1]
+            else:
+                monf is monf + mr[1]
 print of f"p3mono total detections on monotone channels: {monf}"
+print of f"p3mono minimum detections on the aperiodic-noise channel: {noisemin}"
 
 print of "# negative control: a trimmed aircraft with NO phugoid must never read oscillating"
 ncf is 0

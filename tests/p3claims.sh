@@ -338,13 +338,35 @@ p3_claims() {
     # The hypothesis is "the observer fires whenever its window exceeds
     # one period". Excluding it needs a channel that MOVES without
     # oscillating, at the phugoid's own magnitude. These do.
-    local nmono=0 mk mu mc mfull mfosc
+    # The monotone arms are an IMPLEMENTATION statement, not evidence
+    # about the fleet. Round 18: every arm of `obs_num_oscillating`
+    # upstream requires step-sign flips or direction reversals, and a
+    # strictly monotone channel has none at any amplitude, tau, cadence or
+    # unit -- swept over 1176 cells the answer is 0 everywhere. An outcome
+    # invariant to every knob has no discriminating power, so this cannot
+    # support "the detector is a detector"; round 17 published it as
+    # exactly that. It is kept only to pin that the predicate does not
+    # fire on drift, and the claim is named for what it is.
+    local nmono=0 nnoise=0 mk mu mc mfull mfosc
     while read -r mk mu mc mfull mfosc; do
-        nmono=$((nmono+1))
-        [ "$mfull" -ge 40 ] || _cf P3.monotone "monotone cell $mk/$mu/cad$mc has only $mfull full-window reads (vacuous check)"
-        [ "$mfosc" -eq 0 ] || _cf P3.monotone "the observer reports oscillating $mfosc times on a MONOTONE channel ($mk, $mu, cadence $mc) at the phugoid's own amplitude; detection is not evidence of a mode"
+        [ "$mfull" -ge 40 ] || _cf P3.monotone "control cell $mk/$mu/cad$mc has only $mfull full-window reads (vacuous check)"
+        if [ "$mk" = "noise" ]; then
+            nnoise=$((nnoise+1))
+            # THE DISCRIMINATING CLAIM. A stationary aperiodic channel at
+            # the phugoid's own peak-to-peak amplitude has NO mode and NO
+            # period -- and the observer reports `oscillating` on
+            # essentially every read of it, at the same cell where the
+            # fleet reads 100%. So a positive detection is not evidence of
+            # a mode. This is what refutes round 17's conclusion, and it
+            # is the only control in three rounds that could have.
+            [ "$(( mfosc * 100 / mfull ))" -ge 90 ] || _cf P3.noise "the observer no longer fires on structureless noise ($mfosc of $mfull, $mu, cadence $mc); detection may now carry mode information and P3's nuisance finding needs re-grading"
+        else
+            nmono=$((nmono+1))
+            [ "$mfosc" -eq 0 ] || _cf P3.monotone "the observer reports oscillating $mfosc times on a MONOTONE channel ($mk, $mu, cadence $mc)"
+        fi
     done < <(sed -n 's/^p3mono kind=\([a-z_]*\) unit=\([a-z]*\) cad=\([0-9]*\) full=\([0-9]*\) fosc=\([0-9]*\).*/\1 \2 \3 \4 \5/p' "$out")
     [ "$nmono" -eq 18 ] || _cf P3.monotone "$nmono of 18 monotone-control cells found (vacuous check)"
+    [ "$nnoise" -eq 6 ] || _cf P3.noise "$nnoise of 6 noise-control cells found (vacuous check)"
 
     # --- the SHARPEST unit-dependence evidence in the rung, found while
     # building the monotone control (round 17).
@@ -362,15 +384,25 @@ p3_claims() {
     # is growing is detected at any scale, and it is specifically the
     # SMALL-magnitude end of the lattice that the absolute deadband
     # distorts (EigenScript#1045).
-    local mdom
-    for mu in rad deg mrad; do
-        mdom=$(sed -n "s/^p3mono kind=decay_slow unit=$mu cad=94 .*/&/p" "$out")
-        [ -n "$mdom" ] || { _cf P3.monoclass "decay_slow/$mu/cad94 row absent (vacuous check)"; continue; }
-        case "$mu" in
-            rad)  echo "$mdom" | grep -qE 'conv=(6[5-9]|7[0-9]|8[0-9]) '   || _cf P3.monoclass "in radians a monotone decay no longer reads `converged` ($mdom)" ;;
-            deg)  echo "$mdom" | grep -qE 'stable=(6[5-9]|7[0-9]|8[0-9]) ' || _cf P3.monoclass "in degrees a monotone decay no longer reads `stable` ($mdom)" ;;
-            mrad) echo "$mdom" | grep -qE 'moving=(6[5-9]|7[0-9]|8[0-9]) ' || _cf P3.monoclass "in milliradians a monotone decay no longer reads `moving` ($mdom)" ;;
-        esac
+    # EXACT, not a range. Round 18: this used `conv=(6[5-9]|7[0-9]|8[0-9])`
+    # -- a floor of 85% chosen from nothing, half of whose range is
+    # unreachable -- while its sibling P3.unitdep in this same file is
+    # exact per row. With the control's seed artifact removed the split is
+    # total: the dominant class equals the full-window count exactly.
+    local mdom mfull mcls mv2 cd2
+    for cd2 in 94 104; do
+        for mu in rad deg mrad; do
+            mdom=$(sed -n "s/^p3mono kind=decay_slow unit=$mu cad=$cd2 .*/&/p" "$out")
+            [ -n "$mdom" ] || { _cf P3.monoclass "decay_slow/$mu/cad$cd2 row absent (vacuous check)"; continue; }
+            mfull=$(echo "$mdom" | grep -oP 'full=\K[0-9]+')
+            case "$mu" in
+                rad)  mcls=conv;   mlbl=converged ;;
+                deg)  mcls=stable; mlbl=stable ;;
+                mrad) mcls=moving; mlbl=moving ;;
+            esac
+            mv2=$(echo "$mdom" | grep -oP "$mcls=\K[0-9]+")
+            [ "$mv2" = "$mfull" ] || _cf P3.monoclass "in $mu a monotone decay no longer reads '$mlbl' on every read ($mv2 of $mfull)"
+        done
     done
     local nramp
     nramp=$(sed -n 's/^p3mono kind=ramp unit=[a-z]* cad=[0-9]* .* diverging=\([0-9]*\).*/\1/p' "$out" | awk '$1>=60' | wc -l)

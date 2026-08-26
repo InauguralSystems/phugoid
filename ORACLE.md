@@ -2136,39 +2136,66 @@ window the detector is blind (0%) and, in radians, issues a false
 all-clear on 98–99% of reads; at a cadence where it sees the mode it
 alerts on **every** read of entirely normal flight.
 
-**And the 100% cell is a detector, not a stuck alarm — but round 16's
-control did not show that, and round 17's does.** Round 16 ran a fleet at
-dispersion 0: exactly at trim, no phugoid, `oscillating` 0 of 67 through
-the same cell. That control is **degenerate**. Trim pitch rate is exactly
-0, so its channel spans 3.3e-17 rad/s — fourteen orders inside `dh_zero`
-— and because `0.0 × 57.3 == 0.0 × 1000` its three "units" are one
-measurement written three times. It excludes an alarm that fires on a
-*frozen* channel, which was never the hypothesis.
+**The 100% cell is NOT evidence of a mode, and three rounds of controls
+were needed to find that out — the first two could not have.**
 
-The hypothesis is "the observer fires whenever its window exceeds one
-period", and excluding it needs a channel that **moves without
-oscillating**, at the phugoid's own magnitude. Three were added — two
-exponential decays (τ = 350 s, 90 s) and a linear ramp, all from
-A = 0.0257 rad/s, the shipped fleet's own initial pitch-rate amplitude —
-through both cadences in all three units. **`oscillating` fires 0 times in
-all 18 cells.** The detector is a detector.
+Round 16 ran a fleet at dispersion 0: exactly at trim, no phugoid,
+`oscillating` 0 of 67. **Degenerate** — trim pitch rate is exactly 0, so
+the channel spans 3.3e-17 rad/s, and because `0.0 × 57.3 == 0.0 × 1000`
+its three "units" are one measurement written three times. It excludes an
+alarm that fires on a *frozen* channel, which was never the hypothesis.
 
-**That control also produced the sharpest unit-dependence evidence in the
-rung.** One identical monotone decay — same trajectory, same cadence,
-same window — lands in three *different* verdict classes depending only
-on the unit:
+Round 17 replaced it with monotone channels — two exponential decays and
+a ramp — measured `oscillating` 0 in all 18 cells, and published *"the
+detector is a detector, and now that is measured rather than assumed"*.
+**Also unable to fail, for a different reason.** Every arm of
+`obs_num_oscillating` upstream requires step-sign flips or direction
+reversals, and a strictly monotone channel has none at any amplitude, τ,
+cadence or unit; swept over 1176 cells the answer is 0 everywhere. An
+outcome invariant to every knob is not a measurement. That is the
+round-14 "the bound cannot fail" shape for the third time in this rung.
+
+Round 18 ran the control the predicate can actually reject: **stationary
+aperiodic noise** at the phugoid's own peak-to-peak amplitude (0.02643
+rad/s, which is `truth_row`'s own `q_pp_first` for ac0 at the shipped
+dispersion) — no mode, no period, full of reversals. It reads
+`oscillating` on **74/75, 75/75, 75/75** at cadence 94 and **65/66,
+66/66, 66/66** at cadence 104, in rad/deg/mrad. That is the fleet's best
+cell, reproduced by a channel with no mode in it at all.
+
+**So the round-17 conclusion is retracted.** A positive `oscillating` at
+the 100% cell carries no information about mode structure: the observer
+cannot distinguish a healthy phugoid from noise of the same magnitude.
+P3 is strengthened rather than weakened — the verdict-driven detector has
+no usable operating point *and* its positive detections are uninformative.
+What the monotone rows still show is narrower and is now labelled as such:
+the predicate does not fire on drift. That is a statement about the
+implementation, not about the fleet.
+
+**The controls also carry the sharpest unit-dependence evidence in the
+rung.** One identical monotone decay lands in three *different* verdict
+classes, on every read, depending only on the unit:
 
 | channel | rad | deg | mrad |
 |---|---|---|---|
-| decay, τ=350 s | `converged` 75/76 | `stable` 75/76 | `moving` 76/76 |
-| linear ramp | `diverging` 76/76 | `diverging` 76/76 | `diverging` 76/76 |
+| decay, τ=350 s | `converged` 75/75 | `stable` 75/75 | `moving` 75/75 |
+| linear ramp | `diverging` | `diverging` | `diverging` |
+| aperiodic noise | `oscillating` 74/75 | `oscillating` 75/75 | `oscillating` 75/75 |
 
-This is stronger than the deg-equals-mrad byte-identity the unit claim had
-been resting on, because here the units **disagree** rather than agree, on
-a channel with no oscillation to argue about. And the ramp row is the
-control on the control: a signal that is *growing* is detected at every
-scale, so the unit does not decide everything — it is specifically the
-small-magnitude end of the lattice that the absolute deadband distorts.
+The split is total in each unit. (Round 17 published it as 75/76 with a
+stray `moving=1`; round 18 found that asymmetry was its own seed
+artifact — `local q is 0.0` had come back in the control, the exact
+defect that cost rounds 10 through 13 in `p3_row`, in the same file
+carrying the comment forbidding it. Its fictitious 0 → A jump was also the
+only sign reversal in the "monotone" control, so that channel was not
+monotone in its first window.) The τ=90 s decay does **not** split as
+cleanly — its degree rows are a `stable`/`moving` mix — so this is a
+property of the slow decay, not of monotone channels generally.
+
+The ramp row is the control on the control: a signal that is *growing* is
+detected at every scale, so the unit does not decide everything. It is
+specifically the small-magnitude end of the lattice that the absolute
+deadband distorts (EigenScript#1045).
 
 **The N half — CONFIRMED, but construction-bound, and that is a weaker
 statement than round 9 made.** P3 predicts a rate "that does not fall with

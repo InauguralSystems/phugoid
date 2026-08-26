@@ -195,6 +195,15 @@ plant c30 'P3.monoclass P3.monotone' 2 f_sed '/^p3mono kind=ramp unit=mrad /d'
 # unit-INVARIANCE.
 plant c31 P3.monoclass 1 f_sed 's/^(p3mono kind=decay_slow unit=deg cad=94 .*)stable=[0-9]+/\1stable=2/'
 plant c32 P3.monoclass 1 f_sed 's/^(p3mono kind=ramp unit=rad .*)diverging=[0-9]+/\1diverging=3/'
+# c33/c34: THE DISCRIMINATING CONTROL. Aperiodic noise at the phugoid's
+# own amplitude has no mode and no period, and the observer reports
+# `oscillating` on essentially every read of it -- at the same cell where
+# the fleet reads 100%. That is what refutes "detection is evidence of a
+# mode". Round 17's monotone control could not have found it: every arm of
+# obs_num_oscillating needs sign flips, which a monotone channel never has,
+# so its 0 was invariant over 1176 cells.
+plant c33 P3.noise 1 f_sed 's/^(p3mono kind=noise unit=deg cad=104 .*)fosc=[0-9]+/\1fosc=4/'
+plant c34 P3.noise 1 f_sed '/^p3mono kind=noise unit=mrad /d'
 # c15: the buckets must partition the full-window count.
 plant c15 P3.partition 1 f_sed 's/^(p3 unit=rad ac=0 sp=0\.05 cad=94 .*)fother=[0-9]+/\1fother=7/'
 
@@ -218,4 +227,4 @@ PN=$(grep -n "^P3ROWS$" tests/test_swarm.sh | head -1 | cut -d: -f1)
 [ "$CL" -lt "$PN" ] || { echo "FAIL: P3's claim assertions (line $CL) run AFTER the exact-row pins (line $PN) — they are unreachable, which is the round-8 defect"; exit 1; }
 echo "--- ordering: claims at line $CL precede the row pins at line $PN"
 
-echo "PASS: all 32 P3 claim plants red exactly their own claim set, and the claims precede the row pins"
+echo "PASS: all 34 P3 claim plants red exactly their own claim set, and the claims precede the row pins"
