@@ -1678,3 +1678,107 @@ pre-registered clause.
 3. CI green on the pushed branch.
 4. The three predictions each reported with their measurement — including
    any that failed to reproduce.
+
+---
+
+# Rung 4 — the SWARM: the cost of observation while observing
+
+Scope opened 2026-08-26, immediately after rung 3 merged. Rungs 0-3 stress
+observer SEMANTICS deeply and load it trivially (~12 bindings at 60 Hz).
+This rung is the SPEED half: N independent aircraft, each a rung-1
+longitudinal 3-DOF model with its own observed state and its own
+per-aircraft predicates, with separation/conflict detection as the natural
+consumer of the verdicts.
+
+**The physics needs no new oracle.** Each aircraft is rung 1's model, so
+each one's free response still grades to rung 0's chain quantities through
+the same estimators. That is the ladder working as designed: rung 4 adds
+LOAD, not new truth. Any new grading here would be a smell.
+
+## What is being measured
+
+The observer's marginal cost curve vs N — "the cost of observation while
+observing" — in THREE arms, because emission is gated per compilation
+unit, not per binding, so an armed unit pays the walk on every assignment
+including scratch:
+
+- **ceiling** — `EIGS_OBS_FORCE=1`, no `unobserved:` blocks (naive all-on);
+- **disciplined** — `unobserved:` around the hot math, observation only on
+  the state the predicates actually read (the best a programmer can write
+  today);
+- **floor** — everything wrapped (pure compute, no observer at all).
+
+`ceiling - disciplined` = what `unobserved:` ergonomics buy, and how
+painful they were to apply (a language-design finding in itself).
+`disciplined - floor` = the true cost of only the WANTED observation — the
+number that justifies or kills #915's natural successor, per-binding
+liveness gating.
+
+## Pre-registered predictions (recorded 2026-08-26, BEFORE the swarm exists)
+
+Registered here so they can be refuted rather than confirmed. Rung 3
+refuted two of three, which is the point.
+
+- **P1 — the G7 consequence.** EigenScript#1046 established that observer
+  arming is per-`EigsState` and monotonic. So in one process, ONE
+  aircraft reading a verdict arms entropy bookkeeping for EVERY assignment
+  of ALL N. Prediction: in the disciplined arm, reducing how many aircraft
+  READ verdicts buys ~nothing on the write side; only `unobserved:` blocks
+  buy anything. Refutable by measuring disciplined-with-1-reader against
+  disciplined-with-N-readers and finding the write cost differs.
+- **P2 — linearity and its slope.** Observer cost should be LINEAR in N,
+  with slope = (per-assignment observer cost) x (observed assignments per
+  aircraft per frame). Rung 3's C6 measured the per-assignment cost on one
+  channel; P2 predicts rung 4's slope FROM that number. Refutable by a fit
+  that is superlinear, or whose slope misses the C6-derived prediction.
+- **P3 — the consumer inherits rung 3's defect at scale.** Per-aircraft
+  predicates on N aircraft in steady flight will reproduce rung 3's
+  finding: the observer is confidently WRONG on a healthy decaying mode.
+  Prediction: a separation/conflict detector built on verdicts fires on
+  healthy aircraft, at a rate that does not fall with N. Refutable by a
+  clean verdict stream.
+- **P4 — the standing proposal prediction.** What breaks first will NOT be
+  the physics.
+
+## The AOT arm is BLOCKED, and stated as such rather than quietly dropped
+
+The proposal specifies this rung as a VM-vs-AOT observed-throughput
+differential. Scoping it surfaced **ouroboros#119** before any swarm code
+existed: the AOT compiles `report of x` and BARE predicates (`diverging`),
+but fails on `diverging of x` with "AOT: only named calls supported"
+(`aot/compile.eigs:1200-1203` — a predicate with an operand parses as a
+call whose callee is not an ident, so it never reaches the `aot_predicate`
+path).
+
+That subset is exactly inverted for this rung. Bare predicates read the
+LAST-OBSERVED binding, so with N aircraft assigned per frame a bare read
+can only ever see the last one — measured: two channels with genuinely
+different verdicts (`diverging` vs `oscillating`), where the bare read
+sees only the second. For N > 1 the bare form is not inconvenient, it is
+SEMANTICALLY WRONG, and the `of` form is the only correct one. So the AOT
+arm is scoped to what compiles today and re-opens when #119 lands. The
+three-arm VM curve — the headline number — is unaffected.
+
+## Measurement discipline (inherited, not re-derived)
+
+Everything rung 3's C6 gate learned applies here and is not re-litigated:
+n=5 medians; ratios rather than wall times, because absolute budgets flake
+on shared runners; bound literals identity-pinned; the executed workload
+pinned by whole-file hash so the measurement cannot silently become a
+different measurement; and every arm's planted fault drawn from the defect
+class that arm exists to stop, exercising the real gate (mechanical-gates
+SS97-100).
+
+## Exit gate for rung 4
+
+1. Each aircraft's physics still grades to the rung-0 chain — the swarm
+   must not be a new model, only N of the old one.
+2. The three-arm curve measured at several N, with the fit published and
+   its slope compared against the C6-derived prediction.
+3. All four predictions reported WITH their measurement, including any
+   that fail to reproduce, and any refuted one stated as refuted.
+4. Blind-critic rounds until dry (two consecutive clean). A round cap is
+   the wrong terminator while the find rate is undiminished (rung 3, 25
+   rounds); if the cap is exceeded, say so and why.
+5. CI green on the pushed branch, and the shipped entry points exercised —
+   a dry loop certifies only the surface its critics ran.
