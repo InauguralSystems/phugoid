@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# p3claims.sh -- the CLAIM assertions behind P3, as one shared
-# implementation.
+# p3claims.sh -- P3's six CLAIM assertions, as one shared implementation.
+# IDs: P3.truth.alive, P3.rows, P3.blind74, P3.unitdep, P3.nuisance,
+# P3.tail, P3.nfleet.
 #
 # Why this is a library and not inline in test_swarm.sh: round 8 wrote two
 # claim assertions inline and placed them AFTER the exact-row pins, which
@@ -176,45 +177,34 @@ p3_claims() {
     done < "$rowfile"
     [ "$best" -ge 90 ] || _cf P3.nuisance "no cadence makes the detector fire on 90%+ of reads of a healthy aircraft (best ${best}% at $bestrow) — re-grade the rung; note this bound is a strong-form check, and P3 is only truly refuted by a stream that is quiet at EVERY cadence"
 
-    # --- claim 5: the long-cadence tail, pinned because round 12 found
-    # all three of round 11's readings of it wrong.
+    # --- claim 5: the long-cadence tail. Round 11 concluded "from cadence
+    # 134 on, ac0 and ac1 are identical -- the amplitude dependence
+    # vanishes once the step clears the deadband, the same mechanism as
+    # the unit axis". Round 12 refuted the mechanism but kept two
+    # assertions that round 13 then showed were RUN-LENGTH COINCIDENCES,
+    # true at 8000 frames and nowhere else:
     #
-    # Round 11 concluded "from cadence 134 on, ac0 and ac1 are identical --
-    # the amplitude dependence vanishes once the step clears the deadband,
-    # the same mechanism as the unit axis". Measured, that is true of ONE
-    # column. `fosc` is equal (36 = 36), and `fquiet` is not: at cadence
-    # 134 the small-amplitude aircraft issues a false all-clear on 14 of
-    # 51 full-window reads while the large-amplitude one issues 0. The
-    # amplitude dependence did not vanish; it moved into the column this
-    # rung calls the dangerous direction. And it is NOT the unit-axis
-    # mechanism: that one drives `fquiet` to 0 for BOTH aircraft (every
-    # deg/mrad row), which is exactly what does not happen here.
+    #   frames        6000      8000      10000     12000
+    #   fosc ac0/ac1  24/24     35/35     45/46     45/56    <- "equal"
+    #   fquiet        10/0      14/2      19/6      34/11    <- the real one
     #
-    # Round 11 also read "a local minimum at 134, recovering at 148" off
-    # the RATE. `fosc` is frozen at 36 across both cadences; only the
-    # denominator moves (51 -> 46 full-window reads). The numerator never
-    # changes, so there is no recovery to explain.
-    #
-    # This is the third time in this rung a conclusion came from reading
-    # one column of a multi-column table (round 8's three-way bucket,
-    # round 9's single `div` scalar, round 11's `fosc` ratio), so the
-    # corrected statement gets a claim of its own.
-    local t0o t0q t1o t1q t0f t1f
-    t0o=$(awk '$1=="rad" && $2=="0" && $3=="0.05" && $4=="134" {print $6}' "$rowfile")
-    t1o=$(awk '$1=="rad" && $2=="1" && $3=="0.05" && $4=="134" {print $6}' "$rowfile")
+    # "Equal detection" and "frozen detection count from 134 to 148" both
+    # dissolve as the run lengthens; only ONE thing survives every run
+    # length tested, and it is the thing that matters: at long cadence the
+    # SMALL-amplitude aircraft issues far more false all-clears than the
+    # large one. The amplitude dependence did not vanish -- it moved into
+    # the dangerous column. That is what is pinned, with a margin chosen
+    # from the smallest gap measured (10), not from the shipped run.
+    local t0q t1q
     t0q=$(awk '$1=="rad" && $2=="0" && $3=="0.05" && $4=="134" {print $7}' "$rowfile")
     t1q=$(awk '$1=="rad" && $2=="1" && $3=="0.05" && $4=="134" {print $7}' "$rowfile")
-    t0f=$(awk '$1=="rad" && $2=="0" && $3=="0.05" && $4=="148" {print $6}' "$rowfile")
-    t1f=$(awk '$1=="rad" && $2=="1" && $3=="0.05" && $4=="148" {print $6}' "$rowfile")
-    if [ -z "$t0o" ] || [ -z "$t1o" ] || [ -z "$t0q" ] || [ -z "$t1q" ] || [ -z "$t0f" ] || [ -z "$t1f" ]; then
-        _cf P3.tail "cadence 134/148 rows absent from the sweep (vacuous check)"
-    else
-        [ "$t0o" -eq "$t1o" ] || _cf P3.tail "the two aircraft no longer agree on DETECTION at cadence 134 ($t0o vs $t1o)"
-        [ "$t0q" -ne "$t1q" ] || _cf P3.tail "the two aircraft now agree on FALSE ALL-CLEAR at cadence 134 ($t0q vs $t1q) — the amplitude dependence really would have vanished, and round 11's retracted claim would be right"
-        [ "$t0f" -eq "$t0o" ] && [ "$t1f" -eq "$t1o" ] || _cf P3.tail "the detection COUNT is no longer frozen from 134 to 148 (ac0 $t0o->$t0f, ac1 $t1o->$t1f); the rate change there is no longer denominator-only"
+    if [ -z "$t0q" ] || [ -z "$t1q" ]; then
+        _cf P3.tail "cadence 134 rows absent from the sweep (vacuous check)"
+    elif [ "$(( t0q - t1q ))" -lt 5 ]; then
+        _cf P3.tail "the amplitude dependence has left the false-all-clear column at cadence 134 (ac0 $t0q vs ac1 $t1q); round 11's retracted claim that it vanishes at long cadence would be right"
     fi
 
-    # --- claim 5: the fleet alert rate does not FALL with N.
+    # --- claim 6: the fleet alert rate does not FALL with N.
     #
     # HONESTY NOTE, round 10: as built this is close to a theorem of the
     # construction rather than an empirical result. `fleet_ic` gives

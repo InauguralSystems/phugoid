@@ -162,20 +162,28 @@ print of f"p3truth total final-period airspeed swing across the four rows: {trut
 define p3_row(idx, sp, cad, uscale, uname) as:
     local fleet is fleet_ic of [tr.state, 4, sp]
     local s is fleet[idx]
-    # PRIMED, round 11. `local q is 0.0` made the channel's first sample a
-    # fictitious 0, and the jump from 0 to the trim pitch rate is a huge
-    # transient that the oscillation family reads as a reversal. It
-    # produced exactly one `oscillating` read per channel, at the read
-    # where the window first fills -- and round 10 published that single
-    # artifact as "detection = 1.0%, the unit-invariant half". Primed with
-    # the aircraft's actual pre-step state, `oscillating` goes to ZERO at
-    # cadence 74 in every unit, across all 109 reads. This is round 5's
-    # own finding ("the initialiser is a sample") reaching a second site:
-    # rung 4 applied it to channel CONSTRUCTION (#1049) and not to the
-    # channel's initial VALUE. swarm_check.eigs already accounted for it
-    # ("exactly 1 per channel is the initialiser sample"); the P3 write-up
-    # did not.
-    local q is 0.0
+    # SEEDED WITH REAL PHYSICS, AND SAMPLED ON AN EVENLY-SPACED GRID.
+    # Round 13. Three rounds got this wrong in three ways:
+    #
+    #   R10  `local q is 0.0`, sampled at f % cad == 0. The DECLARATION is
+    #        an assignment: it seeds last_value = 0, and the f=0 sample
+    #        then pushes a fictitious 0 -> trim delta. Published as
+    #        "detection = 1.0%".
+    #   R11  seeded from a pre-loop assignment with the real value, but
+    #        that sample sits one FRAME before the f=0 read while every
+    #        later gap is one CADENCE. The uneven delta suppressed the
+    #        real signal; published as "0%".
+    #   R12  moved the priming "inside the loop" and reverted the seed to
+    #        0.0 -- which restored R10's artifact exactly, and promoted it
+    #        to "a real detection of a real oscillation". The artifact
+    #        rides in the window through asn=10 and is evicted at asn=11,
+    #        which is why it landed on the one read `full` admitted.
+    #
+    # Both halves are needed. The seed is the aircraft's real state at
+    # t=0, and the grid is shifted to f % cad == cad-1 so the first sample
+    # lands exactly one cadence after it. Every pushed delta is then real
+    # physics over exactly one cadence, with no boundary to exclude.
+    local q is (s[2] * uscale) + 0.0
     local asn is 0
     local rd is 0
     local cv is 0
@@ -196,20 +204,11 @@ define p3_row(idx, sp, cad, uscale, uname) as:
     loop while f < 8000:
         unobserved:
             s is rk4_step of [s, t, 0.05, sched, tr.P]
-        if (f % cad) == 0:
+        if (f % cad) == (cad - 1):
             q is (s[2] * uscale) + 0.0
             unobserved:
                 asn is asn + 1
-            # The sample at f = 0 PRIMES the channel and is not counted.
-            # Round 11 primed with a separate pre-loop assignment, which
-            # removed the fictitious 0 but left the first inter-sample gap
-            # at one FRAME (0.05 s) while every later gap is one CADENCE
-            # (~3.7 s). On that one-delta window the observer reported
-            # `stable` -- a false-all-clear-class label -- and it differed
-            # between deg and mrad, breaking the byte-identity that is the
-            # sole evidence for the round-6/7 downgrade. Round 12: prime
-            # from INSIDE the loop so every gap is one cadence.
-            if f > 0:
+            if 1 == 1:
                 local rp is report of q
                 unobserved:
                     rd is rd + 1
@@ -229,7 +228,11 @@ define p3_row(idx, sp, cad, uscale, uname) as:
                         dg is dg + 1
                     else:
                         ot is ot + 1
-                    # Full window = 10 evenly-spaced assignments.
+                    # The declaration seeds last_value and pushes nothing
+                    # (upstream observer_slot_record_value), so asn counted
+                    # samples == asn pushed deltas, and the window is full
+                    # at asn = 10. Every one of those deltas is real
+                    # physics over exactly one cadence.
                     if asn > 9:
                         fl is fl + 1
                         if rp == "oscillating":
@@ -354,26 +357,23 @@ define p3_fleet(n, sp, cad) as:
     loop while f < 8000:
         unobserved:
             fleet is frame_step of [fleet, t, 0.05, sched, tr.P]
-        if (f % cad) == 0:
+        if (f % cad) == (cad - 1):
             local any is 0
             local a is 0
             loop while a < n:
                 local v is chans[a] of (fleet[a][2])
                 unobserved:
-                    if f > 0:
-                        reads is reads + 1
-                        if v == "oscillating":
-                            alerts is alerts + 1
-                            per[a] is per[a] + 1
-                            any is 1
+                    reads is reads + 1
+                    if v == "oscillating":
+                        alerts is alerts + 1
+                        per[a] is per[a] + 1
+                        any is 1
                 a is a + 1
-            # The f = 0 feed PRIMES every channel and is not counted, so
-            # each channel's counted samples are evenly cadence-spaced.
-            # Round 12: round 11 primed in the constructor, which left the
-            # first inter-sample gap at one FRAME while every later gap is
-            # one CADENCE -- and the observer reports a false-all-clear
-            # class label on that one-delta window.
-            if f > 0:
+            # make_vchannel seeds each channel with its aircraft's real
+            # state at t=0 and pushes nothing; the grid is shifted to
+            # f % cad == cad-1 so the first feed lands exactly one cadence
+            # later. Every pushed delta is real physics over one cadence.
+            if 1 == 1:
                 unobserved:
                     sweeps is sweeps + 1
                     if any == 1:
@@ -381,12 +381,11 @@ define p3_fleet(n, sp, cad) as:
                         if first < 0:
                             first is sweeps - 1
                         last is sweeps - 1
-                    # Channels are fed in lockstep, so per-channel
-                    # assignment count == sweeps + 2 (constructor, plus the
-                    # uncounted f = 0 priming feed). Grading starts once the
-                    # constructor's unevenly-spaced sample has left the
-                    # 10-wide window, i.e. from sweeps = 9.
-                    if sweeps > 8:
+                    # Channels are fed in lockstep, so per-channel pushed
+                    # deltas == sweeps and the window is full at sweeps=10.
+                    # Round 13: this was `sweeps > 8`, which was off by one
+                    # for the very reason round 12 gave for changing it.
+                    if sweeps > 9:
                         fsweeps is fsweeps + 1
                         if any == 1:
                             ffiring is ffiring + 1

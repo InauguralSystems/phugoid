@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Planted faults for P3's four CLAIM assertions.
+# Planted faults for P3's CLAIM assertions (tests/p3claims.sh).
 #
 # Round 8 shipped two assertions described in their own comment as "this
 # pins the claim". They were unreachable: placed after exact-row pins that
@@ -24,7 +24,7 @@ WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 # The control. A plant harness whose clean run is not green is measuring
 # its own noise.
 p3_claims "$WORK/clean" > "$WORK/r" 2>&1 || { echo "FAIL: clean output does not satisfy P3's claims"; cat "$WORK/r"; exit 1; }
-echo "--- control: clean output satisfies all five claims"
+echo "--- control: clean output satisfies every claim"
 
 plant() { # plant <name> <expected-claim> <expected-red-count> <sed-script>
     local name="$1" want="$2" wantn="$3" script="$4"
@@ -85,10 +85,15 @@ plant c9 'P3.blind74 P3.unitdep' 2 '/^p3 unit=(deg|mrad) /d'
 # harness's own channel priming.
 plant c10 P3.blind74 12 's/^(p3 unit=[a-z]+ ac=[01] sp=0\.0[25] cad=74 .*)flate=0/\1flate=3/'
 
-# c11/c12: the long-cadence tail. Round 11 read both of these off the
-# `fosc` column alone and got both wrong.
-plant c11 P3.tail 1 's/^(p3 unit=rad ac=0 sp=0\.05 cad=134 .*)fquiet=[0-9]+/\1fquiet=0/'
-plant c12 P3.tail 1 's/^(p3 unit=rad ac=0 sp=0\.05 cad=148 .*fosc=)[0-9]+/\150/'
+# c11/c12: the long-cadence tail. The claim is that the amplitude
+# dependence survives at long cadence IN THE FALSE-ALL-CLEAR COLUMN.
+# Round 11 read the tail off `fosc` alone and concluded the dependence
+# vanished; round 13 showed the two assertions that replaced it were true
+# only at the shipped run length.
+plant c11 P3.tail 1 's/^(p3 unit=rad ac=0 sp=0\.05 cad=134 .*)fquiet=[0-9]+/\1fquiet=2/'
+# c12: the same collapse from the other side -- the large-amplitude
+# aircraft catching up rather than the small one dropping.
+plant c12 P3.tail 1 's/^(p3 unit=rad ac=1 sp=0\.05 cad=134 .*)fquiet=[0-9]+/\1fquiet=99/'
 
 # The round-8 defect itself, checked mechanically: the claim assertions
 # must run BEFORE the exact-row pins. If the pins come first they exit 1
