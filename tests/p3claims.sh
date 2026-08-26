@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# p3claims.sh -- the four CLAIM assertions behind P3, as one shared
+# p3claims.sh -- the CLAIM assertions behind P3, as one shared
 # implementation.
 #
 # Why this is a library and not inline in test_swarm.sh: round 8 wrote two
@@ -8,21 +8,39 @@
 # they could only evaluate in the world where every pinned row already
 # matched, which is the world where they have nothing to say. Nothing
 # caught that, because a gate with no planted fault has never been shown
-# to be able to fail. These now run against planted output in
+# to be able to fail. These run against planted output in
 # test_swarm_p3_planted.sh, which is what makes the reachability claim
 # checkable rather than asserted.
+#
+# ROUND 10: the claims are stated over the FULL-WINDOW reads and over the
+# SPLIT labels, because round 9's single `div = reads - osc` scalar could
+# not see an inversion of the finding:
+#
+#   * `div` counted the first 9 reads of every channel, which are a
+#     partial observer window (OBSERVER_WINDOW_N = 10) where the observer
+#     by spec cannot claim anything yet. Excluding them moves the
+#     published "best cell 29% divergent" to 20.8% -- onto the 20%
+#     boundary the claim itself used.
+#   * `div` lumped `converged`/`stable`/`equilibrium` (a FALSE ALL-CLEAR:
+#     the observer affirmatively says "settled" about an aircraft that is
+#     swinging) with `moving` (the documented no-claim label). Those are
+#     different failures with different severity, and re-expressing the
+#     same channel in DEGREES turns the first into the second while
+#     leaving the physics identical. Round 9's gate passed unchanged on
+#     that output.
+#
+# So: `detect` (fosc/full) is what the observer got RIGHT; `fac`
+# (fquiet/full) is the dangerous direction. Both are graded, and the unit
+# is a first-class axis.
 #
 # Every claim reports independently (no early exit) so a planted fault can
 # assert an EXACT red set rather than "something failed".
 #
-# Vacuity: a missing field is a FAIL, never a pass. Round 1 of this rung
-# found declared plants that could not fail; the same shape at the field
-# level is a claim that silently examined nothing.
+# Vacuity: a missing field is a FAIL, never a pass.
 
 p3_claims() {
     local out="$1"
     local failed=0
-    local v
 
     _cf() { echo "CLAIMFAIL $1: $2"; failed=1; }
     # _num <regex>; echoes the value or nothing. It must NOT report its own
@@ -35,11 +53,11 @@ p3_claims() {
     _num() { grep -oP "$1" "$out" 2>/dev/null | head -1; }
 
     # --- claim 1: the PHYSICS truth. The phugoid must still be alive at
-    # the end of the run. If it is not, "the observer contradicts the
-    # aircraft" is meaningless and every divergence count below is void.
-    # This is the row rung 4 lacked for eight rounds: five successive
-    # write-ups graded the verdict columns against nothing and inverted
-    # the classification each time.
+    # the end of the run, or "the observer contradicts the aircraft" is
+    # meaningless and every rate below is void. This is the row rung 4
+    # lacked for eight rounds: five successive write-ups graded the
+    # verdict columns against nothing and inverted the classification
+    # each time.
     local ul0 ul1
     ul0=$(_num '^p3truth ac=0 sp=0.05 .* u_pp_last=\K[0-9-]+')
     ul1=$(_num '^p3truth ac=1 sp=0.05 .* u_pp_last=\K[0-9-]+')
@@ -49,50 +67,81 @@ p3_claims() {
         _cf P3.truth.alive "the phugoid is no longer swinging in the final period (u_pp_last ac0=$ul0 ac1=$ul1 hundredths m/s); P3's truth table has changed"
     fi
 
-    # --- claim 2: no clean verdict row exists anywhere in the sweep.
-    # P3's registered refutation condition is "a clean verdict stream".
-    # Truth is `oscillating` at every read, so div = reads - osc.
-    local worst=1000 spec rd dv pct
-    for spec in "ac=0 sp=0.05 cad=74" "ac=1 sp=0.05 cad=74" \
-                "ac=0 sp=0.05 cad=94" "ac=1 sp=0.05 cad=94" \
-                "ac=0 sp=0.05 cad=148" "ac=1 sp=0.05 cad=148"; do
-        rd=$(grep -oP "^p3 $spec reads=\K[0-9]+" "$out" 2>/dev/null | head -1)
-        dv=$(grep -oP "^p3 $spec .* div=\K[0-9]+" "$out" 2>/dev/null | head -1)
-        if [ -z "$rd" ] || [ -z "$dv" ] || [ "$rd" -eq 0 ]; then
-            _cf P3.noclean "row '$spec' absent or empty (vacuous check)"
-            worst=-1
-            break
-        fi
-        pct=$(( dv * 100 / rd ))
-        [ "$pct" -lt "$worst" ] && worst=$pct
-    done
-    if [ "$worst" -ge 0 ] && [ "$worst" -lt 20 ]; then
-        _cf P3.noclean "a clean verdict row has appeared (best cell diverges on only ${worst}% of reads); P3 is REFUTED, re-grade the rung"
+    # Pull every row as "unit ac sp cad full fosc fquiet".
+    local rowfile
+    rowfile=$(mktemp)
+    grep -oP '^p3 unit=\K\S+(?=.*)' "$out" >/dev/null 2>&1
+    sed -n 's/^p3 unit=\([a-z]*\) ac=\([0-9]*\) sp=\([0-9.]*\) cad=\([0-9]*\) .*full=\([0-9]*\) fosc=\([0-9]*\) fquiet=\([0-9]*\).*/\1 \2 \3 \4 \5 \6 \7/p' "$out" > "$rowfile"
+    local nrows
+    nrows=$(wc -l < "$rowfile")
+
+    if [ "$nrows" -lt 12 ]; then
+        _cf P3.rows "only $nrows verdict rows parsed from driver output (vacuous check)"
+        rm -f "$rowfile"; [ "$failed" -eq 0 ] && return 0; return 1
     fi
 
-    # --- claim 3: cadence 74 is the BLIND regime. The observer must be
-    # contradicting the physics on essentially every read there. Round 8
-    # asserted the opposite -- that `oscillating` stays <= 2 -- and read
-    # that as the AIRCRAFT being quiescent. It is true of the verdict
-    # stream and false about the aircraft, which is still swinging
-    # 4.5-8.8 m/s peak-to-peak at that point.
-    local ac
-    for ac in 0 1; do
-        rd=$(grep -oP "^p3 ac=$ac sp=0.05 cad=74 reads=\K[0-9]+" "$out" 2>/dev/null | head -1)
-        dv=$(grep -oP "^p3 ac=$ac sp=0.05 cad=74 .* div=\K[0-9]+" "$out" 2>/dev/null | head -1)
-        if [ -z "$rd" ] || [ -z "$dv" ] || [ "$rd" -eq 0 ]; then
-            _cf P3.blind74 "row ac=$ac cad=74 absent or empty (vacuous check)"
-        elif [ "$(( dv * 100 / rd ))" -lt 95 ]; then
-            _cf P3.blind74 "cadence 74 is no longer the blind regime for ac=$ac ($dv/$rd divergences)"
+    # --- claim 2: at cadence 74 the observer FAILS TO DETECT the live
+    # mode, in EVERY unit. This is the unit-INVARIANT half, and it is the
+    # one the window/period argument actually explains: a 10-sample window
+    # at cadence 74 spans 0.79 of a phugoid period, so `oscillating`
+    # cannot fire whatever the numbers are scaled to.
+    local u a s c full fosc fq det fac worstdet=-1 nb74=0
+    while read -r u a s c full fosc fq; do
+        [ "$c" = "74" ] || continue
+        nb74=$((nb74+1))
+        det=$(( fosc * 100 / full ))
+        if [ "$det" -gt 5 ]; then
+            _cf P3.blind74 "cadence 74 is no longer blind for unit=$u ac=$a sp=$s (detects ${det}% of a live mode)"
         fi
-    done
+    done < "$rowfile"
+    [ "$nb74" -ge 6 ] || _cf P3.blind74 "only $nb74 cadence-74 rows found across units (vacuous check)"
 
-    # --- claim 4: the fleet alert rate does not FALL with N. This is the
-    # half of P3 that had NO measurement at all until round 9 -- p3_row
-    # hardcodes a fleet of 4 -- and was reported CONFIRMED regardless.
-    # Asserted as non-decreasing, not as the constant it currently is,
-    # because the registered prediction is "does not fall with N".
-    local np=() n
+    # --- claim 3: the SEVERITY of that failure is unit-dependent, and the
+    # dangerous direction exists in the shipped unit. In radians the
+    # observer issues a FALSE ALL-CLEAR; rescaled to degrees or
+    # milliradians -- identical physics, identical cadence -- it declines
+    # to claim instead. This is EigenScript#1045's absolute zero-band, and
+    # it is why a claim about the observer is not a claim until its unit
+    # is stated. Round 9 published the false-all-clear as if it were a
+    # property of the observer rather than of the radian scaling.
+    local radmax=-1 degmax=-1 nrad=0 nnonrad=0
+    while read -r u a s c full fosc fq; do
+        [ "$c" = "74" ] || continue
+        fac=$(( fq * 100 / full ))
+        if [ "$u" = "rad" ]; then
+            nrad=$((nrad+1)); [ "$fac" -gt "$radmax" ] && radmax=$fac
+        else
+            nnonrad=$((nnonrad+1)); [ "$fac" -gt "$degmax" ] && degmax=$fac
+        fi
+    done < "$rowfile"
+    if [ "$nrad" -lt 2 ] || [ "$nnonrad" -lt 2 ]; then
+        _cf P3.unitdep "unit axis missing from the sweep (rad rows=$nrad, non-rad rows=$nnonrad) — the claim cannot be evaluated"
+    else
+        [ "$radmax" -ge 90 ] || _cf P3.unitdep "the false all-clear is gone from the radian rows at cadence 74 (max ${radmax}%)"
+        [ "$degmax" -eq 0 ] || _cf P3.unitdep "a false all-clear has appeared in a non-radian unit (max ${degmax}%) — the deadband attribution is wrong"
+    fi
+
+    # --- claim 4: no clean verdict stream exists ANYWHERE in the sweep.
+    # P3's registered refutation condition. Graded over every row in every
+    # unit, not the six rows round 9 happened to iterate.
+    while read -r u a s c full fosc fq; do
+        det=$(( fosc * 100 / full ))
+        [ "$det" -gt "$worstdet" ] && worstdet=$det
+    done < "$rowfile"
+    [ "$worstdet" -lt 90 ] || _cf P3.noclean "a clean verdict row has appeared (best row detects ${worstdet}% of a live mode); P3 is REFUTED, re-grade the rung"
+
+    # --- claim 5: the fleet alert rate does not FALL with N.
+    #
+    # HONESTY NOTE, round 10: as built this is close to a theorem of the
+    # construction rather than an empirical result. `fleet_ic` gives
+    # aircraft i an N-independent initial condition, `frame_step` has no
+    # inter-aircraft coupling, and each aircraft has its own channel --
+    # so each aircraft's alert set is N-independent and the union is
+    # monotone in N. It is kept as a REGRESSION guard (it would fire if
+    # channels started sharing state, which is exactly rung 4's P4
+    # defect) and it is reported in ORACLE.md as construction-bound, not
+    # as evidence about observers at scale.
+    local np=() n v
     for n in 2 4 8 16; do
         v=$(grep -oP "^p3n n=$n .* fleet_permille=\K[0-9]+" "$out" 2>/dev/null | head -1)
         [ -n "$v" ] && np+=("$v")
@@ -104,12 +153,13 @@ p3_claims() {
             _cf P3.nfleet "the detector no longer fires on a healthy fleet at N=2 (${np[0]} permille)"
         fi
         if [ "${np[1]}" -lt "${np[0]}" ] || [ "${np[2]}" -lt "${np[1]}" ] || [ "${np[3]}" -lt "${np[2]}" ]; then
-            _cf P3.nfleet "the fleet alert rate FALLS with N (${np[*]} permille); P3's N-invariance claim is refuted"
+            _cf P3.nfleet "the fleet alert rate FALLS with N (${np[*]} permille); channels are no longer independent"
         fi
     fi
 
+    rm -f "$rowfile"
     if [ "$failed" -eq 0 ]; then
-        echo "P3CLAIMS OK worst_clean=${worst}% fleet_permille=${np[*]:-?}"
+        echo "P3CLAIMS OK rows=$nrows best_detect=${worstdet}% rad_falseallclear_max=${radmax}% nonrad_max=${degmax}% fleet=${np[*]:-?}"
         return 0
     fi
     return 1

@@ -122,8 +122,41 @@ print of f"p3truth total final-period airspeed swing across the four rows: {trut
 
 # ---------------------------------------------------------------------
 # The verdict stream, graded against that truth.
-# ---------------------------------------------------------------------
-define p3_row(idx, sp, cad) as:
+#
+# ROUND 10 -- TWO STRUCTURAL FIXES.
+#
+# (a) THE UNIT IS AN AXIS. The channel carries pitch rate, and the
+# observer's zero-band (`dh_zero`, G5 / EigenScript#1045) is an ABSOLUTE
+# threshold, so the verdict depends on the NUMERIC MAGNITUDE of the
+# channel and not only on its shape. Rung 3 already knew this --
+# tests/observer_lat_check.eigs sweeps rad/deg/mrad for exactly this
+# defect -- and rung 4 did not carry the axis forward. Measured: in
+# degrees the whole cadence-74 row structure disappears (conv/stable/equil
+# all go to 0, moving goes to 104) and aircraft 0 and 1 become
+# byte-identical, which collapses rounds 6 and 7's dispersion and aircraft
+# findings into deadband artifacts of the radian scaling. A claim about
+# the observer that is not stated with its unit is not yet a claim.
+#
+# (b) `div` WAS A THREE-WAY COLLAPSE. Round 8's defect was bucketing five
+# classes into an unlabelled `other`; round 9 expanded the printed buckets
+# and then re-collapsed them into ONE number for GRADING (div = reads -
+# osc). That lumps two completely different failures:
+#     quiet   = converged + stable + equilibrium -- a FALSE ALL-CLEAR.
+#               The observer affirmatively says the aircraft has settled
+#               while it is swinging. This is the dangerous direction.
+#     noclaim = moving -- the documented "a full window in which none of
+#               the six is true" (docs/PREDICATES.md). The observer
+#               declining to claim is not the observer being WRONG.
+# They are reported separately and graded separately.
+#
+# (c) WINDOW FILL IS NOT A DIVERGENCE. The first OBSERVER_WINDOW_N-1 = 9
+# reads of any channel are a partial window; by spec the observer cannot
+# yet claim anything and returns moving/stable. Counting those as
+# contradictions inflated every rate in the round-9 write-up by exactly 9
+# reads per row -- and the published "best cell 29%" is 20.8% once they
+# are excluded, which sits on the 20% refutation boundary the gate uses.
+# `full`/`fosc`/`fquiet`/`fnoclaim` are the honest denominators.
+define p3_row(idx, sp, cad, uscale, uname) as:
     local fleet is fleet_ic of [tr.state, 4, sp]
     local s is fleet[idx]
     local q is 0.0
@@ -136,13 +169,17 @@ define p3_row(idx, sp, cad) as:
     local im is 0
     local dg is 0
     local ot is 0
+    local fl is 0
+    local fos is 0
+    local fqu is 0
+    local fnc is 0
     local t is 0.0
     local f is 0
     loop while f < 8000:
         unobserved:
             s is rk4_step of [s, t, 0.05, sched, tr.P]
         if (f % cad) == 0:
-            q is s[2] + 0.0
+            q is (s[2] * uscale) + 0.0
             local rp is report of q
             unobserved:
                 rd is rd + 1
@@ -162,28 +199,44 @@ define p3_row(idx, sp, cad) as:
                     dg is dg + 1
                 else:
                     ot is ot + 1
+                if rd > 9:
+                    fl is fl + 1
+                    if rp == "oscillating":
+                        fos is fos + 1
+                    elif rp == "moving":
+                        fnc is fnc + 1
+                    elif rp == "converged":
+                        fqu is fqu + 1
+                    elif rp == "stable":
+                        fqu is fqu + 1
+                    elif rp == "equilibrium":
+                        fqu is fqu + 1
         unobserved:
             t is t + 0.05
         f is f + 1
-    # Truth is `oscillating` at every read (the mode is alive for the whole
-    # run -- see the p3truth rows above), so every other label is a read
-    # that contradicts the physics.
-    local dv is rd - os
-    print of f"p3 ac={idx} sp={sp} cad={cad} reads={rd} conv={cv} osc={os} moving={mv} stable={st} equil={eq} improving={im} diverging={dg} other={ot} div={dv}"
-    return [rd, cv, os, mv, st, eq, im, dg, ot, dv]
+    print of f"p3 unit={uname} ac={idx} sp={sp} cad={cad} reads={rd} conv={cv} osc={os} moving={mv} stable={st} equil={eq} improving={im} diverging={dg} other={ot} full={fl} fosc={fos} fquiet={fqu} fnoclaim={fnc}"
+    return [rd, cv, os, mv, st, eq, im, dg, ot, fl, fos, fqu, fnc]
 
-# The sweep is over THREE axes, not two. Round 7: the previous version
-# sampled fleet[1] and reported the row as a property of the dispersion --
-# but the shipped fleet already spans a factor of two in amplitude
-# (0.0240 / 0.0466 / 0.0473 / 0.0258 at spread 0.05), which is the same
-# range the dispersion axis sweeps. "Dispersion" was a proxy for
-# per-channel amplitude, and the aircraft index was a hidden variable.
+# The sweep is over FOUR axes. Round 7: the previous version sampled
+# fleet[1] and reported the row as a property of the dispersion -- but the
+# shipped fleet already spans a factor of two in amplitude (0.0240 /
+# 0.0466 / 0.0473 / 0.0258 at spread 0.05), which is the same range the
+# dispersion axis sweeps, so "dispersion" was a proxy for per-channel
+# amplitude and the aircraft index was a hidden variable. Round 10 adds
+# the unit, which subsumes BOTH of those: amplitude and unit enter the
+# deadband the same way, as the numeric magnitude of the channel.
 rows is 0
 for ac in [0, 1]:
     for sp in [0.02, 0.05]:
         for cd in [74, 94, 148]:
-            r is p3_row of [ac, sp, cd]
+            r is p3_row of [ac, sp, cd, 1.0, "rad"]
             rows is rows + r[0]
+for uac in [0, 1]:
+    for ucd in [74, 94, 148]:
+        rd is p3_row of [uac, 0.05, ucd, 57.29577951308232, "deg"]
+        rows is rows + rd[0]
+        rmr is p3_row of [uac, 0.05, ucd, 1000.0, "mrad"]
+        rows is rows + rmr[0]
 print of f"p3 total reads across the sweep: {rows}"
 
 # ---------------------------------------------------------------------

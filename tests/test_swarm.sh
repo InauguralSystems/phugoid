@@ -38,37 +38,50 @@ p3_claims "$OUT" || { echo "FAIL: P3's claims no longer hold against measured ph
 # --- regression detail: the exact rows. These come AFTER every claim
 # above, so a drift here is reported as drift and not as a silent veto on
 # the claim checks.
-NP3=$(grep -c '^p3 ac=' "$OUT" || true)
-[ "$NP3" = "12" ] || { echo "FAIL: P3 sweep produced $NP3 rows, expected 12"; exit 1; }
+NP3=$(grep -c '^p3 unit=' "$OUT" || true)
+[ "$NP3" = "24" ] || { echo "FAIL: P3 sweep produced $NP3 rows, expected 24"; exit 1; }
 NT=$(grep -c '^p3truth ac=' "$OUT" || true)
 [ "$NT" = "4" ] || { echo "FAIL: P3 truth table produced $NT rows, expected 4"; exit 1; }
 while read -r want; do
-    grep -qxF "$want" "$OUT" || { echo "FAIL: P3 row drifted: $want"; grep -E '^p3(truth| ac=|n )' "$OUT"; exit 1; }
+    grep -qxF "$want" "$OUT" || { echo "FAIL: P3 row drifted: $want"; grep -E '^p3(truth| unit=|n )' "$OUT"; exit 1; }
 done <<'P3ROWS'
 p3truth ac=0 sp=0.02 u_pp_first=337 u_pp_last=181 q_pp_first=1057 q_pp_last=103
 p3truth ac=0 sp=0.05 u_pp_first=844 u_pp_last=452 q_pp_first=2643 q_pp_last=257
 p3truth ac=1 sp=0.02 u_pp_first=656 u_pp_last=352 q_pp_first=2055 q_pp_last=200
 p3truth ac=1 sp=0.05 u_pp_first=1641 u_pp_last=880 q_pp_first=5134 q_pp_last=501
-p3 ac=0 sp=0.02 cad=74 reads=109 conv=98 osc=1 moving=9 stable=1 equil=0 improving=0 diverging=0 other=0 div=108
-p3 ac=0 sp=0.02 cad=94 reads=86 conv=75 osc=1 moving=9 stable=1 equil=0 improving=0 diverging=0 other=0 div=85
-p3 ac=0 sp=0.02 cad=148 reads=55 conv=44 osc=1 moving=0 stable=10 equil=0 improving=0 diverging=0 other=0 div=54
-p3 ac=0 sp=0.05 cad=74 reads=109 conv=73 osc=1 moving=10 stable=0 equil=25 improving=0 diverging=0 other=0 div=108
-p3 ac=0 sp=0.05 cad=94 reads=86 conv=25 osc=41 moving=10 stable=1 equil=9 improving=0 diverging=0 other=0 div=45
-p3 ac=0 sp=0.05 cad=148 reads=55 conv=0 osc=36 moving=10 stable=6 equil=3 improving=0 diverging=0 other=0 div=19
-p3 ac=1 sp=0.02 cad=74 reads=109 conv=97 osc=1 moving=10 stable=0 equil=1 improving=0 diverging=0 other=0 div=108
-p3 ac=1 sp=0.02 cad=94 reads=86 conv=55 osc=17 moving=10 stable=0 equil=4 improving=0 diverging=0 other=0 div=69
-p3 ac=1 sp=0.02 cad=148 reads=55 conv=0 osc=36 moving=10 stable=2 equil=7 improving=0 diverging=0 other=0 div=19
-p3 ac=1 sp=0.05 cad=74 reads=109 conv=0 osc=1 moving=11 stable=65 equil=32 improving=0 diverging=0 other=0 div=108
-p3 ac=1 sp=0.05 cad=94 reads=86 conv=0 osc=61 moving=10 stable=15 equil=0 improving=0 diverging=0 other=0 div=25
-p3 ac=1 sp=0.05 cad=148 reads=55 conv=0 osc=36 moving=13 stable=6 equil=0 improving=0 diverging=0 other=0 div=19
+p3 unit=rad ac=0 sp=0.02 cad=74 reads=109 conv=98 osc=1 moving=9 stable=1 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=98 fnoclaim=1
+p3 unit=rad ac=0 sp=0.02 cad=94 reads=86 conv=75 osc=1 moving=9 stable=1 equil=0 improving=0 diverging=0 other=0 full=77 fosc=1 fquiet=75 fnoclaim=1
+p3 unit=rad ac=0 sp=0.02 cad=148 reads=55 conv=44 osc=1 moving=0 stable=10 equil=0 improving=0 diverging=0 other=0 full=46 fosc=1 fquiet=45 fnoclaim=0
+p3 unit=rad ac=0 sp=0.05 cad=74 reads=109 conv=73 osc=1 moving=10 stable=0 equil=25 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=98 fnoclaim=1
+p3 unit=rad ac=0 sp=0.05 cad=94 reads=86 conv=25 osc=41 moving=10 stable=1 equil=9 improving=0 diverging=0 other=0 full=77 fosc=41 fquiet=35 fnoclaim=1
+p3 unit=rad ac=0 sp=0.05 cad=148 reads=55 conv=0 osc=36 moving=10 stable=6 equil=3 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=9 fnoclaim=1
+p3 unit=rad ac=1 sp=0.02 cad=74 reads=109 conv=97 osc=1 moving=10 stable=0 equil=1 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=98 fnoclaim=1
+p3 unit=rad ac=1 sp=0.02 cad=94 reads=86 conv=55 osc=17 moving=10 stable=0 equil=4 improving=0 diverging=0 other=0 full=77 fosc=17 fquiet=59 fnoclaim=1
+p3 unit=rad ac=1 sp=0.02 cad=148 reads=55 conv=0 osc=36 moving=10 stable=2 equil=7 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=9 fnoclaim=1
+p3 unit=rad ac=1 sp=0.05 cad=74 reads=109 conv=0 osc=1 moving=11 stable=65 equil=32 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=97 fnoclaim=2
+p3 unit=rad ac=1 sp=0.05 cad=94 reads=86 conv=0 osc=61 moving=10 stable=15 equil=0 improving=0 diverging=0 other=0 full=77 fosc=61 fquiet=15 fnoclaim=1
+p3 unit=rad ac=1 sp=0.05 cad=148 reads=55 conv=0 osc=36 moving=13 stable=6 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=6 fnoclaim=4
+p3 unit=deg ac=0 sp=0.05 cad=74 reads=109 conv=0 osc=5 moving=104 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=0 fnoclaim=99
+p3 unit=mrad ac=0 sp=0.05 cad=74 reads=109 conv=0 osc=5 moving=104 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=0 fnoclaim=99
+p3 unit=deg ac=0 sp=0.05 cad=94 reads=86 conv=0 osc=67 moving=19 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15
+p3 unit=mrad ac=0 sp=0.05 cad=94 reads=86 conv=0 osc=67 moving=19 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15
+p3 unit=deg ac=0 sp=0.05 cad=148 reads=55 conv=0 osc=36 moving=19 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=0 fnoclaim=10
+p3 unit=mrad ac=0 sp=0.05 cad=148 reads=55 conv=0 osc=36 moving=19 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=0 fnoclaim=10
+p3 unit=deg ac=1 sp=0.05 cad=74 reads=109 conv=0 osc=5 moving=104 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=0 fnoclaim=99
+p3 unit=mrad ac=1 sp=0.05 cad=74 reads=109 conv=0 osc=5 moving=104 stable=0 equil=0 improving=0 diverging=0 other=0 full=100 fosc=1 fquiet=0 fnoclaim=99
+p3 unit=deg ac=1 sp=0.05 cad=94 reads=86 conv=0 osc=67 moving=19 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15
+p3 unit=mrad ac=1 sp=0.05 cad=94 reads=86 conv=0 osc=67 moving=19 stable=0 equil=0 improving=0 diverging=0 other=0 full=77 fosc=62 fquiet=0 fnoclaim=15
+p3 unit=deg ac=1 sp=0.05 cad=148 reads=55 conv=0 osc=36 moving=19 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=0 fnoclaim=10
+p3 unit=mrad ac=1 sp=0.05 cad=148 reads=55 conv=0 osc=36 moving=19 stable=0 equil=0 improving=0 diverging=0 other=0 full=46 fosc=36 fquiet=0 fnoclaim=10
 p3n n=2 sp=0.05 cad=94 reads=172 alerts=102 per_ac_permille=593 sweeps=86 firing=61 fleet_permille=709 first=9 last=85 per=[41, 61]
 p3n n=4 sp=0.05 cad=94 reads=344 alerts=208 per_ac_permille=605 sweeps=86 firing=61 fleet_permille=709 first=9 last=85 per=[41, 61, 61, 45]
 p3n n=8 sp=0.05 cad=94 reads=688 alerts=392 per_ac_permille=570 sweeps=86 firing=61 fleet_permille=709 first=9 last=85 per=[41, 61, 61, 45, 1, 61, 61, 61]
 p3n n=16 sp=0.05 cad=94 reads=1376 alerts=724 per_ac_permille=526 sweeps=86 firing=61 fleet_permille=709 first=9 last=85 per=[41, 61, 61, 45, 1, 61, 61, 61, 1, 41, 61, 61, 45, 1, 61, 61]
+p3n total alerts across the N sweep: 1426
 P3ROWS
-grep -q '^p3 total reads across the sweep: 1000$' "$OUT" || { echo "FAIL: P3 sweep population changed"; exit 1; }
+grep -q '^p3 total reads across the sweep: 2000$' "$OUT" || { echo "FAIL: P3 sweep population changed"; exit 1; }
 # `other` is the residual for a label the driver does not model. Round 8's
 # header claimed all seven classes and the chain implemented six (no
 # `diverging` arm, no residual), so an unmodelled label vanished silently.
-grep -E '^p3 .* other=[1-9]' "$OUT" && { echo "FAIL: an unmodelled verdict label appeared in the residual"; exit 1; }
-echo "PASS: P3's sixteen pinned rows reproduce (4 physics truth, 12 verdict, 4 N-axis)"
+grep -E '^p3 unit=.* other=[1-9]' "$OUT" && { echo "FAIL: an unmodelled verdict label appeared in the residual"; exit 1; }
+echo "PASS: P3's 32 pinned rows reproduce (4 physics truth, 24 verdict across 3 units, 4 N-axis)"
