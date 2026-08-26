@@ -175,7 +175,13 @@ loop while i < NA:
 # is the control for interleaving.
 CAD is 74
 FRL is 8000
-hs is run_named4 of [FRL, 0.05, 0.02, CAD, tr.state, tr.P, sched]
+# w4 injects the round-1 defect INTO run_named4 (all four channels read
+# through one binding), so the fleet-vs-solo checks below are what catches
+# it -- they were previously reddened by nothing.
+shared_w4 is 0
+if plant == "w4":
+    shared_w4 is 1
+hs is run_named4 of [FRL, 0.05, 0.02, CAD, tr.state, tr.P, sched, shared_w4]
 ai2 is 0
 loop while ai2 < 4:
     local solo is run_solo of [ai2, FRL, 0.05, 0.02, CAD, tr.state, tr.P, sched]
@@ -186,29 +192,6 @@ loop while ai2 < 4:
 # 10-sample window spans 1% of the phugoid period and NOTHING ever fires.
 # The cadence is rung 3's C5.ph.p370 result, not a tuning knob.
 tot is hs[0] + hs[1] + hs[2] + hs[3]
-# w4 breaks the CONTROL: it reads the fleet through one shared binding
-# again, so the per-aircraft counts become interleave artifacts and stop
-# matching the solo runs. This is the round-1 defect itself, planted.
-if plant == "w4":
-    local shared is 0
-    local qs2 is 0.0
-    local fl2 is fleet_ic of [tr.state, 4, SP]
-    local t2 is 0.0
-    local f2 is 0
-    loop while f2 < FRL:
-        unobserved:
-            fl2 is frame_step of [fl2, t2, 0.05, sched, tr.P]
-        if (f2 % CAD) == 0:
-            local a2 is 0
-            loop while a2 < 4:
-                qs2 is fl2[a2][2] + 0.0
-                if oscillating of qs2:
-                    shared is shared + 1
-                a2 is a2 + 1
-        unobserved:
-            t2 is t2 + 0.05
-        f2 is f2 + 1
-    tot is shared
 check_exact of ["W5.stream.live", tot, 4]
 
 print of f"CHECKS_RUN {checks_run}"

@@ -35,7 +35,7 @@ echo "PASS: file_pin planted fault rejected (the real file_pin rejects a halved 
 
 file_pin tests/swarm_profile.eigs         27b48d89472b 28
 file_pin tests/swarm_profile_unarmed.eigs 646088f6531a 14
-file_pin swarm.eigs                       5624dc2e9376 193
+file_pin swarm.eigs                       5133f8995d0b 207
 file_pin swarm_unarmed.eigs               11e3d43c59ca 56
 
 # --- the control must be UNARMED, which is the whole point of it existing.
@@ -81,6 +81,32 @@ awk -v x="$WORST" -v b="$CF_BOUND" 'BEGIN{ exit !(x > b) }' || {
     echo "      arm stopped doing its work."
     exit 1; }
 echo "PASS: the ceiling arm costs ${WORST}x the floor at its weakest N"
+
+# The disciplined and unarmed arms were PRINTED AND NEVER ASSERTED (round
+# 2) -- the same defect class round 1 found in `hits`. What can honestly be
+# asserted is bounded by this box: round 2 measured disciplined 8% BELOW
+# floor at one N, so the noise floor is ~10% and "indistinguishable" is not
+# resolvable. The defensible claim is that BOTH sit far below the ceiling,
+# i.e. `unobserved:` bought the penalty back; that is what is gated.
+DU_BOUND=1.20
+[ "$DU_BOUND" = "1.20" ] || { echo "FAIL: DU_BOUND is $DU_BOUND, declared 1.20"; exit 1; }
+for n in 1 4 16; do
+    c=$(mins tests/swarm_profile.eigs ceiling "$n")
+    d=$(mins tests/swarm_profile.eigs disciplined "$n")
+    u=$(mins tests/swarm_profile_unarmed.eigs "$n")
+    for pair in "disciplined:$d" "unarmed:$u"; do
+        nm=${pair%%:*}; v=${pair##*:}
+        awk -v c="$c" -v v="$v" -v b="$DU_BOUND" 'BEGIN{ exit !(c/v > b) }' || {
+            echo "FAIL: at N=$n the $nm arm ($v) is within ${DU_BOUND}x of the ceiling ($c) —"
+            echo "      either it stopped eliding observation, or the ceiling stopped paying for it."
+            exit 1; }
+    done
+done
+echo "PASS: disciplined and unarmed both sit >${DU_BOUND}x below the ceiling at every N"
+# ...and the bound must be able to fail: a ratio of 1.00 is what "unobserved:
+# buys nothing" would look like.
+awk -v x=1.00 -v b="$DU_BOUND" 'BEGIN{ exit !(x > b) }' && { echo "FAIL: the DU bound accepted 1.00 — it cannot fail"; exit 1; }
+echo "PASS: DU planted fault rejected (ratio 1.00 <= $DU_BOUND)"
 # PLANTED FAULT for the bound: a ratio of 1.00 is what "observation is free"
 # would look like, and 1.15 must reject it.
 PLANTED=$(awk 'BEGIN{ printf "%.2f", 1.0 }')

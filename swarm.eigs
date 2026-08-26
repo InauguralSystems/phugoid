@@ -236,20 +236,25 @@ define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
 # reads `oscillating` when it shares a binding. Round 1 found every arm
 # above doing exactly that, with `hits` printed and never asserted.
 #
-# It is capped at four because EigenScript has no addressable channel for
-# a runtime-sized population: dict fields, list elements and function
-# parameters all carry NO trajectory (EigenScript#1048). Unrolling named
-# bindings is the only correct form available, so N is bounded at
-# authoring time -- which is precisely the gap the issue reports, and the
-# reason P3 can only be evaluated at small fixed N until it lands.
-# `cadence` is not a tuning knob -- it is rung 3's result applied here.
-# The window is 10 SAMPLES, so its span is 10*cadence*dt, and rung 3
-# measured the phugoid first visible at a 3.70 s sampling interval
-# (C5.ph.p370). Read every frame at dt=0.05 and the window spans 0.5 s
-# against a 47 s period -- 1% of it -- so `oscillating` never fires and the
-# verdict stream is empty for a reason that has nothing to do with the
-# swarm. Round 1 shipped exactly that.
-define run_named4(frames, dt, spread, cadence, tstate, P, sched) as:
+# It is capped at four for a WEAKER reason than the first draft claimed.
+# That draft said a runtime-sized population could not be observed at all;
+# round 2 refuted it -- `eval` synthesizes named bindings at runtime and
+# they carry trajectory correctly (GAPS G8, EigenScript#1048). Four is
+# hand-written here because hand-written is clearer for a fixed set and
+# does not forfeit lint; it is not a language limit. What IS a limit is
+# that the only addressable channel is a lexical NAME, so a runtime N
+# forces a program to generate its own source.
+# `cadence` IS a knob, and the first draft's claim that it was "rung 3's
+# result applied here" was wrong. The window is 10 SAMPLES, so its span is
+# 10*cadence*dt; rung 3's C5.ph.p370 measured a 3.70 s interval for a
+# different excitation in a different shape, and transplanting 74 without
+# re-deriving the condition fitted the answer. Re-derived: containing a
+# fold needs cadence*dt >= T_ph/10, i.e. cadence >= 94 here. At 74 the
+# window spans 0.79 of a period and `oscillating` essentially cannot fire;
+# at 148 `converged` never fires. The verdict is a property of the
+# (cadence, timescale) PAIR -- see ORACLE.md's P3 sweep. Reading every
+# frame spans 1% of a period, which is what round 1 shipped.
+define run_named4(frames, dt, spread, cadence, tstate, P, sched, shared) as:
     local fleet is fleet_ic of [tstate, 4, spread]
     local q0 is 0.0
     local q1 is 0.0
@@ -265,18 +270,39 @@ define run_named4(frames, dt, spread, cadence, tstate, P, sched) as:
         unobserved:
             fleet is frame_step of [fleet, t, dt, sched, P]
         if (f % cadence) == 0:
-            q0 is fleet[0][2] + 0.0
-            if oscillating of q0:
-                h0 is h0 + 1
-            q1 is fleet[1][2] + 0.0
-            if oscillating of q1:
-                h1 is h1 + 1
-            q2 is fleet[2][2] + 0.0
-            if oscillating of q2:
-                h2 is h2 + 1
-            q3 is fleet[3][2] + 0.0
-            if oscillating of q3:
-                h3 is h3 + 1
+            if shared == 1:
+                # THE ROUND-1 DEFECT, injected here rather than
+                # re-implemented in the check file. Round 2 found the
+                # previous plant rebuilding this loop inside
+                # swarm_check.eigs, so it never exercised run_named4 and
+                # the four fleet-vs-solo checks -- this rung's declared
+                # headline oracle -- were the only checks in the suite no
+                # plant ever reddened. mechanical-gates SS99.
+                q0 is fleet[0][2] + 0.0
+                if oscillating of q0:
+                    h0 is h0 + 1
+                q0 is fleet[1][2] + 0.0
+                if oscillating of q0:
+                    h1 is h1 + 1
+                q0 is fleet[2][2] + 0.0
+                if oscillating of q0:
+                    h2 is h2 + 1
+                q0 is fleet[3][2] + 0.0
+                if oscillating of q0:
+                    h3 is h3 + 1
+            else:
+                q0 is fleet[0][2] + 0.0
+                if oscillating of q0:
+                    h0 is h0 + 1
+                q1 is fleet[1][2] + 0.0
+                if oscillating of q1:
+                    h1 is h1 + 1
+                q2 is fleet[2][2] + 0.0
+                if oscillating of q2:
+                    h2 is h2 + 1
+                q3 is fleet[3][2] + 0.0
+                if oscillating of q3:
+                    h3 is h3 + 1
         unobserved:
             t is t + dt
         f is f + 1

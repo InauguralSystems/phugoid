@@ -1799,31 +1799,48 @@ sample. Medians are shown where the spread matters.
 | 16 | 6.090 | 4.093 | 1.49 |
 | 32 | 13.011 | 8.741 | 1.49 |
 
-**The headline: naive all-on observation costs ~1.4-1.6x the unobserved
-floor, and the ratio does not grow with N** across 1 to 32 aircraft.
+**The headline: naive all-on observation costs ~1.3-1.5x the unobserved
+floor, and the ratio does not grow with N** across 1 to 32 aircraft. (The
+first write-up said "1.4-1.6x", which overstated both tables — the maximum
+observed is 1.49 at 3000 frames and 1.42 at 1500. Round 2.)
 
-**P2 — linearity holds, and round 1 corrected the REASONING.** The first
-version argued "the ratio is flat, therefore cost is linear in N". That is
-a non-sequitur: a flat ratio is consistent with any common functional form,
-including both arms being quadratic. Linearity has to come from fitting an
-arm against N, and it does — the floor fits **0.021 + 0.113 N** with R^2
-near 1. The conclusion was right and the stated argument was invalid, which
-is the recurring rung-3 pattern arriving in rung 4's first write-up.
+**P2 — linearity holds APPROXIMATELY, and both earlier write-ups
+mis-stated it.** Round 1 argued "the ratio is flat, therefore cost is
+linear in N", which is a non-sequitur — a flat ratio is consistent with
+any common functional form, including both arms being quadratic.
+Linearity has to come from fitting an arm against N. Round 1's replacement
+then published **0.021 + 0.113 N**, which is the fit for the 1500-frame
+HARNESS while the table above is the 3000-frame sweep, with the dataset
+switch unstated. Round 2 caught it: that fit under-predicts every row of
+its own table by ~2.3x.
+
+The fit for the table as published is **0.272 N − 0.083, R² = 0.9986**.
+Two honest caveats, both from round 2: six points against two parameters
+is thin, and the per-doubling floor ratios climb — 1.76, 1.95, 1.94,
+**2.06, 2.14** — which is what the negative intercept encodes. The data
+is consistent with linear-plus-overhead and mildly inconsistent with
+strict proportionality at N ≥ 16. Reported as "approximately linear with
+a small superlinear drift at the top", not as linearity confirmed.
 
 P2's refutation criterion also asks for the slope against the C6-derived
-prediction, which the first version skipped. C6 gives ~0.154 us per
-observed scalar write; the measured observer slope is ~33.5 us per
-aircraft-frame, implying ~218 observed assignments per aircraft-frame
+prediction. C6 gives ~0.154 µs per observed scalar write; the measured
+observer slope is ~33.5 µs per aircraft-frame (round 2 independently
+measured 32.4), implying ~218 observed assignments per aircraft-frame
 against a hand count of ~150 for four `deriv` calls plus RK4 — within
 ~1.5x, with the gap plausibly the scalar-vs-container walk. Published as
 a comparison, not as agreement.
 
-**`unobserved:` buys back essentially the whole penalty.** The disciplined
-arm measures indistinguishable from the floor at every N, and from the
-unarmed control too. The full four-arm table is in
-`tests/test_swarm_profile.sh`'s output, which is the shipped harness —
-round 1 found the first table unreproducible from the artifact, measured
-with a throwaway driver that was never committed.
+**`unobserved:` buys back essentially the whole penalty** — the
+disciplined arm measures within noise of the floor and of the unarmed
+control at every N. "Within noise" is the honest phrasing: round 2
+measured disciplined 8% BELOW floor at one N, which is an inversion and
+therefore a ±10% noise floor on this box. That is enough to say the
+penalty is bought back and not enough to resolve what remains, so the gate
+asserts the ordering it can defend (ceiling well above floor) and reports
+the rest. The full four-arm table is `tests/test_swarm_profile.sh`'s
+output, which is the shipped harness — round 1 found the first table
+unreproducible from the artifact, measured with a throwaway driver that
+was never committed.
 
 **P1 is CONFIRMED in its practical form and its MECHANISM IS NOT
 RESOLVED.** Dropping 31 of 32 readers per frame saves nothing measurable.
@@ -1833,41 +1850,73 @@ negative share is impossible, so the split is noise at these sizes. Two
 explanations remain live and this rung cannot separate them. **Not
 published as a mechanism.**
 
-**P3 — CONFIRMED in substance, REFUTED in the direction it predicted.**
-P3 said a verdict-driven detector would "fire on healthy aircraft, at a
-rate that does not fall with N". Measured on four properly-channelled
-aircraft over 109 reads at the rung-3 cadence, a healthy phugoid in
-continuous oscillation reports:
+**P3 — the observer's verdict on a healthy aircraft depends on HOW OFTEN
+YOU LOOK, and round 2 showed the first write-up had fitted the cadence.**
+The first version reported "converged 98 of 109 reads, oscillating once —
+it goes silent; a separation detector would report a calm sky", at
+cadence 74. That inverts on a one-integer change. Swept over the same
+aircraft, same 8000 frames, cadence x dt x 10 = the window span:
 
-| verdict | count |
-|---|---|
-| converged | 98 |
-| moving | 9 |
-| oscillating | 1 |
-| stable | 1 |
+| cadence | window span | span / T_ph | reads | converged | moving | oscillating |
+|---|---|---|---|---|---|---|
+| 74 | 37.0 s | 0.79 | 109 | 97 | 10 | 1 |
+| 94 | 47.0 s | 1.00 | 86 | 55 | 10 | 17 |
+| 111 | 55.5 s | 1.18 | 73 | 33 | 10 | 30 |
+| 148 | 74.0 s | 1.58 | 55 | **0** | 10 | 36 |
 
-So the observer does not fire wrongly — it goes **silent**, calling an
-actively oscillating aircraft `converged` in 90% of reads. A separation
-detector built on it would report a calm sky over a fleet in continuous
-phugoid motion. The underlying claim (verdicts are unreliable for a
-controller) holds; the predicted direction was wrong, and is recorded as
-wrong.
+At 0.79 of a period `converged` is 89% and `oscillating` 1%; at 1.58
+periods `converged` is **zero**. The "calm sky" reading was true only
+below one full cycle — and a window shorter than a period cannot contain
+a fold, so it could not have been anything else.
 
-**P4 — CONFIRMED, and it is the rung's largest finding.** What broke first
-was not the physics. It was that **EigenScript has no addressable observer
-channel for a runtime-sized population** (EigenScript#1048). Only
-statically-named bindings carry trajectory; dict fields, list elements and
-function parameters all report `equilibrium`, i.e. no history. Round 1
-found every arm in this rung's first draft reading all N aircraft through
-ONE loop-local binding, which makes the observer's window the round-robin
-interleave and MANUFACTURES verdicts — measured, a monotonically decaying
-trajectory reads `oscillating` when it shares a binding. The verdict stream
-was degenerate at every N and `hits` was printed and never asserted.
-`run_named4` is now the only shape whose verdicts mean anything: four
-statically-named channels, capped at four because that is the only
-addressable form the language has. Its oracle is `run_solo` — a
-per-aircraft count taken from the fleet must equal that aircraft flown
-alone, which is the control for interleaving.
+**The cadence justification was also wrong.** `swarm.eigs` said "cadence
+is not a tuning knob, it is rung 3's result applied here" and used 74
+because rung 3's `C5.ph.p370` first sighted the phugoid at a 3.70 s
+interval. That number was measured for a specific excitation amplitude in
+a different shape; transplanting it without re-deriving the condition is
+the same class as this loop's other carried numbers. Re-derived for a
+10-sample window: seeing a fold needs `cadence x dt >= T_ph / 10`, i.e.
+**cadence >= 94** here. 74 is below it.
+
+So P3's substance holds in a form stronger than predicted, and its
+predicted direction was wrong twice over: the observer neither fires
+wrongly (the original prediction) nor goes uniformly silent (the first
+write-up). **It reports whatever the sampling rate makes visible** — the
+same window-versus-timescale family as G4 and G5, now measured on a
+healthy mode at swarm scale. A consumer cannot choose a cadence from the
+physics alone; the verdict is a property of the pair.
+
+**P4 — CONFIRMED, but the finding is WEAKER than first published, and the
+first version was false.** What broke first was not the physics: it was
+the observer's channel model. Round 1 found every arm reading all N
+aircraft through ONE loop-local binding, which makes the window the
+round-robin interleave and MANUFACTURES verdicts — measured, a
+monotonically decaying trajectory reads `oscillating` when it shares a
+binding. That part stands and is the real defect.
+
+The claim built on it did not. The first write-up said EigenScript "has no
+addressable observer channel for a runtime-sized population" and that the
+swarm "cannot be written correctly today", and capped `run_named4` at four
+"because that is the only addressable form the language has". **Round 2
+refuted it: `eval` synthesizes named bindings at runtime and they carry
+trajectory correctly**, through the real predicate lattice, with the
+generated `define` eval'd once at startup so the hot loop pays nothing.
+Verified here at four channels (two decaying, two oscillating, correct
+`moving`/`oscillating` per channel) and by the reviewer at N = 32 matching
+`run_solo` exactly.
+
+That was a NEGATIVE claim — "cannot be done" — published to two upstream
+repos after testing four addressing forms and stopping. A negative claim
+needs an exhaustive search of the alternatives, and four is not exhaustive.
+Corrected in EigenScript#1048, ouroboros#119 and GAPS G8.
+
+What survives is real but much weaker: **the only addressable channel is a
+lexical name, so a runtime-sized population forces a program to generate
+its own source.** That costs lint, static checking, and any prospect of
+AOT compilation. The concrete upstream ask is unchanged and cheap — make
+dict-field and list-element assignment carry trajectory keyed by
+(container identity, key) — but it is an ergonomics fix, not an
+impossibility fix, and is now filed as such.
 
 Note the contrast with rung 3's C6, where reads dominated writes ~2:1 on a
 deliberately read-heavy micro-shape. That conclusion is SHAPE-SPECIFIC, not

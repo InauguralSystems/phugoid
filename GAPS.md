@@ -235,13 +235,14 @@ relying on field access erroring. Likely intended fail-soft semantics
 checkers keep the pattern: pin a field only via a comparison a null
 cannot pass.
 
-### G8 — no addressable observer channel for a runtime-sized population
-Found at rung-4 blind-critic round 1, 2026-08-26, `eigenscript` v0.41.0.
-Upstreamed as **EigenScript#1048**.
+### G8 — the only addressable observer channel is a LEXICAL NAME, so a runtime-sized population must generate its own source
+Found at rung-4 blind-critic round 1 and **substantially corrected at round
+2**, 2026-08-26, `eigenscript` v0.41.0. Upstreamed as
+**EigenScript#1048**.
 
-Observer trajectory is keyed to the **binding**, and only a statically-named
-binding carries it. Every construct that would key a channel by a runtime
-index carries none:
+Observer trajectory is keyed to the **binding**, and only a named binding
+carries it. Every construct that would key a channel by a runtime index
+carries none:
 
 | form | aircraft a (monotone decay) | aircraft b (oscillating) |
 |---|---|---|
@@ -255,8 +256,30 @@ the window becomes the round-robin interleave, which alternates by
 construction, so a monotonically decaying trajectory reads `oscillating`.
 Rung 4's own first draft did exactly this in every arm.
 
-Consequence for this repo: the swarm's verdicts are only meaningful with
-N unrolled named channels (`run_named4`, capped at 4), so P3 can only be
-evaluated at small fixed N until the gap closes. The workarounds are
-bounding N at authoring time, or re-implementing the predicate lattice in
-userland — which is the feature not being used.
+**The first version of this entry claimed a runtime-sized fleet "cannot be
+observed per-aircraft at all". That is FALSE and was corrected at round
+2.** `eval` synthesizes named bindings at runtime and they carry
+trajectory correctly:
+
+```
+NCH is 4                      # runtime value
+loop: decl is decl + "ch" + (str of k) + " is 0.0\n"
+eval of decl                  # ch0..ch3 become real named bindings
+  ch0 -> moving        ch1 -> oscillating
+  ch2 -> moving        ch3 -> oscillating
+```
+
+Verified at N = 32 with per-aircraft counts matching this repo's own
+`run_solo` oracle. The generated `define` can be eval'd once at startup, so
+the hot loop is a compiled call paying no `eval` cost.
+
+**The lesson, which cost two wrong upstream claims:** a NEGATIVE claim
+("cannot be done") requires an exhaustive search of the alternatives. Four
+addressing forms were tried, all dead, and the search stopped there.
+
+What remains is an ergonomics gap, not an impossibility: observing a
+runtime-sized population requires building source strings and `eval`ing
+them, which forfeits lint, static checking and AOT compilation. The
+upstream ask is unchanged — make dict-field and list-element assignment
+carry trajectory keyed by (container identity, key) — but it is now filed
+at that weight.
