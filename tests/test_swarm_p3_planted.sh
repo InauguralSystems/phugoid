@@ -22,11 +22,11 @@ set -Eeuo pipefail
 # the previous plant's PASS. CI failed exactly that way on 6832101 while
 # every local run was green, and there was no way to tell which command
 # died. The trap makes the harness name its own failing command.
-trap 'rc=$?; echo "FAIL: harness died at ${BASH_SOURCE[0]}:$LINENO (rc=$rc): ${BASH_COMMAND}" >&2; exit $rc' ERR
+trap 'rc=$?; echo "FAIL: harness died at ${BASH_SOURCE[0]}:$LINENO (rc=$rc): ${BASH_COMMAND}" ; exit $rc' ERR
 # ...and a signal is not an ERR: an OOM kill or a SIGTERM leaves the same
 # silent log. Name those too.
-trap 'echo "FAIL: harness killed by SIGTERM" >&2; exit 143' TERM
-trap 'echo "FAIL: harness got SIGINT" >&2; exit 130' INT
+trap 'echo "FAIL: harness killed by SIGTERM"; exit 143' TERM
+trap 'echo "FAIL: harness got SIGINT"; exit 130' INT
 EIGS="${EIGENSCRIPT:-eigenscript}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -86,6 +86,9 @@ f_setbucket() {
 
 plant() { # plant <name> <expected-claims> <expected-red-count> <fn> [args...]
     local name="$1" want="$2" wantn="$3"; shift 3
+    # BEFORE the work. A SIGKILL (OOM) cannot be trapped, so the only way to
+    # localize one is a line that is already flushed when it lands.
+    echo "... $name"
     "$@" < "$WORK/clean" > "$WORK/p"
     cmp -s "$WORK/clean" "$WORK/p" && { echo "FAIL: plant $name changed nothing (vacuous plant)"; exit 1; }
     if p3_claims "$WORK/p" > "$WORK/r" 2>&1; then
@@ -279,6 +282,7 @@ plant c12 P3.tail 1 f_setbucket '^p3 unit=rad ac=1 sp=0\.05 cad=134 ' fquiet 12
 # without a plant now fails enrollment rather than reading as coverage.
 envplant() { # envplant <name> <expected-claims> <expected-red-count> <VAR> <src|--missing> [cmd...]
     local name="$1" want="$2" wantn="$3" var="$4" src="$5"; shift 5
+    echo "... $name"
     local oc
     if [ "$src" = "--missing" ]; then oc=/nonexistent/$var
     else oc=$(mktemp)
