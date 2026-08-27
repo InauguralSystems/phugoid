@@ -143,13 +143,13 @@ p3_claims() {
     if [ ! -r "$ORC" ]; then
         _cf P3.truth.unit "cannot read $ORC — the published truth table is unverifiable (vacuous check)"
     else
-        local tac tsp tf tl want_f want_l nfound=0
+        local tac tsp tf tl tamp want_f want_l want_a nfound=0
         # BOTH dispersions. Round 39: the exact-row match was scoped to
         # sp=0.05, so the sp=0.02 pair -- the rows the radian/ac0/sp0.02
         # dead cell rests on, which is P3's sharpest claim -- were held
         # only by loose `>=` floors while ORACLE publishes them to three
         # digits ("1.81 and 3.52 ft/s").
-        while read -r tac tsp tf tl; do
+        while read -r tac tsp tf tl tamp; do
             want_f=$(awk -v x="$tf" 'BEGIN{ printf "%.2f", x/100 }')
             want_l=$(awk -v x="$tl" 'BEGIN{ printf "%.2f", x/100 }')
             nfound=$((nfound+1))
@@ -159,15 +159,20 @@ p3_claims() {
             # "decaying ~7-8% per cycle" and the whole severity claim)
             # passed, as would swapping the rows, as would deleting the
             # table while the values survive in a retraction paragraph.
-            grep -qE "^\| $tac \(amp [0-9.]+\) \| $want_f ft/s \| \*\*$want_l ft/s\*\* \|" "$ORC" \
-                || _cf P3.truth.unit "ORACLE's truth-table row for ac=$tac is not '| $tac (amp ...) | $want_f ft/s | **$want_l ft/s** |' — the table is hand-transcribed and no longer matches the producer, or its columns/rows/unit moved"
+            # The amp column is DERIVED too. Round 41: it was matched with
+            # a wildcard while ORACLE claimed "every cell is matched
+            # against the producer", and the amplitudes were hand copies
+            # of a comment. `truth_row` prints it now.
+            want_a=$(awk -v x="$tamp" 'BEGIN{ printf ".%04d", x }')
+            grep -qE "^\| $tac \(amp $want_a\) \| $want_f ft/s \| \*\*$want_l ft/s\*\* \|" "$ORC" \
+                || _cf P3.truth.unit "ORACLE's truth-table row for ac=$tac is not '| $tac (amp $want_a) | $want_f ft/s | **$want_l ft/s** |' — the table is hand-transcribed and no longer matches the producer, or its columns/rows/unit moved"
             # ...and the mode must DECAY. A first-period swing no larger
             # than the final one is the inverse of what this rung claims,
             # and column order alone would not catch a producer that
             # started reporting them the other way round.
             awk -v f="$want_f" -v l="$want_l" 'BEGIN{ exit !(f > l) }' \
                 || _cf P3.truth.unit "ac=$tac's first-period swing ($want_f) is not larger than its final-period swing ($want_l) — the phugoid is not decaying, and every 'still swinging' claim in P3 rests on that"
-        done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) u_pp_first=\([0-9-]*\) u_pp_last=\([0-9-]*\).*/\1 \2 \3 \4/p' "$out")
+        done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) u_pp_first=\([0-9-]*\) u_pp_last=\([0-9-]*\).* amp=\([0-9]*\).*/\1 \2 \3 \4 \5/p' "$out")
         [ "$nfound" -eq 4 ] || _cf P3.truth.unit "$nfound of 4 truth rows available to check against ORACLE (vacuous check)"
         grep -qE '[0-9](\.[0-9]+)? m/s' "$ORC" \
             && _cf P3.truth.unit "ORACLE states an airspeed in m/s — the model is imperial, so the figure is out by 3.28x"

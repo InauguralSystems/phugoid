@@ -45,10 +45,10 @@ NT=$(grep -c '^p3truth ac=' "$OUT" || true)
 while read -r want; do
     grep -qxF "$want" "$OUT" || { echo "FAIL: P3 row drifted: $want"; grep -E '^p3(truth| unit=|n |ph |nc |mono )' "$OUT"; exit 1; }
 done <<'P3ROWS'
-p3truth ac=0 sp=0.02 u_pp_first=337 u_pp_last=181 q_pp_first=1057 q_pp_last=103
-p3truth ac=0 sp=0.05 u_pp_first=844 u_pp_last=452 q_pp_first=2643 q_pp_last=257
-p3truth ac=1 sp=0.02 u_pp_first=656 u_pp_last=352 q_pp_first=2055 q_pp_last=200
-p3truth ac=1 sp=0.05 u_pp_first=1641 u_pp_last=880 q_pp_first=5134 q_pp_last=501
+p3truth ac=0 sp=0.02 u_pp_first=337 u_pp_last=181 q_pp_first=1057 q_pp_last=103 amp=96
+p3truth ac=0 sp=0.05 u_pp_first=844 u_pp_last=452 q_pp_first=2643 q_pp_last=257 amp=240
+p3truth ac=1 sp=0.02 u_pp_first=656 u_pp_last=352 q_pp_first=2055 q_pp_last=200 amp=186
+p3truth ac=1 sp=0.05 u_pp_first=1641 u_pp_last=880 q_pp_first=5134 q_pp_last=501 amp=466
 p3 unit=rad ac=0 sp=0.02 cad=74 reads=108 conv=98 osc=0 moving=10 stable=0 equil=0 improving=0 diverging=0 other=0 full=99 fosc=0 fquiet=98 fnoclaim=1 fother=0
 p3 unit=rad ac=0 sp=0.02 cad=84 reads=95 conv=85 osc=0 moving=10 stable=0 equil=0 improving=0 diverging=0 other=0 full=86 fosc=0 fquiet=85 fnoclaim=1 fother=0
 p3 unit=rad ac=0 sp=0.02 cad=94 reads=85 conv=75 osc=0 moving=10 stable=0 equil=0 improving=0 diverging=0 other=0 full=76 fosc=0 fquiet=75 fnoclaim=1 fother=0

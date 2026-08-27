@@ -112,7 +112,14 @@ define truth_row(idx, sp) as:
     local u2 is round of ((cu - du) * 100.0)
     local q1 is round of ((aq - bq) * 100000.0)
     local q2 is round of ((cq - dq) * 100000.0)
-    print of f"p3truth ac={idx} sp={sp} u_pp_first={u1} u_pp_last={u2} q_pp_first={q1} q_pp_last={q2}"
+    # The AMPLITUDE is produced, not transcribed. Round 41: ORACLE's truth
+    # table carries an `(amp .0240)` column claimed to be "matched against
+    # the producer as a whole row", while `truth_row` never printed it and
+    # the gate matched it with a wildcard -- the amplitudes were hand
+    # copies of a COMMENT, free to drift. It is the fleet's own initial
+    # pitch rate, so the producer can simply say it.
+    local amp is round of ((abs of (fleet[idx][2] - tr.state[2])) * 10000.0)
+    print of f"p3truth ac={idx} sp={sp} u_pp_first={u1} u_pp_last={u2} q_pp_first={q1} q_pp_last={q2} amp={amp}"
     return [u1, u2, q1, q2]
 
 print of "# physics truth: peak-to-peak over the FIRST and LAST phugoid period, observer uninvolved"

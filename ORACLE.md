@@ -2095,7 +2095,15 @@ HARNESS while the table above is the 3000-frame sweep, with the dataset
 switch unstated. Round 2 caught it: that fit under-predicts every row of
 its own table by ~2.3x.
 
-The fit for the table as published is **0.272 N − 0.083, R² = 0.9986**.
+The fit for the table as published is **0.272 N − 0.083, R² = 0.9986** —
+which is the FLOOR arm's, and is published here only because round 3
+found it had been mistaken for the observer's. The fit exit-gate item 2
+is about is the observer arm's, `ceiling − floor` against N:
+**0.13499 N − 0.10485, R² = 0.99751**. Round 41: that fit's intercept and
+R² were computed by the gate and discarded, so the only fit ORACLE
+published with an R² was the arm the gate itself says must not carry the
+verdict — and P2's "a fit that is superlinear" clause had no R² anywhere.
+Both are pinned now.
 Two honest caveats, both from round 2: six points against two parameters
 is thin, and the per-doubling floor ratios climb — 1.76, 1.95, 1.94,
 **2.06, 2.14** — which is what the negative intercept encodes. The data
@@ -2332,9 +2340,13 @@ dead cell rests on, which is P3's sharpest claim:
 | 0 (amp .0096) | 3.37 ft/s | **1.81 ft/s** |
 | 1 (amp .0186) | 6.56 ft/s | **3.52 ft/s** |
 
-The first two rows are dispersion 0.05, the last two 0.02. Every cell is
-matched against the producer as a whole row, in order, with `ft/s`
-adjacent and the decay direction asserted.
+The first two rows are dispersion 0.05, the last two 0.02. Every cell —
+including the amplitude — is matched against the producer as a whole row,
+in order, with `ft/s` adjacent and the decay direction asserted. (Round
+41: the amplitude column was previously matched by a wildcard while this
+sentence claimed otherwise, and the four values were hand copies of a
+code comment. `truth_row` emits the amplitude now, so the column has a
+producer like every other cell.)
 
 **The unit is ft/s, and this section said m/s at seven sites until round
 36.** The model is wholly imperial — `sim_core.eigs` declares the state

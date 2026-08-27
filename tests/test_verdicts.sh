@@ -118,6 +118,8 @@ chk "$(awk -v x="$FM" 'BEGIN{print (x>0.2720 && x<0.2726)?1:0}')" \
 # the only fit ORACLE publishes WITH an intercept and R2 is the floor's --
 # the arm this file says must not carry the observer verdict -- and no R2
 # for the observer fit existed anywhere in the repo.
+grep -qF -- "$OM N − ${OB#-}, R² = $OR2" ORACLE.md \
+    || chk 0 "P2.obsfit: ORACLE does not publish the observer fit as '$OM N − ${OB#-}, R² = $OR2' — round 41 published it; a drift here means the write-up and the gate disagree about the fit item 2 is built on"
 chk "$(awk -v r="$OR2" 'BEGIN{print (r>0.99)?1:0}')" \
     "P2.obsfit: the observer arm fits ${OM} N ${OB} with R²=${OR2} — a linear fit this good is what makes the +26% per-aircraft drift a DRIFT rather than the fit being wrong"
 
@@ -144,26 +146,42 @@ chk "$(awk -v m="$MISS" 'BEGIN{print (m>=1.5)?1:0}')" \
 # already solved by enumerating sites -- not carried across to here.
 #
 # So: extract the bullet, and require all four numbers in it, in order.
-P2_BULLET=$(sed -n '/^- \*\*Slope\.\*\*/,/miss\*\*\./p' ORACLE.md | tr '\n' ' ')
-[ -n "$P2_BULLET" ] || { echo "FAIL: cannot locate ORACLE's P2 slope bullet — the pin below is vacuous"; exit 1; }
+# BOTH anchors verified. Round 41: the guard covered only the START
+# anchor, and a sed range whose END anchor misses does not fail -- it runs
+# silently to EOF. A one-clause reword of the bullet's closing sentence
+# turned the 4-line "bullet" into a 742-line region, and the pin degraded
+# back into exactly the whole-file grep round 40 removed, kept green by a
+# second site. So the terminator is checked, and the region is bounded.
+P2_START=$(grep -n '^- \*\*Slope\.\*\*' ORACLE.md | head -1 | cut -d: -f1)
+[ -n "$P2_START" ] || { echo "FAIL: cannot locate ORACLE's P2 slope bullet (start anchor)"; exit 1; }
+P2_END=$(awk -v s="$P2_START" 'NR>=s && /miss\*\*\./ { print NR; exit }' ORACLE.md)
+[ -n "$P2_END" ] || { echo "FAIL: ORACLE's P2 slope bullet has no terminator — the pin below would run to EOF and become a whole-file grep"; exit 1; }
+P2_LINES=$(( P2_END - P2_START + 1 ))
+[ "$P2_LINES" -le 12 ] || { echo "FAIL: ORACLE's P2 slope bullet spans $P2_LINES lines — the terminator matched somewhere else and the pin is no longer bullet-scoped"; exit 1; }
+P2_BULLET=$(sed -n "${P2_START},${P2_END}p" ORACLE.md | tr '\n' ' ')
+P2_BAD=0
 for pubv in "$OBS_US µs per aircraft-frame" "$C6_PER_WRITE µs" "$C6_US µs" "${MISS}× miss"; do
     case "$P2_BULLET" in
         *"$pubv"*) : ;;
-        *) chk 0 "P2.published: ORACLE's slope bullet does not state '$pubv' — the gate computes the chain ${OBS_US} / ${C6_PER_WRITE} / ${C6_US} / ${MISS}x and the write-up states a different one" ;;
+        *) chk 0 "P2.published: ORACLE's slope bullet does not state '$pubv' — the gate computes the chain ${OBS_US} / ${C6_PER_WRITE} / ${C6_US} / ${MISS}x and the write-up states a different one"; P2_BAD=1 ;;
     esac
 done
-chk 1 "P2.published: ORACLE's slope bullet states the whole chain this gate computes (${OBS_US} µs / ${C6_PER_WRITE} µs / ${C6_US} µs / ${MISS}×)"
+# Round 41: this summary line was UNCONDITIONAL, so it printed PASS in the
+# same run where the loop above printed FAIL for the same claim.
+[ "$P2_BAD" -eq 0 ] && chk 1 "P2.published: ORACLE's slope bullet states the whole chain this gate computes (${OBS_US} µs / ${C6_PER_WRITE} µs / ${C6_US} µs / ${MISS}×)"
 
-# Every OTHER site that restates a chain value must agree with it. Round
-# 40: `~0.123 µs` at a second site kept the old pin green on its own.
-for pubv in "$C6_PER_WRITE" "$OBS_US"; do
-    nbad=$(grep -oE "[0-9]+\.[0-9]+ µs" ORACLE.md | sort -u | grep -c . || true)
-    :
+# AGREEMENT, not a count. Round 41: `nsite >= 2` counted lines carrying
+# the CORRECT value and never checked that no site carried a DIFFERENT
+# one -- so a stale second site plus one correct mention elsewhere printed
+# "all of them carry the computed value", asserting agreement it had not
+# tested. Both chain values are swept for contradicting mentions.
+for pair in "µs per aircraft-frame:$OBS_US" "µs per observed scalar write:$C6_PER_WRITE"; do
+    unit=${pair%%:*}; good=${pair##*:}
+    stale=$(grep -oE "[0-9]+\.[0-9]+ $unit" ORACLE.md | sort -u | grep -v "^$good $unit\$" || true)
+    [ -z "$stale" ] \
+        && chk 1 "P2.published: every site stating '$unit' carries $good" \
+        || { chk 0 "P2.published: ORACLE states '$unit' as $(echo $stale | tr '\n' ' ')somewhere as well as $good — a stale site would keep a whole-file pin green"; }
 done
-nsite=$(grep -cF -- "$C6_PER_WRITE µs" ORACLE.md)
-[ "$nsite" -ge 2 ] \
-    && chk 1 "P2.published: the C6 constant is restated at $nsite sites and all of them carry the computed value" \
-    || chk 0 "P2.published: the C6 constant appears at $nsite site(s); ORACLE restates it in the P2 discussion too, so a stale second site would go unnoticed"
 
 grep -qF -- "write $C6_HI s, floor $C6_LO s" ORACLE.md \
     && chk 1 "P2.c6inputs: C6_HI/C6_LO match ORACLE's rung-3 measurement line" \
