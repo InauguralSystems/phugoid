@@ -234,3 +234,75 @@ relying on field access erroring. Likely intended fail-soft semantics
 (the #971/#975 reform track owns the policy); recorded so rung-2+
 checkers keep the pattern: pin a field only via a comparison a null
 cannot pass.
+
+### G8 — observer trajectory lives on an ENVIRONMENT SLOT, so containers cannot carry it
+Found at rung-4 round 1; **rewritten at round 2 and again at round 3**,
+2026-08-26. Upstreamed as **EigenScript#1048**.
+
+**Two earlier versions of this entry were false, and both failed the same
+way.** Round 1 claimed a runtime-sized population "cannot be observed
+per-aircraft at all" — refuted by `eval`. Round 2 weakened that to "only a
+lexical name, so it forces generated source, costing lint and AOT" —
+refuted by closures, which do it with ordinary lintable source. Each was a
+NEGATIVE claim published after testing a handful of forms. The entry now
+states the mechanism, from which every case follows.
+
+**The mechanism.** Observer trajectory is keyed to an environment slot:
+`env_obs_slot(Env *e, int idx)` returns `e->obs[idx]`
+(`src/eigenscript.h:1352`), and line 346 says outright *"The Value carries
+no observer state."* A per-entity channel therefore needs a persistent env
+slot per entity.
+
+| form | persistent env slot? | trajectory |
+|---|---|---|
+| distinct named locals | yes | works |
+| closure captured local | yes | works, N at runtime |
+| `eval`-generated names | yes | works, N at runtime |
+| dict field `ch.a` | no — a Value in a container | none |
+| list element `xs[0]` | no — a Value in a container | none |
+| function parameter | frame dies each call | none |
+| `for`-body local | fresh env per iteration | none |
+| `loop while`-body local | one env, persists | works — and INTERLEAVES if it reads several entities |
+
+**What the gap actually is:** containers cannot carry observer state, so a
+fleet (a list) or a registry (a dict) cannot be observed element-wise, and
+per-entity observation needs one binding per entity. The failure mode is
+sharp — the obvious loop reading `fleet[i]` through one local does not lose
+resolution, it MANUFACTURES verdicts, because the window becomes the
+round-robin interleave and a monotonically decaying trajectory reads
+`oscillating`. Rung 4's first draft shipped exactly that in every arm.
+
+Upstream ask, now correctly weighted: make dict-field and list-element
+assignment carry trajectory keyed by (container identity, key) — with
+closures available this is convenience, not necessity, but it is the form
+consumers reach for first and its absence fails silently.
+
+### G9 — `unobserved:` is not semantically neutral
+Found at rung-4 blind-critic round 4, 2026-08-26. Upstreamed as
+**EigenScript#1049**.
+
+`unobserved:` is documented and used as a PERFORMANCE tool, but an
+assignment inside it is not merely uncounted — it is absent from the
+observer's window. A binding whose initialiser sits inside an
+`unobserved:` block therefore carries a different history for up to WINDOW_N reads, then re-converges:
+
+```
+initializer observed   : oscillating hits = 19
+initializer unobserved : oscillating hits = 18
+```
+
+Identical trajectory, identical reads, different verdict counts.
+
+**How it surfaced.** Two channel forms that must agree — four hand-written
+named locals, and N closures each capturing its own local — disagreed by
+exactly one hit on every channel (`[1,17,17,1]` against `[0,16,16,0]`).
+The only difference was that the closure form built its channels inside
+`unobserved:`, because constructing N channels is setup. Moving it out
+restored agreement exactly. This rung's fleet-vs-solo oracle is what
+caught it, and `W6.closure.eq.named.*` is now the standing tripwire.
+
+**Why it matters beyond this repo:** `unobserved:` is the sanctioned
+workaround for G7/#1046 (any import arms the observer, so it is the only
+elision tool available) — and the recommended mitigation is not
+verdict-preserving. A consumer wrapping setup for speed silently changes
+what the observer later says, with no diagnostic.

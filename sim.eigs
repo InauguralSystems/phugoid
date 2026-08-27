@@ -1,88 +1,11 @@
-# sim.eigs — rung 1: the nonlinear longitudinal 3-DOF flight model.
-# States [u, w, q, theta] in body axes (ft/s, ft/s, rad/s, rad).
-# Contract (ORACLE.md rung 1): the model's exact linearization at its own
-# trim equals the rung-0 A matrix (a_lon) — aerodynamic coefficients linear
-# in (alpha, alpha_dot*cbar/2V, q*cbar/2V, de) about the dataset trim,
-# alpha-dot solved in closed form (the nonlinear counterpart of the
-# Zwdot/Mwdot folds), constant thrust along body x (the assumption already
-# embedded in Xu's 2*CD term), level trim theta = alpha.
+# sim.eigs — rung 1's longitudinal model. The physics lives in
+# sim_core.eigs (no imports, so it can be loaded by an UNARMED program);
+# this file adds the two functions that need linear algebra and
+# re-exports the whole surface, so existing consumers load one file as
+# before. See sim_core.eigs's header for why the split exists.
 
+load_file of "sim_core.eigs"
 import linalg
-
-# Control derivatives: NOMINAL, excitation-only. The public 747 dataset
-# (DERIVATIVES.md) has no control column; these magnitudes only scale how
-# hard the elevator excites the modes, never the mode quantities being
-# graded — enforced by the S4.ctl invariance check, which scales Cmde 1.5x
-# and requires the graded T/zeta unchanged. Do NOT cite these as data.
-define ctl_nominal as:
-    return {"CLde": 0.3, "Cmde": 0.0 - 1.3, "CDde": 0.0}
-
-# Flatten dataset + controls into the parameter dict deriv() reads.
-# Cm0 is 0 by construction: the dataset's Cma is a slope about its trim
-# point, and the trim solver finds the (alpha, de) where total Cm = 0.
-define sim_params(data, ctl) as:
-    local c is data.cond
-    local k is data.lon
-    return {
-        "rho": c.rho, "S": c.S, "cbar": c.cbar, "g": c.g,
-        "m": c.W / c.g, "Iy": c.Iy, "u0": c.u0,
-        "CL0": k.CL, "CD0": k.CD, "Cm0": 0.0,
-        "CLa": k.CLa, "CDa": k.CDa, "Cma": k.Cma,
-        "CLadot": k.CLadot, "Cmadot": k.Cmadot,
-        "CLq": k.CLq, "Cmq": k.Cmq,
-        "CLde": ctl.CLde, "Cmde": ctl.Cmde, "CDde": ctl.CDde,
-        "thrust": 0.0
-    }
-
-# State derivative. The alpha-dot terms are implicit (alpha_dot depends on
-# w_dot which depends on alpha_dot); the dependence is linear, so it is
-# solved exactly: with K = QS*CLadot*(cbar/2V)/m,
-#   alpha_dot * (1 + K/V) = (u*wd0 - w*ud0)/V^2
-# where ud0/wd0 are the derivatives without the alpha-dot lift. At trim
-# this reduces to the 1/(1 - Zwdot) fold in the rung-0 A rows (S0 checks
-# pin the whole 16-entry Jacobian against a_lon).
-define deriv(s, de, P) as:
-    local u is s[0]
-    local w is s[1]
-    local q is s[2]
-    local th is s[3]
-    local V is sqrt of (u * u + w * w)
-    local alpha is atan2 of [w, u]
-    local QS is 0.5 * P.rho * V * V * P.S
-    local ac is P.cbar / (2.0 * V)
-    local qh is q * ac
-    local ca is cos of alpha
-    local sa is sin of alpha
-    local CLp is P.CL0 + P.CLa * alpha + P.CLq * qh + P.CLde * de
-    local CD is P.CD0 + P.CDa * alpha + P.CDde * de
-    local Cmp is P.Cm0 + P.Cma * alpha + P.Cmq * qh + P.Cmde * de
-    local L0 is QS * CLp
-    local D is QS * CD
-    local X0 is L0 * sa - D * ca + P.thrust
-    local Z0 is (0.0 - L0) * ca - D * sa
-    local ud0 is X0 / P.m - P.g * (sin of th) - q * w
-    local wd0 is Z0 / P.m + P.g * (cos of th) + q * u
-    local K is QS * P.CLadot * ac / P.m
-    local adot is ((u * wd0 - w * ud0) / (V * V)) / (1.0 + K / V)
-    local dL is QS * P.CLadot * ac * adot
-    local ud is ud0 + dL * sa / P.m
-    local wd is wd0 - dL * ca / P.m
-    local M is QS * P.cbar * (Cmp + P.Cmadot * ac * adot)
-    return [ud, wd, M / P.Iy, q]
-
-# Level trim at the dataset speed: solve (alpha, de, thrust) so that
-# u_dot = w_dot = q_dot = 0 with q = 0, theta = alpha (level flight),
-# V = u0. Newton on the 3-vector residual with a forward-difference
-# Jacobian; the coefficient model is affine in all three unknowns, so
-# convergence is essentially one step plus polish.
-define trim_state(alpha, u0) as:
-    return [u0 * (cos of alpha), u0 * (sin of alpha), 0.0, alpha]
-
-define trim_residual(x, P) as:
-    local Pt is P
-    Pt.thrust is x[2]
-    local d is deriv of [trim_state of [x[0], P.u0], x[1], Pt]
-    return [d[0], d[1], d[2]]
 
 define trim_solve(P) as:
     local x is [0.0, 0.0, 0.0]
@@ -117,78 +40,6 @@ define trim_solve(P) as:
 # entry's t_until should cover the run. Stage times of the integrator
 # read the schedule directly, so switch times aligned to step boundaries
 # are exact.
-define de_at(t, sched) as:
-    for i in range of (len of sched):
-        if t < sched[i][0]:
-            return sched[i][1]
-    return sched[(len of sched) - 1][1]
-
-define rk4_step(s, t, dt, sched, P) as:
-    local d1 is de_at of [t, sched]
-    local d2 is de_at of [t + 0.5 * dt, sched]
-    local d4 is de_at of [t + dt, sched]
-    local k1 is deriv of [s, d1, P]
-    local s2 is []
-    for i in range of 4:
-        append of [s2, s[i] + 0.5 * dt * k1[i]]
-    local k2 is deriv of [s2, d2, P]
-    local s3 is []
-    for i in range of 4:
-        append of [s3, s[i] + 0.5 * dt * k2[i]]
-    local k3 is deriv of [s3, d2, P]
-    local s4 is []
-    for i in range of 4:
-        append of [s4, s[i] + dt * k3[i]]
-    local k4 is deriv of [s4, d4, P]
-    local out is []
-    for i in range of 4:
-        append of [out, s[i] + dt / 6.0 * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i])]
-    return out
-
-define euler_step(s, t, dt, sched, P) as:
-    local k1 is deriv of [s, de_at of [t, sched], P]
-    local out is []
-    for i in range of 4:
-        append of [out, s[i] + dt * k1[i]]
-    return out
-
-# Integrate nsteps of dt from state0, recording every decim-th sample
-# (sample 0 included). method: "rk4" (default) or "euler" (plant Q3).
-# Returns {"t", "u", "w", "q", "th"} as parallel lists.
-define sim_run(state0, sched, dt, nsteps, decim, P, method) as:
-    local s is [state0[0], state0[1], state0[2], state0[3]]
-    local rec is {"t": [], "u": [], "w": [], "q": [], "th": []}
-    append of [rec.t, 0.0]
-    append of [rec.u, s[0]]
-    append of [rec.w, s[1]]
-    append of [rec.q, s[2]]
-    append of [rec.th, s[3]]
-    local n is 0
-    unobserved:
-        loop while n < nsteps:
-            local t is n * dt
-            if method == "euler":
-                s is euler_step of [s, t, dt, sched, P]
-            else:
-                s is rk4_step of [s, t, dt, sched, P]
-            n is n + 1
-            if n % decim == 0:
-                append of [rec.t, n * dt]
-                append of [rec.u, s[0]]
-                append of [rec.w, s[1]]
-                append of [rec.q, s[2]]
-                append of [rec.th, s[3]]
-    return rec
-
-# Short-period-subspace initial condition (S2). By Cayley-Hamilton the
-# phugoid pair's quadratic p_ph(A) = A^2 - 2 Re(l_ph) A + |l_ph|^2 I
-# annihilates the phugoid eigenvectors, so p_ph(A) e lies exactly in the
-# SP invariant subspace for any generic e — a mode-pure excitation built
-# only from pinned chain quantities (A and the phugoid root), needed
-# because a natural elevator doublet leaves the heavily-damped SP only
-# ~2 clean extrema above the phugoid it co-excites (measured 2026-08-24;
-# see ORACLE.md rung-1 S2 note) and the estimator floor is 3.
-# Returns trim_state + v scaled so the w-component displacement is wamp.
 define sp_subspace_ic(A, ph_re, ph_im, tstate, wamp) as:
     return mode_ic of [A, ph_re, ph_im, tstate, 1, wamp]
 
@@ -218,20 +69,3 @@ define mode_ic(A, kill_re, kill_im, tstate, scale_idx, amp) as:
 
 # Central-difference Jacobian of deriv() at a state (S0 parity oracle).
 # h per component scaled to the state's magnitude.
-define sim_jacobian(state, de, P) as:
-    local J is []
-    for i in range of 4:
-        append of [J, [0.0, 0.0, 0.0, 0.0]]
-    for j in range of 4:
-        local h is 1e-6 * (abs of state[j])
-        if h < 1e-8:
-            h is 1e-8
-        local sp is [state[0], state[1], state[2], state[3]]
-        local sm is [state[0], state[1], state[2], state[3]]
-        sp[j] is sp[j] + h
-        sm[j] is sm[j] - h
-        local dp is deriv of [sp, de, P]
-        local dm is deriv of [sm, de, P]
-        for i in range of 4:
-            J[i][j] is (dp[i] - dm[i]) / (2.0 * h)
-    return J

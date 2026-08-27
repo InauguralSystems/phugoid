@@ -1,0 +1,149 @@
+# swarm_profile.eigs — rung 4's cost-curve driver.
+# Run: eigenscript tests/swarm_profile.eigs <arm> <N>
+#
+# Round 1 found rung 4's headline table unreproducible from the artifact:
+# the numbers were measured with a throwaway driver that was never
+# committed. This is the shipped entry point, pinned by whole-file hash in
+# tests/test_swarm_profile.sh so the measured workload cannot silently
+# become a different workload (rung 3's C6 defect).
+
+load_file of "data/b747_approach.eigs"
+load_file of "swarm.eigs"
+
+FRAMES is 1500
+DT is 0.0166667
+# 0.05, matching tests/swarm_check.eigs. Round 5 raised the rung's
+# dispersion there and left these two drivers at 0.02, so the cost curve
+# and the verdict checks were flying different fleets.
+SPREAD is 0.05
+
+# THE PER-BINDING COUNTERFACTUAL, used as the planted fault for P1's
+# arming gate. Round 25.
+#
+# `run_ceiling0` is the unwrapped shape with ZERO verdict reads, and it
+# costs ~1.4x the floor -- which is EigenScript#1046's per-EigsState
+# arming being paid by a loop that reads no verdict at all. The gate's
+# plant had been arithmetic (feed the real comparator a literal 1.00 and
+# require rejection). That proves the BOUND can fail; it does not prove
+# the ARM can produce the failing value.
+#
+# This does. The assignments are wrapped in `unobserved:` while the two
+# `loop while` statements stay in observed context -- which
+# is exactly what per-binding or liveness-scoped arming would produce. The
+# fleet digest is identical to run_ceiling0's, so the physics is held
+# fixed and only the observation shape differs. Measured, it collapses to
+# ~0.99 of the floor, and the 1.20 bound rejects that.
+#
+# It lives HERE and not in swarm.eigs deliberately: swarm.eigs is the
+# identity-pinned MEASURED WORKLOAD, and every banked cost number in
+# ORACLE was taken against its current hash. A test-only counterfactual
+# does not belong in the file whose cost is the finding.
+# `run_ceiling_more` is run_ceiling with SCRATCH OBSERVED WORK added: a
+# short observed loop per read that touches no fleet state and no
+# predicate. Round 46: every witness this rung built -- frames, banked
+# hits, the fleet digest, reads, evals -- detects an arm doing LESS work,
+# so an arm doing MORE is bit-identical on all five, and the primary
+# headline's gate was a one-sided floor. This arm is what makes the new
+# upper bound's plant a REAL ARTIFACT rather than a literal fed to the
+# comparator (§101 corollary): the band is shown to reject a measured arm,
+# not a number chosen to be rejected.
+#
+# It lives HERE and not in swarm.eigs for the same reason ceiling0pb does:
+# swarm.eigs is the identity-pinned measured workload and a test-only
+# counterfactual does not belong in the file whose cost is the finding.
+define run_ceiling_more(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is fleet_ic of [tstate, n, spread]
+    local hits is 0
+    local reads is 0
+    local evals is 0
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        fleet is frame_step of [fleet, t, dt, sched, P]
+        local i is 0
+        loop while i < n:
+            local qobs is fleet[i][2] + 0.0
+            if oscillating of qobs:
+                hits is hits + 1
+                unobserved:
+                    evals is evals + 1
+            else:
+                unobserved:
+                    evals is evals + 1
+            local pad is 0
+            local padv is 0.0
+            loop while pad < 360:
+                padv is padv + fleet[i][2]
+                pad is pad + 1
+            unobserved:
+                reads is reads + 1
+            i is i + 1
+        t is t + dt
+        f is f + 1
+    print of f"ceilingmore {n} {frames} {hits} {fleet_digest of (fleet)} {reads} {evals}"
+    return fleet_digest of (fleet)
+
+define run_ceiling0_perbinding(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is []
+    local acc is 0.0
+    local reads is 0
+    local t is 0.0
+    local f is 0
+    unobserved:
+        fleet is fleet_ic of [tstate, n, spread]
+    loop while f < frames:
+        unobserved:
+            fleet is frame_step of [fleet, t, dt, sched, P]
+        local i is 0
+        loop while i < n:
+            unobserved:
+                acc is acc + fleet[i][2]
+                reads is reads + 1
+                i is i + 1
+        unobserved:
+            t is t + dt
+            f is f + 1
+    print of f"ceiling0pb {n} {frames} 0 {fleet_digest of (fleet)} {reads} 0"
+    return fleet_digest of (fleet)
+
+cli is args of null
+arm is "ceiling"
+if (len of cli) > 0:
+    arm is cli[0]
+n is 8
+if (len of cli) > 1:
+    n is num of cli[1]
+
+P0 is sim_params of [b747_approach of null, ctl_nominal of null]
+tr is trim_solve of (P0)
+sched is [[0.0, tr.de]]
+
+if arm == "ceiling":
+    r is run_ceiling of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+elif arm == "disciplined":
+    r is run_disciplined of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+elif arm == "floor":
+    r is run_floor of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+elif arm == "ceiling1":
+    r is run_ceiling1 of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+elif arm == "ceilingmore":
+    r is run_ceiling_more of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+elif arm == "ceiling0pb":
+    r is run_ceiling0_perbinding of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+elif arm == "ceiling0":
+    r is run_ceiling0 of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+elif arm == "onereader":
+    r is run_onereader of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+else:
+    # LOUD. Round 26: this was a bare `else` falling through to
+    # run_onereader, and the summary line printed the REQUESTED arm rather
+    # than the executed one -- so `ceiling0pbXX` measured onereader and
+    # reported itself as ceiling0pbXX. P1's planted fault is a ratio
+    # against this driver, so a typo in the arm name would have produced a
+    # plausible-looking collapse (0.9853, indistinguishable from the
+    # counterfactual's own value) while never running the counterfactual.
+    # A dispatch that cannot say "I do not know that arm" is a silent
+    # substitution, which is this rung's oldest defect class.
+    print of f"FATAL unknown arm {arm}"
+    throw of f"unknown profile arm: {arm}"
+print of f"profiled {arm} n={n} digest={r}"

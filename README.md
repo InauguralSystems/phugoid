@@ -130,7 +130,7 @@ CI at the version in `.devcontainer/Dockerfile`.
 | 2 | Lateral 3-DOF: Dutch roll, spiral, roll subsidence via mode-pure annihilator ICs; the level-set/value-channel stress graded | **done** |
 | 3 | The autopilot: closed-loop control graded against closed-loop pole predictions; the observer as supervisory layer | **done** |
 | 3b | 6-DOF + control tapes, byte-exact replay gate (deferred from rung 3: no nondeterminism source yet, so the gate would be vacuous) | — |
-| 4 | The swarm: N aircraft, three-arm observer cost curve (ceiling/disciplined/floor), VM-vs-AOT | — |
+| 4 | The swarm: N aircraft, three-arm observer cost curve (ceiling/disciplined/floor), VM-only (the AOT arm is BLOCKED on ouroboros#119) | — |
 
 Headless by contract through rung 4; any instrument-panel phase comes after
 and rides the fleet UI-oracle standard.

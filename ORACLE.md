@@ -1240,6 +1240,16 @@ cadences `C5.sp.{c010,c020,c040,c102}` (round 18: this enumeration was written a
   gate fails BY DESIGN and says so in its own failure message — that is
   the signal to re-measure and re-justify, not a regression.
 
+  **Two inconsistent per-write costs sit in this paragraph and P2 imports
+  one of them.** The baseline probe above reports observed scalar writes
+  as ≈ free (0.31 s against a 0.30 s fully-unobserved floor over 200k
+  frames), i.e. ~0.01 µs/write; the round-1 numbers here yield 0.123
+  µs/write, an order of magnitude more. The text says round 1 "corrected"
+  the probe, but never states that the free-writes finding is superseded —
+  and P2's entire verdict is the ratio between a measured slope and a
+  number derived from one of these two. Recorded at round 38; which of
+  them is right is a rung-3 question this rung does not settle.
+
 ## The three pre-registered predictions (recorded before the build)
 
 1. **Verdict-driven INNER-loop damping will limit-cycle.** A controller
@@ -1678,3 +1688,1229 @@ pre-registered clause.
 3. CI green on the pushed branch.
 4. The three predictions each reported with their measurement — including
    any that failed to reproduce.
+
+---
+
+# Rung 4 — the SWARM: the cost of observation while observing
+
+Scope opened 2026-08-26, immediately after rung 3 merged. Rungs 0-3 stress
+observer SEMANTICS deeply and load it trivially (~12 bindings at 60 Hz).
+This rung is the SPEED half: N independent aircraft, each a rung-1
+longitudinal 3-DOF model with its own observed state and its own
+per-aircraft predicates, with separation/conflict detection as the natural
+consumer of the verdicts.
+
+**The physics needs no new oracle.** Each aircraft is rung 1's model, so
+each one's free response still grades to rung 0's chain quantities through
+the same estimators. That is the ladder working as designed: rung 4 adds
+LOAD, not new truth. Any new grading here would be a smell.
+
+Round 43 found this sentence — exit-gate item 1, the claim that licenses
+the whole rung — had **no gate anywhere**. W1..W6 grade trim literals,
+cross-arm digest equality, IC dispersion and IC-equals-trim; not one of
+them grades a PROPAGATED trajectory, and no rung-4 file loaded
+`measure.eigs` or `modes.eigs` at all. "Needs no new oracle" had been read
+as "needs no check". §103: attention follows the gates, not the risk.
+
+It is now W7, and the claim is TRUE. Four aircraft propagated at the
+shipped dispersion, u-channel from t = 10 s, graded through rung 1's own
+estimators against rung 0's chain eigenvalue (T = 46.9177 s, ζ =
+0.013245):
+
+| | Tpeaks | Tdft | ζ |
+|---|---|---|---|
+| tolerance (rung 1's) | 0.005 | 0.005 | 0.02 |
+| worst of ac0..ac3 | 1.5e-4 | 7.9e-4 | 2.0e-3 |
+
+Inside tolerance by one to two orders on every row. An unchecked true
+claim is still unchecked: W7 is the rung's only tie back to rung 0's
+eigenvalues, and it carries four plants — the fleet collapsed to one
+channel copied N times (which passes every numeric row and is caught only
+by reading them per aircraft), the estimator-slot alias rung 1 bought as
+q12/q13, a 2% error in the grading timestep, and a fabricated ζ carrying
+its own `n_ratios` so it must red numerically.
+
+## What is being measured
+
+The observer's marginal cost curve vs N — "the cost of observation while
+observing" — in THREE arms, because emission is gated per compilation
+unit, not per binding, so an armed unit pays the walk on every assignment
+including scratch:
+
+- **ceiling** — no `unobserved:` blocks anywhere (naive all-on). The design
+  named `EIGS_OBS_FORCE=1` here; round 5 found nothing in the repo sets it,
+  and nothing needs to: the module holds predicates, so it is armed anyway
+  (G7). The arm is what it always measured; the description was wrong.
+- **disciplined** — `unobserved:` around the hot math, observation only on
+  the state the predicates actually read (the best a programmer can write
+  today);
+- **floor** — everything wrapped (pure compute, no observer at all).
+
+`ceiling - disciplined` = what `unobserved:` ergonomics buy, and how
+painful they were to apply (a language-design finding in itself).
+`disciplined - floor` = the true cost of only the WANTED observation — the
+number that justifies or kills #915's natural successor, per-binding
+liveness gating.
+
+## Pre-registered predictions (recorded 2026-08-26, BEFORE the swarm exists)
+
+Registered here so they can be refuted rather than confirmed. Rung 3
+refuted two of three, which is the point.
+
+- **P1 — the G7 consequence.** EigenScript#1046 established that observer
+  arming is per-`EigsState` and monotonic. So in one process, ONE
+  aircraft reading a verdict arms entropy bookkeeping for EVERY assignment
+  of ALL N. Prediction: in the disciplined arm, reducing how many aircraft
+  READ verdicts buys ~nothing on the write side; only `unobserved:` blocks
+  buy anything. Refutable by measuring disciplined-with-1-reader against
+  disciplined-with-N-readers and finding the write cost differs.
+- **P2 — linearity and its slope.** Observer cost should be LINEAR in N,
+  with slope = (per-assignment observer cost) x (observed assignments per
+  aircraft per frame). Rung 3's C6 measured the per-assignment cost on one
+  channel; P2 predicts rung 4's slope FROM that number. Refutable by a fit
+  that is superlinear, or whose slope misses the C6-derived prediction.
+- **P3 — the consumer inherits rung 3's defect at scale.** Per-aircraft
+  predicates on N aircraft in steady flight will reproduce rung 3's
+  finding: the observer is confidently WRONG on a healthy decaying mode.
+  Prediction: a separation/conflict detector built on verdicts fires on
+  healthy aircraft, at a rate that does not fall with N. Refutable by a
+  clean verdict stream.
+- **P4 — the standing proposal prediction.** What breaks first will NOT be
+  the physics.
+
+## The AOT arm is BLOCKED, and stated as such rather than quietly dropped
+
+The proposal specifies this rung as a VM-vs-AOT observed-throughput
+differential. Scoping it surfaced **ouroboros#119** before any swarm code
+existed: the AOT compiles `report of x` and BARE predicates (`diverging`),
+but fails on `diverging of x` with "AOT: only named calls supported"
+(`aot/compile.eigs:1200-1203` — a predicate with an operand parses as a
+call whose callee is not an ident, so it never reaches the `aot_predicate`
+path).
+
+That subset is exactly inverted for this rung. Bare predicates read the
+LAST-OBSERVED binding, so with N aircraft assigned per frame a bare read
+can only ever see the last one — measured: two channels with genuinely
+different verdicts (`diverging` vs `oscillating`), where the bare read
+sees only the second. For N > 1 the bare form is not inconvenient, it is
+SEMANTICALLY WRONG, and the `of` form is the only correct one. So the AOT
+arm is scoped to what compiles today and re-opens when #119 lands. The
+three-arm VM curve — the headline number — is unaffected.
+
+## Measurement discipline (inherited, not re-derived)
+
+Everything rung 3's C6 gate learned applies here and is not re-litigated:
+n=5 medians; ratios rather than wall times, because absolute budgets flake
+on shared runners; bound literals identity-pinned; the executed workload
+pinned by whole-file hash so the measurement cannot silently become a
+different measurement; and every arm's planted fault drawn from the defect
+class that arm exists to stop, exercising the real gate (mechanical-gates
+SS97-100).
+
+## Exit gate for rung 4
+
+1. Each aircraft's physics still grades to the rung-0 chain — the swarm
+   must not be a new model, only N of the old one.
+2. The three-arm curve measured at several N, with the fit published and
+   its slope compared against the C6-derived prediction.
+3. All four predictions reported WITH their measurement, including any
+   that fail to reproduce, and any refuted one stated as refuted.
+4. Blind-critic rounds until dry (two consecutive clean). A round cap is
+   the wrong terminator while the find rate is undiminished (rung 3, 25
+   rounds); if the cap is exceeded, say so and why.
+5. CI green on the pushed branch, and the shipped entry points exercised —
+   a dry loop certifies only the surface its critics ran.
+6. **Every claim about what the AIRCRAFT is doing graded against a
+   measured physics truth, not against a verdict column — and stated with
+   its UNIT.** Round 10 extended this: the observer's zero-band is an
+   absolute threshold, so a verdict depends on the numeric magnitude of
+   the channel and not only on its shape. Re-expressing pitch rate in
+   degrees left the physics identical and inverted every substantive P3
+   claim while the gate still printed OK. Rung 3 already swept rad/deg/
+   mrad (`tests/observer_lat_check.eigs`); rung 4 did not carry the axis
+   forward. A claim about the observer is not a claim until its unit is
+   stated. Also: do not grade a seven-class lattice on one scalar — round
+   9 collapsed `converged` (a false all-clear) and `moving` (no claim)
+   into a single divergence count, which is round 8's bucketing defect one
+   level up.** Added at round
+   9, which found P3 had been rewritten five times without one: each
+   rewrite read the observer's own labels and reported them as the state
+   of the world, so `converged` became "the aircraft is quiescent" while
+   it was swinging 4.5–8.8 ft/s peak-to-peak. Rungs 1 and 2 both write the
+   truth table first; rung 4 did not, and inverted its headline five times
+   in a row as a direct result. The observer is the thing under test and
+   cannot be its own oracle. Pinning every column of the wrong table still
+   cannot catch a wrong table.
+
+7. **Every prediction carries a VERDICT and a gate.** Added at round 21,
+   which found P2 was the only one of the four with neither — no claim ID,
+   no planted fault, no assertion on a fit or a slope anywhere in the repo
+   — while both clauses of its registered refutation condition had been
+   met since round 3. P3, which had a gate from round 1, was rewritten
+   seven times because every round attacked it. Attention follows the
+   gates, so an ungated prediction is the one that goes wrong quietly.
+8. **A refutation condition that a TOTAL FAILURE satisfies is a defect in
+   the prediction.** Added at round 20: P3's "refutable by a clean verdict
+   stream" is met by the radian/ac0/sp0.02 cell, whose stream is quiet
+   only because the detector is dead and which is confidently wrong on 98%
+   of its reads. P4's "what breaks first will NOT be the physics" has the
+   same shape — any failure not labelled physics satisfies it, including
+   total failure. Registered conditions get re-read against the failure
+   modes the rung actually found, not only against the ones it expected.
+
+## First measurements (2026-08-26) — recorded before the gate exists
+
+**Provenance, corrected at round 7.** This table was taken at 3000 frames
+with a throwaway driver and NO committed producer — the fourth instance in
+this rung of a published measurement that nothing in the repo can
+regenerate. The shipped harness is `tests/swarm_profile.eigs` at 1500
+frames over the ladder 1/4/16, hash-pinned, and it is what
+`tests/test_swarm_profile.sh` asserts on every run. Round 29 moved the
+ceiling/floor assertion from the ladder's WORST point to its largest, on
+the argument that small N is unresolvable under load. **Round 30 proved
+that was a relaxation and it is reverted.**
+
+The demonstration: a mutant that guts the ceiling arm's observation for
+n < 8 — identical fleet digests, identical self-report, only the
+observation shape changed — passed at 0.92 and 0.99, and had been fatal
+before the change. The argument was also backwards on this rung's own
+data: the table above has the ratio SMALLEST at small N (1.343 at N=1
+against 1.489 at N=32), so small N is exactly where a partial loss of
+observation shows first. The move dropped the verdict at the two most
+sensitive points, and the accompanying NOTE asserted a *cause* ("that
+point is noise") for a value that was in fact the regression.
+
+**Round 32 found round 31's witness closed the hole at N=1 only, and the
+real witness is the PREDICATE, not the read.** `hits` cannot serve above
+N=1 because P4's collapse drives it to zero there — which is exactly what
+a gutted arm produces — so an N-scoped gutting (guts for n>1, leaves n==1
+intact) reproduced the pristine self-report bit for bit at every ladder
+point, and `disciplined` at N=16, the N where the DU claim is asserted,
+was witnessed by nothing.
+
+A read counter was not enough either: the mutant kept the read loop and
+moved it inside `unobserved:`, reading the channel 24000 times while
+observing none of them. What distinguishes an observing arm is that its
+**predicate ran**. Every observing arm counts predicate evaluations from
+inside both branches of a conditional on the predicate — **and round 33
+showed that is still not enough.** The counter sits in `unobserved:`
+blocks the gutting mutant already opens, so preserving it costs one line;
+and the gate publishes its own target (`evals == n * frames`), so a mutant
+that gets the read count right already knows the eval count. **A counter
+whose expected value the gate can DERIVE is a target, not a witness.**
+
+**So the arms read `oscillating`, not `diverging`.** `diverging` collapses
+to 0 above N=1, which means at N=4 and N=16 — the ladder points where the
+DU claim is asserted — the healthy value and the gutted value were the
+same number. `oscillating` does not collapse; it *manufactures* verdicts
+on the interleave, which is round 1's original P4 finding, giving
+**0 / 5533 / 19850** across the ladder. Those are not derivable from `n`
+and `frames`, so they are banked as values, and a gutted arm can only
+match them by copying three constants from a pristine run — a
+categorically louder mutation than a `+1`. It is a swap, not an addition — but that
+reasoning is not the evidence, and round 34 caught the same
+assert-instead-of-measure shape here too: the call count is equal, yet the
+TAKEN BRANCH changed, since `hits is hits + 1` is an observed assignment
+that ran 0 times under `diverging` and 19850 of 24000 times under
+`oscillating`. **Measured** rather than argued: interleaved n=9 at N=16,
+median 2.788 s under `oscillating` against 2.833 s under `diverging`,
+i.e. −1.6% and inside noise. Residual, stated: at N=1 the channel is clean and
+a decaying phugoid gives `oscillating` 0, so healthy and gutted coincide
+there; N=1 is covered instead by the CF timing gate, which a gutted
+ceiling collapses toward 1.0.
+
+Both counters increment inside `unobserved:` so they pay no entropy walk.
+
+**The instrumentation is NOT cost-neutral, and the earlier claim that it
+"is common to every arm and cancels in the ratios" was wrong in both
+halves (round 33).** `unobserved:` is a runtime construct, and the blocks
+executed per channel read are not common — measured: `ceiling`,
+`disciplined` **2**; `ceiling0`/`ceiling0pb` **1**; `floor` **0** (its
+counter sits inside an arm-wide block); `swarm_unarmed.eigs` has no
+`unobserved:` block at all.
+
+**This paragraph has now been wrong four times, and round 35 caught the
+fourth — the first one that erred toward PASS.** Working it through
+properly, arm by arm, because every previous attempt reasoned about it in
+the aggregate and got a sign wrong:
+
+- **`ceiling`/`floor`, `ceiling`/`unarmed`.** The numerator executes 2
+  blocks per read, the denominator 0. Unequal additive cost,
+  numerator-heavy, so the ratio moves **away from 1** — which for a
+  `> bound` assertion is toward **PASS**.
+- **`ceiling0`/`floor`.** Numerator 1, denominator 0 — same direction,
+  half the magnitude. (Round 37: the previous version filed this under
+  "2 blocks", eight lines below the measured line saying `ceiling0`
+  executes one. Direction survived, magnitude did not.)
+- **`ceiling0pb`/`floor`.** Numerator 1, denominator 0 — and this is the
+  **only two-sided bound in the file** (`[0.85, 1.20]`), so
+  "numerator-heavy ⇒ biased toward PASS" does not hold: pushing the ratio
+  up moves it toward the UPPER bound, i.e. toward FAIL. The previous
+  version omitted this pair entirely.
+- **`ceiling`/`disciplined`.** Both execute 2 blocks per read over
+  `n*frames` reads, so the added cost is exactly equal. Equal *additive*
+  cost on *unequal* baselines still compresses a >1 ratio **toward 1**,
+  i.e. toward **FAIL**. This pair alone is conservative.
+
+Round 34's version said the numerator "pays strictly more than its
+denominators" (false for the `ceiling`/`disciplined` pair) and that
+toward-1 means toward PASS (backwards), then concluded the residual was
+"where it is not zero, conservative" — inverting the sign a fourth time,
+in the unsafe direction. Round 35's replacement then mis-filed
+`ceiling0` and omitted `ceiling0pb`, for a fifth. **A paragraph that
+catalogues its own four errors has now made five**; the reason each time
+was reasoning about the arms in aggregate instead of enumerating them. The magnitude is a few opcodes against
+a full RK4 per aircraft-frame and every shipped ratio still lands inside
+its published band, so nothing needed re-banking; the point is the
+method.
+
+The magnitude is small (a few opcodes against a full RK4 per
+aircraft-frame) and every shipped ratio still lands inside its published
+band, so nothing needed re-banking. Instrumenting a measured workload is
+legitimate; **asserting without measuring that the instrumentation is
+neutral is the defect** — and this paragraph has now committed that error
+three times, twice while fixing it. This instrumented the identity-pinned workload and
+the hashes were re-banked against it — a decision, not an accident, taken
+because the alternative was leaving the second headline unwitnessed at the
+N where it is asserted.
+
+**Round 31 found the same mutant class one arm over, and the fix for it is
+free.** `disciplined` — the arm carrying the second headline, that
+`unobserved:` buys back essentially the whole penalty — could have its
+verdict read deleted outright, with bit-identical fleet digests and the
+whole suite green. That is worse than the ceiling case, because this
+section says the disciplined arm measures within noise of the floor, so a
+disciplined arm that *is* the floor is a null result indistinguishable
+from the claim **by timing in principle**. Every assertion in the harness
+puts the observed arm in the numerator, so a denominator arm that stops
+observing was invisible.
+
+The discriminator was already on stdout and thrown away: every arm prints
+`<arm> <n> <frames> <hits> <digest>`, and nothing asserted `hits`. It is
+asserted now, at zero extra cost — and the invariant turned out to be
+richer than expected. `ceiling` and `disciplined` reported 877 at N=1 and
+**zero** at N=4 and N=16 while the arms read `diverging`; `ceiling1` and
+`onereader` held 877 at every N. That was **P4's finding in the hits
+column**: the first
+pair read N aircraft through one loop-local binding, so above N=1 the
+window becomes the round-robin interleave and `diverging` stops firing,
+while the second pair read one aircraft through one binding.
+
+**That shape is now INVERTED, because round 33 swapped the arms to
+`oscillating`** — the collapse is precisely why `diverging` could not
+serve as a witness above N=1. The shipped counts are **0 / 5533 / 19850**
+for `ceiling`/`disciplined` and **0 at every N** for `ceiling1` and
+`onereader`: the shared-binding arms *manufacture* verdicts on the
+interleave, and the clean single-channel arms report none on a decaying
+phugoid. Same P4 finding, read off the predicate that survives it. (Cost
+of the swap: those two single-channel arms lose the only non-derivable
+witness they ever had. They are executed by no gate here, and that is
+recorded rather than left to be discovered.) (The first
+version of this check asserted "observing arms fire" from the N=1 sample
+alone and red on the honest N=4 run — the one-cell generalisation this
+rung keeps finding, committed while fixing an instance of it.)
+
+What made the relaxation tempting is that the old gate could not tell
+contention from a dead arm. It can now: **contention does not reproduce
+and a dead arm does**, so a sub-bound point is re-measured twice more and
+gated on the median of three. Costs nothing on a healthy run, ~2 s on a
+loaded one, and the mutant above reds with both points reproducing
+(0.954 → 0.961, 0.996 → 0.996). Every ladder point carries a verdict
+again. The table below is
+therefore kept as a RECORD of a one-off sweep to N=32, not as a
+reproducible artifact, and P2's fitted answers derived from it carry that
+caveat. Reproducing them needs a deliberate re-run at 3000 frames, which
+would change the pinned hash and is a decision rather than an accident.
+
+Taken at 3000 frames (50 s at 60 Hz), n=5 per point, on the 2-core/4GB dev
+box. **Minima, not medians**: the spread between the fastest and slowest of
+five reached 28% under contention, and the minimum is the least-contended
+sample. Medians are shown where the spread matters.
+
+| N | ceiling | floor | ceiling/floor |
+|---|---|---|---|
+| 1 | 0.399 | 0.297 | 1.34 |
+| 2 | 0.750 | 0.524 | 1.43 |
+| 4 | 1.456 | 1.022 | 1.42 |
+| 8 | 2.829 | 1.983 | 1.43 |
+| 16 | 6.090 | 4.093 | 1.49 |
+| 32 | 13.011 | 8.741 | 1.49 |
+
+Round 46: for forty-six rounds this headline was a TWO-SIDED claim
+enforced by a ONE-SIDED floor. Every ceiling-family gate in
+`tests/test_swarm_profile.sh` asked only whether the ratio was large
+enough — `ceiling/floor > 1.15`, `ceiling/disciplined > 1.20`,
+`ceiling0/floor > 1.20` — and nothing anywhere bounded any of them above.
+Adding scratch observed work to the ceiling arm, touching no fleet state
+and no predicate, printed **"the ceiling arm costs 3.0597x the floor"** as
+a PASS while this sentence said 1.3–1.5x and the table below said
+1.343–1.489. All five witnesses stayed bit-identical, because every one of
+them detects an arm doing LESS work; at N=2 the padded arm and the real
+one both report `2 1500 2588 559690091 3000 3000`.
+
+Two reachable paths, and the second needs no repo edit at all: a source
+change plus the re-bank the identity pin itself instructs, or an upstream
+runtime change making the observer walk dearer — which is precisely the
+quantity this rung exists to measure, and would have been reported as a
+LOUDER PASS with every pin, digest and counter intact.
+
+All four ratios are now two-sided at 1.90, a bound clearing the whole
+1.34–1.66 population this harness has produced across sessions rather than
+one fitted to today's run, and applied to every one of them in a single
+change rather than one per round. The plant is a MEASURED ARM, not a
+literal handed to the comparator: `run_ceiling_more` in the driver is the
+ceiling arm plus that scratch work, and the gate requires the band to
+reject it — measured 3.2083x against the 1.90 bound, with the real ceiling
+at 1.4233x in the same run.
+
+**The headline: naive all-on observation costs ~1.3-1.5x the unobserved
+floor, and the ratio GROWS SLOWLY with N** across 1 to 32 aircraft — 1.343,
+1.431, 1.425, 1.427, 1.488, 1.489, i.e. +10.8% end to end and a step from ~1.427 at
+N=2..8 to ~1.488 at N≥16 — with N=1 the outlier at **1.343**, 6% below
+that plateau, which is a bigger gap than the 4.3% step itself. (Round 43:
+those two plateau figures were hand-picked representatives of their
+clusters rather than defined quantities, which is why the step read 4.3%
+against a derivation's 4.2%. Defined as the MEAN of their rows they are
+mean 1.428 at N=2..8 and mean 1.488 at N≥16, a 4.2% step, with N=1's
+1.343 sitting 6% below the lower one; all four are now computed from the
+banked table by tests/test_verdicts.sh rather than transcribed.) (Round 40:
+this said "a clean step from ~1.427 at N≤8", which erases exactly the
+small-N structure round 30 used to revert round 29's relaxation — the
+ratio is SMALLEST at small N, which is why the worst-point gate matters.
+The "+10.8% end to end" in the same sentence is computed from 1.343, not
+from 1.427.) (Round 23: this said "does not grow
+with N" while sitting directly above that column. It is also forced by the
+P2 section below — the observer's per-aircraft cost drifts +26% over
+N=8→32 against the floor's +10%, so the ratio must rise. Round 2 corrected
+the range and left the non-growth clause standing.) (The
+first write-up said "1.4-1.6x", which overstated both tables — the maximum
+observed is 1.49 at 3000 frames; at 1500 frames round 2 recorded 1.42,
+round 28 measured 1.50 and round 34 measured **1.66** at N=1. Each
+"maximum" has been the maximum of the runs available when it was written,
+never a ceiling — and the small-N points, being the shortest runs, drift
+most. The headline range is the banked 3000-frame sweep's; the 1500-frame
+harness reports a wider one and is not re-banked against it.)
+
+**P2 — REFUTED, on both clauses of its own registered condition, and it
+took twenty rounds to say so because it was the only prediction with no
+gate.**
+
+P2 said: *"Refutable by a fit that is superlinear, or whose slope misses
+the C6-derived prediction."* Both clauses fire on ORACLE's own numbers,
+and both have been visible since round 3:
+
+- **Slope.** The observer's marginal cost, fitted as `ceiling − floor`
+  against N, is **45.0 µs per aircraft-frame**. C6's **0.123 µs** per
+  observed scalar write times a hand count of ~150 assignments predicts
+  **18.4 µs**. That is a **2.45× miss**.
+
+  *(Round 38 corrected the C6 constant from 0.154 to 0.123, moving the
+  prediction 23.1 → 18.4 and the miss 1.95× → 2.45×. The old value divided
+  by **480 000**, which is not a write count: it is `i * READ_SITES`,
+  printed by `run_read`, a different variant. `run_write` and `run_floor`
+  are identical loops differing only in the `unobserved:` wrapper, and the
+  body is FIVE assignments — `u, w, q, th, i` — over N = 120 000, so the
+  divisor is 600 000. `tests/test_verdicts.sh` now counts the assignments
+  out of the source instead of carrying the number, because round 37's
+  "derivation" had been reverse-engineered to reproduce 0.154 and
+  asserted equality against it — certifying the conclusion. P2's verdict
+  does not flip: clause 2 fires harder, so the error was in the safe
+  direction, but the magnitude published under exit-gate item 2 was
+  wrong.)* The write-up recorded the ~1.9× and filed it
+  as "a comparison that does not close" — which is the refutation
+  condition, described rather than applied.
+- **Superlinearity.** Per-aircraft observer cost rises **+26%** from N=8
+  to N=32 (35.3 → 44.5 µs). (Round 45: that is a TWO-POINT drift, and N=8
+  is the MINIMUM of a U-shaped series in both arms — observer
+  34.0/37.7/36.2/35.3/41.6/44.5, floor 99.0/87.3/85.2/82.6/85.3/91.1 — so
+  the pair runs from each series' minimum to its maximum. Hand-picked
+  endpoints, the defect round 43 fixed for the plateau figures, sitting
+  inside the clause that decides P2. It is mitigated but not repaired by
+  both arms using the SAME pair, which is the only reason the comparison
+  survives. The statistic the clause is actually about is the exponent of
+  a log-log fit: the observer scales as **N^1.067** against the floor's
+  **N^0.979**. Superlinear, and more so than the floor — but far more
+  weakly than "+26% against +10%" implies, and that gap is why the
+  write-up 70 lines below already says "approximately linear with a small
+  superlinear drift at the top, not linearity confirmed" while this
+  section says REFUTED on BOTH clauses. Clause 1 is better read as WEAKLY
+  supported; **P2's refutation stands on clause 2**, the 2.45x slope miss,
+  which does not depend on any endpoint choice.) The write-up assessed linearity as
+  "approximately linear with a small superlinear drift at the top" — but
+  it did so on the fit `0.272 N − 0.083`, which is the **FLOOR** column,
+  the arm with no observer in it, whose drift over the same range is
+  +10%. Round 3 had already noted that fit was the floor's; the linearity
+  verdict was still being read off it eighteen rounds later. On the arm
+  P2 is actually about, the drift is more than double.
+
+Two figures that earlier rounds retired as unreproducible are simply
+points of this table rather than fits: 34.0 µs is its N=1 point (round 3 published 33.5, which this table does not produce)
+and 41.6 µs its N=16 point (round 8).
+
+**Why this sat undetected while P3 was rewritten seven times:** P3 had a
+gate from round 1, so every round attacked it. P2 had no claim ID, no
+planted fault and no assertion anywhere in the repo — `test_swarm_profile.sh`
+asserts two ratios and nothing about a fit, a slope or the C6 comparison.
+The component without an oracle is the one that goes wrong quietly, and
+the loop's attention followed the gates rather than the risk.
+`tests/test_verdicts.sh` now recomputes both fits, the C6 comparison and
+both clauses from the banked table, with planted faults that make each
+clause stop firing. The timing itself stays where it belongs, in
+`test_swarm_profile.sh`; what is gated here is the arithmetic that turns
+the sweep into a verdict.
+
+What survives from the earlier write-ups, unchanged: Round 1 argued "the ratio is flat, therefore cost is
+linear in N", which is a non-sequitur — a flat ratio is consistent with
+any common functional form, including both arms being quadratic.
+Linearity has to come from fitting an arm against N. Round 1's replacement
+then published **0.021 + 0.113 N**, which is the fit for the 1500-frame
+HARNESS while the table above is the 3000-frame sweep, with the dataset
+switch unstated. Round 2 caught it: that fit under-predicts every row of
+its own table by ~2.3x.
+
+The fit for the table as published is **0.272 N − 0.083, R² = 0.9986** —
+which is the FLOOR arm's, and is published here only because round 3
+found it had been mistaken for the observer's. The fit exit-gate item 2
+is about is the observer arm's, `ceiling − floor` against N:
+**0.13499 N − 0.10485, R² = 0.99751**. Round 41: that fit's intercept and
+R² were computed by the gate and discarded, so the only fit ORACLE
+published with an R² was the arm the gate itself says must not carry the
+verdict — and P2's "a fit that is superlinear" clause had no R² anywhere.
+Both are pinned now.
+Two honest caveats, both from round 2: six points against two parameters
+is thin, and the per-doubling floor ratios climb — 1.76, 1.95, 1.94,
+**2.06, 2.14** — which is what the negative intercept encodes. The data
+is consistent with linear-plus-overhead and mildly inconsistent with
+strict proportionality at N ≥ 16. Reported as "approximately linear with
+a small superlinear drift at the top", not as linearity confirmed.
+
+P2's refutation criterion also asks for the slope against the C6-derived
+prediction, and **round 3 found the published number was not a slope**.
+The 33.5 µs figure was the N = 1 POINT, not a fit; and the fit that was
+published alongside it (0.272 N − 0.083) is an OLS fit of the FLOOR
+column — the arm with no observer in it — so neither number was the
+observer's marginal cost.
+
+Fitted properly, `ceiling − floor` against N: **45.0 µs per aircraft-frame**
+from the 3000-frame table, **~28 µs** from one run of the 1500-frame harness (unrecorded and
+unreproducible as published — an earlier figure of 41.6 µs has no committed
+producer, round 8). Against
+C6's ~0.123 µs per observed scalar write that implies ~366 observed
+assignments per aircraft-frame, against a hand count of ~150 for four
+`deriv` calls plus RK4 — **~2.4x, not the ~1.5x first published** (and not the ~1.9x that stood until round 38 corrected the C6 divisor).
+Reported as a comparison that does not close: either the hand count is
+short, or a container walk costs more than a scalar write, and this rung
+has not separated them.
+
+The estimator took four attempts and the failures are worth recording,
+because each confused a different thing with noise. (1) Exclude points
+whose fixed cost exceeds a share of the run — discarded usable data, and
+on the faster CI container excluded two of three and hard-failed. (2)
+Subtract the fixed cost instead — correct, because it is a BIAS present in
+both numerator and denominator, but it does nothing about noise. (3) Skip
+points whose ARM spread is large — called every point unresolvable on a
+loaded box while the ratios themselves were steady at 1.47/1.49. (4) Take
+the MINIMUM of paired ratios — an extreme order statistic, so one
+contention event dominated it and produced ratios of 0.79 and 0.89, i.e.
+paired runs where the ceiling came out FASTER than the floor.
+
+What works: the **median of five PAIRED ratios**, with the measured fixed
+cost subtracted. Pairing makes correlated load cancel; the median absorbs
+the pairings where it did not. One implementation serves every ratio the
+gate asserts — round 5 had left the disciplined/unarmed check on unpaired
+single minima while the headline ratio had moved on, so it still failed at
+small N for the reason the headline had already fixed. Three consecutive
+green runs on a contended box (1.37 / 1.38 / 1.46).
+
+The fixed cost is measured with a one-frame run and SUBTRACTED from every
+arm — it is a bias present in both numerator and denominator. There is no
+exclusion filter and no `NVALID >= 2` guard; an earlier version of this
+paragraph described both in the present tense after the code had dropped
+them (round 8). Every ladder point produces a ratio.
+
+**And the filter then failed CI — correctly.** The devcontainer is ~3x
+faster than this box, so the same 1500-frame runs put fixed cost at 19%
+(N = 1) and 6% (N = 4) there; both were excluded, one point survived, and
+the `NVALID >= 2` guard refused to call that a curve. That is the gate
+declining to measure rather than reporting a one-point line, which is the
+behaviour the derived filter exists to produce. The fix was more work per
+point, not a looser filter: the ladder stays 1/4/16 — round 4 recorded a change to 4/16/32 that was never applied, and round 5 caught the comment contradicting the code, and N = 32 is valid
+on both machines.
+
+The disciplined and unarmed arms are asserted with the same PAIRED
+estimator as the headline ratio, at the largest ladder point. An earlier
+version of this paragraph claimed they were judged on the numbers the
+table printed; round 7 found that false — the assertions re-measure, which
+is unavoidable because a paired ratio cannot be assembled from two
+independent minima. Stated plainly rather than repaired into a lie.
+
+**`unobserved:` buys back essentially the whole penalty** — the
+disciplined arm measures within noise of the floor and of the unarmed
+control at every N. "Within noise" is the honest phrasing: round 2
+measured disciplined 8% BELOW floor at one N, which is an inversion and
+therefore a ±10% noise floor on this box. That is enough to say the
+penalty is bought back and not enough to resolve what remains.
+
+Round 45: "reports the rest" was false, and the sentence it replaced was
+worse. The residual was published at NO N and gated at NO N — the only
+assertion touching the arm was `ceiling/disciplined > 1.20`, one-sided,
+against the ceiling, at the largest ladder point only. With `ceiling/floor`
+at 1.40–1.46 that permits `disciplined/floor` up to ~1.17–1.22, an ungated
+band roughly double the ±10% this paragraph calls unresolvable — while
+"What is being measured" above names `disciplined − floor` as the number
+that justifies or kills #915's natural successor.
+
+Measured now, paired median of five with the fixed cost subtracted, the
+same estimator as every other ratio in the rung:
+
+| arm / floor | N=1 | N=4 | N=16 |
+|---|---|---|---|
+| disciplined, run 1 | 0.9948 | 1.0342 | 1.0154 |
+| disciplined, run 2 | 1.0203 | 1.0091 | 1.0155 |
+| unarmed, run 1 | 0.9855 | 1.0132 | 1.0166 |
+| unarmed, run 2 | 0.9449 | 0.9980 | 1.0267 |
+
+Twelve ratios over two independent runs, spanning 0.9449–1.0342: inside
+the ±10% noise floor in both directions at every ladder point, with the
+worst point ~4.5 points of margin rather than the ~3x a single run
+suggested. The second run is reported because the first alone would have
+overstated the margin by half — the one-sample generalisation this rung
+has committed before. The headline is CONFIRMED rather than merely
+asserted, and the residual is now gated two-sided at ±10% — the band this
+paragraph already published, not one fitted to the numbers above.
+
+Two caveats, both one-directional and both against the gate rather than
+for it. The `unarmed` rows carry a known systematic: the control lives in
+its own driver and neither imports linalg nor solves the trim, so
+subtracting the same fixed cost over-subtracts from it and biases
+`unarmed/floor` DOWN, toward the 0.90 edge where its worst point sits.
+And round 2's historical 0.92 at one N is the same edge. If this gate ever
+fires low on the unarmed arm, suspect the fixed-cost subtraction before
+the claim; `disciplined/floor` shares its driver with the floor and has no
+such bias.
+
+What made this invisible for forty rounds is worth recording, because it
+is not "nobody looked". Every witness this rung built — banked `hits`,
+the fleet digest, `reads`, `evals`, the frame count — detects an arm doing
+LESS work. Round 45's mutant makes the disciplined arm do MORE: one frame
+in three integrated in observed context, the exact regression this headline
+denies. Its self-report is BIT-IDENTICAL to pristine on all five fields,
+the full suite passes twice, and `disciplined/floor` at N=16 goes
+1.0327 → 1.2663. A witness set built entirely against one direction of
+error says nothing about the other. The full four-arm table is `tests/test_swarm_profile.sh`'s
+output, which is the shipped harness — round 1 found the first table
+unreproducible from the artifact, measured with a throwaway driver that
+was never committed.
+
+**P1 — its registered condition is UNSATISFIABLE by construction, which
+the repo's own source says. Round 23, applying exit gate item 8 to the
+third of four predictions.**
+
+P1 is registered as *"refutable by measuring disciplined-with-1-reader
+against disciplined-with-N-readers and finding the write cost differs"*.
+`swarm.eigs` states the opposite in a comment written at rung 4:
+*"comparing DISCIPLINED against ONEREADER cannot test arming, because both
+wrap the integration, so neither pays write cost whatever the arming
+granularity is."* The difference that clause reads is zero whether P1 is
+true or false. Item 8 has now caught **all four** registered
+conditions — P3's (a dead cell satisfies it), P4's (any failure not
+labelled physics satisfies it), P1's (its discriminator cannot
+discriminate), and P2's (an arm that does no work drives `ceiling − floor`
+to 0, so the slope misses the C6 prediction and P2 reads REFUTED off a
+dead harness, for exactly the reason P3's reads REFUTED off a dead cell —
+round 24. P2's verdict is sound on other grounds; its condition is not). That is a fact about how the predictions were written, not
+about the observer, and it is the most transferable thing this rung
+produced.
+
+**P1's practical claim is CONFIRMED, and it is now MEASURED rather than
+argued.** Round 22 gated an *argument* — that a negative read share is
+impossible — having justified doing so with "no committed producer".
+Round 23 found both halves false. The producer ships
+(`tests/swarm_profile.eigs` dispatches `ceiling1`/`ceiling0`/`onereader`
+and is hash-pinned in `test_swarm_profile.sh`), and a negative share is
+not impossible: it is the ordinary sign flip of a ~1.5%-of-total quantity
+taken as the difference of two ~5 s wall times, and the same N=32
+measurement came out **-2.8%** and **+5.2%** ninety seconds apart. The
+published **+29.8%** at N=32 does not reproduce — three re-runs gave
++5.2%, +1.7%, -2.8% — and is withdrawn.
+
+**Round 24 found round 23's replacement gate was the same defect one file
+over.** It gated `disciplined/onereader` — the very pair `swarm.eigs` says
+cannot test arming, because both arms wrap the integration so neither pays
+write cost either way. It was also one-sided and flaky: three runs of that
+ratio on this box gave **0.9889, 1.0432 and 1.2135**, and the 1.2135 run
+FAILED its own 1.20 bound. A gate whose subject reports 0.99 and 1.21 is
+measuring the box. (The published "~1.01, dropping 31 of 32 readers" was
+wrong twice over: the ladder tops out at N=16, so it is 15 of 16, and the
+shipped gate measured 0.9889 — the opposite side of 1.0.)
+
+What is gated now is `ceiling0/floor`, which is different in kind.
+`ceiling0` is the unwrapped ceiling shape with **zero** verdict reads, so
+if arming were per-binding or liveness-scoped it would collapse onto the
+floor. It does not — measured **1.2428** and **1.4173** on two runs, both
+far above 1. That is EigenScript#1046's per-`EigsState` arming being paid
+by a hot loop that reads no verdict at all, it is what P1's mechanism half
+is actually about, and it CAN fail, and its planted fault is now a
+MEASUREMENT rather than a literal: `ceiling0pb` is the same arm with its
+assignments wrapped in `unobserved:` and the loop statements left
+observed — what per-binding or liveness-scoped arming produces — returning
+the **identical fleet digest**, so only the observation shape differs. It
+collapses to **~0.99** — nine independent medians-of-five span 0.898–1.041,
+with the suite's own run at 0.9900 — against 1.38–1.45 for the shipped
+arm: a factor of ~1.4 across the bound.
+
+The bound is 1.20. Twelve interleaved medians-of-five separate the two
+populations cleanly — per-`EigsState` 1.408–1.481, per-binding 0.955–1.067
+— but the margin claim needs stating honestly: **one earlier session
+measured `ceiling0/floor` at 1.2428**, which is 3.6% above the bound, not
+the ~15% the twelve-sample band suggests. Raising 1.10 → 1.20 to buy the
+plant headroom moved some of the risk onto the real assertion, whose
+failure text says "#1046 needs re-grading". Both sides are now measured
+rather than asserted, and that residual is recorded rather than smoothed. (Round 26: two different single
+values, 0.9445 and 0.9855, had been published for this one measurement,
+and eight of nine re-measurements exceed the lower one. A counterfactual
+quoted as a point estimate is the same defect as a slope quoted from one
+run.) Round 25 built the counterfactual;
+the plant had been `ratio_ok 1.00`, which proves the bound can fail but not
+that the arm can produce the failing value.
+
+**The read share stays ungated, and that is the finding rather than a
+gap.** Differencing `ceiling` against `ceiling0` does not resolve on this
+box either: one run gives a 36% read share, another 0.6%, and on the first
+`ceiling1` (ONE reader) measured MORE than `ceiling` (sixteen), which is
+impossible. A second, independent estimator therefore reaches the same
+verdict the wall-time differences did — the arms are within noise of each
+other here — which is what makes "the mechanism is NOT resolved" a
+measurement rather than a shrug.
+
+**P1 is CONFIRMED in its practical form. Its mechanism is HALF resolved:
+the ARMING half is settled, the READ half is not.** Round 25 refined a
+verdict that had said "MECHANISM IS NOT RESOLVED" flatly since round 1.
+
+- **Resolved.** `ceiling0/floor` — the unwrapped shape with zero verdict
+  reads — measured **1.35–1.48 in every one of seven interleaved
+  replicates**, and 1.24/1.42/1.48 across three earlier sessions. Arming
+  is paid by a hot loop that reads no verdict at all, which is
+  EigenScript#1046's per-`EigsState` granularity, and the counterfactual
+  confirms it discriminates: wrapping the assignments in
+  `unobserved:` while leaving the loop statements observed — what
+  per-binding arming would produce, digest held identical at
+  `4466955440` — drops the same ratio to **~0.99**, which the gate's 1.20
+  bound rejects. (The description "every assignment" was inexact: **six of
+  thirteen** remain unwrapped (counted mechanically from
+  `tests/swarm_profile.eigs`, not by hand — the previous two counts were
+  each invalidated by a later round's edit to that same function), including a `local i is 0` inside the frame
+  loop, which is why the arm sits just under 1.0 rather than well below.
+  Round 26 counted five of eleven; round 32 then added `local reads is 0`
+  and `reads is reads + 1` to that same function and never updated the
+  count, and round 38 fixed a different wording of this sentence and
+  missed this one — an unpinned hand count invalidated twice by later
+  rounds' own edits. Round 39.)
+- **Not resolved.** The read share, `(ceiling − ceiling0)/(ceiling −
+  floor)`, ranges **-5.6% to +27.6%** over those same seven replicates,
+  and `ceiling1` (ONE reader) measured faster than `ceiling` (sixteen) in
+  **2 of 7** — an ordering that cannot happen. Dropping 15 of 16 readers
+  per frame at the gated ladder point saves nothing this box can resolve.
+
+**Two retracted sentences lived on in this paragraph until round 25.**
+"Dropping 31 of 32 readers" described a sweep the shipped gate does not
+run — the ladder tops out at N=16. And "a negative share is impossible, so
+the split is noise" was the premise round 23 declared false and round 24
+deleted the gate for; it survived here as the stated *reason* the split is
+called noise, while two of round 25's seven replicates put negative shares
+on the board. The honest argument is the one already in the preceding
+clause: the sign is unstable and the ordering violates.
+
+Worse, the gate ENFORCED the error. `P1.verdict` pinned an exact-string
+match on "31 of 32", so correcting it failed the suite — attention follows
+the gate, and this gate pointed at the one clause that must not change
+while the false clause beside it was invisible. It is re-pinned on the
+verdict's substance and on the absence of the retracted premise.
+
+Two explanations remain live for the read half and this box cannot
+separate them. **The read share is not published as a mechanism.**
+
+**P3 — CONFIRMED, and the mechanism splits in two. Seven rewrites. Rounds
+1–8 graded the observer against its own verdict columns; round 9 fixed
+that with a measured physics truth but then re-collapsed the grading into
+one scalar; round 10 found the axis the verdict actually depends on — the
+UNIT — which rung 3 already swept and rung 4 never carried forward.**
+
+Round 1 read the result as a property of the observer; round 2 found it
+cadence-dependent; round 6 dispersion-dependent; round 7 found a fourth
+variable (which aircraft); round 8 found five classes hidden in a bucket;
+round 9 found there was no physics truth table at all. **Round 10 found
+that the headline was a property of the RADIAN SCALING**, and that the
+gate certifying it passed unchanged on output where every substantive
+claim had inverted.
+
+**The truth, measured with the observer uninvolved** (`truth_row` in
+`tests/swarm_p3.eigs`; whole integration inside `unobserved:`), peak-to-peak
+over the first and last phugoid period of the 400 s run. **All four rows
+are published**, not just the shipped dispersion — round 39 found the
+sp=0.02 pair stated only in prose and therefore graded by loose floors
+while quoted to three digits, and those are the rows the radian/ac0/sp0.02
+dead cell rests on, which is P3's sharpest claim:
+
+| aircraft | u p-p, first period | u p-p, **last period** |
+|---|---|---|
+| 0 (amp .0240) | 8.44 ft/s | **4.52 ft/s** |
+| 1 (amp .0466) | 16.41 ft/s | **8.80 ft/s** |
+| 0 (amp .0096) | 3.37 ft/s | **1.81 ft/s** |
+| 1 (amp .0186) | 6.56 ft/s | **3.52 ft/s** |
+
+The first two rows are dispersion 0.05, the last two 0.02. Every cell —
+including the amplitude — is matched against the producer as a whole row,
+in order, with `ft/s` adjacent and the decay direction asserted. (Round
+41: the amplitude column was previously matched by a wildcard while this
+sentence claimed otherwise, and the four values were hand copies of a
+code comment. `truth_row` emits the amplitude now, so the column has a
+producer like every other cell.)
+
+**The unit is ft/s, and this section said m/s at seven sites until round
+36.** The model is wholly imperial — `sim_core.eigs` declares the state
+vector as `(ft/s, ft/s, rad/s, rad)`, and the dataset carries
+`g = 32.174 ft/s²`, `rho` in slug/ft³, `S` in ft², `W` in lb, and
+`u0 = 279.1` = Mach 0.25 at sea level in ft/s. Rungs 0-3 label the same
+variable ft/s at seven sites; rung 4's P3 section labelled it m/s at
+seven. `truth_row` performs no conversion, so the numbers were always
+ft/s and only the label was wrong.
+
+Two things about that are worth more than the correction. It sits
+**inside exit gate item 6**, the item written at round 10 because "a claim
+about the observer is not a claim until its unit is stated" — the rung
+swept the *observed* channel through rad/deg/mrad and got the unit wrong
+on the channel it uses as *ground truth*, in the same paragraph. And it
+overstated the rung's central severity claim by **3.28x**: "swinging
+4.5-8.8" is 4.5-8.8 ft/s, which in SI is 1.38-2.68 — a third of what the
+metric label asserted. The values were pinned
+exactly and the dimension was pinned by nothing — "pinning every column of
+the wrong table cannot catch a wrong table", one axis over.
+
+ζ≈0.013, decaying ~7–8% per cycle but **alive for the whole run**. So the
+physics truth is `oscillating` at every read, at every cadence, in every
+unit. Two things are then graded separately, because round 9's single
+`div = reads − osc` lumped them and could not see the inversion:
+
+- **detect** — the observer got it right (`oscillating`).
+- **false all-clear** — `converged`/`stable`/`equilibrium`: the observer
+  affirmatively says *settled* about an aircraft that is swinging. The
+  dangerous direction.
+- `moving` is neither. It is the documented no-claim label, and the first
+  9 reads of any channel are a partial window (`OBSERVER_WINDOW_N` = 10)
+  where the observer *by spec* cannot claim anything. Counting those as
+  contradictions inflated every round-9 rate by exactly 9 reads per row —
+  the published "best cell 29% divergent" is **20.8%** once excluded,
+  which sat on the 20% boundary the gate itself used. All rates below are
+  full-window, including `p3_fleet`'s — round 11 found that one had no
+  exclusion at all while this sentence claimed otherwise. Round 13 then
+  found its boundary off by one, for precisely the reason round 12 gave
+  for moving it. The fleet rate is **0.789**.
+
+  **Round 14: the buckets now PARTITION the full-window count.** `fosc`
+  had been graded at `asn>9` while `fquiet`/`fnoclaim` were graded at
+  `asn>10` — a vestige of an artifact-eviction boundary round 13 had
+  already made unnecessary. They failed to sum to `full` in 38 of 46 rows,
+  so the false-all-clear rate quoted below (98–99%) was a numerator over
+  one population divided by a denominator over another, biased low. A rate
+  whose numerator and denominator range over different populations is not
+  a rate. Claim `P3.partition` now checks the arithmetic on every row.
+
+**The unit-INVARIANT half — the detection failure.** At cadence 74 a
+10-sample window spans 0.79 of a phugoid period. Measured, all **twelve**
+cadence-74 rows (2 aircraft x 2 dispersions x 3 units): **detection = 0**,
+in radians, degrees and milliradians alike, on every read of the run —
+while the aircraft is still swinging 4.5–8.8 ft/s peak-to-peak. The
+observer misses the live mode entirely.
+
+**This one number was measured wrong three rounds running, and twice the
+error was in the harness rather than the observer.** Round 10 reported
+1.0%; round 11 reported 0%; round 12 reported 1-of-100 and published it as
+*"a real detection of a real oscillation"*. Round 13 settled it: the
+channel is seeded by its DECLARATION (`local q is …` is an assignment,
+and upstream `observer_slot_record_value` seeds on the first assignment
+and pushes nothing), so a `0.0` declaration makes the first pushed delta a
+fictitious 0 → trim jump. That artifact rides in the window until it is
+evicted, which is exactly why it landed on the single read the
+full-window filter admitted — and why round 12 mistook it for physics.
+Round 11's 0% was correct; round 12's "fix" reverted round 11's seed and
+promoted the artifact. Round 12 also left the two graders in this one file
+on opposite conventions: `make_vchannel` seeded with the real value while
+`p3_row` seeded with 0.0.
+
+Two things are needed together, and are in place now: seed the channel
+with the aircraft's real state at t=0, **and** shift the sample grid to
+`f % cad == cad - 1` so the first sample lands exactly one cadence later.
+Round 11 had the first without the second, which put its first gap at one
+FRAME against one CADENCE for every later gap — an uneven delta that
+suppressed the signal and broke deg/mrad byte-identity. With both, every
+pushed delta is real physics over exactly one cadence and there is no
+boundary read to exclude.
+
+*Round 11 corrected this paragraph three times over.* Round 10 said
+"detection = 1.0%" and "all twelve rows" of a sweep that then had eight;
+both were wrong, and the 1.0% was not a detection at all. It was the
+channel's `local q is 0.0` initialiser: a fictitious jump from 0 to the
+trim pitch rate, which the oscillation family reads as a reversal, firing
+exactly once per channel at the read where the window first fills. This is round 5's own finding ("the initialiser is a sample") reaching a
+second site: rung 4 applied it to channel CONSTRUCTION (#1049) and never
+to the channel's initial VALUE, though `swarm_check.eigs` had been
+accounting for it all along ("exactly 1 per channel is the initialiser
+sample").
+
+**Round 12 then found round 11's fix carrying its own artifact.** Priming
+from a pre-loop assignment removed the fictitious 0 but left the first
+inter-sample gap at one FRAME (0.05 s) while every later gap is one
+CADENCE (~3.7 s). On that one-delta window the observer reported
+`stable` — a false-all-clear-class label — and it differed between deg
+and mrad, breaking the byte-identity that is the sole evidence for the
+round-6/7 downgrade. Worse, the uneven gap *suppressed the one true
+detection*, which is how round 11 came to report 0%. Priming now happens
+inside the loop, so every gap is one cadence; deg and mrad are
+byte-identical again and the real 1-of-100 detection is visible. Three
+successive rounds each measured this number wrong, twice from an artifact
+of the harness's own channel priming rather than of the observer.
+
+Round 12 corrected round 10's "`oscillating` cannot fire whatever the
+numbers are scaled to" by pointing at `osc=5` in the deg/mrad cadence-74
+rows. Those five reads were the seed artifact too: with a real seed they
+are `osc=0`.
+
+**But the original sentence is not right either, and round 14 found the
+reason: PHASE.** Holding the seed and the even spacing exactly as shipped
+and moving only where the sample grid starts, `oscillating` fires in **3
+of 12** phase cells (ac0 at phase 37; ac1 at phases 7 and 37). Phase is
+the FIFTH hidden variable found in this single row — after cadence,
+dispersion, aircraft and unit — and each of the previous four inverted a
+published claim the moment it was swept. So the strong form is retired.
+What holds at every phase tested, and is what the gate asserts, is that
+the observer detects **at most one read out of ~99**. (The swing figures
+quoted above are the sp=0.05 aircraft; the sp=0.02 pair swing 1.81 and
+3.52 ft/s in the final period. Round 15: this section had attached
+"4.5–8.8 ft/s" to all twelve cadence-74 rows, which is true of six.) Blind in effect, not blind by
+construction.
+
+**The unit-DEPENDENT half — the severity.** *Which* wrong answer you get
+is EigenScript#1045's absolute zero-band, so it depends on the numeric
+magnitude of the channel, not its shape:
+
+| unit | detect at cad 74 | **false all-clear, ALL 8 cadences** |
+|---|---|---|
+| rad (shipped) | 0 | present at **every** cadence; peak **98–99%** |
+| deg | 0 | **0 of 32 rows** |
+| mrad | 0 | **0 of 32 rows** |
+
+Round 16 widened this from cadence 74 to the whole grid, and it holds more
+strongly than the narrow version claimed: **0 of the 64 non-radian rows
+carry a false all-clear at any of the eight cadences**, while every radian
+cadence has at least three of its four cells carrying one. (The peak was
+quoted as "97–98%" through round 15; measured it is 98/99, 98/99, 98/99,
+97/99 — **98.0–99.0%**. The gate's own integer division floored 98.99 to
+98 and corroborated the wrong figure.)
+
+Identical physics, identical cadence, identical window. In radians the
+per-sample step (~6e-4 rad/s) straddles the `dh_zero` = 1e-3 deadband and
+the observer reports `converged`/`stable`; rescaled, the same trajectory
+returns `moving` — still failing to detect, but no longer issuing a false
+all-clear. deg and mrad are byte-identical to each other, which is the
+signature of a threshold rather than a scale.
+
+**So rounds 6 and 7 are downgraded.** The dispersion axis and the aircraft
+axis were the same axis as the unit: amplitude and unit enter the deadband
+identically, as the magnitude of the channel. In degrees, aircraft 0 and 1
+and dispersions 0.02 and 0.05 all produce byte-identical rows **at cadence 74** — now measured by a
+committed producer (round 11 added the sp=0.02 unit rows; this had been
+the sole evidence for the round-6 downgrade, and nothing produced it).
+Round 12 found that round 11's own priming had *broken* this identity in
+a partial-window read, and fixed the priming rather than the claim.
+
+**Round 14 scoped this to cadence 74 and had it backwards; round 15
+measured the whole grid.** Round 14 read two cells of a sweep that covered
+one dispersion at three cadences and concluded the amplitude axis
+"survives the rescaling once the cadence is long enough". Over the uniform
+grid, in degrees, the four (aircraft × dispersion) cells are
+**byte-identical at six of eight cadences** — 74, 84, 94, 104, 114 and
+134 — and at the other two (124, 148) they differ by exactly **one read**.
+Cadence 134 is *longer* than 124 and identical, so there is no "long
+enough" boundary at all. The collapse is near-universal and the two
+exceptions are single-read deadband crossings.
+
+Round 14's own claim was refutable from the rows it shipped without
+running anything: three of the four degree cells at cadence 148 are
+identical (`fosc=34`) and only the largest-amplitude cell is 35. The
+downgrade of rounds 6 and 7 therefore stands **more** strongly than
+round 14 allowed, and is pinned as claim `P3.unitid`. What
+round 7 called "two aircraft in one fleet disagreeing" is one deadband
+crossing seen twice.
+
+**P3's registered confirmation — the nuisance rate — and a threshold that
+was tuned to the data.** P3 predicts a detector that *fires on healthy
+aircraft*, refutable by "a clean verdict stream". Truth is `oscillating`,
+so detection rate and alert-on-a-healthy-aircraft rate are the same
+number. Round 10 asserted `max detect < 90%` and called it "no clean
+row" — a bound set by where the data happened to stop (nothing had
+exceeded 80% in a sweep ending at cadence 148). Round 11 forced a
+committed producer for the cadence sweep, which extended it, and
+detection reaches **100%** at cadence 104 (in degrees; 98.5% in radians),
+where a 10-sample window spans 1.11 phugoid periods. The round-10 gate would have
+declared P3 *refuted* at the exact point the evidence for it is
+strongest. The claim now asserts the direction P3 actually predicts:
+some cadence must make the detector fire on a measurably healthy
+aircraft, and one does, on every read of a 67-read window.
+
+So there is no usable operating point, rather than no clean row: below the
+window the detector is blind (0%) and, in radians, issues a false
+all-clear on 98–99% of reads; at a cadence where it sees the mode it
+alerts on **every** read of entirely normal flight.
+
+**The 100% cell is NOT evidence of a mode, and three rounds of controls
+were needed to find that out — the first two could not have.**
+
+Round 16 ran a fleet at dispersion 0: exactly at trim, no phugoid,
+`oscillating` 0 of 67. **Degenerate** — trim pitch rate is exactly 0, so
+the channel spans 3.3e-17 rad/s, and because `0.0 × 57.3 == 0.0 × 1000`
+its three "units" are one measurement written three times. It excludes an
+alarm that fires on a *frozen* channel, which was never the hypothesis.
+
+Round 17 replaced it with monotone channels — two exponential decays and
+a ramp — measured `oscillating` 0 in all 18 cells, and published *"the
+detector is a detector, and now that is measured rather than assumed"*.
+**Also unable to fail, for a different reason.** Every arm of
+`obs_num_oscillating` upstream requires step-sign flips or direction
+reversals, and a strictly monotone channel has none at any amplitude, τ,
+cadence or unit; swept over 1176 cells the answer is 0 everywhere. An
+outcome invariant to every knob is not a measurement. That is the
+round-14 "the bound cannot fail" shape for the third time in this rung.
+
+Round 18 ran the control the predicate can actually reject: **stationary
+aperiodic noise** at the phugoid's own peak-to-peak amplitude (0.02643
+rad/s, which is `truth_row`'s own `q_pp_first` for ac0 at the shipped
+dispersion) — no mode, no period, full of reversals. It reads
+`oscillating` on **75/75** at cadence 94 in all three units and **65/66,
+66/66, 66/66** at cadence 104. That is the fleet's best
+cell, reproduced by a channel with no mode in it at all.
+
+**So the round-17 conclusion is retracted — and round 19 found the
+retraction itself overstated, for the same reason.** Round 18 ran the
+noise control at cadences 94 and 104 only. Those are the two cells where
+the phugoid *also* reads ~100%: the only cells on the grid where the
+contrast is invisible. Stated over the whole grid, "cannot distinguish a
+phugoid from noise" is false. Run at the fleet's own eight cadences:
+
+| cadence | 74 | 84 | 94 | 104 | 114 | 124 | 134 | 148 |
+|---|---|---|---|---|---|---|---|---|
+| phugoid (deg, ac0, sp .05) | **0%** | 60% | 80% | 100% | 98% | 95% | 70% | 76% |
+| aperiodic noise, same amplitude | **98%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+
+**A single verdict at a single cadence carries no mode information** — at
+cadence 104 the two channels are indistinguishable at 100%. **The
+detection PROFILE carries it, but only where the channel clears the
+deadband**, and round 20 found the mechanism as first stated to be false.
+
+The claim was "the noise channel has no period, so its detection is
+cadence-invariant, while the phugoid's is shaped by the window/period
+ratio". It was measured on one hand-picked cell — the maximum-spread cell
+of the twelve the driver prints. **In the shipped unit there is a cell
+with a period that is perfectly cadence-invariant**: in radians, aircraft
+0 at dispersion 0.02 detects **0% at all eight cadences**, while carrying
+**98–99% false all-clear** at every one of them, and while
+`P3.truth.alive` certifies that same aircraft as still swinging (1.81 ft/s
+and 1.03e-3 rad/s peak-to-peak in the final period). Flatness is not the
+signature of periodlessness — it is what an absolute deadband produces
+once it swallows the channel: below the band every cadence reads alike
+because nothing reads at all. Eleven of twelve cells do show the shaped
+profile; the twelfth is dead, and the gate now requires a flat cell to be
+*simultaneously* dead and confidently wrong, which is what distinguishes
+the two causes. And
+at cadence 74 the two are not merely separable but **disjoint and
+inverted** — 0 of 99 against **96 of 98** — the observer detects the
+channel with no mode and misses the one with a mode.
+
+**P3's registered refutation condition is met in that cell, and it is not
+a refutation.** P3 says "refutable by a clean verdict stream". The
+radian/ac0/sp0.02 cell has a completely alert-free stream at every
+cadence — zero detections, no nuisance alerts at all. Read literally,
+that is the refutation. It is nothing of the kind: the stream is quiet
+because the detector is *dead*, and the same cell is confidently wrong
+about the aircraft on 98% of its reads. The pre-registration was written
+assuming quiet meant correct. Recorded here rather than quietly reading
+past it, because a refutation condition that a total failure satisfies is
+a defect in the prediction, not evidence for it — and it is the one
+part of this rung's bar that was never re-examined after the observer
+turned out to have a magnitude-dependent blind band.
+
+That is the honest statement of P3's severity, and it is stronger than
+either earlier version: a verdict-driven detector read at one cadence is
+uninformative at best and exactly wrong at worst, and recovering the mode
+requires sweeping the cadence — which is to say, doing the observer's job
+outside the observer. What the monotone rows still show is narrower and
+is labelled as such: the predicate does not fire on drift. That is a
+statement about the implementation, not about the fleet.
+
+**The controls also carry the sharpest unit-dependence evidence in the
+rung.** One identical monotone decay lands in three *different* verdict
+classes, on every read, depending only on the unit:
+
+| channel | rad | deg | mrad |
+|---|---|---|---|
+| decay, τ=350 s | `converged` 75/75 | `stable` 75/75 | `moving` 75/75 |
+| linear ramp | `diverging` | `diverging` | `diverging` |
+| aperiodic noise | `oscillating` 75/75 | `oscillating` 75/75 | `oscillating` 75/75 |
+
+The split is total in each unit. (Round 17 published it as 75/76 with a
+stray `moving=1`; round 18 found that asymmetry was its own seed
+artifact — `local q is 0.0` had come back in the control, the exact
+defect that cost rounds 10 through 13 in `p3_row`, in the same file
+carrying the comment forbidding it. Its fictitious 0 → A jump was also the
+only sign reversal in the "monotone" control, so that channel was not
+monotone in its first window.) The τ=90 s decay does **not** split as
+cleanly — its degree rows are a `stable`/`moving` mix — so this is a
+property of the slow decay, not of monotone channels generally.
+
+The ramp row is the control on the control: a signal that is *growing* is
+detected at every scale, so the unit does not decide everything. It is
+specifically the small-magnitude end of the lattice that the absolute
+deadband distorts (EigenScript#1045).
+
+**The N half — CONFIRMED, but construction-bound, and that is a weaker
+statement than round 9 made.** P3 predicts a rate "that does not fall with
+N". Measured (`p3_fleet`, one closure channel per aircraft): exactly
+0.789 from N=2 to N=16. But `fleet_ic` gives aircraft *i* an N-independent
+initial condition, `frame_step` has no inter-aircraft coupling, and each
+aircraft owns its channel — so each alert set is N-independent and the
+union is monotone in N. **The rate cannot fall, by construction.** It is
+kept as a regression guard (it would fire if channels started sharing
+state, which is rung 4's P4 defect) and it is NOT evidence about observers
+at scale. A real test needs inter-aircraft coupling, which this rung does
+not have. Also recorded plainly: the separation/conflict detector P3 names
+as its consumer **does not exist** — "alert" here is `verdict ==
+"oscillating"`, nothing more.
+
+**Two corrections to round 9's own numbers.** The claim that the observer
+"reports `converged`/`stable`/`equilibrium` on 108 of 109 reads" was
+false — 108 was `div`, which includes 10 `moving`. The quiescent-label
+counts are **98** and **97**. The cadence sweep now has a committed
+producer (round 11 — it had lived only in `swarm.eigs` comments, the fifth
+producerless claim in this rung). It is non-monotone with
+**aircraft-dependent peaks**: ac1 at cadence 104 (98.5%), ac0 at 124
+(94.5%).
+
+**Five successive readings of this one curve were wrong in five different
+ways.** Round 11 said the aircraft become identical at long cadence and
+the amplitude dependence vanishes "as on the unit axis". Round 12 refuted
+the mechanism — the unit axis drives false-all-clear to 0 for *both*
+aircraft, which is not what happens here — but replaced it with two
+assertions round 13 then showed were **run-length coincidences**, true at
+the shipped 8000 frames and nowhere else:
+
+| frames | 6000 | 8000 | 10000 | 12000 |
+|---|---|---|---|---|
+| `fosc` ac0/ac1 at cad 134 | 24/24 | 35/35 | 45/**46** | 45/**56** |
+| `fquiet` ac0/ac1 | **10/0** | **14/2** | **19/6** | **34/11** |
+
+"Equal detection" and "the detection count is frozen from 134 to 148" both
+dissolve as the run lengthens. **One thing survives every run length
+tested**, and it is the one that matters: at long cadence the
+small-amplitude aircraft issues far more false all-clears than the large
+one. The amplitude dependence did not vanish; it moved into the dangerous
+column. That is what `P3.tail` pins, with a margin taken from the
+smallest gap measured rather than from the shipped run.
+
+**The transferable part, and why six gates missed it.** Every gate so far
+pinned the observer's OUTPUT — first the `converged` column, then all
+seven columns, then a divergence scalar. But a verdict column is what the
+observer says, and each claim was about the aircraft. Pinning every column
+of the wrong table cannot catch a wrong table, and collapsing a
+seven-class lattice to one number cannot catch a re-labelling. The gate
+now grades detection and false-all-clear separately, over three units,
+against measured physics — and `tests/test_swarm_p3_planted.sh` plant c9
+deletes the unit rows and requires the claims to REFUSE to certify, so the
+axis cannot be dropped again silently.
+
+**P4 — its registered condition is VACUOUS, and the substance behind it
+is nevertheless earned. Round 22, applying exit gate item 8 to the
+prediction that item 8 itself names.**
+
+P4 as registered says *"what breaks first will NOT be the physics"*. Any
+failure not labelled physics satisfies that, including total failure of
+the entire rung — which is exactly the defect item 8 was written for, and
+round 21 added item 8 while leaving P4's verdict standing unqualified. A
+non-vacuous P4 would have predicted something discriminating, and the
+obvious candidate is available and was measured all along: **the six arms
+must remain digest-identical while at least one observer-layer claim is
+refuted.** That is checkable, it is gated (`W2.arm{1..6}.digest`, plant
+`w2` for an arm that silently integrates fewer frames, plant `w5` for a
+saturating digest), and it holds — the arms differ only in observation and
+their fleet digests match exactly, across every round of this rung, while
+the observer layer produced the refutations catalogued above.
+
+So P4's substance stands and is gated; its registered *condition* does not
+discriminate and is recorded as defective rather than counted as evidence.
+The verdict below is kept for what it measured.
+
+**P4 — CONFIRMED, but the finding is WEAKER than first published, and the
+first version was false.** What broke first was not the physics: it was
+the observer's channel model. Round 1 found every arm reading all N
+aircraft through ONE loop-local binding, which makes the window the
+round-robin interleave and MANUFACTURES verdicts — measured, a
+monotonically decaying trajectory reads `oscillating` when it shares a
+binding. That part stands and is the real defect.
+
+The claim built on it did not. The first write-up said EigenScript "has no
+addressable observer channel for a runtime-sized population" and that the
+swarm "cannot be written correctly today", and capped `run_named4` at four
+"because that is the only addressable form the language has". **Round 2
+refuted it: `eval` synthesizes named bindings at runtime and they carry
+trajectory correctly**, through the real predicate lattice, with the
+generated `define` eval'd once at startup so the hot loop pays nothing.
+Verified here at four channels (two decaying, two oscillating, correct
+`moving`/`oscillating` per channel) and by the reviewer at N = 32 matching
+`run_solo` exactly.
+
+**Both the original claim and its first correction were false, and round 3
+refuted the correction the same way round 2 refuted the original.** Round 1
+said a runtime-sized population could not be observed at all (`eval`
+refutes it). Round 2 replaced that with "only a lexical name, so it forces
+generated source, costing lint, static checking and AOT" — and a CLOSURE
+does it with ordinary static source that lints normally, N chosen at
+runtime, verified at N = 32 against this rung's own `run_solo` oracle with
+zero mismatches.
+
+Three rounds, three negative claims published after testing a handful of
+forms — two of them to upstream repos. The fix is not a fourth patch but a
+different kind of statement: **observer trajectory is keyed to an
+ENVIRONMENT SLOT** (`env_obs_slot(Env*, int)` returns `e->obs[idx]`,
+`src/eigenscript.h:1352`; line 346: *"The Value carries no observer
+state"*). Every case follows from that — named locals, closure captures and
+eval'd names each own a persistent slot and work; dict fields and list
+elements are Values inside containers and carry nothing; a function
+parameter's frame dies each call. A mechanism does not acquire exceptions
+the way an enumeration does.
+
+What survives as the gap: **containers cannot carry observer state**, so a
+fleet cannot be observed element-wise and per-entity observation needs one
+binding per entity. The failure is silent — the obvious loop manufactures
+verdicts rather than refusing. That is the ask now filed upstream, weighted
+as convenience rather than impossibility.
+
+**A NEW upstream finding, and the rung's second: `unobserved:` is not
+semantically neutral (GAPS G9, EigenScript#1049).** An assignment inside
+one is absent from the observer's WINDOW, not merely uncounted, so a
+binding initialised inside an `unobserved:` block carries a different
+history for up to WINDOW_N subsequent reads and then re-converges exactly
+— 19 hits against 18 on an identical trajectory with identical reads,
+differing at exactly the window-fill boundary. A mid-stream elision gives
+EQUAL totals (46 vs 46) and four differing reads, which is the case a
+consumer checking counts would miss. It surfaced because the closure channel form
+disagreed with the hand-written one by exactly one hit per channel, and
+the only difference was that it built its channels inside `unobserved:`,
+which is the obvious thing to do with setup. `W6.closure.eq.named.*` is
+now the standing tripwire, verified to red under exactly that mutation.
+
+This matters beyond the rung: `unobserved:` is the sanctioned workaround
+for G7/#1046, so the recommended mitigation for the arming penalty is not
+verdict-preserving.
+
+Note the contrast with rung 3's C6, where reads dominated writes ~2:1 on a
+deliberately read-heavy micro-shape. That conclusion is SHAPE-SPECIFIC, not
+a property of the observer, and this rung is the counter-example.

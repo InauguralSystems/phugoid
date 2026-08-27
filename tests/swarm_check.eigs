@@ -1,0 +1,402 @@
+# swarm_check.eigs — the rung-4 W checks.
+# Run from the repo root:  eigenscript tests/swarm_check.eigs [plant]
+#
+# Rung 4 adds LOAD, not truth. So most of what there is to check is that
+# the swarm is still N of rung 1's aircraft, and that the ARMS — which
+# differ only in observation — do not differ in physics. That second one
+# is the strong oracle here: observation must not change the trajectory,
+# so the arms are a differential against each other, and it caught a real
+# divergence on its first run (the unarmed control flew with thrust 0
+# because trim_solve folds the solved thrust back into P and the control
+# never called it).
+#
+# Plants: w1 fleet dispersion collapsed (all aircraft identical),
+# w2 an arm silently integrates fewer frames, w3 the pinned trim literals
+# drift from the solver, w4 the unarmed control gains an observer name
+# (so it is no longer a control), w5 digest saturates to a constant.
+
+load_file of "data/b747_approach.eigs"
+load_file of "swarm.eigs"
+load_file of "swarm_unarmed.eigs"
+load_file of "tests/checklib.eigs"
+load_file of "measure.eigs"
+load_file of "modes.eigs"
+
+cli is args of null
+plant is ""
+if (len of cli) > 0:
+    plant is cli[0]
+
+checks_run is 0
+failures is 0
+
+define check_exact(name, val, want) as:
+    checks_run is checks_run + 1
+    if val == want:
+        print of f"PASS {name} exact={want} val={val}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} exact={want} val={val}"
+
+define check_below(name, val, bound) as:
+    checks_run is checks_run + 1
+    local v is val
+    if (abs of v) <= bound:
+        print of f"PASS {name} below={bound} val={v}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} below={bound} val={v}"
+
+define check_distinct(name, xs) as:
+    checks_run is checks_run + 1
+    local dup is 0
+    local i is 0
+    loop while i < (len of xs):
+        local j is i + 1
+        loop while j < (len of xs):
+            if xs[i] == xs[j]:
+                dup is dup + 1
+            j is j + 1
+        i is i + 1
+    if dup == 0:
+        print of f"PASS {name} distinct n={len of xs}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} distinct n={len of xs} dups={dup}"
+
+# ------------------------------------------------------------ setup
+data is b747_approach of null
+P0 is sim_params of [data, ctl_nominal of null]
+tr is trim_solve of (P0)
+sched is [[0.0, tr.de]]
+NA is 6
+FR is 200
+DT is 0.0166667
+SP is 0.05
+
+# W1 — the pinned trim literals in the unarmed control MUST match the
+# solver. They exist only because `trim_solve` needs `import linalg` and
+# any import arms the observer (EigenScript#1046), so the control cannot
+# call it. That is a real constraint, but it must not become a place
+# where the control quietly flies a different aircraft.
+# w3 perturbs the ARTIFACT -- the pinned literals themselves -- not the
+# comparator. Round 4 found the previous version injecting into
+# check_below's own local, so its 30 reds were evidence about the
+# comparison arm and nothing about the 30 call sites: every one of them
+# could be gutted to `check_below(0.0, 0.0)` with the whole suite green,
+# INCLUDING the arm that reports each check proven able to fail. Verified.
+# mechanical-gates SS99 -- the same rule round 3 applied to DU/CF, unapplied
+# to the plant covering 70% of the population.
+tp is trim_pinned of null
+de_c is de_pinned of null
+th_c is thrust_pinned of null
+if plant == "w3":
+    tp[0] is tp[0] + 1e-6
+    tp[1] is tp[1] + 1e-6
+    tp[2] is tp[2] + 1e-6
+    tp[3] is tp[3] + 1e-6
+    de_c is de_c + 1e-6
+    th_c is th_c + 1e-6
+i is 0
+loop while i < 4:
+    check_below of [f"W1.trim{i}", tr.state[i] - tp[i], 0.0]
+    i is i + 1
+check_below of ["W1.de", tr.de - de_c, 0.0]
+check_below of ["W1.thrust", tr.thrust - th_c, 0.0]
+
+# W2 — the ARM DIFFERENTIAL. Observation must not change the physics, so
+# every arm's fleet digest must be identical. This is the check that
+# catches an arm silently doing less work — rung 3's C6 defect, where a
+# variant that measured LESS still printed OK.
+# Each arm returns its fleet digest. The linter caught the first version
+# of this block computing six digests and never comparing them, with a
+# `check_exact [1, 1]` standing in for the comparison — a tautology, and
+# exactly the vacuous check rung 3 spent twenty-five rounds learning to
+# detect. Compared for real now, including the UNARMED control, which is a
+# separate program and the one that actually diverged when it was added.
+Pu is sim_params of [data, ctl_nominal of null]
+Pu.thrust is thrust_pinned of null
+dg is []
+# w2 makes ONE arm integrate fewer frames -- rung 3's C6 defect, an arm
+# that silently does less work while still printing a result.
+fr_w2 is FR
+if plant == "w2":
+    fr_w2 is FR - 10
+append of [dg, run_ceiling of [NA, fr_w2, DT, SP, tr.state, tr.P, sched]]
+append of [dg, run_disciplined of [NA, FR, DT, SP, tr.state, tr.P, sched]]
+append of [dg, run_floor of [NA, FR, DT, SP, tr.state, tr.P, sched]]
+append of [dg, run_onereader of [NA, FR, DT, SP, tr.state, tr.P, sched]]
+append of [dg, run_ceiling1 of [NA, FR, DT, SP, tr.state, tr.P, sched]]
+append of [dg, run_ceiling0 of [NA, FR, DT, SP, tr.state, tr.P, sched]]
+append of [dg, run_unarmed of [NA, FR, DT, SP, trim_pinned of null, Pu, [[0.0, de_pinned of null]]]]
+ai is 1
+loop while ai < (len of dg):
+    check_exact of [f"W2.arm{ai}.digest", dg[ai], dg[0]]
+    ai is ai + 1
+# ...and the digest must not be a constant: a saturating or zeroed digest
+# would make every comparison above pass while comparing nothing.
+# w5 saturates the digest to a constant: every arm comparison would then
+# agree while comparing nothing. W2.digest.live is what catches it.
+d_live is dg[0]
+d_init is fleet_digest of (fleet_ic of [tr.state, NA, SP])
+if plant == "w5":
+    d_live is 0
+    d_init is 0
+check_distinct of ["W2.digest.live", [d_live, d_init]]
+
+# W3 — the fleet is a FLEET, not N copies. Each aircraft must start at a
+# distinct pitch rate, or the swarm is a single trajectory measured N
+# times and the load profile is real while the physics is not.
+# w1 collapses the dispersion: every aircraft starts identically, so the
+# "swarm" is one trajectory measured N times. The load profile would still
+# be real and the physics would not.
+sp_w1 is SP
+if plant == "w1":
+    sp_w1 is 0.0
+fl0 is fleet_ic of [tr.state, NA, sp_w1]
+qs is []
+i is 0
+loop while i < NA:
+    append of [qs, fl0[i][2]]
+    i is i + 1
+check_distinct of ["W3.dispersion", qs]
+
+# W4 — each aircraft is still rung 1's aircraft: with zero dispersion the
+# fleet must sit exactly at the trim state, which is the rung-1 property
+# every earlier rung already grades.
+# w6 perturbs the FLEET the W4 checks read, for the same reason: without
+# it, W4's 24 checks had no artifact-level plant at all and were carried
+# entirely by w3's comparator injection.
+flt is fleet_ic of [tr.state, NA, 0.0]
+if plant == "w6":
+    wi is 0
+    loop while wi < NA:
+        wj is 0
+        loop while wj < 4:
+            flt[wi][wj] is flt[wi][wj] + 1e-6
+            wj is wj + 1
+        wi is wi + 1
+i is 0
+loop while i < NA:
+    local j is 0
+    loop while j < 4:
+        check_below of [f"W4.trim.a{i}s{j}", flt[i][j] - tr.state[j], 0.0]
+        j is j + 1
+    i is i + 1
+
+# W6 — the CLOSURE channel form must agree with the hand-written one at
+# the same N, and with run_solo. This is the form that refutes two claims
+# this rung published and retracted (a runtime-sized population CAN be
+# observed per-entity, with ordinary lintable source); round 4 found it
+# reported as "verified at N = 32" in ORACLE while living in no shipped
+# code at all. It also carries the EigenScript#1049 tripwire: building the
+# channels inside `unobserved:` shifts every count by one, and this check
+# is what caught that.
+# W5 — the verdict stream, which round 1 found PRINTED AND NEVER ASSERTED.
+# Every arm above reads all N aircraft through one loop-local binding, so
+# their `hits` is an interleave artifact (a monotonically decaying
+# trajectory reads `oscillating` when it shares a binding). run_named4 is
+# the only shape whose verdicts mean anything: four STATICALLY NAMED
+# channels. NOT because that is the only addressable form -- the W6 rows
+# below call run_closure_n, which does the same at runtime N -- but
+# because hand-written is clearest for a fixed set. Two earlier drafts of
+# this comment asserted a limit that does not exist (EigenScript#1048).
+#
+# The oracle: a per-aircraft verdict count taken from the FLEET must equal
+# the count that aircraft produces flown ALONE. Nothing to interleave with
+# is the control for interleaving.
+CAD is 94
+FRL is 8000
+# w4 injects the round-1 defect INTO run_named4 (all four channels read
+# through one binding), so the fleet-vs-solo checks below are what catches
+# it -- they were previously reddened by nothing.
+shared_w4 is 0
+if plant == "w4":
+    shared_w4 is 1
+hs is run_named4 of [FRL, 0.05, SP, CAD, tr.state, tr.P, sched, shared_w4]
+ai2 is 0
+loop while ai2 < 4:
+    local solo is run_solo of [ai2, 4, FRL, 0.05, SP, CAD, tr.state, tr.P, sched]
+    check_exact of [f"W5.fleet.eq.solo.a{ai2}", hs[ai2], solo]
+    ai2 is ai2 + 1
+# ...and the counts must not be vacuously zero, which is how round 1's
+# stream passed for the wrong reason: at dt=0.05 read every frame, the
+# 10-sample window spans 1% of the phugoid period and NOTHING ever fires.
+# The dispersion is 0.05, not 0.02. Round 5: at 0.02 the counts were
+# 1/17/17/1 and a seed probe (initialise the channel at 100.0 instead of
+# 0.0) turned them into 0/16/16/0 -- so exactly ONE hit per channel was the
+# initialiser sample, and aircraft 0 and 3 had ZERO physics-driven
+# verdicts. Those two fleet-vs-solo rows were comparing 1 == 1 where the 1
+# was an artifact, which is the same vacuity the cadence fix below claims
+# to have removed. At 0.05 all four carry physics (41/61/61/45), so all
+# four rows compare something.
+# The cadence is 94, not 74. Round 3: the harness was still running at
+# the cadence ORACLE.md's own P3 section derives as too short -- a
+# 10-sample window at cadence 74 spans 0.79 of a phugoid period, so
+# `oscillating` essentially cannot fire, and these four checks were
+# comparing 1 == 1. Cadence is 94 -- chosen because the oracle binds well
+# there, NOT because a
+# threshold exists: the cadence curve is non-monotone with
+# aircraft-dependent peaks, measured over the uniform grid in
+# tests/swarm_p3.eigs and pinned in tests/test_swarm.sh. Five earlier
+# readings of that curve were wrong in five different ways, every one of
+# them taken from a table in a comment rather than from a producer.
+# At 94 with the shipped dispersion
+# 0.05 they compare
+# 41/61/61/45 against the solo oracle -- of which exactly 1 per channel is
+# the initialiser sample (EigenScript#1049) and the rest is physics. The sentence that used
+# to sit here called 74 "rung 3's result, not a tuning knob" -- the exact
+# transplanted number ORACLE.md retracts.
+tot is hs[0] + hs[1] + hs[2] + hs[3]
+check_exact of ["W5.stream.live", tot, 208]
+cn is run_closure_n of [4, FRL, 0.05, SP, CAD, tr.state, tr.P, sched]
+ci is 0
+loop while ci < 4:
+    check_exact of [f"W6.closure.eq.named.a{ci}", cn[ci], hs[ci]]
+    ci is ci + 1
+
+# W7 — exit-gate item 1, which had NO GATE ANYWHERE until round 43 went
+# looking for one. ORACLE licenses the whole rung with "each one's free
+# response still grades to rung 0's chain quantities through the same
+# estimators", and nothing in the rung loaded measure.eigs or modes.eigs
+# at all: W1..W6 grade trim literals, cross-arm digest equality, IC
+# dispersion and IC-equals-trim, and never a PROPAGATED trajectory. §103:
+# attention follows the gates, not the risk, and the ungated item is
+# where nobody had looked. It turns out to be TRUE, which is the point --
+# an unchecked true claim is still unchecked, and it is now the rung's
+# only tie back to rung 0's eigenvalues.
+define check_rel_local(name, val, truth, reltol) as:
+    checks_run is checks_run + 1
+    local d is (val - truth) / truth
+    if (abs of d) <= reltol:
+        print of f"PASS {name} rel={d} tol={reltol} val={val} truth={truth}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} rel={d} tol={reltol} val={val} truth={truth}"
+
+# The estimator's REFUSAL is a failure, never a pass: a `res.ok == 0`
+# that fell through to a green row is how a whole block goes quiet.
+define check_result(name, res, field, truth, reltol) as:
+    if res.ok == 1:
+        check_rel_local of [name, res[field], truth, reltol]
+    else:
+        checks_run is checks_run + 1
+        failures is failures + 1
+        print of f"FAIL {name} reltol={reltol} estimator refused: {res.reason}"
+
+# Identity accessors, the same defense rung 1 bought with its q12/q13
+# alias plants: the two period estimators AGREE within tolerance on the
+# phugoid, so a swapped slot is invisible numerically and only the
+# estimator's own identifying field can see it. Without these, plant w8
+# below would be a vacuous plant that reds nothing.
+define as_td7(res) as:
+    if res.ok == 1:
+        if res.k == null:
+            return {"ok": 0, "reason": "not a DFT result (identity field k missing)"}
+    return res
+
+define as_tp7(res) as:
+    if res.ok == 1:
+        if res.n_extrema == null:
+            return {"ok": 0, "reason": "not an extrema result (n_extrema missing)"}
+    return res
+
+define as_zl7(res) as:
+    if res.ok == 1:
+        if res.n_ratios == null:
+            return {"ok": 0, "reason": "not a log-decrement result (n_ratios missing)"}
+    return res
+
+d_ref7 is dim_derivs_lon of (data)
+A_ref7 is a_lon of [d_ref7, data.cond]
+mm7 is modes_of of (dk_roots of [charpoly4 of (A_ref7), 60])
+ph7 is mm7.osc[0]
+
+# Propagate the shipped fleet form long enough for the phugoid to show
+# several periods, then read each aircraft's u-channel from t=45 s so the
+# short-period transient is out of the window.
+NA7 is 4
+DT7 is 0.1
+T_SKIP is 10.0
+NF7 is 1800
+fl7 is fleet_ic of [tr.state, NA7, SP]
+ch7 is []
+i7 is 0
+loop while i7 < NA7:
+    append of [ch7, []]
+    i7 is i7 + 1
+t7 is 0.0
+f7 is 0
+unobserved:
+    loop while f7 < NF7:
+        fl7 is frame_step of [fl7, t7, DT7, sched, P0]
+        if t7 >= T_SKIP:
+            local a7 is 0
+            loop while a7 < NA7:
+                append of [ch7[a7], fl7[a7][0]]
+                a7 is a7 + 1
+        t7 is t7 + DT7
+        f7 is f7 + 1
+
+# W7 plant: the fleet collapsed to ONE aircraft's channel copied N times,
+# which is what "each one's free response" would look like if the swarm
+# had stopped being a swarm. It passes every W7 row unless the rows are
+# read per aircraft, so it is the transversality plant for this block.
+if plant == "w7":
+    local k7 is 1
+    loop while k7 < NA7:
+        ch7[k7] is ch7[0]
+        k7 is k7 + 1
+# W7 plant b: the estimator aliased, the same class rung 1's q12/q13
+# plants exist for one rung down.
+a7i is 0
+loop while a7i < NA7:
+    local tp7 is period_peaks of [ch7[a7i], DT7]
+    local td7 is period_dft of [ch7[a7i], DT7]
+    if plant == "w8":
+        td7 is period_peaks of [ch7[a7i], DT7]
+    # w11/w12: the MIRROR aliases. Round 44 found as_tp7 and as_zl7 could
+    # be gutted to `return res` with every plant still flipping exactly
+    # its declared count -- only as_td7 had a plant, so two thirds of the
+    # identity defense was decoration. w11 feeds the DFT result into the
+    # extrema slot (no n_extrema); w12 feeds the envelope estimator into
+    # the log-decrement slot (no n_ratios), which is invisible
+    # numerically because the two zeta estimators agree on the phugoid.
+    if plant == "w11":
+        tp7 is period_dft of [ch7[a7i], DT7]
+    local z7 is zeta_logdec of [ch7[a7i], DT7]
+    # w9: the grading timestep wrong by 2%, which moves BOTH period rows
+    # off truth by 2% against a 0.5% tolerance. Without it the Tpeaks
+    # rows were red by no plant at all -- the enrollment set-difference
+    # in tests/test_swarm_planted.sh caught that on the first run.
+    if plant == "w9":
+        tp7 is period_peaks of [ch7[a7i], DT7 * 1.02]
+        td7 is period_dft of [ch7[a7i], DT7 * 1.02]
+    # w10: zeta fabricated, carrying n_ratios so the identity accessor
+    # passes it through and the row must red through the NUMERIC arm --
+    # rung 1's round-7 rule, which is what makes this a plant of the
+    # measurement rather than of the plumbing.
+    if plant == "w12":
+        z7 is zeta_envelope of [ch7[a7i], DT7]
+    if plant == "w10":
+        if z7.ok == 1:
+            z7 is {"ok": 1, "zeta": z7.zeta * 1.05, "n_ratios": z7.n_ratios}
+    check_result of [f"W7.Tpeaks.a{a7i}", as_tp7 of (tp7), "T", ph7.T, 0.005]
+    check_result of [f"W7.Tdft.a{a7i}", as_td7 of (td7), "T", ph7.T, 0.005]
+    check_result of [f"W7.zeta.a{a7i}", as_zl7 of (z7), "zeta", ph7.zeta, 0.02]
+    a7i is a7i + 1
+# ...and the aircraft must not be IDENTICAL, or "each one" grades one
+# trajectory four times. The dispersion W3 asserts at t=0 must still be
+# visible at t=45 s, which is a different claim: a fleet that collapses
+# under propagation passes W3 and fails this.
+ends7 is []
+e7 is 0
+loop while e7 < NA7:
+    append of [ends7, ch7[e7][(len of ch7[e7]) - 1]]
+    e7 is e7 + 1
+check_distinct of ["W7.distinct", ends7]
+
+print of f"CHECKS_RUN {checks_run}"
+print of f"FAILURES {failures}"
+if checks_run != 60:
+    print of f"FAIL harness: expected exactly 60 checks, ran {checks_run}"

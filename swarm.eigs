@@ -1,0 +1,467 @@
+# swarm.eigs — rung 4: N independent aircraft, each rung 1's longitudinal
+# 3-DOF model, with per-aircraft observed state.
+#
+# The physics is NOT new. Every aircraft integrates rung-1 `deriv` with the
+# same RK4, so each one's free response still grades to the rung-0 chain
+# through the same estimators. This rung adds LOAD, not truth — the load
+# profile that single-aircraft rungs 0-3 could not produce (~12 bindings at
+# 60 Hz there, N x that here).
+#
+# The observed channel per aircraft is its pitch rate q, which is what a
+# supervisory layer reads and what rungs 3's C4/C5 graded. Predicates are
+# written in the `<pred> of <channel>` form throughout, because the BARE
+# form reads the last-observed binding and with N aircraft assigned per
+# frame that can only ever see the last one (measured 2026-08-26; the same
+# fact blocks the AOT arm, ouroboros#119).
+
+load_file of "data/b747_approach.eigs"
+load_file of "sim.eigs"
+
+# A digest of the whole fleet's state, printed by every arm. The arms
+# differ ONLY in observation, which must not change the physics — so the
+# digest is a DIFFERENTIAL ORACLE across arms, and it is what catches an
+# arm that silently does less work (rung 3's C6 lesson, where a variant
+# that measured less still printed OK). Integer-valued so it cannot drift
+# on a last-bit difference between platforms.
+define fleet_digest(fleet) as:
+    local acc is 0
+    local i is 0
+    loop while i < (len of fleet):
+        local j is 0
+        loop while j < 4:
+            acc is acc + (int_of of (fleet[i][j] * 1000000.0))
+            j is j + 1
+        i is i + 1
+    return acc
+
+define int_of(x) as:
+    if x < 0.0:
+        return 0 - (floor of (0.0 - x))
+    return floor of x
+
+# ---------------------------------------------------------------- fleet
+# N aircraft trimmed identically, then dispersed in pitch rate so their
+# phugoids are at different phases — a fleet in the same airspace, not N
+# copies of one trajectory. The dispersion is deterministic (no RNG: the
+# tape/replay seam does not exist yet, and a swarm whose ICs come from a
+# clock is not reproducible).
+define fleet_ic(tstate, n, spread) as:
+    local fleet is []
+    local i is 0
+    loop while i < n:
+        local s is []
+        local j is 0
+        loop while j < 4:
+            append of [s, tstate[j]]
+            j is j + 1
+        # Deterministic phase spread on q. The phase offset 0.5 is not
+        # decoration: with `sin of (i * 0.7)` aircraft 0 landed at sin(0) = 0,
+        # i.e. exactly at trim with no phugoid at all -- and BOTH P1
+        # discriminator arms read aircraft 0, so they were comparing the one
+        # aircraft with no dynamics. Found at round 1. No integer i puts
+        # 0.5 + 0.7i on a multiple of pi.
+        s[2] is s[2] + spread * (sin of (0.5 + i * 0.7))
+        append of [fleet, s]
+        i is i + 1
+    return fleet
+
+# One integration frame for the whole fleet. `sched` is a fixed elevator
+# schedule (no control input: rung 4 measures observation cost, and a
+# controller would confound it with rung 3's loop).
+define frame_step(fleet, t, dt, sched, P) as:
+    local i is 0
+    loop while i < (len of fleet):
+        fleet[i] is rk4_step of [fleet[i], t, dt, sched, P]
+        i is i + 1
+    return fleet
+
+# ------------------------------------------------------- the three arms
+# Each arm is a SEPARATE top-level program (run_ceiling / run_disciplined /
+# run_floor) rather than a flag, so the measurement cannot silently blur
+# them and each one's executed work can be pinned independently — rung 3's
+# C6 lesson, where a gate that measured LESS still printed OK.
+
+# ceiling — every assignment observed, nothing wrapped. This is the naive
+# all-on shape: an armed unit pays the entropy walk on EVERY assignment,
+# scratch included, because emission is gated per unit and not per binding.
+define run_ceiling(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is fleet_ic of [tstate, n, spread]
+    local hits is 0
+    local reads is 0
+    local evals is 0
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        fleet is frame_step of [fleet, t, dt, sched, P]
+        local i is 0
+        loop while i < n:
+            local qobs is fleet[i][2] + 0.0
+            if oscillating of qobs:
+                hits is hits + 1
+                unobserved:
+                    evals is evals + 1
+            else:
+                unobserved:
+                    evals is evals + 1
+            unobserved:
+                reads is reads + 1
+            i is i + 1
+        t is t + dt
+        f is f + 1
+    print of f"ceiling {n} {frames} {hits} {fleet_digest of (fleet)} {reads} {evals}"
+    return fleet_digest of (fleet)
+
+# disciplined — the best a programmer can write today: the hot math inside
+# `unobserved:`, and observation only on the state the predicates read.
+define run_disciplined(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is []
+    local hits is 0
+    local reads is 0
+    local evals is 0
+    local t is 0.0
+    unobserved:
+        fleet is fleet_ic of [tstate, n, spread]
+    local f is 0
+    loop while f < frames:
+        unobserved:
+            fleet is frame_step of [fleet, t, dt, sched, P]
+        local i is 0
+        loop while i < n:
+            local qobs is fleet[i][2] + 0.0
+            if oscillating of qobs:
+                hits is hits + 1
+                unobserved:
+                    evals is evals + 1
+            else:
+                unobserved:
+                    evals is evals + 1
+            unobserved:
+                reads is reads + 1
+            i is i + 1
+        unobserved:
+            t is t + dt
+        f is f + 1
+    print of f"disciplined {n} {frames} {hits} {fleet_digest of (fleet)} {reads} {evals}"
+    return fleet_digest of (fleet)
+
+# floor — everything wrapped. Pure compute, no observer at all: the
+# denominator the other two arms are measured against.
+define run_floor(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is []
+    local hits is 0
+    local reads is 0
+    local evals is 0
+    unobserved:
+        fleet is fleet_ic of [tstate, n, spread]
+        local t is 0.0
+        local f is 0
+        loop while f < frames:
+            fleet is frame_step of [fleet, t, dt, sched, P]
+            local i is 0
+            loop while i < n:
+                local qobs is fleet[i][2] + 0.0
+                reads is reads + 1
+                i is i + 1
+            t is t + dt
+            f is f + 1
+    print of f"floor {n} {frames} {hits} {fleet_digest of (fleet)} {reads} {evals}"
+    return fleet_digest of (fleet)
+
+# P1's discriminator — the disciplined shape with only ONE aircraft reading
+# a verdict. EigenScript#1046 says arming is per-EigsState and monotonic,
+# so this should cost the same on the WRITE side as the N-reader arm, and
+# differ only by the reads it does not do. If it is markedly cheaper than
+# `disciplined`, P1 is refuted and arming is finer than #1046 established.
+define run_onereader(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is []
+    local hits is 0
+    local reads is 0
+    local evals is 0
+    local t is 0.0
+    unobserved:
+        fleet is fleet_ic of [tstate, n, spread]
+    local f is 0
+    loop while f < frames:
+        unobserved:
+            fleet is frame_step of [fleet, t, dt, sched, P]
+        local qobs is fleet[0][2] + 0.0
+        if oscillating of qobs:
+            hits is hits + 1
+            unobserved:
+                evals is evals + 1
+        else:
+            unobserved:
+                evals is evals + 1
+        unobserved:
+            reads is reads + 1
+        unobserved:
+            t is t + dt
+        f is f + 1
+    print of f"onereader {n} {frames} {hits} {fleet_digest of (fleet)} {reads} {evals}"
+    return fleet_digest of (fleet)
+
+# P1's real discriminator, added at rung 4 after the first attempt could not
+# separate: comparing DISCIPLINED against ONEREADER cannot test arming,
+# because both wrap the integration, so neither pays write cost whatever the
+# arming granularity is. The test has to be in the CEILING shape, where
+# nothing is wrapped and the write cost is actually paid.
+#
+# Same as run_ceiling, but only aircraft 0 is ever read. If arming is
+# per-`EigsState` (EigenScript#1046), this is armed exactly as hard as the
+# N-reader ceiling. It is NOT a read-only delta, though: skipping the inner
+# loop also skips N-1 observed `qobs` WRITES and the loop counter, so
+# ceiling1 minus ceiling is not the read cost. Round 25 -- `run_ceiling0`
+# is the correct pair for the arming question, because it keeps the write
+# count via `acc` while doing zero verdict reads, and this comment used to
+# invite the wrong comparison from inside the identity-pinned workload.
+# If it comes out markedly cheaper, arming
+# is finer than #1046 established and P1 is refuted.
+define run_ceiling1(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is fleet_ic of [tstate, n, spread]
+    local hits is 0
+    local reads is 0
+    local evals is 0
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        fleet is frame_step of [fleet, t, dt, sched, P]
+        local qobs is fleet[0][2] + 0.0
+        if oscillating of qobs:
+            hits is hits + 1
+            unobserved:
+                evals is evals + 1
+        else:
+            unobserved:
+                evals is evals + 1
+        unobserved:
+            reads is reads + 1
+        t is t + dt
+        f is f + 1
+    print of f"ceiling1 {n} {frames} {hits} {fleet_digest of (fleet)} {reads} {evals}"
+    return fleet_digest of (fleet)
+
+# ...and the ZERO-reader ceiling, which separates the two things
+# run_ceiling1 cannot. If ceiling1 ~= ceilingN, that is consistent with
+# EITHER "arming is per-state so the writes stay armed" OR "reads are a
+# negligible share of this shape's observed operations". This arm removes
+# the reads entirely while KEEPING the module armed (the dead function
+# below holds a predicate, which arms per G7 without ever executing), so
+# ceilingN - ceiling0 is the whole read cost and ceiling0 - floor is the
+# whole write/arming cost.
+# NOTE: an earlier version of this comment said deleting `never_read` would
+# unarm the module and silently turn this arm into `floor`. That is FALSE
+# -- SEVEN other functions in this file hold predicates (eight counting
+# this one), so the module stays armed either way. Verified with
+# EIGS_OBS_GATE_STATS both with and without it. An earlier version said
+# "four"; round 22 corrected that to "eight other", which was the total
+# rather than the others -- a corrected number corrected to the wrong
+# value. It is kept only so this arm reads the same in isolation.
+define never_read(z) as:
+    if diverging of z:
+        return 1
+    return 0
+
+define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is fleet_ic of [tstate, n, spread]
+    local acc is 0.0
+    local reads is 0
+    local evals is 0
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        fleet is frame_step of [fleet, t, dt, sched, P]
+        local i is 0
+        loop while i < n:
+            acc is acc + fleet[i][2]
+            unobserved:
+                reads is reads + 1
+            i is i + 1
+        t is t + dt
+        f is f + 1
+    print of f"ceiling0 {n} {frames} 0 {fleet_digest of (fleet)} {reads} {evals}"
+    return fleet_digest of (fleet)
+
+# ---------------------------------------------------- REAL channels
+# Four aircraft observed through four STATICALLY NAMED bindings.
+#
+# This is the only shape in which the verdicts mean anything. Observer
+# trajectory is keyed to the BINDING, so reading N aircraft through one
+# loop-local variable makes the window the round-robin interleave and
+# manufactures verdicts -- measured, a monotonically decaying trajectory
+# reads `oscillating` when it shares a binding. Round 1 found every arm
+# above doing exactly that, with `hits` printed and never asserted.
+#
+# Four hand-written channels, because hand-written is clearest for a fixed
+# set. It is NOT a language limit: see run_closure_n below, which does the
+# same thing at runtime N. Two earlier drafts of this comment claimed a
+# limit that does not exist (GAPS G8, EigenScript#1048).
+# `cadence` IS a knob, and there is NO threshold to derive -- a third
+# thing three earlier drafts of this comment got wrong. Draft 1 called 74
+# "rung 3's result, not a tuning knob" (a transplanted number). Draft 2
+# derived "cadence >= 94" from a window-span argument. Draft 3 called the
+# transition a monotone CONTINUUM on spread-0.02 data left in place after
+# round 5 raised the dispersion to 0.05. Draft 4 called it non-monotone
+# with an optimum near 104; round 8 normalised to rates and retracted the
+# optimum; round 9 retracted the retraction; round 12 read a shrinking
+# denominator as a recovery.
+#
+# Round 15 removed the cadence table that used to live here as a comment;
+# round 16 found two MORE producerless tables had survived five lines
+# above the sentence announcing it was gone, and removed those too. Every
+# reading
+# was wrong in a different way, because a table in a comment cannot be
+# re-measured when the driver changes underneath it. By round 15 the
+# numbers here were simply stale: they still carried round 12's `.010`
+# detection at cadence 74, which rounds 13 and 14 retracted as a channel
+# seeding artifact and the suite now pins as 0.
+#
+# tests/swarm_p3.eigs sweeps a UNIFORM grid -- 3 units x 2 aircraft x 2
+# dispersions x 8 cadences -- and every row is pinned in
+# tests/test_swarm.sh. Read the numbers there.
+#
+# 94 is chosen because the fleet-vs-solo oracle binds well there, not
+# because it is a boundary or a peak.
+define run_named4(frames, dt, spread, cadence, tstate, P, sched, shared) as:
+    local fleet is fleet_ic of [tstate, 4, spread]
+    local q0 is 0.0
+    local q1 is 0.0
+    local q2 is 0.0
+    local q3 is 0.0
+    local h0 is 0
+    local h1 is 0
+    local h2 is 0
+    local h3 is 0
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        unobserved:
+            fleet is frame_step of [fleet, t, dt, sched, P]
+        if (f % cadence) == 0:
+            if shared == 1:
+                # THE ROUND-1 DEFECT, injected here rather than
+                # re-implemented in the check file. Round 2 found the
+                # previous plant rebuilding this loop inside
+                # swarm_check.eigs, so it never exercised run_named4 and
+                # the four fleet-vs-solo checks -- this rung's declared
+                # headline oracle -- were the only checks in the suite no
+                # plant ever reddened. mechanical-gates SS99.
+                q0 is fleet[0][2] + 0.0
+                if oscillating of q0:
+                    h0 is h0 + 1
+                q0 is fleet[1][2] + 0.0
+                if oscillating of q0:
+                    h1 is h1 + 1
+                q0 is fleet[2][2] + 0.0
+                if oscillating of q0:
+                    h2 is h2 + 1
+                q0 is fleet[3][2] + 0.0
+                if oscillating of q0:
+                    h3 is h3 + 1
+            else:
+                q0 is fleet[0][2] + 0.0
+                if oscillating of q0:
+                    h0 is h0 + 1
+                q1 is fleet[1][2] + 0.0
+                if oscillating of q1:
+                    h1 is h1 + 1
+                q2 is fleet[2][2] + 0.0
+                if oscillating of q2:
+                    h2 is h2 + 1
+                q3 is fleet[3][2] + 0.0
+                if oscillating of q3:
+                    h3 is h3 + 1
+        unobserved:
+            t is t + dt
+        f is f + 1
+    print of f"named4 {frames} {h0} {h1} {h2} {h3} {fleet_digest of (fleet)}"
+    return [h0, h1, h2, h3]
+
+# The same aircraft flown ALONE, one channel, nothing to interleave with.
+# This is the oracle for the block above: a per-aircraft verdict count from
+# the fleet must equal the count that aircraft produces on its own.
+# `n` is a parameter, not a hardcoded 4. Round 5: it built a 4-aircraft
+# fleet unconditionally, so it raised "index out of range" above idx 3 --
+# meaning ORACLE's claim that the closure form was "verified at N = 32
+# against this rung's own run_solo oracle" could not be backed by shipped
+# code. Round 1's "measured with a driver that was never committed"
+# defect, recurring on the artifact added to fix it.
+define run_solo(idx, n, frames, dt, spread, cadence, tstate, P, sched) as:
+    local fleet is fleet_ic of [tstate, n, spread]
+    local s is fleet[idx]
+    local q is 0.0
+    local h is 0
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        unobserved:
+            s is rk4_step of [s, t, dt, sched, P]
+        if (f % cadence) == 0:
+            q is s[2] + 0.0
+            if oscillating of q:
+                h is h + 1
+        unobserved:
+            t is t + dt
+        f is f + 1
+    print of f"solo {idx} {frames} {h}"
+    return h
+
+# ------------------------------------------------- runtime-N channels
+# The closure form: one persistent environment per aircraft, so one
+# observer channel per aircraft, with N chosen at RUNTIME. This exists in
+# the shipped code because ORACLE.md reported it "verified at N = 32" while
+# it lived only in a review transcript -- round 1's "measured with a driver
+# that was never committed" defect, recurring at round 4.
+#
+# It is the counter-example to two claims this rung published and retracted
+# (GAPS G8, EigenScript#1048): a runtime-sized population CAN be observed
+# per-entity, with ordinary static source that lints, no `eval`.
+define make_channel as:
+    local q is 0.0
+    local hits is 0
+    define feed_ch(v) as:
+        q is v + 0.0
+        if oscillating of q:
+            hits is hits + 1
+        return hits
+    return feed_ch
+
+# NOTE: make_vchannel -- the verdict-LABEL twin of make_channel, used by
+# P3's grading driver -- deliberately does NOT live here. It lives in
+# tests/swarm_p3.eigs. This file is the MEASURED WORKLOAD for the cost
+# curve and is pinned by identity and code-line count in
+# tests/test_swarm_profile.sh; round 9 added the helper here and CI
+# correctly rejected it as workload drift (240 -> 246 code lines). A
+# test-only helper does not belong in the file whose cost is the finding.
+# Its #1049 construction rule (never build a channel inside `unobserved:`)
+# applies wherever it is defined.
+
+define run_closure_n(n, frames, dt, spread, cadence, tstate, P, sched) as:
+    local fleet is fleet_ic of [tstate, n, spread]
+    local chans is []
+    local counts is []
+    local i is 0
+    # NOT wrapped in `unobserved:`, and that is load-bearing. A binding
+    # initialised inside an unobserved block is missing that sample from
+    # its window for up to WINDOW_N subsequent reads, so wrapping this construction -- the
+    # obvious thing to do, since building N channels is setup -- shifted
+    # every channel's verdict count by one and broke agreement with
+    # run_solo ([0,16,16,0] against [1,17,17,1] at the dispersion then in use). EigenScript#1049.
+    loop while i < n:
+        append of [chans, make_channel of null]
+        append of [counts, 0]
+        i is i + 1
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        unobserved:
+            fleet is frame_step of [fleet, t, dt, sched, P]
+        if (f % cadence) == 0:
+            local a is 0
+            loop while a < n:
+                counts[a] is chans[a] of (fleet[a][2])
+                a is a + 1
+        unobserved:
+            t is t + dt
+        f is f + 1
+    print of f"closure_n {n} {frames} {counts}"
+    return counts

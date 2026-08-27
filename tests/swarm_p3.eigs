@@ -1,0 +1,644 @@
+# swarm_p3.eigs -- the shipped driver for P3's evidence table.
+#
+# Round 6 found P3's table living only in ORACLE.md prose, measured with a
+# throwaway probe. That is the third time in this rung (round 1: the cost
+# table; round 4: run_closure_n "verified at N = 32"), so it ships now.
+#
+# ROUND 9 -- THE PHYSICS TRUTH IS MEASURED FIRST, AND EVERY READ IS GRADED
+# AGAINST IT. This is the structural fix. Rungs 1 and 2 each write a
+# physics truth table first and label every pinned read `agree` or
+# `divergence` (ORACLE.md's rung-1 and rung-2 sections). Rung 4 did not:
+# it classified rows BY EYE, and got the classification backwards five
+# times running. Reading a verdict column and calling it "quiescent" is
+# not a measurement of anything -- it is a restatement of the observer's
+# own claim. The observer cannot be its own oracle.
+#
+# So `truth_row` measures what the AIRCRAFT is doing, with no observer
+# involved (everything inside `unobserved:`), and prints peak-to-peak
+# airspeed and pitch rate over the first and the LAST phugoid period.
+# Truth is then not a matter of opinion: if the final-period swing is
+# large, the mode is alive at the end of the run, and `oscillating` is the
+# correct verdict at every read, at every cadence. `div` counts the reads
+# that contradict it.
+#
+# Round 8 expanded the verdict buckets after a three-way collapse hid the
+# answer -- the row the bar headlined was 108 `other`, which is 65
+# `stable` + 32 `equilibrium` + 11 `moving`. But round 8 then read those
+# quiescent labels as evidence the AIRCRAFT was quiescent, which is the
+# same error one level up. The labels are the thing under test.
+#
+# It reports all seven classes `report` can return -- oscillating,
+# diverging, improving, converged, equilibrium, stable, moving -- plus an
+# `other` residual that must stay 0. Round 8's header claimed seven and
+# the chain implemented six: there was no `diverging` arm and no residual,
+# so an unmodelled label would have been silently dropped into nothing.
+#
+# It sweeps BOTH axes the verdict depends on. The first write-up varied
+# cadence and held dispersion fixed without saying so, and round 5 then
+# changed the dispersion without re-measuring -- at which point the
+# `converged` column the headline rested on went to zero everywhere.
+
+load_file of "data/b747_approach.eigs"
+load_file of "swarm.eigs"
+
+tr is trim_solve of (sim_params of [b747_approach of null, ctl_nominal of null])
+sched is [[0.0, tr.de]]
+
+# One phugoid period at dt = 0.05 is 938 frames (T = 46.9 s, measured in
+# rung 1 and re-measured here from the peak spacing). 940 is that period
+# rounded up, so a window of 940 frames always contains a full cycle.
+PERIOD is 940
+
+# Same mechanism as make_channel, but it returns the VERDICT LABEL rather
+# than a count of `oscillating`. Round 9 needed this: grading a read
+# `agree`/`divergence` against a physics truth requires the label, and a
+# hit-counter can only ever see one of the seven classes. Construction is
+# likewise NOT inside `unobserved:` -- EigenScript#1049, see run_closure_n in swarm.eigs.
+define make_vchannel(v0) as:
+    # PRIMED for the same reason p3_row is (round 11): a 0.0 first sample
+    # is a fictitious transient that the oscillation family reads as a
+    # reversal, and it manufactures exactly one `oscillating` per channel.
+    local q is v0 + 0.0
+    define read_ch(v) as:
+        q is v + 0.0
+        return report of q
+    return read_ch
+
+# ---------------------------------------------------------------------
+# The physics truth. No observer touches this: the whole integration runs
+# inside `unobserved:` and nothing is `report`ed. It answers one question
+# -- is the phugoid still swinging at the end of the run? -- in the units
+# a pilot would use.
+# ---------------------------------------------------------------------
+define truth_row(idx, sp) as:
+    local fleet is fleet_ic of [tr.state, 4, sp]
+    local s is fleet[idx]
+    local t is 0.0
+    local f is 0
+    local au is -1e9
+    local bu is 1e9
+    local aq is -1e9
+    local bq is 1e9
+    local cu is -1e9
+    local du is 1e9
+    local cq is -1e9
+    local dq is 1e9
+    unobserved:
+        loop while f < 8000:
+            s is rk4_step of [s, t, 0.05, sched, tr.P]
+            if f < PERIOD:
+                if s[0] > au:
+                    au is s[0]
+                if s[0] < bu:
+                    bu is s[0]
+                if s[2] > aq:
+                    aq is s[2]
+                if s[2] < bq:
+                    bq is s[2]
+            if f >= (8000 - PERIOD):
+                if s[0] > cu:
+                    cu is s[0]
+                if s[0] < du:
+                    du is s[0]
+                if s[2] > cq:
+                    cq is s[2]
+                if s[2] < dq:
+                    dq is s[2]
+            t is t + 0.05
+            f is f + 1
+    # Pinned as integers so the row is stable across platforms: airspeed in
+    # hundredths of a ft/s, pitch rate in hundred-thousandths of a rad/s.
+    local u1 is round of ((au - bu) * 100.0)
+    local u2 is round of ((cu - du) * 100.0)
+    local q1 is round of ((aq - bq) * 100000.0)
+    local q2 is round of ((cq - dq) * 100000.0)
+    # The AMPLITUDE is produced, not transcribed. Round 41: ORACLE's truth
+    # table carries an `(amp .0240)` column claimed to be "matched against
+    # the producer as a whole row", while `truth_row` never printed it and
+    # the gate matched it with a wildcard -- the amplitudes were hand
+    # copies of a COMMENT, free to drift. It is the fleet's own initial
+    # pitch rate, so the producer can simply say it.
+    local amp is round of ((abs of (fleet[idx][2] - tr.state[2])) * 10000.0)
+    print of f"p3truth ac={idx} sp={sp} u_pp_first={u1} u_pp_last={u2} q_pp_first={q1} q_pp_last={q2} amp={amp}"
+    return [u1, u2, q1, q2]
+
+print of "# physics truth: peak-to-peak over the FIRST and LAST phugoid period, observer uninvolved"
+truths is 0
+for tac in [0, 1]:
+    for tsp in [0.02, 0.05]:
+        tt is truth_row of [tac, tsp]
+        truths is truths + tt[1]
+print of f"p3truth total final-period airspeed swing across the four rows: {truths}"
+
+# ---------------------------------------------------------------------
+# The verdict stream, graded against that truth.
+#
+# ROUND 10 -- TWO STRUCTURAL FIXES.
+#
+# (a) THE UNIT IS AN AXIS. The channel carries pitch rate, and the
+# observer's zero-band (`dh_zero`, G5 / EigenScript#1045) is an ABSOLUTE
+# threshold, so the verdict depends on the NUMERIC MAGNITUDE of the
+# channel and not only on its shape. Rung 3 already knew this --
+# tests/observer_lat_check.eigs sweeps rad/deg/mrad for exactly this
+# defect -- and rung 4 did not carry the axis forward. Measured: in
+# degrees the whole cadence-74 row structure disappears (conv/stable/equil
+# all go to 0, moving goes to 104) and aircraft 0 and 1 become
+# byte-identical, which collapses rounds 6 and 7's dispersion and aircraft
+# findings into deadband artifacts of the radian scaling. A claim about
+# the observer that is not stated with its unit is not yet a claim.
+#
+# (b) `div` WAS A THREE-WAY COLLAPSE. Round 8's defect was bucketing five
+# classes into an unlabelled `other`; round 9 expanded the printed buckets
+# and then re-collapsed them into ONE number for GRADING (div = reads -
+# osc). That lumps two completely different failures:
+#     quiet   = converged + stable + equilibrium -- a FALSE ALL-CLEAR.
+#               The observer affirmatively says the aircraft has settled
+#               while it is swinging. This is the dangerous direction.
+#     noclaim = moving -- the documented "a full window in which none of
+#               the six is true" (docs/PREDICATES.md). The observer
+#               declining to claim is not the observer being WRONG.
+# They are reported separately and graded separately.
+#
+# (c) WINDOW FILL IS NOT A DIVERGENCE. The first OBSERVER_WINDOW_N-1 = 9
+# reads of any channel are a partial window; by spec the observer cannot
+# yet claim anything and returns moving/stable. Counting those as
+# contradictions inflated every rate in the round-9 write-up by exactly 9
+# reads per row -- and the published "best cell 29%" is 20.8% once they
+# are excluded, which sits on the 20% refutation boundary the gate uses.
+# `full`/`fosc`/`fquiet`/`fnoclaim` are the honest denominators.
+define p3_row(idx, sp, cad, uscale, uname) as:
+    local fleet is fleet_ic of [tr.state, 4, sp]
+    local s is fleet[idx]
+    # SEEDED WITH REAL PHYSICS, AND SAMPLED ON AN EVENLY-SPACED GRID.
+    # Round 13. Three rounds got this wrong in three ways:
+    #
+    #   R10  `local q is 0.0`, sampled at f % cad == 0. The DECLARATION is
+    #        an assignment: it seeds last_value = 0, and the f=0 sample
+    #        then pushes a fictitious 0 -> trim delta. Published as
+    #        "detection = 1.0%".
+    #   R11  seeded from a pre-loop assignment with the real value, but
+    #        that sample sits one FRAME before the f=0 read while every
+    #        later gap is one CADENCE. The uneven delta suppressed the
+    #        real signal; published as "0%".
+    #   R12  moved the priming "inside the loop" and reverted the seed to
+    #        0.0 -- which restored R10's artifact exactly, and promoted it
+    #        to "a real detection of a real oscillation". The artifact
+    #        rides in the window through asn=10 and is evicted at asn=11,
+    #        which is why it landed on the one read `full` admitted.
+    #
+    # Both halves are needed. The seed is the aircraft's real state at
+    # t=0, and the grid is shifted to f % cad == cad-1 so the first sample
+    # lands exactly one cadence after it. Every pushed delta is then real
+    # physics over exactly one cadence, with no boundary to exclude.
+    local q is (s[2] * uscale) + 0.0
+    local asn is 0
+    local rd is 0
+    local cv is 0
+    local os is 0
+    local mv is 0
+    local st is 0
+    local eq is 0
+    local im is 0
+    local dg is 0
+    local ot is 0
+    local fl is 0
+    local fos is 0
+    local fot is 0
+    local fqu is 0
+    local fnc is 0
+    local t is 0.0
+    local f is 0
+    loop while f < 8000:
+        unobserved:
+            s is rk4_step of [s, t, 0.05, sched, tr.P]
+        if (f % cad) == (cad - 1):
+            q is (s[2] * uscale) + 0.0
+            unobserved:
+                asn is asn + 1
+            if 1 == 1:
+                local rp is report of q
+                unobserved:
+                    rd is rd + 1
+                    if rp == "converged":
+                        cv is cv + 1
+                    elif rp == "oscillating":
+                        os is os + 1
+                    elif rp == "moving":
+                        mv is mv + 1
+                    elif rp == "stable":
+                        st is st + 1
+                    elif rp == "equilibrium":
+                        eq is eq + 1
+                    elif rp == "improving":
+                        im is im + 1
+                    elif rp == "diverging":
+                        dg is dg + 1
+                    else:
+                        ot is ot + 1
+                    # The declaration seeds last_value and pushes
+                    # nothing (upstream observer_slot_record_value), so
+                    # asn counted samples == asn pushed deltas and the
+                    # window is full at asn = 10. Every delta is real
+                    # physics over exactly one cadence.
+                    #
+                    # ONE threshold for every bucket. Round 14: `fosc`
+                    # used asn>9 while `fquiet`/`fnoclaim` used asn>10 (a
+                    # vestige of the artifact-eviction boundary round 13
+                    # made unnecessary), so the buckets did not partition
+                    # `full` in 38 of 46 rows and the false-all-clear rate
+                    # -- the DANGEROUS direction -- was a numerator over
+                    # asn>=11 divided by a denominator over asn>=10,
+                    # biased low. They partition now, and the gate checks
+                    # that they do.
+                    if asn > 9:
+                        fl is fl + 1
+                        if rp == "oscillating":
+                            fos is fos + 1
+                        elif rp == "moving":
+                            fnc is fnc + 1
+                        elif rp == "converged":
+                            fqu is fqu + 1
+                        elif rp == "stable":
+                            fqu is fqu + 1
+                        elif rp == "equilibrium":
+                            fqu is fqu + 1
+                        else:
+                            fot is fot + 1
+        unobserved:
+            t is t + 0.05
+        f is f + 1
+    print of f"p3 unit={uname} ac={idx} sp={sp} cad={cad} reads={rd} conv={cv} osc={os} moving={mv} stable={st} equil={eq} improving={im} diverging={dg} other={ot} full={fl} fosc={fos} fquiet={fqu} fnoclaim={fnc} fother={fot}"
+    return [rd, cv, os, mv, st, eq, im, dg, ot, fl, fos, fqu, fnc, fot]
+
+# The sweep is over FOUR axes. Round 7: the previous version sampled
+# fleet[1] and reported the row as a property of the dispersion -- but the
+# shipped fleet already spans a factor of two in amplitude (0.0240 /
+# 0.0466 / 0.0473 / 0.0258 at spread 0.05), which is the same range the
+# dispersion axis sweeps, so "dispersion" was a proxy for per-channel
+# amplitude and the aircraft index was a hidden variable. Round 10 adds
+# the unit, which subsumes BOTH of those: amplitude and unit enter the
+# deadband the same way, as the numeric magnitude of the channel.
+# ONE UNIFORM SWEEP over every axis: 3 units x 2 aircraft x 2 dispersions
+# x 8 cadences = 96 rows.
+#
+# Round 15. This used to be three sweeps with different coverage -- rad at
+# 3 cadences x 2 dispersions, deg/mrad at 3 cadences x 1 dispersion, and a
+# separate rad-only cadence ladder at sp=0.05 -- and every gap in that
+# coverage produced a published claim that the missing cells refuted:
+#
+#   R6/R7  dispersion and aircraft read as separate axes (they are one)
+#   R10    the whole headline was a property of the radian scaling
+#   R11    the cadence ladder existed only in a code comment
+#   R14    "the aircraft differ at long cadence in degrees", generalised
+#          from two cells of a sweep that had never been extended -- and
+#          refuted by the driver's own pins, where 3 of the 4 deg cells at
+#          cadence 148 are byte-identical and the fourth differs by ONE
+#          read.
+#
+# Six producerless generalisations in one row. The sweep is uniform now so
+# that "we did not measure that cell" stops being available as a way to be
+# wrong.
+rows is 0
+for uu in [[1.0, "rad"], [57.29577951308232, "deg"], [1000.0, "mrad"]]:
+    for ac in [0, 1]:
+        for sp in [0.02, 0.05]:
+            for cd in [74, 84, 94, 104, 114, 124, 134, 148]:
+                r is p3_row of [ac, sp, cd, uu[0], uu[1]]
+                rows is rows + r[0]
+print of f"p3 total reads across the sweep: {rows}"
+
+# ---------------------------------------------------------------------
+# The N axis. P3 as registered predicts a detector that fires on healthy
+# aircraft "at a rate that does not fall with N" -- and until round 9 NO
+# verdict measurement in this rung had an N axis at all: p3_row hardcodes
+# a fleet of 4 and reads one aircraft. Half of P3 was reported CONFIRMED
+# without being measured.
+#
+# Each aircraft gets its OWN closure channel (make_vchannel), because the
+# rung's P4 finding is that N aircraft sharing one loop-local binding
+# makes the window the round-robin interleave and MANUFACTURES verdicts.
+# Construction stays outside `unobserved:` -- EigenScript#1049.
+#
+# Two rates, because they answer different questions:
+#   per_ac  -- mean fraction of per-aircraft reads that alert. fleet_ic
+#              gives aircraft i the SAME initial condition for every n, so
+#              each aircraft's own rate is N-invariant; the MEAN is not,
+#              because widening the fleet changes which aircraft are in
+#              the average. It drifts DOWN only because near-zero-amplitude
+#              aircraft join it (the `per` list below shows them alerting
+#              ZERO times) -- that is EigenScript#1045's small-magnitude
+#              deadband diluting the mean, not the nuisance abating.
+#              Round 12: this read "once each" until the channel priming
+#              was fixed. That one alert per otherwise-silent aircraft WAS
+#              the initialiser artifact.
+#   fleet   -- fraction of sweep points where AT LEAST ONE aircraft
+#              alerts. This is what a sector controller actually sees, and
+#              it is the rate P3's registered prediction is about.
+# `first`/`last`/`per` are printed so the fleet figure cannot be read as a
+# coincidence: the alerting aircraft fire on the SAME sweeps, which is why
+# the union does not grow.
+define p3_fleet(n, sp, cad) as:
+    local fleet is fleet_ic of [tr.state, n, sp]
+    local chans is []
+    local per is []
+    local i is 0
+    loop while i < n:
+        append of [chans, make_vchannel of (fleet[i][2])]
+        append of [per, 0]
+        i is i + 1
+    local t is 0.0
+    local f is 0
+    local reads is 0
+    local alerts is 0
+    local sweeps is 0
+    local firing is 0
+    local fsweeps is 0
+    local ffiring is 0
+    local first is -1
+    local last is -1
+    loop while f < 8000:
+        unobserved:
+            fleet is frame_step of [fleet, t, 0.05, sched, tr.P]
+        if (f % cad) == (cad - 1):
+            local any is 0
+            local a is 0
+            loop while a < n:
+                local v is chans[a] of (fleet[a][2])
+                unobserved:
+                    reads is reads + 1
+                    if v == "oscillating":
+                        alerts is alerts + 1
+                        per[a] is per[a] + 1
+                        any is 1
+                a is a + 1
+            # make_vchannel seeds each channel with its aircraft's real
+            # state at t=0 and pushes nothing; the grid is shifted to
+            # f % cad == cad-1 so the first feed lands exactly one cadence
+            # later. Every pushed delta is real physics over one cadence.
+            if 1 == 1:
+                unobserved:
+                    sweeps is sweeps + 1
+                    if any == 1:
+                        firing is firing + 1
+                        if first < 0:
+                            first is sweeps - 1
+                        last is sweeps - 1
+                    # Channels are fed in lockstep, so per-channel pushed
+                    # deltas == sweeps and the window is full at sweeps=10.
+                    # Round 13: this was `sweeps > 8`, which was off by one
+                    # for the very reason round 12 gave for changing it.
+                    if sweeps > 9:
+                        fsweeps is fsweeps + 1
+                        if any == 1:
+                            ffiring is ffiring + 1
+        unobserved:
+            t is t + 0.05
+        f is f + 1
+    local pa is round of ((alerts * 1000.0) / reads)
+    local pf is round of ((firing * 1000.0) / sweeps)
+    local pff is round of ((ffiring * 1000.0) / fsweeps)
+    print of f"p3n n={n} sp={sp} cad={cad} reads={reads} alerts={alerts} per_ac_permille={pa} sweeps={sweeps} firing={firing} fleet_permille={pf} fsweeps={fsweeps} ffiring={ffiring} ffleet_permille={pff} first={first} last={last} per={per}"
+    return [n, reads, alerts, pa, sweeps, firing, pf]
+
+# ---------------------------------------------------------------------
+# THE NEGATIVE CONTROL. Round 16: the sweep's best cell detects 100% of
+# reads (deg, cadence 104, where a 10-sample window spans 1.11 phugoid
+# periods), and nothing in the rung fed a NON-oscillating channel through
+# that cell. So "the observer detects the mode" and "the observer fires
+# whenever its window exceeds one period" were not separated, and the
+# 100% cell could not be told apart from a stuck alarm.
+#
+# `fleet_ic` at spread 0 puts every aircraft exactly at the trim state,
+# which is an equilibrium: no phugoid, no oscillation, nothing to detect.
+# `oscillating` must therefore be 0 on every control row -- above all at
+# cadence 104 in degrees, the cell where the live fleet reads 100%.
+#
+# Printed with its own `p3nc` prefix so it cannot leak into the verdict
+# claims: these rows are a DIFFERENT aircraft (an equilibrium one), and
+# folding them into a claim about a swinging fleet is the category error
+# this rung has made in six other places.
+define p3_control(cad, uscale, uname) as:
+    local fleet is fleet_ic of [tr.state, 4, 0.0]
+    local s is fleet[0]
+    local q is (s[2] * uscale) + 0.0
+    local asn is 0
+    local fl is 0
+    local fos is 0
+    local t is 0.0
+    local f is 0
+    loop while f < 8000:
+        unobserved:
+            s is rk4_step of [s, t, 0.05, sched, tr.P]
+        if (f % cad) == (cad - 1):
+            q is (s[2] * uscale) + 0.0
+            local rp is report of q
+            unobserved:
+                asn is asn + 1
+                if asn > 9:
+                    fl is fl + 1
+                    if rp == "oscillating":
+                        fos is fos + 1
+        unobserved:
+            t is t + 0.05
+        f is f + 1
+    print of f"p3nc unit={uname} cad={cad} full={fl} fosc={fos}"
+    return [fl, fos]
+
+# THE CONTROLS. Round 18 -- the third control in three rounds, and the
+# first with any discriminating power.
+#
+#   R16  equilibrium (dispersion 0). DEGENERATE: trim pitch rate is
+#        exactly 0, so the channel spans 3.3e-17 rad/s and, since
+#        0.0 x 57.3 == 0.0 x 1000, its three "units" are one measurement.
+#        It excludes an alarm that fires on a FROZEN channel.
+#   R17  monotone decay/ramp. ALSO CANNOT FAIL, for a different reason:
+#        every arm of `obs_num_oscillating` upstream requires step-sign
+#        FLIPS or direction REVERSALS, and a strictly monotone channel has
+#        none at any amplitude, tau, cadence or unit. Swept over 1176
+#        cells it is 0 everywhere -- an outcome invariant to every knob is
+#        not a measurement. Round 17 published it as "the detector is a
+#        detector, and now that is measured rather than assumed".
+#   R18  APERIODIC NOISE at the phugoid's own peak-to-peak amplitude:
+#        stationary, no mode, no period, and full of reversals. This is
+#        the channel the predicate CAN reject, so it is the one that
+#        carries information -- and it REFUTES the round-17 conclusion.
+#
+# The monotone arms are kept, relabelled as what they are: a statement
+# about the implementation (the predicate does not fire on drift), not
+# evidence about the fleet's 100% cell.
+define p3_control_ch(kind, amp, cad, uscale, uname) as:
+    local rs is 12345.0
+    local q is 0.0
+    local seeded is 0
+    local asn is 0
+    local fl is 0
+    local fos is 0
+    local cv is 0
+    local st is 0
+    local mv is 0
+    local dg is 0
+    local eq is 0
+    local t is 0.0
+    local f is 0
+    loop while f < 8000:
+        if (f % cad) == (cad - 1):
+            local a is 0.0
+            unobserved:
+                if kind == "decay_slow":
+                    a is amp * (exp of (0.0 - (t / 350.0)))
+                elif kind == "decay_fast":
+                    a is amp * (exp of (0.0 - (t / 90.0)))
+                elif kind == "ramp":
+                    a is amp * (t / 400.0)
+                else:
+                    a is (amp / 2.0) * (((rs / 65537.0) * 2.0) - 1.0)
+            q is (a * uscale) + 0.0
+            # The FIRST sample seeds and is not counted -- which is what
+            # makes the `local q is 0.0` declaration above harmless here,
+            # since the fictitious delta is evicted before `asn > 9` opens
+            # the window. (Verified equivalent: seeding the declaration
+            # with the real first value reproduces all 24 rows byte for
+            # byte.) Round 18 found this file had reverted to an UNSKIPPED
+            # `local q is 0.0` -- the exact defect that
+            # cost rounds 10 through 13 in p3_row, in the same file that
+            # carries the comment forbidding it. Its fictitious 0 -> A
+            # jump was also the ONLY sign reversal in the "monotone"
+            # control, so that channel was not monotone in its first
+            # window, and the published 75/76 vs 76/76 asymmetry between
+            # the units was entirely this artifact.
+            if seeded == 0:
+                seeded is 1
+            else:
+                local rp is report of q
+                unobserved:
+                    asn is asn + 1
+                    if asn > 9:
+                        fl is fl + 1
+                        if rp == "oscillating":
+                            fos is fos + 1
+                        elif rp == "converged":
+                            cv is cv + 1
+                        elif rp == "stable":
+                            st is st + 1
+                        elif rp == "moving":
+                            mv is mv + 1
+                        elif rp == "diverging":
+                            dg is dg + 1
+                        elif rp == "equilibrium":
+                            eq is eq + 1
+        unobserved:
+            # The noise process advances once per FRAME, so it is a
+            # property of TIME and each cadence samples every cad-th value
+            # of one underlying process. Round 19 found two wrong versions
+            # of this. Advancing per SAMPLE made every cadence the same
+            # sequence truncated, so the cadence axis carried about two
+            # independent measurements. Replacing it with a hash of the
+            # frame index was worse: `f * k mod p` sampled every cad
+            # frames is an arithmetic progression, which at cadence 84 is
+            # MONOTONE and gave fosc = 0 -- a "noise" channel that had
+            # aliased into the monotone control.
+            rs is (rs * 75.0 + 74.0) % 65537.0
+            t is t + 0.05
+        f is f + 1
+    print of f"p3mono kind={kind} unit={uname} cad={cad} full={fl} fosc={fos} conv={cv} stable={st} moving={mv} diverging={dg} equil={eq}"
+    return [fl, fos]
+
+# AMP is ac0's measured initial pitch-rate peak-to-peak at the shipped
+# dispersion -- `truth_row` prints it as q_pp_first=2643 hundred-
+# thousandths of a rad/s. Round 18: the previous value 0.0257 was
+# described as "the shipped fleet's own initial pitch-rate amplitude" and
+# had no producer; it is aircraft 3's half-amplitude, and aircraft 3 is
+# graded in no P3 row.
+AMP is 0.02643
+
+print of "# controls: monotone (implementation) and APERIODIC NOISE (the discriminating one)"
+monf is 0
+noisemin is 999
+# The noise control runs the fleet's OWN eight cadences. Round 19: it had
+# run at 94 and 104 only -- the two cells where the phugoid also reads
+# ~100%, i.e. the only cells where the contrast is invisible. At cadence
+# 74 the fleet is pinned at 0 detections in all twelve rows and the noise
+# channel reads ~100%, which is the sharpest single measurement in the
+# rung and nobody had taken it.
+for mk in ["decay_slow", "decay_fast", "ramp", "noise"]:
+    for mu in [[1.0, "rad"], [57.29577951308232, "deg"], [1000.0, "mrad"]]:
+        local cads is [94, 104]
+        if mk == "noise":
+            cads is [74, 84, 94, 104, 114, 124, 134, 148]
+        for mcd in cads:
+            mr is p3_control_ch of [mk, AMP, mcd, mu[0], mu[1]]
+            if mk == "noise":
+                if mr[1] < noisemin:
+                    noisemin is mr[1]
+            else:
+                monf is monf + mr[1]
+print of f"p3mono total detections on monotone channels: {monf}"
+print of f"p3mono minimum detections on the aperiodic-noise channel: {noisemin}"
+
+print of "# negative control: a trimmed aircraft with NO phugoid must never read oscillating"
+ncf is 0
+for cu in [[1.0, "rad"], [57.29577951308232, "deg"], [1000.0, "mrad"]]:
+    for ncd in [94, 104]:
+        nc is p3_control of [ncd, cu[0], cu[1]]
+        ncf is ncf + nc[1]
+print of f"p3nc total detections on the equilibrium aircraft: {ncf}"
+
+# ---------------------------------------------------------------------
+# The PHASE axis. Round 14: cadence-74 detection is 0 at the shipped grid
+# phase, and NOT at every phase -- moving where the sample grid starts,
+# with the seed and the even spacing held exactly as shipped, makes
+# `oscillating` fire in some cells. Phase is the fifth hidden variable
+# found in this one row, after cadence, dispersion, aircraft and unit, and
+# every one of the previous four inverted a published claim when it was
+# finally swept. So it gets swept and pinned rather than assumed away.
+#
+# This is what stops "the observer cannot detect a mode slower than its
+# window" from being stated more strongly than the measurement supports:
+# at cadence 74 the window spans 0.79 of a period, and whether it catches
+# a reversal depends on WHERE in the cycle the samples land.
+define p3_phase(idx, cad, ph) as:
+    local fleet is fleet_ic of [tr.state, 4, 0.05]
+    local s is fleet[idx]
+    local t is 0.0
+    local f is 0
+    unobserved:
+        loop while f < ph:
+            s is rk4_step of [s, t, 0.05, sched, tr.P]
+            t is t + 0.05
+            f is f + 1
+    local q is s[2] + 0.0
+    local asn is 0
+    local fl is 0
+    local fos is 0
+    loop while f < 8000:
+        unobserved:
+            s is rk4_step of [s, t, 0.05, sched, tr.P]
+        if ((f - ph) % cad) == (cad - 1):
+            q is s[2] + 0.0
+            local rp is report of q
+            unobserved:
+                asn is asn + 1
+                if asn > 9:
+                    fl is fl + 1
+                    if rp == "oscillating":
+                        fos is fos + 1
+        unobserved:
+            t is t + 0.05
+        f is f + 1
+    print of f"p3ph ac={idx} cad={cad} phase={ph} full={fl} fosc={fos}"
+    return [fl, fos]
+
+print of "# phase axis at cadence 74: does the grid offset change detection?"
+phhits is 0
+for pac in [0, 1]:
+    for pph in [0, 7, 18, 37, 55, 66]:
+        pr is p3_phase of [pac, 74, pph]
+        phhits is phhits + pr[1]
+print of f"p3ph total detections across the phase sweep: {phhits}"
+
+print of "# N axis: does the nuisance-alert rate fall as the fleet grows?"
+nalerts is 0
+for nn in [2, 4, 8, 16]:
+    nr is p3_fleet of [nn, 0.05, 94]
+    nalerts is nalerts + nr[2]
+print of f"p3n total alerts across the N sweep: {nalerts}"
