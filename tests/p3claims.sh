@@ -566,8 +566,22 @@ p3_claims() {
     for cu in rad deg mrad; do
         for ca in 0 1; do
             for csp in 0.02 0.05; do
-                clo=$(awk -v u="$cu" -v a="$ca" -v s="$csp" '$1==u && $2==a && $3==s {printf "%d\n", $6*100/$5}' "$rowfile" | sort -n | head -1)
-                chi=$(awk -v u="$cu" -v a="$ca" -v s="$csp" '$1==u && $2==a && $3==s {printf "%d\n", $6*100/$5}' "$rowfile" | sort -n | tail -1)
+                # `$5 > 0` GUARDED, and the zero rows counted separately.
+                # These three divisions were by the full-window count with
+                # no guard, and a zero-full row made the two awks disagree
+                # about what division by zero even is: this box's mawk
+                # yields inf, so `%d` printed INT64_MIN and the cell's
+                # "spread" came out as -9223372036854775708 -- a garbage
+                # number then compared against the >= 75 threshold, which
+                # decides whether the cell is "shaped" or "flat". CI's awk
+                # treats it as fatal instead, the pipeline failed under
+                # `pipefail`, and the whole claim library died mid-run with
+                # no output at all. Same class as the two shell-arithmetic
+                # divisions guarded above, and the third instance of it.
+                czero=$(awk -v u="$cu" -v a="$ca" -v s="$csp" '$1==u && $2==a && $3==s && $5+0==0' "$rowfile" | wc -l)
+                [ "$czero" -eq 0 ] || { _cf P3.profile "fleet cell $cu/$ca/$csp has $czero rows with zero full-window reads — no detection rate is defined for them (vacuous check)"; continue; }
+                clo=$(awk -v u="$cu" -v a="$ca" -v s="$csp" '$1==u && $2==a && $3==s && $5+0>0 {printf "%d\n", $6*100/$5}' "$rowfile" | sort -n | head -1)
+                chi=$(awk -v u="$cu" -v a="$ca" -v s="$csp" '$1==u && $2==a && $3==s && $5+0>0 {printf "%d\n", $6*100/$5}' "$rowfile" | sort -n | tail -1)
                 [ -n "$clo" ] && [ -n "$chi" ] || { _cf P3.profile "fleet cell $cu/$ca/$csp absent (vacuous check)"; continue; }
                 cspread=$(( chi - clo ))
                 if [ "$cspread" -ge 75 ]; then
@@ -577,7 +591,7 @@ p3_claims() {
                     # A flat cell must be flat because the deadband killed
                     # it: dead AND confidently wrong at every cadence.
                     cdead=$(awk -v u="$cu" -v a="$ca" -v s="$csp" '$1==u && $2==a && $3==s && $6==0' "$rowfile" | wc -l)
-                    cwrong=$(awk -v u="$cu" -v a="$ca" -v s="$csp" '$1==u && $2==a && $3==s && $7*100/$5 >= 95' "$rowfile" | wc -l)
+                    cwrong=$(awk -v u="$cu" -v a="$ca" -v s="$csp" '$1==u && $2==a && $3==s && $5+0>0 && $7*100/$5 >= 95' "$rowfile" | wc -l)
                     { [ "$cdead" -eq 8 ] && [ "$cwrong" -eq 8 ]; } || _cf P3.profile "fleet cell $cu/$ca/$csp has a flat detection profile (spread $cspread) but is not deadband-killed ($cdead of 8 cadences dead, $cwrong of 8 at >=95% false all-clear); the flatness has another cause"
                 fi
             done

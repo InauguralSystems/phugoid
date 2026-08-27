@@ -433,7 +433,7 @@ plant n4 'P3.unitdep' 1 awk '{ if ($1=="p3" && $2=="unit=rad" && $3=="ac=1" && $
 # radian false all-clears removed at one cadence, so they no longer appear at all 8
 plant n5 'P3.partition P3.profile P3.tail P3.unitdep' 6 awk '{ if ($1=="p3" && $2=="unit=rad" && $5=="cad=134") sub(/fquiet=[0-9]+/,"fquiet=0"); print }'
 # a zero-full row. This is the plant that found the P3.nuisance vacuity guard UNREACHABLE: an earlier loop divided by the same field unguarded, so the row died as 'division by 0' with the whole library silent
-plant n6 'P3.nuisance P3.partition P3.profile P3.unitdep P3.unitid' 8 awk '{ if ($1=="p3" && $2=="unit=deg" && $5=="cad=74" && $3=="ac=0" && $4=="sp=0.02") sub(/full=[0-9]+/,"full=0"); print }'
+plant n6 'P3.nuisance P3.partition P3.profile P3.unitdep P3.unitid' 7 awk '{ if ($1=="p3" && $2=="unit=deg" && $5=="cad=74" && $3=="ac=0" && $4=="sp=0.02") sub(/full=[0-9]+/,"full=0"); print }'
 # a phase cell at the wrong cadence
 plant n7 'P3.phase' 1 sed -E '0,/^p3ph ac=0 cad=74 /s//p3ph ac=0 cad=84 /'
 # a monotone control cell with too few full-window reads
