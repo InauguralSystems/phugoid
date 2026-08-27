@@ -11,6 +11,7 @@
 # coeffs [c1, c2, c3, c4] means l^4 + c1 l^3 + c2 l^2 + c3 l + c4.
 
 import linalg
+import complex
 
 # ---------------------------------------------------------------- L1
 
@@ -81,78 +82,32 @@ define a_lat(d, cond) as:
 # ---------------------------------------------------------------- L3
 
 define charpoly4(A) as:
-    # Faddeev-LeVerrier: c_k = -tr(A * M_(k-1)) / k with the running
-    # M_k = A * M_(k-1) + c_k I. Returns [c1, c2, c3, c4] of det(lI - A).
-    local n is 4
-    local M is linalg.mat_identity of (n)
-    local coeffs is []
-    local kk is 1
-    loop while kk <= n:
-        local AM is linalg.mat_mul of [A, M]
-        local ck is (0.0 - (linalg.mat_trace of AM)) / kk
-        append of [coeffs, ck]
-        local cI is linalg.mat_scale of [linalg.mat_identity of (n), ck]
-        M is linalg.mat_add of [AM, cI]
-        kk is kk + 1
-    return coeffs
+    return linalg.charpoly of (A)
 
 # ------------------------------------------------- complex helpers
 
 define cadd(a, b) as:
-    return [a[0] + b[0], a[1] + b[1]]
+    return complex.add of [a, b]
 
 define csub(a, b) as:
-    return [a[0] - b[0], a[1] - b[1]]
+    return complex.sub of [a, b]
 
 define cmul(a, b) as:
-    return [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]]
+    return complex.mul of [a, b]
 
 define cdiv(a, b) as:
-    local d is b[0] * b[0] + b[1] * b[1]
-    return [(a[0] * b[0] + a[1] * b[1]) / d, (a[1] * b[0] - a[0] * b[1]) / d]
+    return complex.div of [a, b]
 
 define cmag(a) as:
-    return sqrt of (a[0] * a[0] + a[1] * a[1])
+    return complex.mag of (a)
 
 define poly4_eval(coeffs, z) as:
-    # Horner on the monic quartic.
-    local p is cadd of [z, [coeffs[0], 0.0]]
-    p is cadd of [cmul of [p, z], [coeffs[1], 0.0]]
-    p is cadd of [cmul of [p, z], [coeffs[2], 0.0]]
-    p is cadd of [cmul of [p, z], [coeffs[3], 0.0]]
-    return p
+    return complex.poly_eval of [coeffs, z]
 
 # ---------------------------------------------------------------- L4
 
 define dk_roots(coeffs, iters) as:
-    # Durand-Kerner with the standard (0.4 + 0.9i)^k starting points.
-    # iters = 0 returns the untouched initial guesses (used by plant P3).
-    local base is [0.4, 0.9]
-    local roots is []
-    local cur is [1.0, 0.0]
-    for k in range of 4:
-        append of [roots, cur]
-        cur is cmul of [cur, base]
-    local it is 0
-    local done is 0
-    loop while it < iters and done == 0:
-        local maxd is 0.0
-        for i in range of 4:
-            local zi is roots[i]
-            local pnum is poly4_eval of [coeffs, zi]
-            local den is [1.0, 0.0]
-            for j in range of 4:
-                if j != i:
-                    den is cmul of [den, csub of [zi, roots[j]]]
-            local delta is cdiv of [pnum, den]
-            roots[i] is csub of [zi, delta]
-            local dm is cmag of (delta)
-            if dm > maxd:
-                maxd is dm
-        if maxd < 1e-13:
-            done is 1
-        it is it + 1
-    return roots
+    return complex.poly_roots_tuned of [coeffs, iters, 1e-13]
 
 # ---------------------------------------------------------------- L5
 

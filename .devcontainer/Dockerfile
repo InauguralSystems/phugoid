@@ -21,7 +21,7 @@ RUN apt-get update \
         git \
  && rm -rf /var/lib/apt/lists/*
 
-ARG EIGS_REF=v0.41.0
+ARG EIGS_REF=v0.42.0
 RUN git clone --depth 1 --branch "${EIGS_REF}" \
         https://github.com/InauguralSystems/EigenScript.git /opt/eigenscript \
  && make -C /opt/eigenscript CC=gcc
