@@ -40,16 +40,36 @@ TABLE="1 0.399 0.297
 16 6.090 4.093
 32 13.011 8.741"
 FRAMES=3000
-# µs per observed scalar write. Round 37: this shipped as a bare literal
-# attributed to "rung 3" while ORACLE's rung-3 section never states it --
-# the unpinned-constant class this rung has named five times, sitting under
-# P2's entire 1.95x verdict. It IS recoverable from C6's own banked
-# figures, so the derivation is pinned here rather than the number:
-C6_HI=0.243          # s, C6's observed arm
-C6_LO=0.169          # s, C6's unobserved arm
-C6_WRITES=480000     # observed scalar writes between them
+# µs per observed scalar write, DERIVED FROM THE SOURCE.
+#
+# Round 37 replaced a bare literal with a derivation "so the derivation is
+# pinned rather than the number" -- and round 38 found the derivation was
+# reverse-engineered to reproduce the number. It used C6_WRITES=480000,
+# which is not a write count at all: it is `i * READ_SITES` = 120000 x 4,
+# printed by `run_read`, a DIFFERENT variant, and published in ORACLE only
+# as "read 133286 480000". The gate then asserted the result equalled
+# 0.154, so it certified the conclusion and nothing else -- this rung's
+# own round-33 rule ("a counter whose expected value the gate can DERIVE
+# is a target, not a witness") applied to the newest gate, one level down.
+#
+# What 0.243 - 0.169 actually buys is the observer walk on the assignments
+# `run_floor`'s `unobserved:` removes. `run_write` and `run_floor` in
+# tests/ap_profile.eigs are byte-identical loops differing only in the
+# wrapper, and the body is FIVE assignments -- u, w, q, th, and `i is
+# i + 1` -- over N. The five `local ... is ...` declarations sit outside
+# the block in both arms and cancel. So the count is 5N, and it is read
+# from the source rather than typed here.
+C6_HI=0.243          # s, C6's observed arm  (ORACLE: "write 0.243 s")
+C6_LO=0.169          # s, C6's unobserved arm (ORACLE: "floor 0.169 s")
+C6_N=$(grep -oP '^N is \K[0-9]+' tests/ap_profile.eigs | head -1)
+# assignments inside run_write's loop body, counted from the file
+C6_ASSIGN=$(awk '/^define run_write/,/^    print of/' tests/ap_profile.eigs \
+            | sed -n '/loop while/,/^    print of/p' | grep -cE '^[[:space:]]+[a-z_]+ is ')
+[ -n "$C6_N" ] && [ "$C6_ASSIGN" -gt 0 ] || { echo "FAIL: cannot read N or the assignment count from tests/ap_profile.eigs"; exit 1; }
+[ "$C6_ASSIGN" = "5" ] || { echo "FAIL: run_write's loop body has $C6_ASSIGN observed assignments, not the 5 C6's per-write cost is divided by — recount before trusting P2's slope comparison"; exit 1; }
+C6_WRITES=$(( C6_N * C6_ASSIGN ))
 C6_PER_WRITE=$(awk -v a="$C6_HI" -v b="$C6_LO" -v w="$C6_WRITES" 'BEGIN{ printf "%.3f", (a-b)*1e6/w }')
-[ "$C6_PER_WRITE" = "0.154" ] || { echo "FAIL: C6's per-write cost derives to $C6_PER_WRITE, not the 0.154 P2's verdict is built on"; exit 1; }
+echo "C6: (${C6_HI}s - ${C6_LO}s) / (${C6_N} x ${C6_ASSIGN} assignments) = ${C6_PER_WRITE} us per observed write"
 HAND_COUNT=150       # observed assignments per aircraft-frame, hand count
 
 fit() {  # fit <col: 2=ceiling 3=floor 0=observer> -> "slope intercept r2"

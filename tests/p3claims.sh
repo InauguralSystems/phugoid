@@ -149,10 +149,20 @@ p3_claims() {
             want_f=$(awk -v x="$tf" 'BEGIN{ printf "%.2f", x/100 }')
             want_l=$(awk -v x="$tl" 'BEGIN{ printf "%.2f", x/100 }')
             nfound=$((nfound+1))
-            grep -qF -- "$want_f ft/s" "$ORC" \
-                || _cf P3.truth.unit "ORACLE does not publish ac=$tac's first-period swing as '$want_f ft/s' — the table is transcribed by hand and no longer matches the producer, or its unit changed"
-            grep -qF -- "$want_l ft/s" "$ORC" \
-                || _cf P3.truth.unit "ORACLE does not publish ac=$tac's final-period swing as '$want_l ft/s' — the table is transcribed by hand and no longer matches the producer, or its unit changed"
+            # THE WHOLE ROW, in order. Round 38: requiring each value to
+            # appear ANYWHERE in ORACLE is a proxy -- swapping the two
+            # columns (which asserts the phugoid GROWS, inverting
+            # "decaying ~7-8% per cycle" and the whole severity claim)
+            # passed, as would swapping the rows, as would deleting the
+            # table while the values survive in a retraction paragraph.
+            grep -qE "^\| $tac \(amp [0-9.]+\) \| $want_f ft/s \| \*\*$want_l ft/s\*\* \|" "$ORC" \
+                || _cf P3.truth.unit "ORACLE's truth-table row for ac=$tac is not '| $tac (amp ...) | $want_f ft/s | **$want_l ft/s** |' — the table is hand-transcribed and no longer matches the producer, or its columns/rows/unit moved"
+            # ...and the mode must DECAY. A first-period swing no larger
+            # than the final one is the inverse of what this rung claims,
+            # and column order alone would not catch a producer that
+            # started reporting them the other way round.
+            awk -v f="$want_f" -v l="$want_l" 'BEGIN{ exit !(f > l) }' \
+                || _cf P3.truth.unit "ac=$tac's first-period swing ($want_f) is not larger than its final-period swing ($want_l) — the phugoid is not decaying, and every 'still swinging' claim in P3 rests on that"
         done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) u_pp_first=\([0-9-]*\) u_pp_last=\([0-9-]*\).*/\1 \2 \3 \4/p' "$out")
         [ "$nfound" -eq 2 ] || _cf P3.truth.unit "$nfound of 2 sp=0.05 truth rows available to check against ORACLE (vacuous check)"
         grep -qE '[0-9](\.[0-9]+)? m/s' "$ORC" \

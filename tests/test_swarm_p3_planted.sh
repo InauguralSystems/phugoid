@@ -270,6 +270,10 @@ oplant u2 P3.truth.unit sed 's| ft/s| kt|g'
 oplant u3 P3.truth.unit --unreadable
 # the table transcribed 10x wrong while the driver prints the right numbers
 oplant u4 P3.truth.unit sed -E 's/8\.44 ft\/s/84.4 ft\/s/; s/4\.52 ft\/s/45.2 ft\/s/'
+# u5: the two COLUMNS swapped -- every value still present, so the
+# presence-anywhere check passed while the table asserted the phugoid
+# GROWS, inverting "decaying ~7-8% per cycle" and the severity claim.
+oplant u5 P3.truth.unit sed -E 's/^\| ([01]) \(amp (\.[0-9]+)\) \| ([0-9.]+) ft\/s \| \*\*([0-9.]+) ft\/s\*\* \|/| \1 (amp \2) | \4 ft\/s | **\3 ft\/s** |/'
 
 # ENROLLMENT. Round 37: P3.truth.unit shipped with no plant and nothing
 # noticed, because this harness -- unlike its sibling
@@ -303,4 +307,4 @@ PN=$(grep -n "^P3ROWS$" tests/test_swarm.sh | head -1 | cut -d: -f1)
 [ "$CL" -lt "$PN" ] || { echo "FAIL: P3's claim assertions (line $CL) run AFTER the exact-row pins (line $PN) — they are unreachable, which is the round-8 defect"; exit 1; }
 echo "--- ordering: claims at line $CL precede the row pins at line $PN"
 
-echo "PASS: all 37 P3 claim plants red exactly their own claim set, and the claims precede the row pins"
+echo "PASS: all 38 P3 claim plants red exactly their own claim set, and the claims precede the row pins"

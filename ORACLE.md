@@ -1240,6 +1240,16 @@ cadences `C5.sp.{c010,c020,c040,c102}` (round 18: this enumeration was written a
   gate fails BY DESIGN and says so in its own failure message — that is
   the signal to re-measure and re-justify, not a regression.
 
+  **Two inconsistent per-write costs sit in this paragraph and P2 imports
+  one of them.** The baseline probe above reports observed scalar writes
+  as ≈ free (0.31 s against a 0.30 s fully-unobserved floor over 200k
+  frames), i.e. ~0.01 µs/write; the round-1 numbers here yield 0.123
+  µs/write, an order of magnitude more. The text says round 1 "corrected"
+  the probe, but never states that the free-writes finding is superseded —
+  and P2's entire verdict is the ratio between a measured slope and a
+  number derived from one of these two. Recorded at round 38; which of
+  them is right is a rung-3 question this rung does not settle.
+
 ## The three pre-registered predictions (recorded before the build)
 
 1. **Verdict-driven INNER-loop damping will limit-cycle.** A controller
@@ -2026,9 +2036,23 @@ the C6-derived prediction."* Both clauses fire on ORACLE's own numbers,
 and both have been visible since round 3:
 
 - **Slope.** The observer's marginal cost, fitted as `ceiling − floor`
-  against N, is **45.0 µs per aircraft-frame**. C6's 0.154 µs per observed
-  scalar write times a hand count of ~150 assignments predicts **23.1 µs**.
-  That is a **1.95× miss**. The write-up recorded the ~1.9× and filed it
+  against N, is **45.0 µs per aircraft-frame**. C6's **0.123 µs** per
+  observed scalar write times a hand count of ~150 assignments predicts
+  **18.4 µs**. That is a **2.45× miss**.
+
+  *(Round 38 corrected the C6 constant from 0.154 to 0.123, moving the
+  prediction 23.1 → 18.4 and the miss 1.95× → 2.45×. The old value divided
+  by **480 000**, which is not a write count: it is `i * READ_SITES`,
+  printed by `run_read`, a different variant. `run_write` and `run_floor`
+  are identical loops differing only in the `unobserved:` wrapper, and the
+  body is FIVE assignments — `u, w, q, th, i` — over N = 120 000, so the
+  divisor is 600 000. `tests/test_verdicts.sh` now counts the assignments
+  out of the source instead of carrying the number, because round 37's
+  "derivation" had been reverse-engineered to reproduce 0.154 and
+  asserted equality against it — certifying the conclusion. P2's verdict
+  does not flip: clause 2 fires harder, so the error was in the safe
+  direction, but the magnitude published under exit-gate item 2 was
+  wrong.)* The write-up recorded the ~1.9× and filed it
   as "a comparison that does not close" — which is the refutation
   condition, described rather than applied.
 - **Superlinearity.** Per-aircraft observer cost rises **+26%** from N=8
@@ -2084,9 +2108,9 @@ Fitted properly, `ceiling − floor` against N: **45.0 µs per aircraft-frame**
 from the 3000-frame table, **~28 µs** from one run of the 1500-frame harness (unrecorded and
 unreproducible as published — an earlier figure of 41.6 µs has no committed
 producer, round 8). Against
-C6's ~0.154 µs per observed scalar write that implies ~270–290 observed
+C6's ~0.123 µs per observed scalar write that implies ~365 observed
 assignments per aircraft-frame, against a hand count of ~150 for four
-`deriv` calls plus RK4 — **~1.9x, not the ~1.5x first published**.
+`deriv` calls plus RK4 — **~2.4x, not the ~1.5x first published** (and not the ~1.9x that stood until round 38 corrected the C6 divisor).
 Reported as a comparison that does not close: either the hand count is
 short, or a container walk costs more than a scalar write, and this rung
 has not separated them.
