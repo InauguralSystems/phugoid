@@ -2159,8 +2159,8 @@ Round 18 ran the control the predicate can actually reject: **stationary
 aperiodic noise** at the phugoid's own peak-to-peak amplitude (0.02643
 rad/s, which is `truth_row`'s own `q_pp_first` for ac0 at the shipped
 dispersion) — no mode, no period, full of reversals. It reads
-`oscillating` on **74/75, 75/75, 75/75** at cadence 94 and **65/66,
-66/66, 66/66** at cadence 104, in rad/deg/mrad. That is the fleet's best
+`oscillating` on **75/75** at cadence 94 in all three units and **65/66,
+66/66, 66/66** at cadence 104. That is the fleet's best
 cell, reproduced by a channel with no mode in it at all.
 
 **So the round-17 conclusion is retracted — and round 19 found the
@@ -2177,12 +2177,40 @@ phugoid from noise" is false. Run at the fleet's own eight cadences:
 
 **A single verdict at a single cadence carries no mode information** — at
 cadence 104 the two channels are indistinguishable at 100%. **The
-detection PROFILE does carry it**, completely: the noise channel has no
-period, so its detection is cadence-invariant, while the phugoid's is
-shaped by the window/period ratio and swings across the full range. And
+detection PROFILE carries it, but only where the channel clears the
+deadband**, and round 20 found the mechanism as first stated to be false.
+
+The claim was "the noise channel has no period, so its detection is
+cadence-invariant, while the phugoid's is shaped by the window/period
+ratio". It was measured on one hand-picked cell — the maximum-spread cell
+of the twelve the driver prints. **In the shipped unit there is a cell
+with a period that is perfectly cadence-invariant**: in radians, aircraft
+0 at dispersion 0.02 detects **0% at all eight cadences**, while carrying
+**98–99% false all-clear** at every one of them, and while
+`P3.truth.alive` certifies that same aircraft as still swinging (1.81 m/s
+and 1.03e-3 rad/s peak-to-peak in the final period). Flatness is not the
+signature of periodlessness — it is what an absolute deadband produces
+once it swallows the channel: below the band every cadence reads alike
+because nothing reads at all. Eleven of twelve cells do show the shaped
+profile; the twelfth is dead, and the gate now requires a flat cell to be
+*simultaneously* dead and confidently wrong, which is what distinguishes
+the two causes. And
 at cadence 74 the two are not merely separable but **disjoint and
-inverted** — the observer detects the channel with no mode and misses the
-one with a mode.
+inverted** — 0 of 99 against **96 of 98** — the observer detects the
+channel with no mode and misses the one with a mode.
+
+**P3's registered refutation condition is met in that cell, and it is not
+a refutation.** P3 says "refutable by a clean verdict stream". The
+radian/ac0/sp0.02 cell has a completely alert-free stream at every
+cadence — zero detections, no nuisance alerts at all. Read literally,
+that is the refutation. It is nothing of the kind: the stream is quiet
+because the detector is *dead*, and the same cell is confidently wrong
+about the aircraft on 98% of its reads. The pre-registration was written
+assuming quiet meant correct. Recorded here rather than quietly reading
+past it, because a refutation condition that a total failure satisfies is
+a defect in the prediction, not evidence for it — and it is the one
+part of this rung's bar that was never re-examined after the observer
+turned out to have a magnitude-dependent blind band.
 
 That is the honest statement of P3's severity, and it is stronger than
 either earlier version: a verdict-driven detector read at one cadence is

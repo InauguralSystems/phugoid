@@ -392,25 +392,59 @@ p3_claims() {
     # them. Round 19: the round-18 retraction ("cannot distinguish a
     # phugoid from noise") was measured at two cadences, both of which sit
     # where the two agree, and stated over the whole grid.
-    local nlo=999 nhi=-1 flo=999 fhi=-1 pc
+    # ALL TWELVE fleet cells, not one. Round 20: this hardcoded
+    # `unit=deg ac=0 sp=0.05` -- the MAXIMUM-spread cell of the twelve --
+    # and the mechanism stated from it is false in the shipped unit.
+    #
+    # In radians, aircraft 0 at dispersion 0.02 detects 0% at ALL EIGHT
+    # cadences while carrying 98-99% false all-clear. That is a channel
+    # WITH a period which is perfectly cadence-invariant, so
+    # cadence-invariance is NOT the signature of periodlessness. Flatness
+    # is what the absolute deadband produces once it swallows the channel:
+    # below it, every cadence reads the same because nothing reads at all.
+    #
+    # The corrected claim: the profile separates a mode from noise only in
+    # the cells whose channel CLEARS the deadband. Eleven of twelve do,
+    # with spread >= 75; the twelfth is flat-zero and must be flat for the
+    # deadband reason, which is checkable -- it has to be simultaneously
+    # dead (0 detections) and confidently wrong (>= 95% false all-clear)
+    # at every cadence. A cell that went flat for any other reason would
+    # fail that pair.
+    local nlo=999 nhi=-1 pc
     while read -r mk mu mc mfull mfosc; do
         [ "$mk" = "noise" ] && [ "$mu" = "deg" ] || continue
         pc=$(( mfosc * 100 / mfull ))
         [ "$pc" -lt "$nlo" ] && nlo=$pc
         [ "$pc" -gt "$nhi" ] && nhi=$pc
     done < <(sed -n 's/^p3mono kind=\([a-z_]*\) unit=\([a-z]*\) cad=\([0-9]*\) full=\([0-9]*\) fosc=\([0-9]*\).*/\1 \2 \3 \4 \5/p' "$out")
-    while read -r u a sp c full fosc fq fnc fot; do
-        [ "$u" = "deg" ] && [ "$a" = "0" ] && [ "$sp" = "0.05" ] || continue
-        pc=$(( fosc * 100 / full ))
-        [ "$pc" -lt "$flo" ] && flo=$pc
-        [ "$pc" -gt "$fhi" ] && fhi=$pc
-    done < "$rowfile"
-    if [ "$nhi" -lt 0 ] || [ "$fhi" -lt 0 ]; then
-        _cf P3.profile "profile rows absent (vacuous check)"
+    if [ "$nhi" -lt 0 ]; then
+        _cf P3.profile "noise-control rows absent (vacuous check)"
     else
-        [ "$(( nhi - nlo ))" -le 5 ] || _cf P3.profile "the noise channel's detection is no longer cadence-invariant (spread $(( nhi - nlo )) points across 8 cadences); it may have acquired a period"
-        [ "$(( fhi - flo ))" -ge 50 ] || _cf P3.profile "the fleet's detection is no longer strongly cadence-dependent (spread $(( fhi - flo )) points); the profile that distinguishes a mode from noise has flattened"
+        [ "$(( nhi - nlo ))" -le 5 ] || _cf P3.profile "the noise channel's detection is no longer cadence-invariant (spread $(( nhi - nlo )) points across 8 cadences)"
     fi
+    local cu ca csp nshaped=0 nflat=0 clo chi cspread cdead cwrong
+    for cu in rad deg mrad; do
+        for ca in 0 1; do
+            for csp in 0.02 0.05; do
+                clo=$(awk -v u="$cu" -v a="$ca" -v s="$csp" '$1==u && $2==a && $3==s {printf "%d\n", $6*100/$5}' "$rowfile" | sort -n | head -1)
+                chi=$(awk -v u="$cu" -v a="$ca" -v s="$csp" '$1==u && $2==a && $3==s {printf "%d\n", $6*100/$5}' "$rowfile" | sort -n | tail -1)
+                [ -n "$clo" ] && [ -n "$chi" ] || { _cf P3.profile "fleet cell $cu/$ca/$csp absent (vacuous check)"; continue; }
+                cspread=$(( chi - clo ))
+                if [ "$cspread" -ge 75 ]; then
+                    nshaped=$((nshaped+1))
+                else
+                    nflat=$((nflat+1))
+                    # A flat cell must be flat because the deadband killed
+                    # it: dead AND confidently wrong at every cadence.
+                    cdead=$(awk -v u="$cu" -v a="$ca" -v s="$csp" '$1==u && $2==a && $3==s && $6==0' "$rowfile" | wc -l)
+                    cwrong=$(awk -v u="$cu" -v a="$ca" -v s="$csp" '$1==u && $2==a && $3==s && $7*100/$5 >= 95' "$rowfile" | wc -l)
+                    { [ "$cdead" -eq 8 ] && [ "$cwrong" -eq 8 ]; } || _cf P3.profile "fleet cell $cu/$ca/$csp has a flat detection profile (spread $cspread) but is not deadband-killed ($cdead of 8 cadences dead, $cwrong of 8 at >=95% false all-clear); the flatness has another cause"
+                fi
+            done
+        done
+    done
+    [ "$nshaped" -ge 11 ] || _cf P3.profile "only $nshaped of 12 fleet cells have a cadence-shaped detection profile (expected at least 11); the structure that distinguishes a mode from noise has flattened"
+    [ "$nflat" -le 1 ] || _cf P3.profile "$nflat fleet cells are flat (expected at most the one deadband-killed cell)"
 
     # --- the SHARPEST unit-dependence evidence in the rung, found while
     # building the monotone control (round 17).
