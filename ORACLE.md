@@ -2044,7 +2044,16 @@ observed — what per-binding or liveness-scoped arming produces — returning
 the **identical fleet digest**, so only the observation shape differs. It
 collapses to **~0.99** — nine independent medians-of-five span 0.898–1.041,
 with the suite's own run at 0.9900 — against 1.38–1.45 for the shipped
-arm: a factor of ~1.4 across the bound, which is set at 1.20 with ~15% margin on the passing side and ~13% on the failing side. (Round 26: two different single
+arm: a factor of ~1.4 across the bound.
+
+The bound is 1.20. Twelve interleaved medians-of-five separate the two
+populations cleanly — per-`EigsState` 1.408–1.481, per-binding 0.955–1.067
+— but the margin claim needs stating honestly: **one earlier session
+measured `ceiling0/floor` at 1.2428**, which is 3.6% above the bound, not
+the ~15% the twelve-sample band suggests. Raising 1.10 → 1.20 to buy the
+plant headroom moved some of the risk onto the real assertion, whose
+failure text says "#1046 needs re-grading". Both sides are now measured
+rather than asserted, and that residual is recorded rather than smoothed. (Round 26: two different single
 values, 0.9445 and 0.9855, had been published for this one measurement,
 and eight of nine re-measurements exceed the lower one. A counterfactual
 quoted as a point estimate is the same defect as a slope quoted from one

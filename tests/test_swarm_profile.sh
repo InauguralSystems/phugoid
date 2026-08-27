@@ -66,11 +66,43 @@ echo "PASS: the unarmed control compiles unobserved (derived from EIGS_OBS_GATE_
 # single minima while CF had moved to paired medians, so DU still failed on
 # small N for the noise reason CF had already solved -- the same "two
 # copies of one measurement drift apart" this file keeps finding.
+# run_arm <driver> <arm> <n> <outfile> -- runs one arm and REFUSES to
+# return a timing for a run that did not happen. Round 27: every arm was
+# run as `>/dev/null 2>&1` with the exit status never checked, and bash
+# does not inherit errexit into `$( )`, so `set -e` did not fire either. A
+# crashed arm returned in ~0.02 s, OVH subtraction drove the ratio
+# negative, and the one-sided plant check accepted it: renaming the
+# counterfactual to `ceiling0pbXX` gave `-0.0001` and the gate printed
+# "PASS: P1 planted fault rejected". The same hole greened the headline
+# from the other side -- a crashed DENOMINATOR gave `ceiling/floorXX =
+# 180.5` and "PASS: the ceiling arm costs 180.5x the floor".
+#
+# That is exit-gate item 8's own defect class (a check a TOTAL FAILURE
+# satisfies) sitting inside the plant that is P1's only mechanism
+# evidence. Round 26's `throw` on an unknown arm was real and never
+# reached the harness.
+run_arm() {
+    local drv="$1" arm="$2" nn="$3" out="$4"
+    if ! "$EIGS" "$drv" $arm "$nn" > "$out" 2>&1; then
+        # stderr, not stdout: run_arm is called from inside `$( )`, so a
+        # message on stdout is captured into the ratio variable and never
+        # seen. The failure fires either way, but silently.
+        echo "FAIL: arm '$arm' at N=$nn exited nonzero — a timing for a run that did not happen is not a measurement" >&2
+        sed -n '1,3p' "$out" >&2; exit 1
+    fi
+    # ...and it must have run the arm we ASKED for. The driver prints the
+    # requested name, so this also catches a dispatch that substitutes.
+    if [ -n "$arm" ] && ! grep -q "^profiled $arm n=$nn " "$out"; then
+        echo "FAIL: arm '$arm' at N=$nn did not report itself as executed:" >&2
+        sed -n '1,3p' "$out" >&2; exit 1
+    fi
+}
+
 paired_ratio() {
-    local a_arm="$1" b_arm="$2" nn="$3" t=$(mktemp)
+    local a_arm="$1" b_arm="$2" nn="$3" t=$(mktemp) ao=$(mktemp) bo=$(mktemp)
     local _r p0 p1 q0 q1
     for _r in 1 2 3 4 5; do
-        p0=$(date +%s%N); "$EIGS" tests/swarm_profile.eigs "$a_arm" "$nn" >/dev/null 2>&1; p1=$(date +%s%N)
+        p0=$(date +%s%N); run_arm tests/swarm_profile.eigs "$a_arm" "$nn" "$ao"; p1=$(date +%s%N)
         # NOTE: OVH is measured on the ARMED driver, which imports linalg and
         # solves the trim; the unarmed control does neither, so subtracting
         # the same constant from it inflates ceiling/unarmed slightly in the
@@ -79,14 +111,14 @@ paired_ratio() {
         # probe, and the bias is one-directional and an order of magnitude
         # under the bound.
         if [ "$b_arm" = "unarmed" ]; then
-            q0=$(date +%s%N); "$EIGS" tests/swarm_profile_unarmed.eigs "$nn" >/dev/null 2>&1; q1=$(date +%s%N)
+            q0=$(date +%s%N); run_arm tests/swarm_profile_unarmed.eigs "" "$nn" "$bo"; q1=$(date +%s%N)
         else
-            q0=$(date +%s%N); "$EIGS" tests/swarm_profile.eigs "$b_arm" "$nn" >/dev/null 2>&1; q1=$(date +%s%N)
+            q0=$(date +%s%N); run_arm tests/swarm_profile.eigs "$b_arm" "$nn" "$bo"; q1=$(date +%s%N)
         fi
         awk -v a="$p0" -v b="$p1" -v c="$q0" -v d="$q1" -v o="$OVH" \
             'BEGIN{ x=(b-a)/1e9-o; y=(d-c)/1e9-o; if (y<=0) y=0.001; printf "%.4f\n", x/y }' >> "$t"
     done
-    sort -n "$t" | sed -n 3p; rm -f "$t"
+    sort -n "$t" | sed -n 3p; rm -f "$t" "$ao" "$bo"
 }
 
 # ratio_ok <value> <bound> -> 0 if value > bound. ONE implementation, shared
@@ -269,6 +301,23 @@ echo "PASS: P1 mechanism — zero-reader arming still costs ${p1r}x the floor at
 # fleet digest, so only the observation shape differs. Round 25: the plant
 # had been `ratio_ok 1.00`, which proves the bound can fail but not that
 # the ARM can produce the failing value.
+# The counterfactual's warrant is that it differs from ceiling0 ONLY in
+# observation shape, and the evidence for that is an identical fleet
+# digest. Round 27: that identity was asserted in three places and checked
+# in none -- so a ceiling0pb that had silently drifted into a different
+# workload would still have produced a plausible collapse. It is the same
+# arm-differential this rung's W2 checks apply to the other six arms, and
+# ceiling0pb was excluded from those because it lives in the driver.
+D0=$(mktemp); DP=$(mktemp)
+run_arm tests/swarm_profile.eigs ceiling0   2 "$D0"
+run_arm tests/swarm_profile.eigs ceiling0pb 2 "$DP"
+d0=$(grep -oP 'digest=\K\S+' "$D0"); dp=$(grep -oP 'digest=\K\S+' "$DP")
+rm -f "$D0" "$DP"
+[ -n "$d0" ] && [ "$d0" = "$dp" ] || {
+    echo "FAIL: the per-binding counterfactual no longer flies the same fleet as ceiling0 ($d0 vs $dp) —"
+    echo "      it differs in more than observation shape, so its collapse is not evidence about arming."
+    exit 1; }
+echo "PASS: counterfactual holds the physics fixed (digest $d0 == ceiling0's)"
 pbr=$(paired_ratio ceiling0pb floor "$LASTN")
 printf "  ceiling0pb/floor (per-binding counterfactual) at N=%s : %s\n" "$LASTN" "$pbr"
 ratio_ok "$pbr" "$P1_BOUND" && {

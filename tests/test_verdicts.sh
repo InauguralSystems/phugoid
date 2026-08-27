@@ -107,25 +107,45 @@ chk "$(awk -v o="$ODRIFT" -v f="$FDRIFT" 'BEGIN{print (o>=2*f)?1:0}')" \
 # --- the verdict must be STATED. Exit gate item 3 requires every
 # prediction reported with its measurement and any refuted one stated as
 # refuted. P1, P3 and P4 carried verdicts; P2 carried a description.
-# EVERY prediction's VERDICT WORD. Round 26: this file's own header says
-# it exists because "P1's verdict could be inverted from CONFIRMED to
-# REFUTED with the entire rung-4 suite still green" -- and three rewrites
-# later, only P2's word was pinned. P1's, P3's and P4's could all be
-# flipped while this file printed "P1's verdict text is pinned". R22's pin
-# matched the line's tail, R25's replacement pinned the mechanism half;
-# neither covered the word. Nothing else greps ORACLE.md at all.
-verdict_is() { # verdict_is <label> <regex>
-    grep -qE "$2" ORACLE.md \
-        && chk 1 "$1.word: ORACLE's verdict word is unchanged" \
-        || chk 0 "$1.word: ORACLE's verdict for $1 has been changed or removed (exit gate item 7)"
+# EVERY prediction's VERDICT WORD, at EVERY site that states one, matched
+# on the WORD and not on the punctuation around it.
+#
+# Round 26 added these after finding three of four verdicts flippable.
+# Round 27 found the replacement wrong in both directions: a
+# verdict-PRESERVING reword ("**P3 — CONFIRMED. The mechanism splits in
+# two.") RED it, so it locked formatting rather than verdicts; and a
+# verdict-INVERTING edit PASSED, because ORACLE states P1's verdict at two
+# sites and only one was pinned (2012 and 2064), and P3's N-half carries a
+# third at 2413. That is R25's own lesson -- a gate that enforces the one
+# clause which must not change -- reintroduced by the fix for it.
+#
+# So: enumerate the sites, count them, and require each to still assert
+# its verdict word. Counting is what catches a site being deleted or a new
+# one appearing unpinned.
+verdict_sites() { # verdict_sites <regex-for-the-claim-lead>
+    grep -cE "$1" ORACLE.md
 }
-verdict_is P1 '^\*\*P1 is CONFIRMED in its practical form\.'
-verdict_is P3 '^\*\*P3 — CONFIRMED,'
-verdict_is P4 '^\*\*P4 — CONFIRMED,'
+verdict_word_ok() { # verdict_word_ok <label> <lead-regex> <expected-word> <expected-count>
+    local lbl="$1" lead="$2" word="$3" want="$4" n bad
+    n=$(verdict_sites "$lead")
+    if [ "$n" -ne "$want" ]; then
+        chk 0 "$lbl.word: found $n verdict site(s) for $lbl, expected $want (a site was added, removed or reworded past the matcher)"
+        return
+    fi
+    bad=$(grep -E "$lead" ORACLE.md | grep -cv "$word" || true)
+    [ "$bad" -eq 0 ] \
+        && chk 1 "$lbl.word: all $n verdict site(s) still say $word" \
+        || chk 0 "$lbl.word: $bad of $n verdict site(s) for $lbl no longer say $word (exit gate item 7)"
+}
+verdict_word_ok P1 "^\\*\\*P1('s practical claim)? is " CONFIRMED 2
+verdict_word_ok P2 "^\\*\\*P2 — "                        REFUTED   1
+verdict_word_ok P3 "^\\*\\*P3 — |^\\*\\*The N half — " CONFIRMED 2
+# P4 has two lead lines: the item-8 paragraph (VACUOUS condition) and the
+# verdict itself (CONFIRMED). Both must keep their word.
+verdict_word_ok P4 "^\\*\\*P4 — CONFIRMED" CONFIRMED 1
+verdict_word_ok P4cond "^\\*\\*P4 — its registered condition is " VACUOUS 1
 
-grep -q '^\*\*P2 — REFUTED' ORACLE.md \
-    && chk 1 "P2.verdict: ORACLE states P2's verdict" \
-    || chk 0 "P2.verdict: ORACLE does not state P2 as REFUTED (exit gate item 3)"
+
 
 # =====================================================================
 # P1 -- "reducing readers buys ~nothing, and the MECHANISM IS NOT
@@ -241,8 +261,10 @@ mutant_check p2 's/^32 13.011/32 12.155/' superlinear
 # P1.impossible and P1.unresolved, both retracted at round 23 -- a plant
 # for a withdrawn claim proves nothing and reads as coverage. P1's
 # replacement gate is a MEASUREMENT in tests/test_swarm_profile.sh, with
-# its own planted fault (a ratio of 1.00, which the 1.10 bound rejects --
-# a collapsed ratio is what per-binding arming would look like).
+# its own planted fault -- the ceiling0pb per-binding counterfactual,
+# MEASURED against a 1.20 bound, with its digest checked equal to
+# ceiling0's so the collapse is evidence about observation shape and not
+# about a drifted workload.
 
 [ "$fail" -eq 0 ] || { echo "VERDICT GATE FAILED"; exit 1; }
 echo "PASS: P2's refutation clauses fire with plants; P1's verdict text is pinned and its measurement lives in test_swarm_profile.sh"

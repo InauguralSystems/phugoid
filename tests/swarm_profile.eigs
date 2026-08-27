@@ -32,7 +32,7 @@ SPREAD is 0.05
 # is exactly what per-binding or liveness-scoped arming would produce. The
 # fleet digest is identical to run_ceiling0's, so the physics is held
 # fixed and only the observation shape differs. Measured, it collapses to
-# ~0.99 of the floor, and the 1.10 bound rejects that.
+# ~0.99 of the floor, and the 1.20 bound rejects that.
 #
 # It lives HERE and not in swarm.eigs deliberately: swarm.eigs is the
 # identity-pinned MEASURED WORKLOAD, and every banked cost number in
