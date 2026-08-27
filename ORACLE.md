@@ -2036,6 +2036,33 @@ sample. Medians are shown where the spread matters.
 | 16 | 6.090 | 4.093 | 1.49 |
 | 32 | 13.011 | 8.741 | 1.49 |
 
+Round 46: for forty-six rounds this headline was a TWO-SIDED claim
+enforced by a ONE-SIDED floor. Every ceiling-family gate in
+`tests/test_swarm_profile.sh` asked only whether the ratio was large
+enough — `ceiling/floor > 1.15`, `ceiling/disciplined > 1.20`,
+`ceiling0/floor > 1.20` — and nothing anywhere bounded any of them above.
+Adding scratch observed work to the ceiling arm, touching no fleet state
+and no predicate, printed **"the ceiling arm costs 3.0597x the floor"** as
+a PASS while this sentence said 1.3–1.5x and the table below said
+1.343–1.489. All five witnesses stayed bit-identical, because every one of
+them detects an arm doing LESS work; at N=2 the padded arm and the real
+one both report `2 1500 2588 559690091 3000 3000`.
+
+Two reachable paths, and the second needs no repo edit at all: a source
+change plus the re-bank the identity pin itself instructs, or an upstream
+runtime change making the observer walk dearer — which is precisely the
+quantity this rung exists to measure, and would have been reported as a
+LOUDER PASS with every pin, digest and counter intact.
+
+All four ratios are now two-sided at 1.90, a bound clearing the whole
+1.34–1.66 population this harness has produced across sessions rather than
+one fitted to today's run, and applied to every one of them in a single
+change rather than one per round. The plant is a MEASURED ARM, not a
+literal handed to the comparator: `run_ceiling_more` in the driver is the
+ceiling arm plus that scratch work, and the gate requires the band to
+reject it — measured 3.2083x against the 1.90 bound, with the real ceiling
+at 1.4233x in the same run.
+
 **The headline: naive all-on observation costs ~1.3-1.5x the unobserved
 floor, and the ratio GROWS SLOWLY with N** across 1 to 32 aircraft — 1.343,
 1.431, 1.425, 1.427, 1.488, 1.489, i.e. +10.8% end to end and a step from ~1.427 at

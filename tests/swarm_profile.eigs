@@ -38,6 +38,51 @@ SPREAD is 0.05
 # identity-pinned MEASURED WORKLOAD, and every banked cost number in
 # ORACLE was taken against its current hash. A test-only counterfactual
 # does not belong in the file whose cost is the finding.
+# `run_ceiling_more` is run_ceiling with SCRATCH OBSERVED WORK added: a
+# short observed loop per read that touches no fleet state and no
+# predicate. Round 46: every witness this rung built -- frames, banked
+# hits, the fleet digest, reads, evals -- detects an arm doing LESS work,
+# so an arm doing MORE is bit-identical on all five, and the primary
+# headline's gate was a one-sided floor. This arm is what makes the new
+# upper bound's plant a REAL ARTIFACT rather than a literal fed to the
+# comparator (§101 corollary): the band is shown to reject a measured arm,
+# not a number chosen to be rejected.
+#
+# It lives HERE and not in swarm.eigs for the same reason ceiling0pb does:
+# swarm.eigs is the identity-pinned measured workload and a test-only
+# counterfactual does not belong in the file whose cost is the finding.
+define run_ceiling_more(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is fleet_ic of [tstate, n, spread]
+    local hits is 0
+    local reads is 0
+    local evals is 0
+    local t is 0.0
+    local f is 0
+    loop while f < frames:
+        fleet is frame_step of [fleet, t, dt, sched, P]
+        local i is 0
+        loop while i < n:
+            local qobs is fleet[i][2] + 0.0
+            if oscillating of qobs:
+                hits is hits + 1
+                unobserved:
+                    evals is evals + 1
+            else:
+                unobserved:
+                    evals is evals + 1
+            local pad is 0
+            local padv is 0.0
+            loop while pad < 360:
+                padv is padv + fleet[i][2]
+                pad is pad + 1
+            unobserved:
+                reads is reads + 1
+            i is i + 1
+        t is t + dt
+        f is f + 1
+    print of f"ceilingmore {n} {frames} {hits} {fleet_digest of (fleet)} {reads} {evals}"
+    return fleet_digest of (fleet)
+
 define run_ceiling0_perbinding(n, frames, dt, spread, tstate, P, sched) as:
     local fleet is []
     local acc is 0.0
@@ -81,6 +126,8 @@ elif arm == "floor":
     r is run_floor of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
 elif arm == "ceiling1":
     r is run_ceiling1 of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+elif arm == "ceilingmore":
+    r is run_ceiling_more of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
 elif arm == "ceiling0pb":
     r is run_ceiling0_perbinding of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
 elif arm == "ceiling0":

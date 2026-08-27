@@ -34,7 +34,7 @@ fi
 rm -rf "$FP"
 echo "PASS: file_pin planted fault rejected (the real file_pin rejects a halved FRAMES)"
 
-file_pin tests/swarm_profile.eigs         d937845d4045 55
+file_pin tests/swarm_profile.eigs         7514edd2558b 88
 file_pin tests/swarm_profile_unarmed.eigs ec298d5e32df 14
 file_pin swarm.eigs                       7e9ade956d8b 283
 # sim_core.eigs holds `deriv` and `rk4_step`, where essentially ALL the
@@ -165,7 +165,7 @@ run_arm() {
     # collapse, because a predicate that returns false has still run.
     local want_evals
     case "$self" in
-        ceiling|disciplined|ceiling1|onereader) want_evals=$want_reads ;;
+        ceiling|ceilingmore|disciplined|ceiling1|onereader) want_evals=$want_reads ;;
         floor|ceiling0|ceiling0pb|unarmed)      want_evals=0 ;;
         # NO PERMISSIVE DEFAULT. Round 36: `*) want_evals=0` meant any arm
         # outside the allowlist was expected to evaluate its predicate ZERO
@@ -260,9 +260,15 @@ run_arm() {
 
     local want_hits
     case "$self $nn $fr" in
-        "ceiling 1 1500"|"disciplined 1 1500")   want_hits=0 ;;
-        "ceiling 4 1500"|"disciplined 4 1500")   want_hits=5533 ;;
-        "ceiling 16 1500"|"disciplined 16 1500") want_hits=19850 ;;
+        # `ceilingmore` shares the ceiling's banked hits BY CONSTRUCTION --
+        # it is the ceiling arm plus scratch work that touches no fleet
+        # state and no predicate. That identity is the whole point: at n=2
+        # both print `... 2 1500 2588 559690091 3000 3000`, every witness
+        # field equal, only the label different. Round 46.
+        "ceiling 1 1500"|"disciplined 1 1500"|"ceilingmore 1 1500")   want_hits=0 ;;
+        "ceiling 4 1500"|"disciplined 4 1500"|"ceilingmore 4 1500")   want_hits=5533 ;;
+        "ceiling 16 1500"|"disciplined 16 1500"|"ceilingmore 16 1500") want_hits=19850 ;;
+        "ceilingmore 2 1500")                    want_hits=2588 ;;
         "ceiling1 "*|"onereader "*)              want_hits=0 ;;
         "floor "*|"ceiling0 "*|"ceiling0pb "*|"unarmed "*) want_hits=0 ;;
         # NO SILENT DEFAULT. Round 34: this was `want_hits=""` plus an
@@ -351,6 +357,25 @@ paired_ratio() {
 # plants each re-typed the awk expression instead of calling the gate --
 # mechanical-gates SS99, in the same file whose file_pin plant does it right.
 ratio_ok() { awk -v x="$1" -v b="$2" 'BEGIN{ exit !(x > b) }'; }
+# ...and its twin. Round 46: EVERY ceiling-family ratio in this file was a
+# one-sided FLOOR, so nothing anywhere bounded the rung's primary headline
+# from above. Adding scratch observed work to the ceiling arm -- touching
+# no fleet state and no predicate -- leaves all five witnesses
+# bit-identical (frames, banked hits, digest, reads, evals all detect an
+# arm doing LESS) and prints "the ceiling arm costs 3.0597x the floor" as
+# a PASS, while ORACLE's headline says 1.3-1.5x and its banked table says
+# 1.343-1.489. Two reachable paths: a source edit plus the re-bank the pin
+# itself instructs, or an upstream runtime change making the observer walk
+# 3x dearer -- which is the very quantity this rung exists to measure, and
+# would be reported as a LOUDER PASS with every pin and counter intact.
+#
+# 1.90 is not tuned to today's run: ORACLE records 1.34-1.66 for this
+# 1500-frame harness across sessions, so the bound clears the whole
+# observed population with headroom and still rejects 3.06 by a wide
+# margin. It is applied to every ceiling-family ratio AT ONCE rather than
+# one per round, which is the twinning round 45's fix should have carried.
+CEIL_HI=1.90
+ratio_hi_ok() { awk -v x="$1" -v b="$2" 'BEGIN{ exit !(x < b) }'; }
 
 mins() {  # minimum of 5 wall-clock seconds
     # Round 29: the round-28 status check here PRINTED FAIL AND EXITED 0.
@@ -533,6 +558,13 @@ done
 # The flake that motivated the move is handled by re-measurement, not by
 # dropping the verdict.
 echo "worst ceiling/floor across the ladder = $WORST at its weakest N  (bound: > $CF_BOUND)"
+ratio_hi_ok "$WORST" "$CEIL_HI" || {
+    echo "FAIL: the ceiling arm costs ${WORST}x the floor, ABOVE the ${CEIL_HI}x ceiling-family bound."
+    echo "      ORACLE's headline is 1.3-1.5x and its banked table 1.343-1.489, so this is not a"
+    echo "      louder version of the same finding: either an arm gained work it should not have"
+    echo "      (every witness here is blind to that -- they all detect an arm doing LESS), or the"
+    echo "      observer walk itself got dearer upstream, which is the finding and must be re-banked."
+    exit 1; }
 ratio_ok "$WORST" "$CF_BOUND" || {
     echo "FAIL: naive all-on observation no longer costs meaningfully more than the"
     echo "      unobserved floor ($WORST). Either #915's gate got much better — in"
@@ -552,6 +584,10 @@ echo "PASS: the ceiling arm costs ${WORST}x the floor at its weakest N"
 for nm in disciplined unarmed; do
     dr=$(paired_ratio ceiling "$nm" "$LASTN")
     printf "  ceiling/%-11s at N=%s : %s  (bound: > %s)\n" "$nm" "$LASTN" "$dr" "$DU_BOUND"
+    ratio_hi_ok "$dr" "$CEIL_HI" || {
+        echo "FAIL: ceiling/$nm is $dr at N=$LASTN, above the ${CEIL_HI}x ceiling-family bound —"
+        echo "      the ceiling arm gained work rather than the $nm arm losing it."
+        exit 1; }
     ratio_ok "$dr" "$DU_BOUND" || {
         echo "FAIL: the $nm arm is within ${DU_BOUND}x of the ceiling at N=$LASTN —"
         echo "      either it stopped eliding observation, or the ceiling stopped paying for it."
@@ -644,6 +680,10 @@ P1_BOUND=1.20
 [ "$P1_BOUND" = "1.20" ] || { echo "FAIL: P1_BOUND is $P1_BOUND, declared 1.20 — a widened bound must be re-justified in ORACLE.md"; exit 1; }
 p1r=$(paired_ratio ceiling0 floor "$LASTN")
 printf "  ceiling0/floor at N=%s : %s  (bound: > %s)\n" "$LASTN" "$p1r" "$P1_BOUND"
+ratio_hi_ok "$p1r" "$CEIL_HI" || {
+    echo "FAIL: ceiling0/floor is $p1r at N=$LASTN, above the ${CEIL_HI}x ceiling-family bound —"
+    echo "      ORACLE records arming at 1.35-1.53; a value this high is a different phenomenon."
+    exit 1; }
 ratio_ok "$p1r" "$P1_BOUND" || {
     echo "FAIL: a hot loop with ZERO verdict reads now costs <=${P1_BOUND}x the floor (ratio $p1r) —"
     echo "      arming has become finer than per-EigsState and EigenScript#1046 needs re-grading."
@@ -703,6 +743,19 @@ echo "PASS: P1 planted fault rejected — per-binding arming collapses to ${pbr}
 # verdict says.
 # ...and the bound must be able to fail: a ratio of 1.00 is what "unobserved:
 # buys nothing" would look like.
+# THE UPPER BOUND'S PLANT IS A MEASURED ARM, not a literal handed to the
+# comparator. `ceilingmore` is run_ceiling plus scratch OBSERVED work; its
+# self-report is bit-identical to the ceiling's on every witness this rung
+# built, so nothing else in the suite can tell them apart. If the band
+# does not reject it, the band does not defend the headline.
+cmr=$(paired_ratio ceilingmore floor 4)
+printf "  ceilingmore/floor at N=4 : %s  (must EXCEED the %s bound)\n" "$cmr" "$CEIL_HI"
+ratio_hi_ok "$cmr" "$CEIL_HI" && {
+    echo "FAIL: the more-work arm measured $cmr, inside the ${CEIL_HI}x bound — the bound does not"
+    echo "      reject an arm that gained observed work, which is the only thing it exists to catch."
+    exit 1; }
+echo "PASS: the ceiling-family upper bound rejects a REAL more-work arm (${cmr}x, bound ${CEIL_HI})"
+
 ratio_ok 1.00 "$DU_BOUND" && { echo "FAIL: the DU bound accepted 1.00 — it cannot fail"; exit 1; }
 echo "PASS: DU planted fault rejected (ratio 1.00 <= $DU_BOUND)"
 # PLANTED FAULT for the bound: a ratio of 1.00 is what "observation is free"
