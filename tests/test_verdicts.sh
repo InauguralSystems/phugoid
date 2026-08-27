@@ -70,6 +70,13 @@ C6_ASSIGN=$(awk '/^define run_write/,/^    print of/' tests/ap_profile.eigs \
 C6_WRITES=$(( C6_N * C6_ASSIGN ))
 C6_PER_WRITE=$(awk -v a="$C6_HI" -v b="$C6_LO" -v w="$C6_WRITES" 'BEGIN{ printf "%.3f", (a-b)*1e6/w }')
 echo "C6: (${C6_HI}s - ${C6_LO}s) / (${C6_N} x ${C6_ASSIGN} assignments) = ${C6_PER_WRITE} us per observed write"
+# Round 43: this was a bare literal derived from nothing, unlike C6_ASSIGN
+# which round 38 made the gate count out of the source. It is a HAND count
+# of observed assignments per aircraft-frame over four aircraft, so there
+# is no line to count it from -- but it is the input to P2's whole clause
+# 2, so it is at least pinned to the two places ORACLE states it, and a
+# change to either has to be a deliberate edit in three files rather than
+# a silent one here.
 HAND_COUNT=150       # observed assignments per aircraft-frame, hand count
 
 fit() {  # fit <col: 2=ceiling 3=floor 0=observer> -> "slope intercept r2"
@@ -172,6 +179,40 @@ FDR=$(awk -v a="$FA8" -v b="$FA32" 'BEGIN{ printf "%.0f", 100*(b-a)/a }')
 derived_check "P2 clause 1's endpoints" "($PA8 → $PA32 µs)" "\([0-9]+\.[0-9]+ → [0-9]+\.[0-9]+ µs\)"
 derived_check "P2 clause 1's observer drift" "+${ODR}% from N=8" "\+[0-9]+% from N=8"
 derived_check "P2 clause 1's floor drift" "is +${FDR}%"
+# Round 43: the paragraph above claimed "anything read off this table is
+# either in this list or it is not published", and that was FALSE when it
+# was written -- an overstated completeness claim of exactly the kind §104
+# is about. Setting the N=1 observer point 34.0 -> 38.0, the per-doubling
+# floor ratios 1.76/1.95/1.94 -> 9.76/9.95/9.94, and ~365 -> ~999 observed
+# assignments all left this file at 25 PASS. So: the rest of them.
+PA1=$(echo "$TABLE"  | awk -v fr="$FRAMES" '$1==1  { printf "%.1f", 1e6*($2-$3)/(1*fr) }')
+PA16=$(echo "$TABLE" | awk -v fr="$FRAMES" '$1==16 { printf "%.1f", 1e6*($2-$3)/(16*fr) }')
+derived_check "the observer's N=1 per-aircraft point" "$PA1 µs is its N=1 point" "[0-9]+\.[0-9]+ µs is its N=1 point"
+derived_check "the observer's N=16 per-aircraft point" "$PA16 µs its N=16 point" "[0-9]+\.[0-9]+ µs its N=16 point"
+
+# the per-doubling floor ratios, which ORACLE reads a "climb" off
+FDOUB=$(echo "$TABLE" | awk '{ v[$1]=$3 } END { printf "%.2f, %.2f, %.2f, %.2f, %.2f", v[2]/v[1], v[4]/v[2], v[8]/v[4], v[16]/v[8], v[32]/v[16] }')
+# anchored to its own sentence: a bare five-number regex also matches an
+# unrelated run of figures elsewhere in the document.
+derived_check "the per-doubling floor ratios" "ratios climb — $FDOUB" "ratios climb — [0-9.]+, [0-9.]+, [0-9.]+, [0-9.]+, [0-9.]+"
+
+# the plateau the step is measured against, and both gaps around it
+PLAT_LO=$(echo "$TABLE" | awk '$1>=2 && $1<=8 { r+=$2/$3; k++ } END { printf "%.3f", r/k }')
+PLAT_HI=$(echo "$TABLE" | awk '$1>=16 { r+=$2/$3; k++ } END { printf "%.3f", r/k }')
+STEP=$(awk -v a="$PLAT_LO" -v b="$PLAT_HI" 'BEGIN{ printf "%.1f", 100*(b-a)/a }')
+OUTL=$(awk -v a="$R_FIRST" -v b="$PLAT_LO" 'BEGIN{ printf "%.0f", 100*(b-a)/b }')
+# The plateaus are stated as MEANS. ORACLE previously read "~1.427",
+# a hand-picked representative of the N=2..8 cluster, which is why its
+# "4.3% step" and this file's derivation disagreed in the second digit:
+# a figure with no definition has no producer, and cannot be checked.
+# Presence, not agreement, for these two: round 40's commentary QUOTES
+# the superseded value deliberately, and rewriting a quotation to suit a
+# gate is §104's error.
+derived_check "the low plateau"  "mean $PLAT_LO at"
+derived_check "the high plateau" "mean $PLAT_HI at"
+derived_check "the N=1 outlier's gap to the plateau" "$OUTL% below"
+derived_check "the plateau step" "$STEP% step"
+
 read -r OM OB OR2 <<<"$(fit 0)"
 read -r FM FB FR2 <<<"$(fit 3)"
 
@@ -217,6 +258,13 @@ chk "$(awk -v r="$OR2" 'BEGIN{print (r>0.99)?1:0}')" \
 
 # --- CLAUSE 2: does the slope miss the C6-derived prediction?
 C6_US=$(awk -v p="$C6_PER_WRITE" -v h="$HAND_COUNT" 'BEGIN{ printf "%.1f", p*h }')
+# The INVERSE of the same chain, which ORACLE publishes as the size of the
+# miss: how many observed assignments per aircraft-frame the measured
+# observer cost implies, against the hand count. Round 43: this was
+# unenumerated, and ~365 could be set to ~999 with the file at 25 PASS.
+IMPLIED=$(awk -v o="$OBS_US" -v p="$C6_PER_WRITE" 'BEGIN{ printf "%.0f", o/p }')
+derived_check "the implied assignment count" "implies ~$IMPLIED observed" "implies ~[0-9]+ observed"
+derived_check "the hand count under it" "a hand count of ~$HAND_COUNT for four" "a hand count of ~[0-9]+ for four"
 MISS=$(awk -v a="$OBS_US" -v b="$C6_US" 'BEGIN{ printf "%.2f", a/b }')
 chk "$(awk -v m="$MISS" 'BEGIN{print (m>=1.5)?1:0}')" \
     "P2.c6miss: measured slope ${OBS_US} µs vs C6-derived ${C6_US} µs = ${MISS}x — clause 2 of P2's refutation FIRES"

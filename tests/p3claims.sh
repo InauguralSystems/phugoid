@@ -141,7 +141,7 @@ p3_claims() {
     # `plant()` filters the driver's stdout while this reads two files.
     local ORC="${P3_ORACLE:-ORACLE.md}"
     if [ ! -r "$ORC" ]; then
-        _cf P3.truth.unit "cannot read $ORC — the published truth table is unverifiable (vacuous check)"
+        _cf P3.truth.unit "cannot read $ORC — the published truth table is unverifiable (vacuous check) <w:orc>"
     else
         local tac tsp tf tl tamp want_f want_l want_a nfound=0
         # BOTH dispersions. Round 39: the exact-row match was scoped to
@@ -165,17 +165,17 @@ p3_claims() {
             # of a comment. `truth_row` prints it now.
             want_a=$(awk -v x="$tamp" 'BEGIN{ printf ".%04d", x }')
             grep -qE "^\| $tac \(amp $want_a\) \| $want_f ft/s \| \*\*$want_l ft/s\*\* \|" "$ORC" \
-                || _cf P3.truth.unit "ORACLE's truth-table row for ac=$tac is not '| $tac (amp $want_a) | $want_f ft/s | **$want_l ft/s** |' — the table is hand-transcribed and no longer matches the producer, or its columns/rows/unit moved"
+                || _cf P3.truth.unit "ORACLE's truth-table row for ac=$tac is not '| $tac (amp $want_a) | $want_f ft/s | **$want_l ft/s** |' — the table is hand-transcribed and no longer matches the producer, or its columns/rows/unit moved <w:row>"
             # ...and the mode must DECAY. A first-period swing no larger
             # than the final one is the inverse of what this rung claims,
             # and column order alone would not catch a producer that
             # started reporting them the other way round.
             awk -v f="$want_f" -v l="$want_l" 'BEGIN{ exit !(f > l) }' \
-                || _cf P3.truth.unit "ac=$tac's first-period swing ($want_f) is not larger than its final-period swing ($want_l) — the phugoid is not decaying, and every 'still swinging' claim in P3 rests on that"
+                || _cf P3.truth.unit "ac=$tac's first-period swing ($want_f) is not larger than its final-period swing ($want_l) — the phugoid is not decaying, and every 'still swinging' claim in P3 rests on that <w:decay>"
         done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) u_pp_first=\([0-9-]*\) u_pp_last=\([0-9-]*\).* amp=\([0-9]*\).*/\1 \2 \3 \4 \5/p' "$out")
-        [ "$nfound" -eq 4 ] || _cf P3.truth.unit "$nfound of 4 truth rows available to check against ORACLE (vacuous check)"
+        [ "$nfound" -eq 4 ] || _cf P3.truth.unit "$nfound of 4 truth rows available to check against ORACLE (vacuous check) <w:nrows>"
         grep -qE '[0-9](\.[0-9]+)? m/s' "$ORC" \
-            && _cf P3.truth.unit "ORACLE states an airspeed in m/s — the model is imperial, so the figure is out by 3.28x"
+            && _cf P3.truth.unit "ORACLE states an airspeed in m/s — the model is imperial, so the figure is out by 3.28x <w:metric>"
     fi
 
     # The noise control's amplitude is claimed to BE the producer's
@@ -184,28 +184,32 @@ p3_claims() {
     # hand transcription in the driver and nothing compared it to the row
     # printed on the same run.
     local amp_src qpf
-    amp_src=$(grep -oP '^AMP is \K[0-9.]+' tests/swarm_p3.eigs | head -1)
+    amp_src=$(grep -oP '^AMP is \K[0-9.]+' "${P3_PRODUCER:-tests/swarm_p3.eigs}" 2>/dev/null | head -1)
     qpf=$(sed -n 's/^p3truth ac=0 sp=0.05 .* q_pp_first=\([0-9-]*\).*/\1/p' "$out" | head -1)
     if [ -z "$amp_src" ] || [ -z "$qpf" ]; then
-        _cf P3.truth.unit "cannot compare the noise amplitude to the producer's q_pp_first (vacuous check)"
+        _cf P3.truth.unit "cannot compare the noise amplitude to the producer's q_pp_first (vacuous check) <w:ampv>"
     else
         awk -v a="$amp_src" -v q="$qpf" 'BEGIN{ exit !( (a*100000 - q) < 1 && (q - a*100000) < 1 ) }' \
-            || _cf P3.truth.unit "the noise control's amplitude $amp_src does not match ac0's measured q_pp_first ($qpf hundred-thousandths) — the phugoid-vs-noise comparison is no longer amplitude-matched"
+            || _cf P3.truth.unit "the noise control's amplitude $amp_src does not match ac0's measured q_pp_first ($qpf hundred-thousandths) — the phugoid-vs-noise comparison is no longer amplitude-matched <w:amp>"
     fi
 
     # The MODEL's imperial-ness, checked against the dataset rather than a
     # comment: a computed-vs-known-constant comparison, which is what makes
     # it a witness and not a restatement.
-    local u0 gg
-    u0=$(grep -oP '"u0":\s*\K[0-9.]+' data/b747_approach.eigs | head -1)
-    gg=$(grep -oP '"g":\s*\K[0-9.]+' data/b747_approach.eigs | head -1)
+    # The dataset's path is a variable for the same reason ORACLE's is:
+    # round 43 found this witness, and the m/s and amplitude ones beside
+    # it, could be DELETED with all 42 plants still green. A witness with
+    # no plant has never been shown to be able to fail.
+    local u0 gg DAT="${P3_DATA:-data/b747_approach.eigs}"
+    u0=$(grep -oP '"u0":\s*\K[0-9.]+' "$DAT" 2>/dev/null | head -1)
+    gg=$(grep -oP '"g":\s*\K[0-9.]+' "$DAT" 2>/dev/null | head -1)
     if [ -z "$u0" ] || [ -z "$gg" ]; then
-        _cf P3.truth.unit "cannot read u0/g from data/b747_approach.eigs (vacuous check)"
+        _cf P3.truth.unit "cannot read u0/g from $DAT (vacuous check) <w:datav>"
     else
         awk -v g="$gg" 'BEGIN{ exit !(g > 32.0 && g < 32.3) }' \
-            || _cf P3.truth.unit "g = $gg is not the imperial 32.174 ft/s^2 — every airspeed figure in ORACLE needs re-checking"
+            || _cf P3.truth.unit "g = $gg is not the imperial 32.174 ft/s^2 — every airspeed figure in ORACLE needs re-checking <w:g>"
         awk -v u="$u0" 'BEGIN{ exit !(u > 250 && u < 310) }' \
-            || _cf P3.truth.unit "u0 = $u0 is not ~279 ft/s (Mach 0.25 at sea level)"
+            || _cf P3.truth.unit "u0 = $u0 is not ~279 ft/s (Mach 0.25 at sea level) <w:u0>"
     fi
 
     # Pull every row as "unit ac sp cad full fosc fquiet".

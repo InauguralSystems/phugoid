@@ -15,6 +15,7 @@ set -euo pipefail
 EIGS="${EIGENSCRIPT:-eigenscript}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+NPLANTS=0
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 # shellcheck source=tests/p3claims.sh
 . tests/p3claims.sh
@@ -78,6 +79,8 @@ plant() { # plant <name> <expected-claims> <expected-red-count> <fn> [args...]
     n=$(grep -c '^CLAIMFAIL ' "$WORK/r")
     [ "$got" = "$want" ] || { echo "FAIL: plant $name red '$got', expected exactly '$want'"; cat "$WORK/r"; exit 1; }
     [ "$n" -eq "$wantn" ] || { echo "FAIL: plant $name produced $n CLAIMFAIL lines, expected $wantn"; cat "$WORK/r"; exit 1; }
+    grep -oP '<w:\K[a-z0-9]+' "$WORK/r" >> "$WORK/witnessed" || true
+    NPLANTS=$((NPLANTS+1))
     echo "--- $name -> $got ($n)"
 }
 
@@ -245,35 +248,61 @@ plant c12 P3.tail 1 f_setbucket '^p3 unit=rad ac=1 sp=0\.05 cad=134 ' fquiet 12
 # and the dataset. `p3claims.sh` now takes ORACLE's path from $P3_ORACLE
 # so it can be pointed at a mutated copy, and these are round 37's own
 # four mutants, all of which passed the string-grep version.
-oplant() { # oplant <name> <expected-claims> <sed-or-cmd on a copy of ORACLE>
-    local name="$1" want="$2"; shift 2
-    local oc; oc=$(mktemp)
-    if [ "$1" = "--unreadable" ]; then rm -f "$oc"; oc=/nonexistent/ORACLE.md
-    else "$@" < ORACLE.md > "$oc"
-         cmp -s ORACLE.md "$oc" && { echo "FAIL: oplant $name changed nothing (vacuous plant)"; exit 1; }
+# Round 43: this runner asserted the red ID SET and never the red COUNT,
+# and `P3.truth.unit` is one ID over ten independent witnesses -- so as
+# long as ONE fired, the other nine could be deleted with all 42 plants
+# green. Gutting the m/s guard, the imperial g/u0 comparison and the
+# amplitude match left `test_swarm_p3_planted.sh` at rc=0 while a real
+# round-36 regression (an m/s figure in ORACLE) went undetected.
+#
+# Counting CLAIMFAIL lines would not have caught that either: each plant
+# reds one line whichever witness it trips. So the witnesses are TAGGED at
+# their _cf sites and enrolled by set-difference at the end of this file,
+# the same shape as the claim-ID enrollment one level up. A witness added
+# without a plant now fails enrollment rather than reading as coverage.
+envplant() { # envplant <name> <expected-claims> <expected-red-count> <VAR> <src|--missing> [cmd...]
+    local name="$1" want="$2" wantn="$3" var="$4" src="$5"; shift 5
+    local oc
+    if [ "$src" = "--missing" ]; then oc=/nonexistent/$var
+    else oc=$(mktemp)
+         "$@" < "$src" > "$oc"
+         cmp -s "$src" "$oc" && { echo "FAIL: envplant $name changed nothing (vacuous plant)"; rm -f "$oc"; exit 1; }
     fi
-    local got
-    if P3_ORACLE="$oc" p3_claims "$WORK/clean" > "$WORK/r" 2>&1; then
-        echo "FAIL: oplant $name did not red any claim — $want cannot fail"; cat "$WORK/r"; rm -f "$oc"; exit 1
-    fi
+    # `p3_claims` is a shell function, so the override cannot go through
+    # `env` -- it would fail to exec and this runner would report nothing
+    # at all. export/unset around the call instead.
+    local got n rc=0
+    export "$var=$oc"
+    p3_claims "$WORK/clean" > "$WORK/r" 2>&1 || rc=$?
+    unset "$var"
+    [ "$rc" -ne 0 ] || { echo "FAIL: envplant $name did not red any claim — $want cannot fail"; cat "$WORK/r"; rm -f "$oc"; exit 1; }
     got=$(grep -oP '^CLAIMFAIL \K[A-Za-z0-9.]+' "$WORK/r" | sort -u | tr '\n' ' ' | sed 's/ $//')
-    [ "$got" = "$want" ] || { echo "FAIL: oplant $name red '$got', expected '$want'"; cat "$WORK/r"; rm -f "$oc"; exit 1; }
-    echo "--- $name -> $got"
-    [ "$oc" = "/nonexistent/ORACLE.md" ] || rm -f "$oc"
+    n=$(grep -c '^CLAIMFAIL ' "$WORK/r")
+    [ "$got" = "$want" ] || { echo "FAIL: envplant $name red '$got', expected '$want'"; cat "$WORK/r"; rm -f "$oc"; exit 1; }
+    [ "$n" -eq "$wantn" ] || { echo "FAIL: envplant $name produced $n CLAIMFAIL lines, expected $wantn"; cat "$WORK/r"; rm -f "$oc"; exit 1; }
+    grep -oP '<w:\K[a-z0-9]+' "$WORK/r" >> "$WORK/witnessed" || true
+    NPLANTS=$((NPLANTS+1))
+    echo "--- $name -> $got ($n)"
+    case "$oc" in /nonexistent/*) : ;; *) rm -f "$oc" ;; esac
+}
+oplant() { # oplant <name> <expected-claims> <expected-red-count> <sed-or-cmd on a copy of ORACLE>
+    local name="$1" want="$2" wantn="$3"; shift 3
+    if [ "$1" = "--unreadable" ]; then envplant "$name" "$want" "$wantn" P3_ORACLE --missing
+    else envplant "$name" "$want" "$wantn" P3_ORACLE ORACLE.md "$@"; fi
 }
 # the unit moved to a column header, cells left bare
-oplant u1 P3.truth.unit sed -E 's/^\| ([01]) \(amp \.[0-9]+\) \| ([0-9.]+) ft\/s \| \*\*([0-9.]+) ft\/s\*\* \|/| \1 | \2 | **\3** |/'
+oplant u1 P3.truth.unit 4 sed -E 's/^\| ([01]) \(amp \.[0-9]+\) \| ([0-9.]+) ft\/s \| \*\*([0-9.]+) ft\/s\*\* \|/| \1 | \2 | **\3** |/'
 # a different WRONG unit -- not metric, so a bare m/s grep never sees it
-oplant u2 P3.truth.unit sed 's| ft/s| kt|g'
+oplant u2 P3.truth.unit 4 sed 's| ft/s| kt|g'
 # ORACLE unreadable: the string-grep version returned 2, the `if` was
 # false, and NOTHING fired -- a vacuous pass.
-oplant u3 'P3.nfleet P3.truth.unit' --unreadable
+oplant u3 'P3.nfleet P3.truth.unit' 2 --unreadable
 # the table transcribed 10x wrong while the driver prints the right numbers
-oplant u4 P3.truth.unit sed -E 's/8\.44 ft\/s/84.4 ft\/s/; s/4\.52 ft\/s/45.2 ft\/s/'
+oplant u4 P3.truth.unit 1 sed -E 's/8\.44 ft\/s/84.4 ft\/s/; s/4\.52 ft\/s/45.2 ft\/s/'
 # u5: the two COLUMNS swapped -- every value still present, so the
 # presence-anywhere check passed while the table asserted the phugoid
 # GROWS, inverting "decaying ~7-8% per cycle" and the severity claim.
-oplant u5 P3.truth.unit sed -E 's/^\| ([01]) \(amp (\.[0-9]+)\) \| ([0-9.]+) ft\/s \| \*\*([0-9.]+) ft\/s\*\* \|/| \1 (amp \2) | \4 ft\/s | **\3 ft\/s** |/'
+oplant u5 P3.truth.unit 4 sed -E 's/^\| ([01]) \(amp (\.[0-9]+)\) \| ([0-9.]+) ft\/s \| \*\*([0-9.]+) ft\/s\*\* \|/| \1 (amp \2) | \4 ft\/s | **\3 ft\/s** |/'
 
 # ENROLLMENT. Round 37: P3.truth.unit shipped with no plant and nothing
 # noticed, because this harness -- unlike its sibling
@@ -307,4 +336,48 @@ PN=$(grep -n "^P3ROWS$" tests/test_swarm.sh | head -1 | cut -d: -f1)
 [ "$CL" -lt "$PN" ] || { echo "FAIL: P3's claim assertions (line $CL) run AFTER the exact-row pins (line $PN) — they are unreachable, which is the round-8 defect"; exit 1; }
 echo "--- ordering: claims at line $CL precede the row pins at line $PN"
 
-echo "PASS: all 38 P3 claim plants red exactly their own claim set, and the claims precede the row pins"
+# Round 43's seven. `P3.truth.unit` carried ten witnesses and four plants;
+# these are the six ORACLE-and-fixture branches that had none, plus the
+# decay direction. Each was gutted and the harness stayed green before
+# these existed.
+#
+# an m/s figure OUTSIDE the truth table -- the round-36 regression itself,
+# which the guard detects and no plant required
+oplant u6 P3.truth.unit 1 sh -c 'cat; printf "\nThe final-period swing is 1.38 m/s at the small dispersion.\n"'
+# the dataset turned metric: g = 9.81, which invalidates every ft/s figure
+envplant u7 P3.truth.unit 1 P3_DATA data/b747_approach.eigs sed -E 's/"g":[[:space:]]*32\.174/"g": 9.81/'
+# ...and u0 restated in m/s, which the g check alone does not see
+envplant u8 P3.truth.unit 1 P3_DATA data/b747_approach.eigs sed -E 's/"u0":[[:space:]]*279\.1/"u0": 85.06/'
+# the dataset unreadable: the imperial comparison must not pass vacuously
+envplant u9 P3.truth.unit 1 P3_DATA --missing
+# the noise control detuned -- the amplitude match that makes the
+# phugoid-vs-noise inversion a comparison rather than two unrelated runs
+envplant u10 P3.truth.unit 1 P3_PRODUCER tests/swarm_p3.eigs sed -E 's/^AMP is [0-9.]+/AMP is 0.0777/'
+# ...and the producer unreadable, same vacuity direction
+envplant u11 P3.truth.unit 1 P3_PRODUCER --missing
+# the phugoid GROWING: first-period swing no larger than the final one,
+# planted in the PRODUCER'S OUTPUT rather than in ORACLE, which is the
+# direction u5 cannot reach
+plant u12 P3.truth.unit 2 sed -E 's/^(p3truth ac=0 sp=0.05 )u_pp_first=([0-9-]+) u_pp_last=([0-9-]+)/\1u_pp_first=\3 u_pp_last=\2/'
+
+# WITNESS ENROLLMENT -- one level below the claim-ID enrollment above.
+# Round 43: `P3.truth.unit` is a single ID over ten independent witnesses,
+# and the harness asserted only that the ID went red. Three of those ten
+# -- the m/s guard round 36 bought, the imperial g/u0 comparison whose own
+# comment calls it "what makes it a witness and not a restatement", and
+# round 40's amplitude match -- were DELETED with all 42 plants still
+# green, while a real m/s regression in ORACLE went undetected. §100: gut
+# the gate and require its plant to red.
+DECLARED_W=$(grep -oP '<w:\K[a-z0-9]+' tests/p3claims.sh | sort -u)
+SEEN_W=$(sort -u "$WORK/witnessed" 2>/dev/null || true)
+NW=$(echo "$DECLARED_W" | grep -c .)
+[ "$NW" -ge 10 ] || { echo "FAIL: only $NW tagged witnesses found in tests/p3claims.sh — the tags were dropped and this check is vacuous"; exit 1; }
+MISSING_W=$(comm -23 <(echo "$DECLARED_W") <(echo "$SEEN_W"))
+[ -z "$MISSING_W" ] && echo "--- witness enrollment: all $NW tagged witnesses are red by some plant" \
+    || { echo "FAIL: tagged witnesses no plant reds: $(echo $MISSING_W | tr '\n' ' ')— each can be deleted with this harness green"; exit 1; }
+UNDECL_W=$(comm -13 <(echo "$DECLARED_W") <(echo "$SEEN_W"))
+[ -z "$UNDECL_W" ] || { echo "FAIL: plants red witnesses not present in p3claims.sh: $(echo $UNDECL_W | tr '\n' ' ')"; exit 1; }
+
+# The count is COUNTED, not transcribed: this line said "38" while 42
+# plants ran, so a deleted plant was silent whenever another shared its ID.
+echo "PASS: all $NPLANTS P3 claim plants red exactly their own claim set and count, every tagged witness has a plant, and the claims precede the row pins"

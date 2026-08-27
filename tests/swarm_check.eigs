@@ -19,6 +19,8 @@ load_file of "data/b747_approach.eigs"
 load_file of "swarm.eigs"
 load_file of "swarm_unarmed.eigs"
 load_file of "tests/checklib.eigs"
+load_file of "measure.eigs"
+load_file of "modes.eigs"
 
 cli is args of null
 plant is ""
@@ -253,7 +255,137 @@ loop while ci < 4:
     check_exact of [f"W6.closure.eq.named.a{ci}", cn[ci], hs[ci]]
     ci is ci + 1
 
+# W7 — exit-gate item 1, which had NO GATE ANYWHERE until round 43 went
+# looking for one. ORACLE licenses the whole rung with "each one's free
+# response still grades to rung 0's chain quantities through the same
+# estimators", and nothing in the rung loaded measure.eigs or modes.eigs
+# at all: W1..W6 grade trim literals, cross-arm digest equality, IC
+# dispersion and IC-equals-trim, and never a PROPAGATED trajectory. §103:
+# attention follows the gates, not the risk, and the ungated item is
+# where nobody had looked. It turns out to be TRUE, which is the point --
+# an unchecked true claim is still unchecked, and it is now the rung's
+# only tie back to rung 0's eigenvalues.
+define check_rel_local(name, val, truth, reltol) as:
+    checks_run is checks_run + 1
+    local d is (val - truth) / truth
+    if (abs of d) <= reltol:
+        print of f"PASS {name} rel={d} tol={reltol} val={val} truth={truth}"
+    else:
+        failures is failures + 1
+        print of f"FAIL {name} rel={d} tol={reltol} val={val} truth={truth}"
+
+# The estimator's REFUSAL is a failure, never a pass: a `res.ok == 0`
+# that fell through to a green row is how a whole block goes quiet.
+define check_result(name, res, field, truth, reltol) as:
+    if res.ok == 1:
+        check_rel_local of [name, res[field], truth, reltol]
+    else:
+        checks_run is checks_run + 1
+        failures is failures + 1
+        print of f"FAIL {name} reltol={reltol} estimator refused: {res.reason}"
+
+# Identity accessors, the same defense rung 1 bought with its q12/q13
+# alias plants: the two period estimators AGREE within tolerance on the
+# phugoid, so a swapped slot is invisible numerically and only the
+# estimator's own identifying field can see it. Without these, plant w8
+# below would be a vacuous plant that reds nothing.
+define as_td7(res) as:
+    if res.ok == 1:
+        if res.k == null:
+            return {"ok": 0, "reason": "not a DFT result (identity field k missing)"}
+    return res
+
+define as_tp7(res) as:
+    if res.ok == 1:
+        if res.n_extrema == null:
+            return {"ok": 0, "reason": "not an extrema result (n_extrema missing)"}
+    return res
+
+define as_zl7(res) as:
+    if res.ok == 1:
+        if res.n_ratios == null:
+            return {"ok": 0, "reason": "not a log-decrement result (n_ratios missing)"}
+    return res
+
+d_ref7 is dim_derivs_lon of (data)
+A_ref7 is a_lon of [d_ref7, data.cond]
+mm7 is modes_of of (dk_roots of [charpoly4 of (A_ref7), 60])
+ph7 is mm7.osc[0]
+
+# Propagate the shipped fleet form long enough for the phugoid to show
+# several periods, then read each aircraft's u-channel from t=45 s so the
+# short-period transient is out of the window.
+NA7 is 4
+DT7 is 0.1
+T_SKIP is 10.0
+NF7 is 1800
+fl7 is fleet_ic of [tr.state, NA7, SP]
+ch7 is []
+i7 is 0
+loop while i7 < NA7:
+    append of [ch7, []]
+    i7 is i7 + 1
+t7 is 0.0
+f7 is 0
+unobserved:
+    loop while f7 < NF7:
+        fl7 is frame_step of [fl7, t7, DT7, sched, P0]
+        if t7 >= T_SKIP:
+            local a7 is 0
+            loop while a7 < NA7:
+                append of [ch7[a7], fl7[a7][0]]
+                a7 is a7 + 1
+        t7 is t7 + DT7
+        f7 is f7 + 1
+
+# W7 plant: the fleet collapsed to ONE aircraft's channel copied N times,
+# which is what "each one's free response" would look like if the swarm
+# had stopped being a swarm. It passes every W7 row unless the rows are
+# read per aircraft, so it is the transversality plant for this block.
+if plant == "w7":
+    local k7 is 1
+    loop while k7 < NA7:
+        ch7[k7] is ch7[0]
+        k7 is k7 + 1
+# W7 plant b: the estimator aliased, the same class rung 1's q12/q13
+# plants exist for one rung down.
+a7i is 0
+loop while a7i < NA7:
+    local tp7 is period_peaks of [ch7[a7i], DT7]
+    local td7 is period_dft of [ch7[a7i], DT7]
+    if plant == "w8":
+        td7 is period_peaks of [ch7[a7i], DT7]
+    local z7 is zeta_logdec of [ch7[a7i], DT7]
+    # w9: the grading timestep wrong by 2%, which moves BOTH period rows
+    # off truth by 2% against a 0.5% tolerance. Without it the Tpeaks
+    # rows were red by no plant at all -- the enrollment set-difference
+    # in tests/test_swarm_planted.sh caught that on the first run.
+    if plant == "w9":
+        tp7 is period_peaks of [ch7[a7i], DT7 * 1.02]
+        td7 is period_dft of [ch7[a7i], DT7 * 1.02]
+    # w10: zeta fabricated, carrying n_ratios so the identity accessor
+    # passes it through and the row must red through the NUMERIC arm --
+    # rung 1's round-7 rule, which is what makes this a plant of the
+    # measurement rather than of the plumbing.
+    if plant == "w10":
+        if z7.ok == 1:
+            z7 is {"ok": 1, "zeta": z7.zeta * 1.05, "n_ratios": z7.n_ratios}
+    check_result of [f"W7.Tpeaks.a{a7i}", as_tp7 of (tp7), "T", ph7.T, 0.005]
+    check_result of [f"W7.Tdft.a{a7i}", as_td7 of (td7), "T", ph7.T, 0.005]
+    check_result of [f"W7.zeta.a{a7i}", as_zl7 of (z7), "zeta", ph7.zeta, 0.02]
+    a7i is a7i + 1
+# ...and the aircraft must not be IDENTICAL, or "each one" grades one
+# trajectory four times. The dispersion W3 asserts at t=0 must still be
+# visible at t=45 s, which is a different claim: a fleet that collapses
+# under propagation passes W3 and fails this.
+ends7 is []
+e7 is 0
+loop while e7 < NA7:
+    append of [ends7, ch7[e7][(len of ch7[e7]) - 1]]
+    e7 is e7 + 1
+check_distinct of ["W7.distinct", ends7]
+
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 47:
-    print of f"FAIL harness: expected exactly 47 checks, ran {checks_run}"
+if checks_run != 60:
+    print of f"FAIL harness: expected exactly 60 checks, ran {checks_run}"

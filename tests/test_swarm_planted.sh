@@ -11,9 +11,11 @@ cd "$ROOT"
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 : > "$WORK/red_union"
 
+NPLANTS=0
 run_plant() {
+    NPLANTS=$((NPLANTS+1))
     "$EIGS" tests/swarm_check.eigs "$1" > "$WORK/out" 2>&1 || true
-    grep -q '^CHECKS_RUN 47$' "$WORK/out" || { echo "FAIL: plant $1 ran a different population"; tail -3 "$WORK/out"; exit 1; }
+    grep -q '^CHECKS_RUN 60$' "$WORK/out" || { echo "FAIL: plant $1 ran a different population"; tail -3 "$WORK/out"; exit 1; }
     grep '^FAIL ' "$WORK/out" | awk '{print $2}' >> "$WORK/red_union"
 }
 expect_reds() {
@@ -39,6 +41,22 @@ run_plant w5; expect_reds 1; expect_red 'W2\.digest\.live'
 echo "--- W6: the fleet the W4 checks read drifts from the trim state ---"
 run_plant w6; expect_reds 24; expect_red 'W4\.trim\.a0s0' 'W4\.trim\.a5s3'
 
+# W7's plants. Round 43: exit-gate item 1 -- "each one's free response
+# still grades to rung 0's chain quantities through the same estimators"
+# -- had NO GATE ANYWHERE, and no rung-4 file even loaded measure.eigs or
+# modes.eigs. w7 is the transversality plant for the per-aircraft reading
+# (the fleet collapsed to one channel copied N times, which passes every
+# numeric row); w8 is the estimator-alias plant rung 1 bought as q12/q13,
+# invisible numerically because the two period estimators agree on the
+# phugoid to within a tenth of the tolerance.
+run_plant w7; expect_reds 1; expect_red 'W7\.distinct'
+run_plant w8; expect_reds 4; expect_red 'W7\.Tdft\.a0' 'W7\.Tdft\.a3'
+# w9/w10 exist because the enrollment set-difference below reported
+# W7.Tpeaks.* and W7.zeta.* as red by NO plant on W7's first run: eight
+# numeric rows that could have been deleted with this harness green.
+run_plant w9;  expect_reds 8; expect_red 'W7\.Tpeaks\.a0' 'W7\.Tdft\.a3'
+run_plant w10; expect_reds 4; expect_red 'W7\.zeta\.a0' 'W7\.zeta\.a3'
+
 # Every check that CAN be planted must have been red by something.
 "$EIGS" tests/swarm_check.eigs > "$WORK/clean" 2>&1
 sort -u "$WORK/red_union" > "$WORK/redu"
@@ -56,4 +74,6 @@ if [ -s "$WORK/never" ]; then
     sed 's/^/         /' "$WORK/never"
     exit 1
 fi
-echo "PASS: all 6 rung-4 plants flip exactly their declared checks, and every check is red under some plant"
+# COUNTED, not transcribed: this said "6" while ten plants ran. Same shape
+# as the P3 harness's "38" against 42, which round 43 found.
+echo "PASS: all $NPLANTS rung-4 plants flip exactly their declared checks, and every check is red under some plant"

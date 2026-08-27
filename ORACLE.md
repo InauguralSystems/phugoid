@@ -1705,6 +1705,31 @@ each one's free response still grades to rung 0's chain quantities through
 the same estimators. That is the ladder working as designed: rung 4 adds
 LOAD, not new truth. Any new grading here would be a smell.
 
+Round 43 found this sentence — exit-gate item 1, the claim that licenses
+the whole rung — had **no gate anywhere**. W1..W6 grade trim literals,
+cross-arm digest equality, IC dispersion and IC-equals-trim; not one of
+them grades a PROPAGATED trajectory, and no rung-4 file loaded
+`measure.eigs` or `modes.eigs` at all. "Needs no new oracle" had been read
+as "needs no check". §103: attention follows the gates, not the risk.
+
+It is now W7, and the claim is TRUE. Four aircraft propagated at the
+shipped dispersion, u-channel from t = 10 s, graded through rung 1's own
+estimators against rung 0's chain eigenvalue (T = 46.9177 s, ζ =
+0.013245):
+
+| | Tpeaks | Tdft | ζ |
+|---|---|---|---|
+| tolerance (rung 1's) | 0.005 | 0.005 | 0.02 |
+| worst of ac0..ac3 | 1.5e-4 | 7.9e-4 | 2.0e-3 |
+
+Inside tolerance by one to two orders on every row. An unchecked true
+claim is still unchecked: W7 is the rung's only tie back to rung 0's
+eigenvalues, and it carries four plants — the fleet collapsed to one
+channel copied N times (which passes every numeric row and is caught only
+by reading them per aircraft), the estimator-slot alias rung 1 bought as
+q12/q13, a 2% error in the grading timestep, and a fabricated ζ carrying
+its own `n_ratios` so it must red numerically.
+
 ## What is being measured
 
 The observer's marginal cost curve vs N — "the cost of observation while
@@ -2015,7 +2040,13 @@ sample. Medians are shown where the spread matters.
 floor, and the ratio GROWS SLOWLY with N** across 1 to 32 aircraft — 1.343,
 1.431, 1.425, 1.427, 1.488, 1.489, i.e. +10.8% end to end and a step from ~1.427 at
 N=2..8 to ~1.488 at N≥16 — with N=1 the outlier at **1.343**, 6% below
-that plateau, which is a bigger gap than the 4.3% step itself. (Round 40:
+that plateau, which is a bigger gap than the 4.3% step itself. (Round 43:
+those two plateau figures were hand-picked representatives of their
+clusters rather than defined quantities, which is why the step read 4.3%
+against a derivation's 4.2%. Defined as the MEAN of their rows they are
+mean 1.428 at N=2..8 and mean 1.488 at N≥16, a 4.2% step, with N=1's
+1.343 sitting 6% below the lower one; all four are now computed from the
+banked table by tests/test_verdicts.sh rather than transcribed.) (Round 40:
 this said "a clean step from ~1.427 at N≤8", which erases exactly the
 small-N structure round 30 used to revert round 29's relaxation — the
 ratio is SMALLEST at small N, which is why the worst-point gate matters.
@@ -2122,7 +2153,7 @@ Fitted properly, `ceiling − floor` against N: **45.0 µs per aircraft-frame**
 from the 3000-frame table, **~28 µs** from one run of the 1500-frame harness (unrecorded and
 unreproducible as published — an earlier figure of 41.6 µs has no committed
 producer, round 8). Against
-C6's ~0.123 µs per observed scalar write that implies ~365 observed
+C6's ~0.123 µs per observed scalar write that implies ~366 observed
 assignments per aircraft-frame, against a hand count of ~150 for four
 `deriv` calls plus RK4 — **~2.4x, not the ~1.5x first published** (and not the ~1.9x that stood until round 38 corrected the C6 divisor).
 Reported as a comparison that does not close: either the hand count is
