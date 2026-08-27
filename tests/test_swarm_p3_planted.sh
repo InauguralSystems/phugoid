@@ -11,13 +11,22 @@
 # claim implementation (tests/p3claims.sh, the same one tests/test_swarm.sh
 # calls -- not a copy). Transversality: a plant must red its own claim and
 # ONLY its own claim.
-set -euo pipefail
+set -Eeuo pipefail
+# -E (errtrace) is load-bearing: without it an ERR trap is NOT inherited by
+# shell functions, and every plant runs inside plant()/envplant(). The first
+# version of this trap was therefore a gate that could not fire -- it went
+# green through a CI failure it was added to diagnose.
+#
 # A `set -e` death prints NOTHING, which in a plant harness is the worst
 # possible failure mode: the run stops mid-suite and the log's last line is
 # the previous plant's PASS. CI failed exactly that way on 6832101 while
 # every local run was green, and there was no way to tell which command
 # died. The trap makes the harness name its own failing command.
-trap 'rc=$?; echo "FAIL: harness died at line $LINENO (rc=$rc): ${BASH_COMMAND}" >&2; exit $rc' ERR
+trap 'rc=$?; echo "FAIL: harness died at ${BASH_SOURCE[0]}:$LINENO (rc=$rc): ${BASH_COMMAND}" >&2; exit $rc' ERR
+# ...and a signal is not an ERR: an OOM kill or a SIGTERM leaves the same
+# silent log. Name those too.
+trap 'echo "FAIL: harness killed by SIGTERM" >&2; exit 143' TERM
+trap 'echo "FAIL: harness got SIGINT" >&2; exit 130' INT
 EIGS="${EIGENSCRIPT:-eigenscript}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
