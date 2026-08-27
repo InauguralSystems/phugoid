@@ -1807,6 +1807,22 @@ SS97-100).
    cannot be its own oracle. Pinning every column of the wrong table still
    cannot catch a wrong table.
 
+7. **Every prediction carries a VERDICT and a gate.** Added at round 21,
+   which found P2 was the only one of the four with neither — no claim ID,
+   no planted fault, no assertion on a fit or a slope anywhere in the repo
+   — while both clauses of its registered refutation condition had been
+   met since round 3. P3, which had a gate from round 1, was rewritten
+   seven times because every round attacked it. Attention follows the
+   gates, so an ungated prediction is the one that goes wrong quietly.
+8. **A refutation condition that a TOTAL FAILURE satisfies is a defect in
+   the prediction.** Added at round 20: P3's "refutable by a clean verdict
+   stream" is met by the radian/ac0/sp0.02 cell, whose stream is quiet
+   only because the detector is dead and which is confidently wrong on 98%
+   of its reads. P4's "what breaks first will NOT be the physics" has the
+   same shape — any failure not labelled physics satisfies it, including
+   total failure. Registered conditions get re-read against the failure
+   modes the rung actually found, not only against the ones it expected.
+
 ## First measurements (2026-08-26) — recorded before the gate exists
 
 **Provenance, corrected at round 7.** This table was taken at 3000 frames
@@ -1839,8 +1855,46 @@ floor, and the ratio does not grow with N** across 1 to 32 aircraft. (The
 first write-up said "1.4-1.6x", which overstated both tables — the maximum
 observed is 1.49 at 3000 frames and 1.42 at 1500. Round 2.)
 
-**P2 — linearity holds APPROXIMATELY, and both earlier write-ups
-mis-stated it.** Round 1 argued "the ratio is flat, therefore cost is
+**P2 — REFUTED, on both clauses of its own registered condition, and it
+took twenty rounds to say so because it was the only prediction with no
+gate.**
+
+P2 said: *"Refutable by a fit that is superlinear, or whose slope misses
+the C6-derived prediction."* Both clauses fire on ORACLE's own numbers,
+and both have been visible since round 3:
+
+- **Slope.** The observer's marginal cost, fitted as `ceiling − floor`
+  against N, is **45.0 µs per aircraft-frame**. C6's 0.154 µs per observed
+  scalar write times a hand count of ~150 assignments predicts **23.1 µs**.
+  That is a **1.95× miss**. The write-up recorded the ~1.9× and filed it
+  as "a comparison that does not close" — which is the refutation
+  condition, described rather than applied.
+- **Superlinearity.** Per-aircraft observer cost rises **+26%** from N=8
+  to N=32 (35.3 → 44.5 µs). The write-up assessed linearity as
+  "approximately linear with a small superlinear drift at the top" — but
+  it did so on the fit `0.272 N − 0.083`, which is the **FLOOR** column,
+  the arm with no observer in it, whose drift over the same range is
+  +10%. Round 3 had already noted that fit was the floor's; the linearity
+  verdict was still being read off it eighteen rounds later. On the arm
+  P2 is actually about, the drift is more than double.
+
+Two figures that earlier rounds retired as unreproducible are simply
+points of this table rather than fits: 33.5 µs is its N=1 point (round 3)
+and 41.6 µs its N=16 point (round 8).
+
+**Why this sat undetected while P3 was rewritten seven times:** P3 had a
+gate from round 1, so every round attacked it. P2 had no claim ID, no
+planted fault and no assertion anywhere in the repo — `test_swarm_profile.sh`
+asserts two ratios and nothing about a fit, a slope or the C6 comparison.
+The component without an oracle is the one that goes wrong quietly, and
+the loop's attention followed the gates rather than the risk.
+`tests/test_p2_fit.sh` now recomputes both fits, the C6 comparison and
+both clauses from the banked table, with planted faults that make each
+clause stop firing. The timing itself stays where it belongs, in
+`test_swarm_profile.sh`; what is gated here is the arithmetic that turns
+the sweep into a verdict.
+
+What survives from the earlier write-ups, unchanged: Round 1 argued "the ratio is flat, therefore cost is
 linear in N", which is a non-sequitur — a flat ratio is consistent with
 any common functional form, including both arms being quadratic.
 Linearity has to come from fitting an arm against N. Round 1's replacement
@@ -2228,7 +2282,7 @@ classes, on every read, depending only on the unit:
 |---|---|---|---|
 | decay, τ=350 s | `converged` 75/75 | `stable` 75/75 | `moving` 75/75 |
 | linear ramp | `diverging` | `diverging` | `diverging` |
-| aperiodic noise | `oscillating` 74/75 | `oscillating` 75/75 | `oscillating` 75/75 |
+| aperiodic noise | `oscillating` 75/75 | `oscillating` 75/75 | `oscillating` 75/75 |
 
 The split is total in each unit. (Round 17 published it as 75/76 with a
 stray `moving=1`; round 18 found that asymmetry was its own seed
