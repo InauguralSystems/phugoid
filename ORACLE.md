@@ -2093,7 +2093,22 @@ and both have been visible since round 3:
   as "a comparison that does not close" — which is the refutation
   condition, described rather than applied.
 - **Superlinearity.** Per-aircraft observer cost rises **+26%** from N=8
-  to N=32 (35.3 → 44.5 µs). The write-up assessed linearity as
+  to N=32 (35.3 → 44.5 µs). (Round 45: that is a TWO-POINT drift, and N=8
+  is the MINIMUM of a U-shaped series in both arms — observer
+  34.0/37.7/36.2/35.3/41.6/44.5, floor 99.0/87.3/85.2/82.6/85.3/91.1 — so
+  the pair runs from each series' minimum to its maximum. Hand-picked
+  endpoints, the defect round 43 fixed for the plateau figures, sitting
+  inside the clause that decides P2. It is mitigated but not repaired by
+  both arms using the SAME pair, which is the only reason the comparison
+  survives. The statistic the clause is actually about is the exponent of
+  a log-log fit: the observer scales as **N^1.067** against the floor's
+  **N^0.979**. Superlinear, and more so than the floor — but far more
+  weakly than "+26% against +10%" implies, and that gap is why the
+  write-up 70 lines below already says "approximately linear with a small
+  superlinear drift at the top, not linearity confirmed" while this
+  section says REFUTED on BOTH clauses. Clause 1 is better read as WEAKLY
+  supported; **P2's refutation stands on clause 2**, the 2.45x slope miss,
+  which does not depend on any endpoint choice.) The write-up assessed linearity as
   "approximately linear with a small superlinear drift at the top" — but
   it did so on the fit `0.272 N − 0.083`, which is the **FLOOR** column,
   the arm with no observer in it, whose drift over the same range is

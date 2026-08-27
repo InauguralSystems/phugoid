@@ -265,7 +265,34 @@ FLR_FIT=$(fitstr "$FM" "$FB" "$FR2" 3 4)
 grep -qF -- "$FLR_FIT" ORACLE.md \
     || chk 0 "P2.floorfit: ORACLE does not publish the floor fit as '$FLR_FIT' — this is the fit rounds 3 and 21 caught the observer verdict being read off, so its every term is pinned"
 chk "$(awk -v r="$OR2" 'BEGIN{print (r>0.99)?1:0}')" \
-    "P2.obsfit: the observer arm fits ${OM} N ${OB} with R²=${OR2} — a linear fit this good is what makes the +26% per-aircraft drift a DRIFT rather than the fit being wrong"
+    "P2.obsfit: the observer arm fits ${OM} N ${OB} with R²=${OR2} — and round 45: this sentence used to say a fit this good is what makes the +26% drift a DRIFT rather than the fit being wrong, which inverts its own logic. The better the straight line, the LESS of the drift it supports; R² this high is evidence the arm is close to linear, and the superlinearity such as it is lives in the residual structure, not in the fit. The exponent check above is the statistic that speaks to clause 1"
+
+# A SUPERLINEARITY STATISTIC, which clause 1 never had. Round 45: the
+# +26% is a TWO-POINT drift, N=8 to N=32, and N=8 is the MINIMUM of a
+# U-shaped series in both arms -- observer 34.0/37.7/36.2/35.3/41.6/44.5,
+# floor 99.0/87.3/85.2/82.6/85.3/91.1 -- so the endpoint pair runs from
+# each series' minimum to its maximum. That is the hand-picked-endpoint
+# defect round 43 fixed for the plateau figures, here inside the clause
+# that decides P2. It is mitigated but not repaired by both arms using the
+# SAME pair, which is why the comparison survives at all.
+#
+# The exponent of a log-log fit is the statistic the clause is actually
+# about, and it is far weaker than "+26% vs +10%" implies: superlinear
+# means > 1, and the floor is essentially linear.
+loglog() { # loglog <col: 0=observer 3=floor> -> exponent
+    echo "$TABLE" | awk -v col="$1" '
+    { n=$1; y=(col==0) ? ($2-$3) : $col; lx=log(n); ly=log(y)
+      sx+=lx; sy+=ly; sxx+=lx*lx; sxy+=lx*ly; k++ }
+    END { printf "%.3f", (k*sxy-sx*sy)/(k*sxx-sx*sx) }'
+}
+OEXP=$(loglog 0); FEXP=$(loglog 3)
+chk "$(awk -v o="$OEXP" -v f="$FEXP" 'BEGIN{print (o>1.0 && o>f)?1:0}')" \
+    "P2.exponent: the observer arm scales as N^${OEXP} against the floor's N^${FEXP} — superlinear, and more so than the floor"
+# anchored to their own phrases: a bare N^x regex matches BOTH exponents,
+# so the agreement sweep reported the document contradicting itself when
+# it was simply stating two different quantities.
+derived_check "the observer's scaling exponent" "observer scales as N^$OEXP" "observer scales as N\^[0-9]+\.[0-9]+"
+derived_check "the floor's scaling exponent" "floor's N^$FEXP" "floor's N\^[0-9]+\.[0-9]+"
 
 # --- CLAUSE 2: does the slope miss the C6-derived prediction?
 C6_US=$(awk -v p="$C6_PER_WRITE" -v h="$HAND_COUNT" 'BEGIN{ printf "%.1f", p*h }')
