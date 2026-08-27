@@ -2207,9 +2207,55 @@ disciplined arm measures within noise of the floor and of the unarmed
 control at every N. "Within noise" is the honest phrasing: round 2
 measured disciplined 8% BELOW floor at one N, which is an inversion and
 therefore a ±10% noise floor on this box. That is enough to say the
-penalty is bought back and not enough to resolve what remains, so the gate
-asserts the ordering it can defend (ceiling well above floor) and reports
-the rest. The full four-arm table is `tests/test_swarm_profile.sh`'s
+penalty is bought back and not enough to resolve what remains.
+
+Round 45: "reports the rest" was false, and the sentence it replaced was
+worse. The residual was published at NO N and gated at NO N — the only
+assertion touching the arm was `ceiling/disciplined > 1.20`, one-sided,
+against the ceiling, at the largest ladder point only. With `ceiling/floor`
+at 1.40–1.46 that permits `disciplined/floor` up to ~1.17–1.22, an ungated
+band roughly double the ±10% this paragraph calls unresolvable — while
+"What is being measured" above names `disciplined − floor` as the number
+that justifies or kills #915's natural successor.
+
+Measured now, paired median of five with the fixed cost subtracted, the
+same estimator as every other ratio in the rung:
+
+| arm / floor | N=1 | N=4 | N=16 |
+|---|---|---|---|
+| disciplined, run 1 | 0.9948 | 1.0342 | 1.0154 |
+| disciplined, run 2 | 1.0203 | 1.0091 | 1.0155 |
+| unarmed, run 1 | 0.9855 | 1.0132 | 1.0166 |
+| unarmed, run 2 | 0.9449 | 0.9980 | 1.0267 |
+
+Twelve ratios over two independent runs, spanning 0.9449–1.0342: inside
+the ±10% noise floor in both directions at every ladder point, with the
+worst point ~4.5 points of margin rather than the ~3x a single run
+suggested. The second run is reported because the first alone would have
+overstated the margin by half — the one-sample generalisation this rung
+has committed before. The headline is CONFIRMED rather than merely
+asserted, and the residual is now gated two-sided at ±10% — the band this
+paragraph already published, not one fitted to the numbers above.
+
+Two caveats, both one-directional and both against the gate rather than
+for it. The `unarmed` rows carry a known systematic: the control lives in
+its own driver and neither imports linalg nor solves the trim, so
+subtracting the same fixed cost over-subtracts from it and biases
+`unarmed/floor` DOWN, toward the 0.90 edge where its worst point sits.
+And round 2's historical 0.92 at one N is the same edge. If this gate ever
+fires low on the unarmed arm, suspect the fixed-cost subtraction before
+the claim; `disciplined/floor` shares its driver with the floor and has no
+such bias.
+
+What made this invisible for forty rounds is worth recording, because it
+is not "nobody looked". Every witness this rung built — banked `hits`,
+the fleet digest, `reads`, `evals`, the frame count — detects an arm doing
+LESS work. Round 45's mutant makes the disciplined arm do MORE: one frame
+in three integrated in observed context, the exact regression this headline
+denies. Its self-report is BIT-IDENTICAL to pristine on all five fields,
+the full suite passes twice, and `disciplined/floor` at N=16 goes
+1.0327 → 1.2663. A witness set built entirely against one direction of
+error says nothing about the other. The full four-arm table is `tests/test_swarm_profile.sh`'s
 output, which is the shipped harness — round 1 found the first table
 unreproducible from the artifact, measured with a throwaway driver that
 was never committed.

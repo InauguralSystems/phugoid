@@ -304,11 +304,20 @@ run_arm() {
     fi
 }
 
+# The unarmed control lives in its OWN driver, so an arm name has to pick
+# the driver. This was inlined for the b-arm only, which made `unarmed`
+# usable as the second arm and nowhere else -- and the second headline's
+# gate needs it as the FIRST.
+_run_one() { # _run_one <arm> <n> <out>
+    if [ "$1" = "unarmed" ]; then run_arm tests/swarm_profile_unarmed.eigs "" "$2" "$3"
+    else run_arm tests/swarm_profile.eigs "$1" "$2" "$3"; fi
+}
+
 paired_ratio() {
     local a_arm="$1" b_arm="$2" nn="$3" t=$(mktemp) ao=$(mktemp) bo=$(mktemp)
     local _r p0 p1 q0 q1
     for _r in 1 2 3 4 5; do
-        p0=$(date +%s%N); run_arm tests/swarm_profile.eigs "$a_arm" "$nn" "$ao"; p1=$(date +%s%N)
+        p0=$(date +%s%N); _run_one "$a_arm" "$nn" "$ao"; p1=$(date +%s%N)
         # NOTE: OVH is measured on the ARMED driver, which imports linalg and
         # solves the trim; the unarmed control does neither, so subtracting
         # the same constant from it inflates ceiling/unarmed slightly in the
@@ -316,11 +325,7 @@ paired_ratio() {
         # rather than corrected -- correcting it needs a second overhead
         # probe, and the bias is one-directional and an order of magnitude
         # under the bound.
-        if [ "$b_arm" = "unarmed" ]; then
-            q0=$(date +%s%N); run_arm tests/swarm_profile_unarmed.eigs "" "$nn" "$bo"; q1=$(date +%s%N)
-        else
-            q0=$(date +%s%N); run_arm tests/swarm_profile.eigs "$b_arm" "$nn" "$bo"; q1=$(date +%s%N)
-        fi
+        q0=$(date +%s%N); _run_one "$b_arm" "$nn" "$bo"; q1=$(date +%s%N)
         awk -v a="$p0" -v b="$p1" -v c="$q0" -v d="$q1" -v o="$OVH" \
             'BEGIN{ x=(b-a)/1e9-o; y=(d-c)/1e9-o;
                     # REFUSE a non-positive denominator instead of clamping
@@ -553,6 +558,56 @@ for nm in disciplined unarmed; do
         exit 1; }
 done
 echo "PASS: disciplined and unarmed both sit >${DU_BOUND}x below the ceiling at N=$LASTN"
+
+# THE SECOND HEADLINE, gated at last (round 45).
+#
+# ORACLE's second headline is that `unobserved:` buys back essentially the
+# whole penalty -- the disciplined arm within noise of the floor and of the
+# unarmed control AT EVERY N -- and "What is being measured" calls
+# `disciplined - floor` the number that justifies or kills #915's natural
+# successor. That number was published at NO N and gated at NO N. The only
+# assertion touching the arm was `ceiling/disciplined > 1.20` above: ONE
+# SIDED, against the ceiling, at the largest ladder point only. With
+# ceiling/floor measured at 1.40-1.46 that permits disciplined/floor up to
+# ~1.17-1.22 -- an ungated band roughly DOUBLE the +-10% the residual
+# itself calls unresolvable.
+#
+# Demonstrated before this existed: make the disciplined arm integrate one
+# frame in three in OBSERVED context -- the exact regression the headline
+# says does not happen, and the shape of a plausible edit that leaves one
+# branch of a conditional unwrapped. Its self-report is BIT-IDENTICAL to
+# pristine on every field rounds 31-37 built: banked hits, fleet digest,
+# reads, evals, frames. All four witnesses hold, because every one of them
+# detects an arm doing LESS work and this arm does MORE. The suite passed
+# twice while disciplined/floor at N=16 went 1.0327 -> 1.2663.
+#
+# So the residual is gated TWO-SIDED, at every ladder point, with the same
+# paired estimator. The band is +-10%: not a number invented here, but the
+# noise floor ORACLE already publishes, so the gate enforces the claim as
+# stated rather than one tuned to today's measurement. Measured on this box
+# the six ratios span 0.9855..1.0342, ~3x inside it.
+DF_LO=0.90
+DF_HI=1.10
+in_band() { awk -v x="$1" -v lo="$2" -v hi="$3" 'BEGIN{ exit !(x >= lo && x <= hi) }'; }
+for nm in disciplined unarmed; do
+    for n in 1 4 16; do
+        dfr=$(paired_ratio "$nm" floor "$n")
+        printf "  %-11s/floor at N=%-2s : %s  (band: %s..%s)\n" "$nm" "$n" "$dfr" "$DF_LO" "$DF_HI"
+        in_band "$dfr" "$DF_LO" "$DF_HI" || {
+            echo "FAIL: $nm/floor at N=$n is $dfr, outside [$DF_LO, $DF_HI] —"
+            echo "      the second headline says this arm sits within noise of the floor at EVERY N."
+            echo "      Above the band, \`unobserved:\` stopped eliding the work; below it, the floor did."
+            exit 1; }
+    done
+done
+echo "PASS: disciplined and unarmed both sit within [$DF_LO, $DF_HI] of the floor at every ladder point"
+
+# ...and the band must be able to fail, in BOTH directions. 1.2663 is not a
+# round number: it is what round 45's mutant actually measured.
+in_band 1.2663 "$DF_LO" "$DF_HI" && { echo "FAIL: the residual band accepted 1.2663 — round 45's mutant would pass"; exit 1; }
+in_band 0.80   "$DF_LO" "$DF_HI" && { echo "FAIL: the residual band accepted 0.80 — a collapsed floor would pass"; exit 1; }
+in_band 1.00   "$DF_LO" "$DF_HI" || { echo "FAIL: the residual band rejected 1.00 — it cannot pass"; exit 1; }
+echo "PASS: residual band planted faults rejected (1.2663 high, 0.80 low) and 1.00 accepted"
 
 # P1's MECHANISM, gated on the one comparison that can discriminate.
 #
