@@ -128,8 +128,22 @@ paired_ratio() {
             q0=$(date +%s%N); run_arm tests/swarm_profile.eigs "$b_arm" "$nn" "$bo"; q1=$(date +%s%N)
         fi
         awk -v a="$p0" -v b="$p1" -v c="$q0" -v d="$q1" -v o="$OVH" \
-            'BEGIN{ x=(b-a)/1e9-o; y=(d-c)/1e9-o; if (y<=0) y=0.001; printf "%.4f\n", x/y }' >> "$t"
+            'BEGIN{ x=(b-a)/1e9-o; y=(d-c)/1e9-o;
+                    # REFUSE a non-positive denominator instead of clamping
+                    # it. Round 30: `if (y<=0) y=0.001` manufactured a
+                    # ~1000x ratio in the PASS direction whenever the fixed
+                    # cost met or exceeded the measured arm -- the
+                    # OVH-dominates case the comment below says the gate
+                    # "should say so instead of reporting a ratio", which
+                    # nothing implemented. One-sided fudges are how a gate
+                    # stops being able to fail.
+                    if (y<=0 || x<=0) { print "NONPOSITIVE"; exit 0 }
+                    printf "%.4f\n", x/y }' >> "$t"
     done
+    if grep -q NONPOSITIVE "$t"; then
+        echo "FAIL: the fixed cost (${OVH}s) met or exceeded a measured arm at N=$nn — subtracting it is amplifying noise, not removing a bias, so there is no ratio to report" >&2
+        rm -f "$t" "$ao" "$bo"; exit 1
+    fi
     sort -n "$t" | sed -n 3p; rm -f "$t" "$ao" "$bo"
 }
 
@@ -240,12 +254,43 @@ for n in 1 4 16; do
     # contended box (1.37 / 1.38 / 1.46). If it flakes, the fix is more
     # pairs, not a wider bound.
     rmed=$(paired_ratio ceiling floor "$n")
+    # EVERY ladder point carries a verdict again, and a sub-bound point is
+    # RE-MEASURED rather than excused.
+    #
+    # Round 29 moved this assertion from the ladder's worst point to its
+    # largest, on the argument that small N is unresolvable under load.
+    # Round 30 proved that was a RELAXATION: a mutant that guts the
+    # ceiling arm's observation for n < 8 -- identical fleet digests,
+    # identical self-report, only the observation shape changed -- passed
+    # at 0.92 and 0.99, and had been fatal before the change. Worse, the
+    # argument was backwards on this rung's own data: ORACLE's table has
+    # the ratio SMALLEST at small N (1.343 at N=1 against 1.489 at N=32),
+    # so small N is exactly where a partial loss of observation shows
+    # first. Dropping the verdict there dropped the two most sensitive
+    # points.
+    #
+    # A sub-bound point is either contention or a dead arm, and the old
+    # gate could not tell them apart -- which is what made it flake AND
+    # what made the relaxation tempting. It can tell them apart now:
+    # contention does not reproduce, a gutted arm does. Re-measure twice
+    # more and gate on the median of the three. Costs nothing on a healthy
+    # run and ~2 s when the box is loaded.
+    if awk -v x="$rmed" -v b="$CF_BOUND" 'BEGIN{ exit !(x <= b) }'; then
+        echo "  N=$n came in at $rmed (bound: > $CF_BOUND) — re-measuring, because contention does not reproduce and a dead arm does"
+        r2=$(paired_ratio ceiling floor "$n")
+        r3=$(paired_ratio ceiling floor "$n")
+        rmed=$(printf '%s\n%s\n%s\n' "$rmed" "$r2" "$r3" | sort -n | sed -n 2p)
+        echo "  N=$n re-measured: median of three is $rmed"
+    fi
     # loop-only times: the ratio the rung actually claims
     r=$(awk -v x="$rmed" 'BEGIN{ printf "%.2f", x }')
     printf "%4s %9s %12s %8s %9s %9s\n" "$n" "$c" "$d" "$f" "$u" "$r"
     NVALID=$((NVALID+1))
-    WORST=$(awk -v w="$WORST" -v r="$r" 'BEGIN{ print (r<w)?r:w }')
-    LASTR="$r"
+    # WORST tracks the RAW median, not the 2-decimal printed value -- round
+    # 30: the gated quantity and the reported one differed in the last
+    # digit.
+    WORST=$(awk -v w="$WORST" -v x="$rmed" 'BEGIN{ print (x<w)?x:w }')
+    LASTR="$rmed"
     # NOTE (round 7): an earlier comment here claimed the disciplined and
     # unarmed arms are judged on THESE printed numbers. They are not -- the
     # DU assertions below call paired_ratio again at the largest N, which
@@ -270,22 +315,12 @@ done
 # actually does (someone editing the `for` list without the constant), and
 # described as that rather than as a coverage guarantee.
 [ "$NVALID" = "$LADDER_N" ] || { echo "FAIL: $NVALID of $LADDER_N ladder points produced a ratio"; exit 1; }
-# GATED AT THE LARGEST N, like DU and P1 -- which is what the paragraph
-# above has said the policy is since round 4, while this assertion used
-# $WORST, the minimum across the whole ladder, i.e. exactly the least
-# resolvable point. Round 29 caught it the way these things get caught: a
-# contended run produced ceiling/floor = 0.87 at N=1 and reddened the
-# gate. A ratio below 1.0 says the arm doing MORE work ran FASTER, which
-# is noise by definition, not a measurement -- and gating on the noisiest
-# point while the comment promised the opposite is the same
-# comment-contradicts-code shape this rung keeps finding.
-#
-# The whole curve is still REPORTED, and any inverted point is called out
-# rather than dropped, so nothing is hidden by the change.
-INVERTED=$(awk -v w="$WORST" 'BEGIN{ print (w < 1.0) ? 1 : 0 }')
-[ "$INVERTED" = "0" ] || echo "NOTE: at least one ladder point inverted (worst = $WORST) — the arm doing more work measured faster, so that point is noise, not a measurement. Reported, not gated: see the resolvability paragraph above."
-echo "ceiling/floor at N=$LASTN = $LASTR  (bound: > $CF_BOUND; worst across the ladder was $WORST, reported)"
-ratio_ok "$LASTR" "$CF_BOUND" || {
+# GATED ON THE WORST LADDER POINT, restored at round 30 after round 29's
+# move to the largest N was shown to be a relaxation (see the loop above).
+# The flake that motivated the move is handled by re-measurement, not by
+# dropping the verdict.
+echo "worst ceiling/floor across the ladder = $WORST at its weakest N  (bound: > $CF_BOUND)"
+ratio_ok "$WORST" "$CF_BOUND" || {
     echo "FAIL: naive all-on observation no longer costs meaningfully more than the"
     echo "      unobserved floor ($WORST). Either #915's gate got much better — in"
     echo "      which case re-measure and re-justify the curve in ORACLE.md — or an"

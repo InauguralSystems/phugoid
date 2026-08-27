@@ -1831,14 +1831,27 @@ this rung of a published measurement that nothing in the repo can
 regenerate. The shipped harness is `tests/swarm_profile.eigs` at 1500
 frames over the ladder 1/4/16, hash-pinned, and it is what
 `tests/test_swarm_profile.sh` asserts on every run. Round 29 moved the
-ceiling/floor assertion from the ladder's WORST point to its largest,
-matching what that file's own resolvability paragraph had said the policy
-was since round 4 and what the DU and P1 assertions already did. A
-contended run produced 0.87 at N=1 — the arm doing more work measuring
-faster, which is noise by definition — and gating on the noisiest point
-while the comment promised the opposite was a comment-contradicts-code
-defect, not a stricter gate. The whole curve is still reported and an
-inverted point is now called out explicitly. The table below is
+ceiling/floor assertion from the ladder's WORST point to its largest, on
+the argument that small N is unresolvable under load. **Round 30 proved
+that was a relaxation and it is reverted.**
+
+The demonstration: a mutant that guts the ceiling arm's observation for
+n < 8 — identical fleet digests, identical self-report, only the
+observation shape changed — passed at 0.92 and 0.99, and had been fatal
+before the change. The argument was also backwards on this rung's own
+data: the table above has the ratio SMALLEST at small N (1.343 at N=1
+against 1.489 at N=32), so small N is exactly where a partial loss of
+observation shows first. The move dropped the verdict at the two most
+sensitive points, and the accompanying NOTE asserted a *cause* ("that
+point is noise") for a value that was in fact the regression.
+
+What made the relaxation tempting is that the old gate could not tell
+contention from a dead arm. It can now: **contention does not reproduce
+and a dead arm does**, so a sub-bound point is re-measured twice more and
+gated on the median of three. Costs nothing on a healthy run, ~2 s on a
+loaded one, and the mutant above reds with both points reproducing
+(0.954 → 0.961, 0.996 → 0.996). Every ladder point carries a verdict
+again. The table below is
 therefore kept as a RECORD of a one-off sweep to N=32, not as a
 reproducible artifact, and P2's fitted answers derived from it carry that
 caveat. Reproducing them needs a deliberate re-run at 3000 frames, which
