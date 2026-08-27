@@ -96,7 +96,7 @@ define run_ceiling(n, frames, dt, spread, tstate, P, sched) as:
         local i is 0
         loop while i < n:
             local qobs is fleet[i][2] + 0.0
-            if diverging of qobs:
+            if oscillating of qobs:
                 hits is hits + 1
                 unobserved:
                     evals is evals + 1
@@ -128,7 +128,7 @@ define run_disciplined(n, frames, dt, spread, tstate, P, sched) as:
         local i is 0
         loop while i < n:
             local qobs is fleet[i][2] + 0.0
-            if diverging of qobs:
+            if oscillating of qobs:
                 hits is hits + 1
                 unobserved:
                     evals is evals + 1
@@ -185,7 +185,7 @@ define run_onereader(n, frames, dt, spread, tstate, P, sched) as:
         unobserved:
             fleet is frame_step of [fleet, t, dt, sched, P]
         local qobs is fleet[0][2] + 0.0
-        if diverging of qobs:
+        if oscillating of qobs:
             hits is hits + 1
             unobserved:
                 evals is evals + 1
@@ -226,7 +226,7 @@ define run_ceiling1(n, frames, dt, spread, tstate, P, sched) as:
     loop while f < frames:
         fleet is frame_step of [fleet, t, dt, sched, P]
         local qobs is fleet[0][2] + 0.0
-        if diverging of qobs:
+        if oscillating of qobs:
             hits is hits + 1
             unobserved:
                 evals is evals + 1

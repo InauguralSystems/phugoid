@@ -1856,16 +1856,45 @@ was witnessed by nothing.
 A read counter was not enough either: the mutant kept the read loop and
 moved it inside `unobserved:`, reading the channel 24000 times while
 observing none of them. What distinguishes an observing arm is that its
-**predicate ran**. Every observing arm now counts predicate evaluations
-from inside BOTH branches of a conditional on the predicate, so deleting
-the predicate deletes the counter with it — and unlike `hits`, the count
-is invariant to the collapse, because a predicate returning false has
-still run. At N=4 `ceiling` reports **hits=0, evals=6000**: the collapse
-witnessed rather than mistaken for absence.
+**predicate ran**. Every observing arm counts predicate evaluations from
+inside both branches of a conditional on the predicate — **and round 33
+showed that is still not enough.** The counter sits in `unobserved:`
+blocks the gutting mutant already opens, so preserving it costs one line;
+and the gate publishes its own target (`evals == n * frames`), so a mutant
+that gets the read count right already knows the eval count. **A counter
+whose expected value the gate can DERIVE is a target, not a witness.**
 
-Both counters increment inside `unobserved:` so they pay no entropy walk,
-and both were added to **every** arm so the block cost is common and
-cancels in the ratios. This instrumented the identity-pinned workload and
+**So the arms read `oscillating`, not `diverging`.** `diverging` collapses
+to 0 above N=1, which means at N=4 and N=16 — the ladder points where the
+DU claim is asserted — the healthy value and the gutted value were the
+same number. `oscillating` does not collapse; it *manufactures* verdicts
+on the interleave, which is round 1's original P4 finding, giving
+**0 / 5533 / 19850** across the ladder. Those are not derivable from `n`
+and `frames`, so they are banked as values, and a gutted arm can only
+match them by copying three constants from a pristine run — a
+categorically louder mutation than a `+1`. It is a swap, not an addition,
+so it adds no cost bias. Residual, stated: at N=1 the channel is clean and
+a decaying phugoid gives `oscillating` 0, so healthy and gutted coincide
+there; N=1 is covered instead by the CF timing gate, which a gutted
+ceiling collapses toward 1.0.
+
+Both counters increment inside `unobserved:` so they pay no entropy walk.
+
+**The instrumentation is NOT cost-neutral, and the earlier claim that it
+"is common to every arm and cancels in the ratios" was wrong in both
+halves (round 33).** `unobserved:` is a runtime construct, and the blocks
+executed per channel read are not common — measured: `ceiling` and
+`disciplined` execute **2** per read, `ceiling0`/`ceiling0pb` **1**, and
+`floor`/`unarmed` **0** (their counters sit inside an arm-wide block). So
+the numerator arms pay strictly more than their denominators. And even
+had the cost been equal, equal *absolute* cost added to both terms does
+not cancel in a ratio — it moves it toward 1. Both errors push the same
+way: **toward PASS**. The magnitude is small (a few opcodes against a full
+RK4 per aircraft-frame) and every shipped ratio still lands inside its
+published band, so nothing needed re-banking — but the residual is real,
+one-directional, and recorded rather than asserted away. Instrumenting a
+measured workload is legitimate; asserting without measuring that the
+instrumentation is neutral is the defect. This instrumented the identity-pinned workload and
 the hashes were re-banked against it — a decision, not an accident, taken
 because the alternative was leaving the second headline unwitnessed at the
 N where it is asserted.

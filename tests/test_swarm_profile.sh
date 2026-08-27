@@ -36,7 +36,7 @@ echo "PASS: file_pin planted fault rejected (the real file_pin rejects a halved 
 
 file_pin tests/swarm_profile.eigs         d937845d4045 55
 file_pin tests/swarm_profile_unarmed.eigs ec298d5e32df 14
-file_pin swarm.eigs                       65d677bd480c 283
+file_pin swarm.eigs                       7e9ade956d8b 283
 # sim_core.eigs holds `deriv` and `rk4_step`, where essentially ALL the
 # measured time goes -- round 3 found the pin covering the four swarm files
 # and missing the dominant term, so the stated purpose ("the measurement
@@ -167,18 +167,52 @@ run_arm() {
         echo "FAIL: arm '$self' at N=$nn evaluated its predicate $ev times, expected $want_evals —" >&2
         echo "      an observing arm whose predicate does not run is not observing, whatever it reads." >&2
         sed -n '1,2p' "$out" >&2; exit 1; }
-    case "$self" in
-        ceiling1|onereader)
-            [ "$h" -gt 0 ] || { echo "FAIL: arm '$self' at N=$nn reported hits=0 — a single-channel arm fires at every N" >&2; exit 1; } ;;
-        ceiling|disciplined)
-            if [ "$nn" = "1" ]; then
-                [ "$h" -gt 0 ] || { echo "FAIL: arm '$self' at N=1 reported hits=0 — no shared-binding collapse to excuse it" >&2; exit 1; }
-            else
-                [ "$h" = "0" ] || { echo "FAIL: arm '$self' at N=$nn reported hits=$h — P4 says the shared binding collapses the verdict above N=1; if it fires, P4 needs re-grading" >&2; exit 1; }
-            fi ;;
-        floor|ceiling0|ceiling0pb|unarmed)
-            [ "$h" = "0" ] || { echo "FAIL: arm '$self' at N=$nn reported hits=$h — a SILENT arm is observing" >&2; exit 1; } ;;
+    # THE VERDICT WITNESS — a BANKED value, not a formula.
+    #
+    # Round 33 defeated the previous witness: `evals` counted the branches
+    # of the `if`, and the gate published its own target (`n * frames`), so
+    # a mutant that got the read count right already knew the eval count,
+    # and preserving it cost one line inside an `unobserved:` block the
+    # gutting already opens. A counter whose expected value the gate can
+    # DERIVE is a target, not a witness.
+    #
+    # The arms therefore read `oscillating`, not `diverging`. Two reasons,
+    # both measured. (a) `diverging` COLLAPSES to 0 above N=1 under P4's
+    # shared-binding interleave, so at N=4 and N=16 -- the ladder points
+    # where the DU claim is actually asserted -- the healthy value and the
+    # gutted value were the same number. `oscillating` does not collapse:
+    # it MANUFACTURES verdicts on the interleave, which is round 1's
+    # original P4 finding, giving 0 / 5533 / 19850 across the ladder.
+    # (b) Those are not derivable from n and frames. A gutted arm can only
+    # reproduce them by hard-coding three constants copied from a pristine
+    # run -- a categorically louder mutation than a `+1`.
+    #
+    # Same call count as before, so no new cost bias: this is a swap, not
+    # an addition.
+    #
+    # RESIDUAL, stated rather than papered over: at N=1 there is no
+    # interleave, the channel is clean and a decaying phugoid produces
+    # `oscillating` 0 -- so the healthy and gutted values coincide there,
+    # exactly as they did above N=1 before. N=1 is covered instead by the
+    # CF timing gate (a gutted ceiling collapses ceiling/floor toward 1.0
+    # and reds) and by `reads`. The single-channel arms read one clean
+    # channel and so report 0 at every N; they are executed by no gate
+    # here, and their branch is kept only so a future caller inherits the
+    # check rather than silently getting none.
+    local want_hits
+    case "$self $nn $fr" in
+        "ceiling 1 1500"|"disciplined 1 1500")   want_hits=0 ;;
+        "ceiling 4 1500"|"disciplined 4 1500")   want_hits=5533 ;;
+        "ceiling 16 1500"|"disciplined 16 1500") want_hits=19850 ;;
+        "ceiling1 "*|"onereader "*)              want_hits=0 ;;
+        "floor "*|"ceiling0 "*|"ceiling0pb "*|"unarmed "*) want_hits=0 ;;
+        *)                                       want_hits="" ;;
     esac
+    if [ -n "$want_hits" ] && [ "$h" != "$want_hits" ]; then
+        echo "FAIL: arm '$self' at N=$nn fired its predicate $h times, expected the banked $want_hits —" >&2
+        echo "      that count is not derivable from n and frames, so a mismatch means this arm's observation changed." >&2
+        sed -n '1,2p' "$out" >&2; exit 1
+    fi
     if ! grep -q "^$self $nn " "$out"; then
         echo "FAIL: arm '$self' at N=$nn did not report itself as executed — a different arm ran:" >&2
         sed -n '1,3p' "$out" >&2; exit 1
