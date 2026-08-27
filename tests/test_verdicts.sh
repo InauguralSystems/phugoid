@@ -118,10 +118,15 @@ grep -q '^\*\*P2 — REFUTED' ORACLE.md \
 # P1's evidence is a read-share decomposition: the fraction of the
 # observer's marginal cost attributable to READS rather than to arming,
 # obtained by differencing the ceiling arm against ceiling1/ceiling0.
-# It is a ONE-OFF measurement with no committed producer -- like the
-# 3000-frame sweep above, and stated as such in ORACLE rather than
-# implied to be reproducible. What IS gateable is the ARGUMENT it carries,
-# and that argument turns on a specific impossibility.
+# Round 23 RETRACTED the framing this paragraph used to carry. It said
+# the decomposition was "a one-off with no committed producer" and that
+# what was gateable was therefore "the ARGUMENT it carries". Both halves
+# were false: tests/swarm_profile.eigs is the producer and is hash-pinned,
+# and the argument's premise (a negative read share is impossible) was an
+# ordinary sign flip. Round 24 found this comment still asserting the
+# retracted version in the present tense, twenty lines above the block
+# retracting it -- and P3.producer greps ORACLE.md only, so it certified
+# "the false justification is gone" from the one file where it was not.
 # The banked shares, as re-measured at round 23. The N=32 point is the
 # unstable one: three runs gave +5.2, +1.7, -2.8, so its SIGN is not a
 # property of the system. It is banked as a record, not as a pin on a
@@ -129,7 +134,7 @@ grep -q '^\*\*P2 — REFUTED' ORACLE.md \
 # P1's verdict, and that premise was false.
 P1_SHARES="8 -21.5
 16 -4.8
-32 5.2"
+32 1.7"
 
 # Every share must be the published one.
 while read -r n sh; do

@@ -1999,10 +1999,13 @@ against disciplined-with-N-readers and finding the write cost differs"*.
 *"comparing DISCIPLINED against ONEREADER cannot test arming, because both
 wrap the integration, so neither pays write cost whatever the arming
 granularity is."* The difference that clause reads is zero whether P1 is
-true or false. Item 8 has now caught three of the four registered
+true or false. Item 8 has now caught **all four** registered
 conditions — P3's (a dead cell satisfies it), P4's (any failure not
-labelled physics satisfies it), and P1's (its discriminator cannot
-discriminate). That is a fact about how the predictions were written, not
+labelled physics satisfies it), P1's (its discriminator cannot
+discriminate), and P2's (an arm that does no work drives `ceiling − floor`
+to 0, so the slope misses the C6 prediction and P2 reads REFUTED off a
+dead harness, for exactly the reason P3's reads REFUTED off a dead cell —
+round 24. P2's verdict is sound on other grounds; its condition is not). That is a fact about how the predictions were written, not
 about the observer, and it is the most transferable thing this rung
 produced.
 
@@ -2018,11 +2021,33 @@ measurement came out **-2.8%** and **+5.2%** ninety seconds apart. The
 published **+29.8%** at N=32 does not reproduce — three re-runs gave
 +5.2%, +1.7%, -2.8% — and is withdrawn.
 
-What is gated now is the ratio the practical claim is about:
-`disciplined/onereader` at the largest ladder point, measured with the
-same paired-median estimator as the other arms, at **~1.01** against a
-1.20 bound. Dropping 31 of 32 readers per frame costs about 1.5%, inside
-the box's ±10% noise floor.
+**Round 24 found round 23's replacement gate was the same defect one file
+over.** It gated `disciplined/onereader` — the very pair `swarm.eigs` says
+cannot test arming, because both arms wrap the integration so neither pays
+write cost either way. It was also one-sided and flaky: three runs of that
+ratio on this box gave **0.9889, 1.0432 and 1.2135**, and the 1.2135 run
+FAILED its own 1.20 bound. A gate whose subject reports 0.99 and 1.21 is
+measuring the box. (The published "~1.01, dropping 31 of 32 readers" was
+wrong twice over: the ladder tops out at N=16, so it is 15 of 16, and the
+shipped gate measured 0.9889 — the opposite side of 1.0.)
+
+What is gated now is `ceiling0/floor`, which is different in kind.
+`ceiling0` is the unwrapped ceiling shape with **zero** verdict reads, so
+if arming were per-binding or liveness-scoped it would collapse onto the
+floor. It does not — measured **1.2428** and **1.4173** on two runs, both
+far above 1. That is EigenScript#1046's per-`EigsState` arming being paid
+by a hot loop that reads no verdict at all, it is what P1's mechanism half
+is actually about, and it CAN fail: a collapsed ratio of 1.00 is what
+per-binding arming would look like, and the planted fault rejects it.
+
+**The read share stays ungated, and that is the finding rather than a
+gap.** Differencing `ceiling` against `ceiling0` does not resolve on this
+box either: one run gives a 36% read share, another 0.6%, and on the first
+`ceiling1` (ONE reader) measured MORE than `ceiling` (sixteen), which is
+impossible. A second, independent estimator therefore reaches the same
+verdict the wall-time differences did — the arms are within noise of each
+other here — which is what makes "the mechanism is NOT resolved" a
+measurement rather than a shrug.
 
 **P1 is CONFIRMED in its practical form and its MECHANISM IS NOT
 RESOLVED.** Dropping 31 of 32 readers per frame saves nothing measurable.

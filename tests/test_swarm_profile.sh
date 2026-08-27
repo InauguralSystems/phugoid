@@ -223,35 +223,44 @@ for nm in disciplined unarmed; do
 done
 echo "PASS: disciplined and unarmed both sit >${DU_BOUND}x below the ceiling at N=$LASTN"
 
-# P1, MEASURED. Round 23: P1's evidence had been a read-share
-# decomposition that ORACLE called "a one-off measurement with no
-# committed producer" -- which was false. The producer is
-# tests/swarm_profile.eigs, it dispatches ceiling1/ceiling0/onereader, and
-# it is hash-pinned twenty lines above. Round 22 gated an ARGUMENT about
-# those numbers instead of the measurement, on that false premise, and the
-# argument's own load-bearing clause ("a negative read share is
-# impossible") turned out to be the ordinary sign flip of a ~1.5%
-# difference taken between two ~5 s wall times: the SAME N=32 quantity
-# measured -2.8% and +5.2% ninety seconds apart.
+# P1's MECHANISM, gated on the one comparison that can discriminate.
 #
-# What P1 actually claims in its practical form is that dropping 31 of 32
-# readers per frame saves nothing measurable. That is a RATIO, it is
-# cheap, and the estimator for it already exists in this file. The bound
-# is the same +-10% noise floor the DU block is written around, doubled
-# for margin, because the measured value sits at ~1.01.
-P1_BOUND=1.20
-[ "$P1_BOUND" = "1.20" ] || { echo "FAIL: P1_BOUND is $P1_BOUND, declared 1.20"; exit 1; }
-p1r=$(paired_ratio disciplined onereader "$LASTN")
-printf "  disciplined/onereader at N=%s : %s  (bound: < %s)\n" "$LASTN" "$p1r" "$P1_BOUND"
-awk -v x="$p1r" -v b="$P1_BOUND" 'BEGIN{ exit !(x < b) }' || {
-    echo "FAIL: dropping 31 of 32 readers at N=$LASTN changed cost by more than ${P1_BOUND}x (ratio $p1r) —"
-    echo "      P1's practical claim is refuted and arming is finer than EigenScript#1046 established."
+# Round 24 found round 23's gate was the same non-discriminating pair the
+# rung had just condemned: `disciplined/onereader`, where swarm.eigs says
+# in a comment this very file hash-pins that "comparing DISCIPLINED
+# against ONEREADER cannot test arming, because both wrap the integration,
+# so neither pays write cost whatever the arming granularity is". It was
+# also one-sided and flaky -- three runs of the same ratio on this box gave
+# 0.9889, 1.0432 and 1.2135, and the 1.2135 run FAILED the 1.20 bound. A
+# gate whose own subject reports 0.99 and 1.21 is measuring the box.
+#
+# `ceiling0/floor` is different in kind. ceiling0 is the unwrapped ceiling
+# shape with ZERO verdict reads, so if arming were per-binding or
+# liveness-scoped it would collapse onto the floor. It does not: measured
+# 1.2428 and 1.4173 on two runs, both far above 1. That is
+# EigenScript#1046's per-EigsState arming, paid by a hot loop that reads
+# no verdict at all, and it is what P1's mechanism half is about. The
+# bound is wide because the spread above is wide; what it tests is the
+# COLLAPSE, which is a factor-of-two effect, not a percentage.
+P1_BOUND=1.10
+[ "$P1_BOUND" = "1.10" ] || { echo "FAIL: P1_BOUND is $P1_BOUND, declared 1.10"; exit 1; }
+p1r=$(paired_ratio ceiling0 floor "$LASTN")
+printf "  ceiling0/floor at N=%s : %s  (bound: > %s)\n" "$LASTN" "$p1r" "$P1_BOUND"
+ratio_ok "$p1r" "$P1_BOUND" || {
+    echo "FAIL: a hot loop with ZERO verdict reads now costs <=${P1_BOUND}x the floor (ratio $p1r) —"
+    echo "      arming has become finer than per-EigsState and EigenScript#1046 needs re-grading."
     exit 1; }
-echo "PASS: P1 measured — 31 fewer readers per frame cost ${p1r}x at N=$LASTN"
-# ...and the bound must be able to fail. A ratio of 1.50 is what "reads
-# dominate" would look like.
-awk -v x=1.50 -v b="$P1_BOUND" 'BEGIN{ exit !(x < b) }' && { echo "FAIL: the P1 bound accepted 1.50 — it cannot fail"; exit 1; }
-echo "PASS: P1 planted fault rejected (ratio 1.50 >= $P1_BOUND)"
+echo "PASS: P1 mechanism — zero-reader arming still costs ${p1r}x the floor at N=$LASTN"
+# ...and the bound must be able to fail: 1.00 is what a collapsed
+# (per-binding) arming would look like.
+ratio_ok 1.00 "$P1_BOUND" && { echo "FAIL: the P1 bound accepted 1.00 — it cannot fail"; exit 1; }
+echo "PASS: P1 planted fault rejected (ratio 1.00 <= $P1_BOUND)"
+# The READ share is NOT gated, and that is the finding rather than a gap.
+# Differencing ceiling against ceiling0 on this box does not resolve: one
+# run gives a 36% read share, another 0.6%, and on the first ceiling1 (ONE
+# reader) measured MORE than ceiling (sixteen), which is impossible. The
+# arms are within noise of each other here, which is exactly what P1's
+# verdict says.
 # ...and the bound must be able to fail: a ratio of 1.00 is what "unobserved:
 # buys nothing" would look like.
 ratio_ok 1.00 "$DU_BOUND" && { echo "FAIL: the DU bound accepted 1.00 — it cannot fail"; exit 1; }
