@@ -107,6 +107,22 @@ chk "$(awk -v o="$ODRIFT" -v f="$FDRIFT" 'BEGIN{print (o>=2*f)?1:0}')" \
 # --- the verdict must be STATED. Exit gate item 3 requires every
 # prediction reported with its measurement and any refuted one stated as
 # refuted. P1, P3 and P4 carried verdicts; P2 carried a description.
+# EVERY prediction's VERDICT WORD. Round 26: this file's own header says
+# it exists because "P1's verdict could be inverted from CONFIRMED to
+# REFUTED with the entire rung-4 suite still green" -- and three rewrites
+# later, only P2's word was pinned. P1's, P3's and P4's could all be
+# flipped while this file printed "P1's verdict text is pinned". R22's pin
+# matched the line's tail, R25's replacement pinned the mechanism half;
+# neither covered the word. Nothing else greps ORACLE.md at all.
+verdict_is() { # verdict_is <label> <regex>
+    grep -qE "$2" ORACLE.md \
+        && chk 1 "$1.word: ORACLE's verdict word is unchanged" \
+        || chk 0 "$1.word: ORACLE's verdict for $1 has been changed or removed (exit gate item 7)"
+}
+verdict_is P1 '^\*\*P1 is CONFIRMED in its practical form\.'
+verdict_is P3 '^\*\*P3 — CONFIRMED,'
+verdict_is P4 '^\*\*P4 — CONFIRMED,'
+
 grep -q '^\*\*P2 — REFUTED' ORACLE.md \
     && chk 1 "P2.verdict: ORACLE states P2's verdict" \
     || chk 0 "P2.verdict: ORACLE does not state P2 as REFUTED (exit gate item 3)"
@@ -128,23 +144,12 @@ grep -q '^\*\*P2 — REFUTED' ORACLE.md \
 # retracted version in the present tense, twenty lines above the block
 # retracting it -- and P3.producer greps ORACLE.md only, so it certified
 # "the false justification is gone" from the one file where it was not.
-# The banked shares, as re-measured at round 23. The N=32 point is the
-# unstable one: three runs gave +5.2, +1.7, -2.8, so its SIGN is not a
-# property of the system. It is banked as a record, not as a pin on a
-# conclusion -- round 22 made `a negative share is impossible` the pin on
-# P1's verdict, and that premise was false.
-P1_SHARES="8 -21.5
-16 -4.8
-32 1.7"
-
-# Every share must be the published one.
-# Round 25: this was an unanchored grep over the whole 2500-line file, so
-# the (N, share) ASSOCIATION -- the entire content of a decomposition --
-# was unpinned: putting N=32's value at N=8 still passed. And the summary
-# line below printed PASS unconditionally, so a real failure was followed
-# immediately by "matches ORACLE". The triple was also SPLICED -- two
-# points from the banked run plus a median of three later re-runs -- and
-# appears nowhere in ORACLE as a triple, so it is no longer banked as one.
+# Round 26: the banked P1_SHARES triple is GONE. Round 25 replaced the
+# loop that consumed it with the range pin below and left the data in
+# place under a twelve-line comment still presenting it as banked -- dead
+# data that reads as coverage, which is the pattern ORACLE records at its
+# own line 1469. What P1's read half supports is a RANGE, so that is what
+# is pinned.
 P1_RANGE_OK=1
 grep -q 'ranges \*\*-5.6% to +27.6%\*\*' ORACLE.md || P1_RANGE_OK=0
 chk "$P1_RANGE_OK" "P1.banked: ORACLE publishes the read share as a RANGE over interleaved replicates, not a spliced triple"

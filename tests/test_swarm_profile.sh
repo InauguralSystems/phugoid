@@ -28,13 +28,13 @@ file_pin() {
 FP=$(mktemp -d)
 sed 's/^FRAMES is 1500$/FRAMES is 750/' tests/swarm_profile.eigs > "$FP/mut.eigs"
 cmp -s tests/swarm_profile.eigs "$FP/mut.eigs" && { rm -rf "$FP"; echo "FAIL: the file_pin plant did not apply"; exit 1; }
-if ( file_pin "$FP/mut.eigs" 96f09bf62d9d 50 ) >/dev/null 2>&1; then
+if ( file_pin "$FP/mut.eigs" a3c522851b0c 53 ) >/dev/null 2>&1; then
     rm -rf "$FP"; echo "FAIL: file_pin ACCEPTED a halved frame count"; exit 1
 fi
 rm -rf "$FP"
 echo "PASS: file_pin planted fault rejected (the real file_pin rejects a halved FRAMES)"
 
-file_pin tests/swarm_profile.eigs         96f09bf62d9d 50
+file_pin tests/swarm_profile.eigs         a3c522851b0c 53
 file_pin tests/swarm_profile_unarmed.eigs ec298d5e32df 14
 file_pin swarm.eigs                       dd252ed85bd1 240
 # sim_core.eigs holds `deriv` and `rk4_step`, where essentially ALL the
@@ -242,8 +242,19 @@ echo "PASS: disciplined and unarmed both sit >${DU_BOUND}x below the ceiling at 
 # no verdict at all, and it is what P1's mechanism half is about. The
 # bound is wide because the spread above is wide; what it tests is the
 # COLLAPSE, which is a factor-of-two effect, not a percentage.
-P1_BOUND=1.10
-[ "$P1_BOUND" = "1.10" ] || { echo "FAIL: P1_BOUND is $P1_BOUND, declared 1.10"; exit 1; }
+# 1.20, not 1.10. Round 26 measured the counterfactual's spread across
+# nine medians-of-five (0.898-1.041) and warned the 1.10 bound left ~6%
+# headroom on a HARD FAIL in the red direction; the next run came in at
+# 1.0599, 4% away. A plant that can red spuriously is a flake installed as
+# a gate -- the defect round 24 removed from the previous P1 gate.
+#
+# 1.20 sits between the two populations with margin on BOTH sides:
+# per-EigsState arming measures 1.38-1.53 (15%+ above), per-binding
+# measures 0.90-1.06 (13%+ below). Widening it does not weaken the
+# discrimination, because what the gate tests is a factor-of-1.4 collapse,
+# not a percentage.
+P1_BOUND=1.20
+[ "$P1_BOUND" = "1.20" ] || { echo "FAIL: P1_BOUND is $P1_BOUND, declared 1.20 — a widened bound must be re-justified in ORACLE.md"; exit 1; }
 p1r=$(paired_ratio ceiling0 floor "$LASTN")
 printf "  ceiling0/floor at N=%s : %s  (bound: > %s)\n" "$LASTN" "$p1r" "$P1_BOUND"
 ratio_ok "$p1r" "$P1_BOUND" || {

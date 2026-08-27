@@ -2038,12 +2038,17 @@ floor. It does not — measured **1.2428** and **1.4173** on two runs, both
 far above 1. That is EigenScript#1046's per-`EigsState` arming being paid
 by a hot loop that reads no verdict at all, it is what P1's mechanism half
 is actually about, and it CAN fail, and its planted fault is now a
-MEASUREMENT rather than a literal: `ceiling0pb` is the same arm with every
-assignment individually wrapped in `unobserved:` and the loops left
+MEASUREMENT rather than a literal: `ceiling0pb` is the same arm with its
+assignments wrapped in `unobserved:` and the loop statements left
 observed — what per-binding or liveness-scoped arming produces — returning
 the **identical fleet digest**, so only the observation shape differs. It
-collapses to **0.9445**, against 1.3827 for the shipped arm in the same
-run: a factor of 1.46 across the bound. Round 25 built the counterfactual;
+collapses to **~0.99** — nine independent medians-of-five span 0.898–1.041,
+with the suite's own run at 0.9900 — against 1.38–1.45 for the shipped
+arm: a factor of ~1.4 across the bound, which is set at 1.20 with ~15% margin on the passing side and ~13% on the failing side. (Round 26: two different single
+values, 0.9445 and 0.9855, had been published for this one measurement,
+and eight of nine re-measurements exceed the lower one. A counterfactual
+quoted as a point estimate is the same defect as a slope quoted from one
+run.) Round 25 built the counterfactual;
 the plant had been `ratio_ok 1.00`, which proves the bound can fail but not
 that the arm can produce the failing value.
 
@@ -2065,10 +2070,14 @@ verdict that had said "MECHANISM IS NOT RESOLVED" flatly since round 1.
   replicates**, and 1.24/1.42/1.48 across three earlier sessions. Arming
   is paid by a hot loop that reads no verdict at all, which is
   EigenScript#1046's per-`EigsState` granularity, and the counterfactual
-  confirms it discriminates: wrapping every assignment individually in
-  `unobserved:` while leaving the loops observed — what per-binding arming
-  would produce, digest held identical — drops the same ratio to
-  **0.9855**, which the gate's 1.10 bound rejects.
+  confirms it discriminates: wrapping the assignments in
+  `unobserved:` while leaving the loop statements observed — what
+  per-binding arming would produce, digest held identical at
+  `4466955440` — drops the same ratio to **~0.99**, which the gate's 1.20
+  bound rejects. (The description "every assignment" was inexact: five of
+  eleven remain unwrapped, including a `local i is 0` inside the frame
+  loop, which is why the arm sits just under 1.0 rather than well below.
+  Round 26.)
 - **Not resolved.** The read share, `(ceiling − ceiling0)/(ceiling −
   floor)`, ranges **-5.6% to +27.6%** over those same seven replicates,
   and `ceiling1` (ONE reader) measured faster than `ceiling` (sixteen) in

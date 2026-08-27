@@ -27,8 +27,8 @@ SPREAD is 0.05
 # require rejection). That proves the BOUND can fail; it does not prove
 # the ARM can produce the failing value.
 #
-# This does. Every assignment is individually wrapped in `unobserved:`
-# while the two `loop while` statements stay in observed context -- which
+# This does. The assignments are wrapped in `unobserved:` while the two
+# `loop while` statements stay in observed context -- which
 # is exactly what per-binding or liveness-scoped arming would produce. The
 # fleet digest is identical to run_ceiling0's, so the physics is held
 # fixed and only the observation shape differs. Measured, it collapses to
@@ -83,6 +83,18 @@ elif arm == "ceiling0pb":
     r is run_ceiling0_perbinding of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
 elif arm == "ceiling0":
     r is run_ceiling0 of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
-else:
+elif arm == "onereader":
     r is run_onereader of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+else:
+    # LOUD. Round 26: this was a bare `else` falling through to
+    # run_onereader, and the summary line printed the REQUESTED arm rather
+    # than the executed one -- so `ceiling0pbXX` measured onereader and
+    # reported itself as ceiling0pbXX. P1's planted fault is a ratio
+    # against this driver, so a typo in the arm name would have produced a
+    # plausible-looking collapse (0.9853, indistinguishable from the
+    # counterfactual's own value) while never running the counterfactual.
+    # A dispatch that cannot say "I do not know that arm" is a silent
+    # substitution, which is this rung's oldest defect class.
+    print of f"FATAL unknown arm {arm}"
+    throw of f"unknown profile arm: {arm}"
 print of f"profiled {arm} n={n} digest={r}"
