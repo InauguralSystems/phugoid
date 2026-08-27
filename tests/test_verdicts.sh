@@ -151,12 +151,17 @@ verdict_word_ok() { # verdict_word_ok <label> <lead-regex> <expected-word> <expe
     # lead="^A|^B", `${lead}${word}` is "^A|^B$word", so the FIRST branch
     # still matches any line -- and the P3 mutant passed again. Leads that
     # already end with the word are left alone.
+    # `set -f` because `$lead` is unquoted for the IFS split and would
+    # otherwise also undergo pathname expansion (round 29 -- inert today
+    # only because no file in ROOT matches a verdict lead).
     local leadword="" br
     local IFS='|'
+    set -f
     for br in $lead; do
         case "$br" in *"$word") : ;; *) br="${br}${word}" ;; esac
         leadword="${leadword:+$leadword|}$br"
     done
+    set +f
     unset IFS
     local m; m=$(grep -cE "$leadword" ORACLE.md)
     [ "$m" -eq "$n" ] \

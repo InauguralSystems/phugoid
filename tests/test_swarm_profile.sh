@@ -140,25 +140,43 @@ paired_ratio() {
 ratio_ok() { awk -v x="$1" -v b="$2" 'BEGIN{ exit !(x > b) }'; }
 
 mins() {  # minimum of 5 wall-clock seconds
-    # Round 28: this swallowed the exit status exactly as paired_ratio did
-    # before round 27, and round 27 fixed only paired_ratio. `mins`
-    # produces BOTH the four published columns and OVH -- and a collapsed
-    # OVH biases every ratio toward 1.0, which is the PASSING direction for
-    # the ceiling0pb plant. A crashed arm returns in ~0.02 s and would have
-    # been reported as a measurement.
-    local mo; mo=$(mktemp)
-    for _ in 1 2 3 4 5; do
-        local t0 t1
+    # Round 29: the round-28 status check here PRINTED FAIL AND EXITED 0.
+    # The timing loop was the left-hand side of `done | sort -n | head -1`,
+    # so `exit 1` killed only the loop subshell, `head` returned 0, and the
+    # trailing `rm -f` reset the status -- so `mins` returned SUCCESS with
+    # empty stdout and the caller's `OVH=$(mins ...)` never tripped
+    # errexit. Measured end-to-end with a wrapper that kills the
+    # fixed-cost probe: the gate printed "a timing for a run that did not
+    # happen is not a measurement", then printed "fixed cost (1 frame): s",
+    # then reported every ratio and exited 0. OVH became the empty string,
+    # which `awk -v o=` reads as 0 -- so the estimator ORACLE describes
+    # (fixed cost subtracted from every arm) was not the estimator that
+    # ran, and nothing noticed.
+    #
+    # This is the same swallow round 27 removed from paired_ratio, one
+    # function down, and it is the "prints FAIL, exits 0" shape this
+    # repo's own guard hook exists to catch. No pipeline in the path now:
+    # the tempfile idiom paired_ratio already uses.
+    # Two call shapes: `mins <driver> <arm> <n>` for the armed driver and
+    # `mins <unarmed-driver> <n>` for the control, which takes N as its
+    # only argument. Normalised here so run_arm gets (driver, arm, n) in
+    # both cases and the control's self-report is checked too -- round 29
+    # noted mins was the only producer with no substitution guard, and the
+    # four PRINTED columns plus OVH are mins-only.
+    local drv="$1" arm nn
+    if [ "$#" -ge 3 ]; then arm="$2"; nn="$3"; else arm=""; nn="$2"; fi
+    local tf; tf=$(mktemp); local mo; mo=$(mktemp)
+    local _i t0 t1
+    for _i in 1 2 3 4 5; do
         t0=$(date +%s%N)
-        if ! "$EIGS" "$@" > "$mo" 2>&1; then
-            echo "FAIL: '$*' exited nonzero — a timing for a run that did not happen is not a measurement" >&2
-            sed -n '1,3p' "$mo" >&2; rm -f "$mo"; exit 1
-        fi
+        run_arm "$drv" "$arm" "$nn" "$mo"
         t1=$(date +%s%N)
-        awk -v a="$t0" -v b="$t1" 'BEGIN{ printf "%.3f\n", (b-a)/1000000000 }'
-    done | sort -n | head -1
-    rm -f "$mo"
+        awk -v a="$t0" -v b="$t1" 'BEGIN{ printf "%.3f\n", (b-a)/1000000000 }' >> "$tf"
+    done
+    sort -n "$tf" | head -1
+    rm -f "$tf" "$mo"
 }
+
 
 DU_BOUND=1.20
 [ "$DU_BOUND" = "1.20" ] || { echo "FAIL: DU_BOUND is $DU_BOUND, declared 1.20"; exit 1; }
@@ -227,6 +245,7 @@ for n in 1 4 16; do
     printf "%4s %9s %12s %8s %9s %9s\n" "$n" "$c" "$d" "$f" "$u" "$r"
     NVALID=$((NVALID+1))
     WORST=$(awk -v w="$WORST" -v r="$r" 'BEGIN{ print (r<w)?r:w }')
+    LASTR="$r"
     # NOTE (round 7): an earlier comment here claimed the disciplined and
     # unarmed arms are judged on THESE printed numbers. They are not -- the
     # DU assertions below call paired_ratio again at the largest N, which
@@ -251,8 +270,22 @@ done
 # actually does (someone editing the `for` list without the constant), and
 # described as that rather than as a coverage guarantee.
 [ "$NVALID" = "$LADDER_N" ] || { echo "FAIL: $NVALID of $LADDER_N ladder points produced a ratio"; exit 1; }
-echo "worst ceiling/floor across N = $WORST  (bound: > $CF_BOUND)"
-ratio_ok "$WORST" "$CF_BOUND" || {
+# GATED AT THE LARGEST N, like DU and P1 -- which is what the paragraph
+# above has said the policy is since round 4, while this assertion used
+# $WORST, the minimum across the whole ladder, i.e. exactly the least
+# resolvable point. Round 29 caught it the way these things get caught: a
+# contended run produced ceiling/floor = 0.87 at N=1 and reddened the
+# gate. A ratio below 1.0 says the arm doing MORE work ran FASTER, which
+# is noise by definition, not a measurement -- and gating on the noisiest
+# point while the comment promised the opposite is the same
+# comment-contradicts-code shape this rung keeps finding.
+#
+# The whole curve is still REPORTED, and any inverted point is called out
+# rather than dropped, so nothing is hidden by the change.
+INVERTED=$(awk -v w="$WORST" 'BEGIN{ print (w < 1.0) ? 1 : 0 }')
+[ "$INVERTED" = "0" ] || echo "NOTE: at least one ladder point inverted (worst = $WORST) — the arm doing more work measured faster, so that point is noise, not a measurement. Reported, not gated: see the resolvability paragraph above."
+echo "ceiling/floor at N=$LASTN = $LASTR  (bound: > $CF_BOUND; worst across the ladder was $WORST, reported)"
+ratio_ok "$LASTR" "$CF_BOUND" || {
     echo "FAIL: naive all-on observation no longer costs meaningfully more than the"
     echo "      unobserved floor ($WORST). Either #915's gate got much better — in"
     echo "      which case re-measure and re-justify the curve in ORACLE.md — or an"

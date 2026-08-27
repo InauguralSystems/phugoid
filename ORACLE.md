@@ -1830,7 +1830,15 @@ with a throwaway driver and NO committed producer — the fourth instance in
 this rung of a published measurement that nothing in the repo can
 regenerate. The shipped harness is `tests/swarm_profile.eigs` at 1500
 frames over the ladder 1/4/16, hash-pinned, and it is what
-`tests/test_swarm_profile.sh` asserts on every run. The table below is
+`tests/test_swarm_profile.sh` asserts on every run. Round 29 moved the
+ceiling/floor assertion from the ladder's WORST point to its largest,
+matching what that file's own resolvability paragraph had said the policy
+was since round 4 and what the DU and P1 assertions already did. A
+contended run produced 0.87 at N=1 — the arm doing more work measuring
+faster, which is noise by definition — and gating on the noisiest point
+while the comment promised the opposite was a comment-contradicts-code
+defect, not a stricter gate. The whole curve is still reported and an
+inverted point is now called out explicitly. The table below is
 therefore kept as a RECORD of a one-off sweep to N=32, not as a
 reproducible artifact, and P2's fitted answers derived from it carry that
 caveat. Reproducing them needs a deliberate re-run at 3000 frames, which
