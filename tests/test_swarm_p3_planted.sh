@@ -90,8 +90,13 @@ plant() { # plant <name> <expected-claims> <expected-red-count> <fn> [args...]
     # localize one is a line that is already flushed when it lands.
     echo "... $name"
     "$@" < "$WORK/clean" > "$WORK/p"
+    echo "... $name: mutated ($(wc -l < "$WORK/p") lines)"
     cmp -s "$WORK/clean" "$WORK/p" && { echo "FAIL: plant $name changed nothing (vacuous plant)"; exit 1; }
-    if p3_claims "$WORK/p" > "$WORK/r" 2>&1; then
+    echo "... $name: differs, grading"
+    local prc=0
+    p3_claims "$WORK/p" > "$WORK/r" 2>&1 || prc=$?
+    echo "... $name: graded rc=$prc"
+    if [ "$prc" -eq 0 ]; then
         echo "FAIL: plant $name did not red any claim — $want cannot fail"; cat "$WORK/r"; exit 1
     fi
     local got n
