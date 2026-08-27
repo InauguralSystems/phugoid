@@ -93,8 +93,17 @@ plant() { # plant <name> <expected-claims> <expected-red-count> <fn> [args...]
     echo "... $name: mutated ($(wc -l < "$WORK/p") lines)"
     cmp -s "$WORK/clean" "$WORK/p" && { echo "FAIL: plant $name changed nothing (vacuous plant)"; exit 1; }
     echo "... $name: differs, grading"
+    # The grader runs in a SUBSHELL. On CI it was dying inside p3_claims in
+    # a way that took the whole harness with it -- no ERR, no TERM, no
+    # message, `|| prc=$?` never reached -- which is what a fatal signal in
+    # the current shell looks like. A subshell contains that: the parent
+    # survives and reports 128+n, so the harness can say what happened
+    # instead of vanishing. A grader must not be able to kill its harness.
     local prc=0
-    p3_claims "$WORK/p" > "$WORK/r" 2>&1 || prc=$?
+    ( p3_claims "$WORK/p" ) > "$WORK/r" 2>&1 || prc=$?
+    if [ "$prc" -gt 128 ]; then
+        echo "FAIL: plant $name — the grader died on signal $((prc-128)) (rc=$prc)"; tail -5 "$WORK/r"; exit 1
+    fi
     echo "... $name: graded rc=$prc"
     if [ "$prc" -eq 0 ]; then
         echo "FAIL: plant $name did not red any claim — $want cannot fail"; cat "$WORK/r"; exit 1
