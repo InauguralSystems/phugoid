@@ -86,7 +86,7 @@ plant() { # plant <name> <expected-claims> <expected-red-count> <fn> [args...]
 plant c1 P3.truth.alive 1 f_sed 's/^(p3truth ac=0 sp=0\.05 .*)u_pp_last=[0-9]+/\1u_pp_last=120/'
 # c2: cadence 74 starts detecting the live mode -- the unit-invariant
 # window/period failure would be gone.
-plant c2 P3.blind74 1 f_mvdetect '^p3 unit=rad ac=0 sp=0\.05 cad=74 ' 50
+plant c2 'P3.blind74 P3.noise' 2 f_mvdetect '^p3 unit=rad ac=0 sp=0\.05 cad=74 ' 50
 
 # c3: the FALSE ALL-CLEAR shrinks below the bound on EVERY radian row.
 # The dangerous direction is what makes P3 a safety finding rather than a
@@ -120,7 +120,7 @@ plant c8 P3.rows 1 f_sed '/^p3 unit=/d'
 # (tests/observer_lat_check.eigs); rung 4 did not carry it forward, and
 # nothing noticed until a critic re-expressed the channel in degrees and
 # watched every substantive claim invert while the gate still printed OK.
-plant c9 'P3.blind74 P3.unitdep P3.unitid' 3 f_sed '/^p3 unit=(deg|mrad) /d'
+plant c9 'P3.blind74 P3.profile P3.unitdep P3.unitid' 4 f_sed '/^p3 unit=(deg|mrad) /d'
 # c10: THE SEED REGRESSION. Restore the one `oscillating` per cadence-74
 # row that reverting the channel seed to 0.0 produces. Round 14 found the
 # previous bound (`fosc -gt 1`, inherited from round 12's withdrawn "1 of
@@ -128,7 +128,7 @@ plant c9 'P3.blind74 P3.unitdep P3.unitid' 3 f_sed '/^p3 unit=(deg|mrad) /d'
 # `flate` column it had been moved onto was structurally blind to it --
 # `flate` is `fosc` minus precisely the one read the artifact lands on.
 # Twelve plants existed and none used the value that actually occurred.
-plant c10 P3.blind74 12 f_mvdetect 'cad=74 ' 1
+plant c10 'P3.blind74 P3.noise' 15 f_mvdetect 'cad=74 ' 1
 
 # c13: the phase axis must not be droppable, and the phase claim must be
 # able to fail. Round 14 found phase was the fifth unswept hidden variable
@@ -202,8 +202,16 @@ plant c32 P3.monoclass 1 f_sed 's/^(p3mono kind=ramp unit=rad .*)diverging=[0-9]
 # mode". Round 17's monotone control could not have found it: every arm of
 # obs_num_oscillating needs sign flips, which a monotone channel never has,
 # so its 0 was invariant over 1176 cells.
-plant c33 P3.noise 1 f_sed 's/^(p3mono kind=noise unit=deg cad=104 .*)fosc=[0-9]+/\1fosc=4/'
+plant c33 'P3.noise P3.profile' 2 f_sed 's/^(p3mono kind=noise unit=deg cad=104 .*)fosc=[0-9]+/\1fosc=4/'
 plant c34 P3.noise 1 f_sed '/^p3mono kind=noise unit=mrad /d'
+# c35/c36: the PROFILE contrast -- the thing that actually distinguishes a
+# mode from noise, since at cadence 104 the two are both at 100%.
+plant c35 'P3.noise P3.profile' 3 f_sed 's/^(p3mono kind=noise unit=deg cad=(84|94) .*)fosc=[0-9]+/\1fosc=9/'
+# c36 reds four claims and all four are genuine: blind74, the unit
+# collapse, the noise inversion and the profile contrast ALL rest on the
+# fleet reading 0 at cadence 74. Partition-preserving so the arithmetic
+# claim does not fire spuriously on top.
+plant c36 'P3.blind74 P3.noise P3.profile P3.unitid' 5 f_setbucket '^p3 unit=deg ac=0 sp=0\.05 cad=74 ' fosc 90
 # c15: the buckets must partition the full-window count.
 plant c15 P3.partition 1 f_sed 's/^(p3 unit=rad ac=0 sp=0\.05 cad=94 .*)fother=[0-9]+/\1fother=7/'
 
@@ -227,4 +235,4 @@ PN=$(grep -n "^P3ROWS$" tests/test_swarm.sh | head -1 | cut -d: -f1)
 [ "$CL" -lt "$PN" ] || { echo "FAIL: P3's claim assertions (line $CL) run AFTER the exact-row pins (line $PN) — they are unreachable, which is the round-8 defect"; exit 1; }
 echo "--- ordering: claims at line $CL precede the row pins at line $PN"
 
-echo "PASS: all 34 P3 claim plants red exactly their own claim set, and the claims precede the row pins"
+echo "PASS: all 36 P3 claim plants red exactly their own claim set, and the claims precede the row pins"

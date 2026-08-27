@@ -360,13 +360,57 @@ p3_claims() {
             # a mode. This is what refutes round 17's conclusion, and it
             # is the only control in three rounds that could have.
             [ "$(( mfosc * 100 / mfull ))" -ge 90 ] || _cf P3.noise "the observer no longer fires on structureless noise ($mfosc of $mfull, $mu, cadence $mc); detection may now carry mode information and P3's nuisance finding needs re-grading"
+            # THE CONTRAST, at the cadence where it is total. Round 19:
+            # the control had run at cadences 94 and 104 only -- the two
+            # cells where the phugoid ALSO reads ~100%, i.e. the only ones
+            # where the contrast is invisible -- and the retraction built
+            # on it ("cannot distinguish a phugoid from noise") was stated
+            # over the whole grid. At cadence 74 the fleet is 0 of 99 and
+            # the noise channel is ~98 of 98, in every unit. The streams
+            # separate completely there, and in the INVERSE direction: the
+            # observer detects the channel with no mode and misses the one
+            # with a mode.
+            if [ "$mc" = "74" ]; then
+                local fleet74
+                fleet74=$(awk -v u="$mu" '$1==u && $4=="74" {t+=$6} END{print t+0}' "$rowfile")
+                [ "$fleet74" -eq 0 ] || _cf P3.noise "the fleet is no longer blind at cadence 74 in $mu ($fleet74 detections); the phugoid-vs-noise inversion this rung reports has changed"
+                [ "$(( mfosc * 100 / mfull ))" -ge 90 ] || _cf P3.noise "noise no longer saturates at cadence 74 in $mu ($mfosc of $mfull); the inversion is gone"
+            fi
         else
             nmono=$((nmono+1))
             [ "$mfosc" -eq 0 ] || _cf P3.monotone "the observer reports oscillating $mfosc times on a MONOTONE channel ($mk, $mu, cadence $mc)"
         fi
     done < <(sed -n 's/^p3mono kind=\([a-z_]*\) unit=\([a-z]*\) cad=\([0-9]*\) full=\([0-9]*\) fosc=\([0-9]*\).*/\1 \2 \3 \4 \5/p' "$out")
     [ "$nmono" -eq 18 ] || _cf P3.monotone "$nmono of 18 monotone-control cells found (vacuous check)"
-    [ "$nnoise" -eq 6 ] || _cf P3.noise "$nnoise of 6 noise-control cells found (vacuous check)"
+    [ "$nnoise" -eq 24 ] || _cf P3.noise "$nnoise of 24 noise-control cells found (vacuous check)"
+    # THE DISCRIMINATING STRUCTURE. A single verdict at a single cadence
+    # carries no mode information -- at cadence 104 the phugoid and the
+    # noise channel are both at 100%. But their PROFILES over cadence are
+    # completely separable, because the phugoid has a period and the noise
+    # does not: the fleet swings 0% -> 100% -> 76% across the eight
+    # cadences while the noise channel stays pinned near 100% at all of
+    # them. Round 19: the round-18 retraction ("cannot distinguish a
+    # phugoid from noise") was measured at two cadences, both of which sit
+    # where the two agree, and stated over the whole grid.
+    local nlo=999 nhi=-1 flo=999 fhi=-1 pc
+    while read -r mk mu mc mfull mfosc; do
+        [ "$mk" = "noise" ] && [ "$mu" = "deg" ] || continue
+        pc=$(( mfosc * 100 / mfull ))
+        [ "$pc" -lt "$nlo" ] && nlo=$pc
+        [ "$pc" -gt "$nhi" ] && nhi=$pc
+    done < <(sed -n 's/^p3mono kind=\([a-z_]*\) unit=\([a-z]*\) cad=\([0-9]*\) full=\([0-9]*\) fosc=\([0-9]*\).*/\1 \2 \3 \4 \5/p' "$out")
+    while read -r u a sp c full fosc fq fnc fot; do
+        [ "$u" = "deg" ] && [ "$a" = "0" ] && [ "$sp" = "0.05" ] || continue
+        pc=$(( fosc * 100 / full ))
+        [ "$pc" -lt "$flo" ] && flo=$pc
+        [ "$pc" -gt "$fhi" ] && fhi=$pc
+    done < "$rowfile"
+    if [ "$nhi" -lt 0 ] || [ "$fhi" -lt 0 ]; then
+        _cf P3.profile "profile rows absent (vacuous check)"
+    else
+        [ "$(( nhi - nlo ))" -le 5 ] || _cf P3.profile "the noise channel's detection is no longer cadence-invariant (spread $(( nhi - nlo )) points across 8 cadences); it may have acquired a period"
+        [ "$(( fhi - flo ))" -ge 50 ] || _cf P3.profile "the fleet's detection is no longer strongly cadence-dependent (spread $(( fhi - flo )) points); the profile that distinguishes a mode from noise has flattened"
+    fi
 
     # --- the SHARPEST unit-dependence evidence in the rung, found while
     # building the monotone control (round 17).
@@ -389,7 +433,7 @@ p3_claims() {
     # unreachable -- while its sibling P3.unitdep in this same file is
     # exact per row. With the control's seed artifact removed the split is
     # total: the dominant class equals the full-window count exactly.
-    local mdom mfull mcls mv2 cd2
+    local mdom mfull mcls mv2 cd2 mlbl
     for cd2 in 94 104; do
         for mu in rad deg mrad; do
             mdom=$(sed -n "s/^p3mono kind=decay_slow unit=$mu cad=$cd2 .*/&/p" "$out")

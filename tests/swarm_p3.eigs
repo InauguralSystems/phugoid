@@ -484,11 +484,15 @@ define p3_control_ch(kind, amp, cad, uscale, uname) as:
                 elif kind == "ramp":
                     a is amp * (t / 400.0)
                 else:
-                    rs is (rs * 75.0 + 74.0) % 65537.0
                     a is (amp / 2.0) * (((rs / 65537.0) * 2.0) - 1.0)
             q is (a * uscale) + 0.0
-            # The FIRST sample seeds and is not counted. Round 18 found
-            # `local q is 0.0` had come back here -- the exact defect that
+            # The FIRST sample seeds and is not counted -- which is what
+            # makes the `local q is 0.0` declaration above harmless here,
+            # since the fictitious delta is evicted before `asn > 9` opens
+            # the window. (Verified equivalent: seeding the declaration
+            # with the real first value reproduces all 24 rows byte for
+            # byte.) Round 18 found this file had reverted to an UNSKIPPED
+            # `local q is 0.0` -- the exact defect that
             # cost rounds 10 through 13 in p3_row, in the same file that
             # carries the comment forbidding it. Its fictitious 0 -> A
             # jump was also the ONLY sign reversal in the "monotone"
@@ -516,6 +520,17 @@ define p3_control_ch(kind, amp, cad, uscale, uname) as:
                         elif rp == "equilibrium":
                             eq is eq + 1
         unobserved:
+            # The noise process advances once per FRAME, so it is a
+            # property of TIME and each cadence samples every cad-th value
+            # of one underlying process. Round 19 found two wrong versions
+            # of this. Advancing per SAMPLE made every cadence the same
+            # sequence truncated, so the cadence axis carried about two
+            # independent measurements. Replacing it with a hash of the
+            # frame index was worse: `f * k mod p` sampled every cad
+            # frames is an arithmetic progression, which at cadence 84 is
+            # MONOTONE and gave fosc = 0 -- a "noise" channel that had
+            # aliased into the monotone control.
+            rs is (rs * 75.0 + 74.0) % 65537.0
             t is t + 0.05
         f is f + 1
     print of f"p3mono kind={kind} unit={uname} cad={cad} full={fl} fosc={fos} conv={cv} stable={st} moving={mv} diverging={dg} equil={eq}"
@@ -532,9 +547,18 @@ AMP is 0.02643
 print of "# controls: monotone (implementation) and APERIODIC NOISE (the discriminating one)"
 monf is 0
 noisemin is 999
+# The noise control runs the fleet's OWN eight cadences. Round 19: it had
+# run at 94 and 104 only -- the two cells where the phugoid also reads
+# ~100%, i.e. the only cells where the contrast is invisible. At cadence
+# 74 the fleet is pinned at 0 detections in all twelve rows and the noise
+# channel reads ~100%, which is the sharpest single measurement in the
+# rung and nobody had taken it.
 for mk in ["decay_slow", "decay_fast", "ramp", "noise"]:
     for mu in [[1.0, "rad"], [57.29577951308232, "deg"], [1000.0, "mrad"]]:
-        for mcd in [94, 104]:
+        local cads is [94, 104]
+        if mk == "noise":
+            cads is [74, 84, 94, 104, 114, 124, 134, 148]
+        for mcd in cads:
             mr is p3_control_ch of [mk, AMP, mcd, mu[0], mu[1]]
             if mk == "noise":
                 if mr[1] < noisemin:

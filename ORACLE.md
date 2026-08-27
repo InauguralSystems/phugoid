@@ -2163,14 +2163,34 @@ dispersion) — no mode, no period, full of reversals. It reads
 66/66, 66/66** at cadence 104, in rad/deg/mrad. That is the fleet's best
 cell, reproduced by a channel with no mode in it at all.
 
-**So the round-17 conclusion is retracted.** A positive `oscillating` at
-the 100% cell carries no information about mode structure: the observer
-cannot distinguish a healthy phugoid from noise of the same magnitude.
-P3 is strengthened rather than weakened — the verdict-driven detector has
-no usable operating point *and* its positive detections are uninformative.
-What the monotone rows still show is narrower and is now labelled as such:
-the predicate does not fire on drift. That is a statement about the
-implementation, not about the fleet.
+**So the round-17 conclusion is retracted — and round 19 found the
+retraction itself overstated, for the same reason.** Round 18 ran the
+noise control at cadences 94 and 104 only. Those are the two cells where
+the phugoid *also* reads ~100%: the only cells on the grid where the
+contrast is invisible. Stated over the whole grid, "cannot distinguish a
+phugoid from noise" is false. Run at the fleet's own eight cadences:
+
+| cadence | 74 | 84 | 94 | 104 | 114 | 124 | 134 | 148 |
+|---|---|---|---|---|---|---|---|---|
+| phugoid (deg, ac0, sp .05) | **0%** | 60% | 80% | 100% | 98% | 95% | 70% | 76% |
+| aperiodic noise, same amplitude | **98%** | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+
+**A single verdict at a single cadence carries no mode information** — at
+cadence 104 the two channels are indistinguishable at 100%. **The
+detection PROFILE does carry it**, completely: the noise channel has no
+period, so its detection is cadence-invariant, while the phugoid's is
+shaped by the window/period ratio and swings across the full range. And
+at cadence 74 the two are not merely separable but **disjoint and
+inverted** — the observer detects the channel with no mode and misses the
+one with a mode.
+
+That is the honest statement of P3's severity, and it is stronger than
+either earlier version: a verdict-driven detector read at one cadence is
+uninformative at best and exactly wrong at worst, and recovering the mode
+requires sweeping the cadence — which is to say, doing the observer's job
+outside the observer. What the monotone rows still show is narrower and
+is labelled as such: the predicate does not fire on drift. That is a
+statement about the implementation, not about the fleet.
 
 **The controls also carry the sharpest unit-dependence evidence in the
 rung.** One identical monotone decay lands in three *different* verdict
