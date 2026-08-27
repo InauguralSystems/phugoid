@@ -1859,7 +1859,10 @@ P2 section below — the observer's per-aircraft cost drifts +26% over
 N=8→32 against the floor's +10%, so the ratio must rise. Round 2 corrected
 the range and left the non-growth clause standing.) (The
 first write-up said "1.4-1.6x", which overstated both tables — the maximum
-observed is 1.49 at 3000 frames and 1.42 at 1500. Round 2.)
+observed is 1.49 at 3000 frames; at 1500 frames round 2 recorded 1.42,
+and the shipped harness has since produced 1.50 as a paired median, so
+that figure was the maximum of the runs available then rather than a
+ceiling. Round 28.)
 
 **P2 — REFUTED, on both clauses of its own registered condition, and it
 took twenty rounds to say so because it was the only prediction with no

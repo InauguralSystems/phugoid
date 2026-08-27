@@ -90,10 +90,22 @@ run_arm() {
         echo "FAIL: arm '$arm' at N=$nn exited nonzero — a timing for a run that did not happen is not a measurement" >&2
         sed -n '1,3p' "$out" >&2; exit 1
     fi
-    # ...and it must have run the arm we ASKED for. The driver prints the
-    # requested name, so this also catches a dispatch that substitutes.
-    if [ -n "$arm" ] && ! grep -q "^profiled $arm n=$nn " "$out"; then
-        echo "FAIL: arm '$arm' at N=$nn did not report itself as executed:" >&2
+    # ...and it must have run the arm we ASKED for. Round 28: this grepped
+    # `^profiled $arm n=$nn`, which the driver prints from the REQUESTED
+    # name -- so it could not catch a dispatch that substitutes, which is
+    # the exact property round 26 identified as making substitution
+    # invisible. The comment here claimed the opposite.
+    #
+    # Every arm FUNCTION self-reports its own name as the first token of
+    # its own print line (`ceiling0pb 16 1500 0 <digest>`), and that is
+    # what changes under substitution. Repointing ceiling0pb's dispatch at
+    # run_floor -- the exact copy/paste hazard of a seven-branch elif chain
+    # -- left the whole suite green, reporting floor/floor ~1.02 as "per-
+    # binding arming collapses". It reds here now.
+    local self="$arm"
+    [ -n "$self" ] || self=unarmed
+    if ! grep -q "^$self $nn " "$out"; then
+        echo "FAIL: arm '$self' at N=$nn did not report itself as executed — a different arm ran:" >&2
         sed -n '1,3p' "$out" >&2; exit 1
     fi
 }
@@ -128,13 +140,24 @@ paired_ratio() {
 ratio_ok() { awk -v x="$1" -v b="$2" 'BEGIN{ exit !(x > b) }'; }
 
 mins() {  # minimum of 5 wall-clock seconds
+    # Round 28: this swallowed the exit status exactly as paired_ratio did
+    # before round 27, and round 27 fixed only paired_ratio. `mins`
+    # produces BOTH the four published columns and OVH -- and a collapsed
+    # OVH biases every ratio toward 1.0, which is the PASSING direction for
+    # the ceiling0pb plant. A crashed arm returns in ~0.02 s and would have
+    # been reported as a measurement.
+    local mo; mo=$(mktemp)
     for _ in 1 2 3 4 5; do
         local t0 t1
         t0=$(date +%s%N)
-        "$EIGS" "$@" >/dev/null 2>&1
+        if ! "$EIGS" "$@" > "$mo" 2>&1; then
+            echo "FAIL: '$*' exited nonzero — a timing for a run that did not happen is not a measurement" >&2
+            sed -n '1,3p' "$mo" >&2; rm -f "$mo"; exit 1
+        fi
         t1=$(date +%s%N)
         awk -v a="$t0" -v b="$t1" 'BEGIN{ printf "%.3f\n", (b-a)/1000000000 }'
     done | sort -n | head -1
+    rm -f "$mo"
 }
 
 DU_BOUND=1.20
@@ -281,10 +304,11 @@ echo "PASS: disciplined and unarmed both sit >${DU_BOUND}x below the ceiling at 
 # a gate -- the defect round 24 removed from the previous P1 gate.
 #
 # 1.20 sits between the two populations with margin on BOTH sides:
-# per-EigsState arming measures 1.38-1.53 (15%+ above), per-binding
-# measures 0.90-1.06 (13%+ below). Widening it does not weaken the
-# discrimination, because what the gate tests is a factor-of-1.4 collapse,
-# not a percentage.
+# per-EigsState arming measures 1.41-1.57 across sessions and per-binding
+# 0.90-1.07, so 1.20 separates them. The margin is NOT uniform, and the
+# comment used to claim "15%+ above": one earlier session measured
+# ceiling0/floor at 1.2428, which is 3.6% above the bound. ORACLE records
+# that residual rather than smoothing it, and so does this file now.
 P1_BOUND=1.20
 [ "$P1_BOUND" = "1.20" ] || { echo "FAIL: P1_BOUND is $P1_BOUND, declared 1.20 — a widened bound must be re-justified in ORACLE.md"; exit 1; }
 p1r=$(paired_ratio ceiling0 floor "$LASTN")
@@ -301,13 +325,20 @@ echo "PASS: P1 mechanism — zero-reader arming still costs ${p1r}x the floor at
 # fleet digest, so only the observation shape differs. Round 25: the plant
 # had been `ratio_ok 1.00`, which proves the bound can fail but not that
 # the ARM can produce the failing value.
-# The counterfactual's warrant is that it differs from ceiling0 ONLY in
-# observation shape, and the evidence for that is an identical fleet
-# digest. Round 27: that identity was asserted in three places and checked
-# in none -- so a ceiling0pb that had silently drifted into a different
-# workload would still have produced a plausible collapse. It is the same
-# arm-differential this rung's W2 checks apply to the other six arms, and
-# ceiling0pb was excluded from those because it lives in the driver.
+# The digest agreement, kept as a REGRESSION check and no longer claimed
+# as the counterfactual's warrant.
+#
+# Round 28: the digest is arm-INVARIANT -- every arm in the rung prints
+# 559690091 at N=2, which is P4's own gated finding ("the arms differ only
+# in observation and their fleet digests match exactly"). An agreement
+# shared by all seven arms cannot be the evidence that one of them differs
+# only in observation shape, and round 27 installed it as exactly that.
+# `fleet_digest` sums fleet state only; `acc` -- the inner per-aircraft
+# loop the counterfactual is about -- never enters it.
+#
+# What discriminates is the executed arm's SELF-REPORT, checked in
+# run_arm above. This stays because a digest that stopped matching would
+# mean the driver had diverged from the workload, which is worth knowing.
 D0=$(mktemp); DP=$(mktemp)
 run_arm tests/swarm_profile.eigs ceiling0   2 "$D0"
 run_arm tests/swarm_profile.eigs ceiling0pb 2 "$DP"
@@ -317,7 +348,7 @@ rm -f "$D0" "$DP"
     echo "FAIL: the per-binding counterfactual no longer flies the same fleet as ceiling0 ($d0 vs $dp) —"
     echo "      it differs in more than observation shape, so its collapse is not evidence about arming."
     exit 1; }
-echo "PASS: counterfactual holds the physics fixed (digest $d0 == ceiling0's)"
+echo "PASS: driver and workload agree on the fleet (digest $d0; arm-invariant, so not a discriminator)"
 pbr=$(paired_ratio ceiling0pb floor "$LASTN")
 printf "  ceiling0pb/floor (per-binding counterfactual) at N=%s : %s\n" "$LASTN" "$pbr"
 ratio_ok "$pbr" "$P1_BOUND" && {

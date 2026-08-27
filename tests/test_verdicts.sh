@@ -132,10 +132,36 @@ verdict_word_ok() { # verdict_word_ok <label> <lead-regex> <expected-word> <expe
         chk 0 "$lbl.word: found $n verdict site(s) for $lbl, expected $want (a site was added, removed or reworded past the matcher)"
         return
     fi
-    bad=$(grep -E "$lead" ORACLE.md | grep -cv "$word" || true)
-    [ "$bad" -eq 0 ] \
-        && chk 1 "$lbl.word: all $n verdict site(s) still say $word" \
-        || chk 0 "$lbl.word: $bad of $n verdict site(s) for $lbl no longer say $word (exit gate item 7)"
+    # The word must sit ADJACENT to the lead, not merely somewhere on the
+    # line. Round 28: `grep -cv "$word"` matched the word anywhere, so
+    # "**P3 — REFUTED, and the mechanism (previously CONFIRMED) splits in
+    # two." passed. That is not contrived -- P1 and P4 both already carry
+    # "condition REFUTED / claim CONFIRMED" leads, so the shape is house
+    # style here.
+    # The word must sit ADJACENT to the lead, not merely somewhere on the
+    # line. Round 28: `grep -cv "$word"` matched the word anywhere, so
+    # "**P3 — REFUTED, and the mechanism (previously CONFIRMED) splits in
+    # two." passed. Not contrived -- P1 and P4 both carry "condition
+    # REFUTED / claim CONFIRMED" leads, so that shape is house style here.
+    #
+    # Some leads already END with the word (P4's, P4cond's); for those the
+    # lead IS the lead-plus-word, so the two counts coincide.
+    # Append the word to EVERY branch of the alternation, not to the whole
+    # string. Round 28 caught the mutant a second time here: with
+    # lead="^A|^B", `${lead}${word}` is "^A|^B$word", so the FIRST branch
+    # still matches any line -- and the P3 mutant passed again. Leads that
+    # already end with the word are left alone.
+    local leadword="" br
+    local IFS='|'
+    for br in $lead; do
+        case "$br" in *"$word") : ;; *) br="${br}${word}" ;; esac
+        leadword="${leadword:+$leadword|}$br"
+    done
+    unset IFS
+    local m; m=$(grep -cE "$leadword" ORACLE.md)
+    [ "$m" -eq "$n" ] \
+        && chk 1 "$lbl.word: all $n verdict site(s) say $word adjacent to the lead" \
+        || chk 0 "$lbl.word: only $m of $n verdict site(s) for $lbl say $word at the lead (exit gate item 7)"
 }
 verdict_word_ok P1 "^\\*\\*P1('s practical claim)? is " CONFIRMED 2
 verdict_word_ok P2 "^\\*\\*P2 — "                        REFUTED   1
