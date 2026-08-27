@@ -101,6 +101,77 @@ while read -r n c f; do
 done <<<"$TABLE"
 [ "$fail" -eq 0 ] && chk 1 "P2.banked: all six sweep rows match ORACLE's published table"
 
+# EVERY DERIVED CELL, RECOMPUTED AND REQUIRED. Round 42, and this is a
+# STRUCTURAL fix rather than a seventh grep.
+#
+# Rounds 37-42 each found the previous round's fix defective, and all six
+# findings were in one layer: a pin over a hand-copied number in ORACLE.
+# Round 42's was that the banked table's INPUT columns are pinned by a
+# PREFIX grep (`| $n | $c | $f |`), so the fourth column -- ceiling/floor,
+# the column the rung's headline is read off -- was a wildcard over
+# hand-copied values. Setting N=1's ratio to 1.55 (0.399/0.297 = 1.343,
+# impossible on its face) passed; so did inverting the headline to "the
+# ratio FALLS with N", which reverses round 30's argument that
+# tests/test_swarm_profile.sh quotes verbatim as its reason for gating
+# the ladder's worst point.
+#
+# Adding one more grep would have left the next derived number exposed.
+# So: derive them ALL from the banked table and require each to appear.
+# Anything read off this table is either in this list or it is not
+# published.
+# ORACLE is prose, so the comparison runs against a normalised copy:
+# matching the raw file would make a check depend on where a paragraph
+# happens to wrap and on whether a figure is bolded.
+# flattened AND emphasis-stripped: a published figure may wrap mid-list,
+# and a grep over raw lines then silently matches nothing -- which under
+# `set -e` killed this script outright rather than reporting anything.
+ORACLE_PLAIN=$(tr -d '*' < ORACLE.md | tr '\n' ' ' | tr -s ' ')
+# PRESENCE IS NOT AGREEMENT -- round 41's lesson, which this very function
+# reproduced on its first planted fault. Setting the headline's end-to-end
+# change to +9.9% left the gate GREEN, because "+10.8% end to end" also
+# appears six lines down inside round 40's commentary: the presence check
+# was satisfied by a quotation while the load-bearing sentence contradicted
+# it. So a derived cell that can be stated in more than one place carries a
+# third argument -- a regex matching ANY statement of that quantity -- and
+# every match must equal the computed one.
+derived_check() { # derived_check <label> <string ORACLE must contain> [regex matching any statement of it]
+    case "$ORACLE_PLAIN" in
+        *"$2"*) : ;;
+        *) echo "FAIL P2.derived: ORACLE does not publish $1 as '$2' — it is computed from the banked sweep and the write-up has drifted"; fail=1; return ;;
+    esac
+    [ -n "${3:-}" ] || return 0
+    local seen; seen=$(echo "$ORACLE_PLAIN" | grep -oE "$3" | sort -u || true)
+    [ -n "$seen" ] || { echo "FAIL P2.derived: the agreement regex for $1 matched nothing (vacuous check)"; fail=1; return; }
+    local other; other=$(echo "$seen" | grep -vxF -- "$2" || true)
+    [ -z "$other" ] \
+        || { echo "FAIL P2.derived: ORACLE states $1 as '$(echo $other | tr '\n' ' ')' as well as '$2' — the document contradicts itself and a presence pin stays green"; fail=1; }
+}
+NROWS=0
+while read -r n c f; do
+    NROWS=$((NROWS+1))
+    r=$(awk -v c="$c" -v f="$f" 'BEGIN{ printf "%.2f", c/f }')
+    derived_check "the N=$n ceiling/floor ratio" "| $n | $c | $f | $r |"
+done <<<"$TABLE"
+[ "$NROWS" -eq 6 ] || { echo "FAIL P2.derived: $NROWS of 6 banked rows (vacuous check)"; fail=1; }
+
+# the ratio list, to three decimals, and the end-to-end change
+RLIST=$(echo "$TABLE" | awk '{ printf "%s%.3f", (NR>1 ? ", " : ""), $2/$3 }')
+derived_check "the ratio list" "$RLIST" "1\.[0-9]{3}, 1\.[0-9]{3}, 1\.[0-9]{3}, 1\.[0-9]{3}, 1\.[0-9]{3}, 1\.[0-9]{3}"
+R_FIRST=$(echo "$TABLE" | head -1 | awk '{ print $2/$3 }')
+R_LAST=$(echo "$TABLE" | tail -1 | awk '{ print $2/$3 }')
+E2E=$(awk -v a="$R_FIRST" -v b="$R_LAST" 'BEGIN{ printf "%+.1f", 100*(b-a)/a }')
+derived_check "the end-to-end ratio change" "${E2E#+}% end to end" "[0-9]+\.[0-9]+% end to end"
+
+# per-aircraft OBSERVER cost at the two ends of P2 clause 1, and both drifts
+PA8=$(echo "$TABLE"  | awk -v fr="$FRAMES" '$1==8  { printf "%.1f", 1e6*($2-$3)/(8*fr) }')
+PA32=$(echo "$TABLE" | awk -v fr="$FRAMES" '$1==32 { printf "%.1f", 1e6*($2-$3)/(32*fr) }')
+FA8=$(echo "$TABLE"  | awk -v fr="$FRAMES" '$1==8  { printf "%.1f", 1e6*$3/(8*fr) }')
+FA32=$(echo "$TABLE" | awk -v fr="$FRAMES" '$1==32 { printf "%.1f", 1e6*$3/(32*fr) }')
+ODR=$(awk -v a="$PA8" -v b="$PA32" 'BEGIN{ printf "%.0f", 100*(b-a)/a }')
+FDR=$(awk -v a="$FA8" -v b="$FA32" 'BEGIN{ printf "%.0f", 100*(b-a)/a }')
+derived_check "P2 clause 1's endpoints" "($PA8 → $PA32 µs)" "\([0-9]+\.[0-9]+ → [0-9]+\.[0-9]+ µs\)"
+derived_check "P2 clause 1's observer drift" "+${ODR}% from N=8" "\+[0-9]+% from N=8"
+derived_check "P2 clause 1's floor drift" "is +${FDR}%"
 read -r OM OB OR2 <<<"$(fit 0)"
 read -r FM FB FR2 <<<"$(fit 3)"
 
@@ -118,8 +189,29 @@ chk "$(awk -v x="$FM" 'BEGIN{print (x>0.2720 && x<0.2726)?1:0}')" \
 # the only fit ORACLE publishes WITH an intercept and R2 is the floor's --
 # the arm this file says must not carry the observer verdict -- and no R2
 # for the observer fit existed anywhere in the repo.
-grep -qF -- "$OM N − ${OB#-}, R² = $OR2" ORACLE.md \
-    || chk 0 "P2.obsfit: ORACLE does not publish the observer fit as '$OM N − ${OB#-}, R² = $OR2' — round 41 published it; a drift here means the write-up and the gate disagree about the fit item 2 is built on"
+# `${OB#-}` strips a leading minus and the pin then reinserts a literal
+# `−`, so the published intercept's SIGN was laundered: flipping the
+# observer fit's intercept positive left the pin matching the unchanged
+# `N − 0.083` prose. Round 42, and the same sign class as round 34, which
+# inverted a sign while correcting a claim about a sign. Emit the sign
+# from the value.
+# The two fits are published at different precisions -- the floor's at 3dp
+# because rounds 3 and 21 QUOTE it as what the write-up said, and rewriting
+# a quotation to suit a gate would be §104's error (pin the claim, not the
+# sentence). So the precision is a parameter and the value is still derived.
+fitstr() { # fitstr <slope> <intercept> <r2> <dp> <r2dp>
+    awk -v m="$1" -v b="$2" -v r="$3" -v d="$4" -v rd="$5" \
+        'BEGIN{ printf "%.*f N %s %.*f, R² = %.*f", d, m, (b<0 ? "−" : "+"), d, (b<0 ? -b : b), rd, r }'
+}
+OBS_FIT=$(fitstr "$OM" "$OB" "$OR2" 5 5)
+grep -qF -- "$OBS_FIT" ORACLE.md \
+    || chk 0 "P2.obsfit: ORACLE does not publish the observer fit as '$OBS_FIT' — round 41 published it; a drift here means the write-up and the gate disagree about the fit item 2 is built on"
+# The FLOOR fit's intercept and R² were still computed and discarded after
+# round 40 rescued the observer's -- so the fit ORACLE actually prints for
+# the floor arm had no producer behind its intercept or its R² either.
+FLR_FIT=$(fitstr "$FM" "$FB" "$FR2" 3 4)
+grep -qF -- "$FLR_FIT" ORACLE.md \
+    || chk 0 "P2.floorfit: ORACLE does not publish the floor fit as '$FLR_FIT' — this is the fit rounds 3 and 21 caught the observer verdict being read off, so its every term is pinned"
 chk "$(awk -v r="$OR2" 'BEGIN{print (r>0.99)?1:0}')" \
     "P2.obsfit: the observer arm fits ${OM} N ${OB} with R²=${OR2} — a linear fit this good is what makes the +26% per-aircraft drift a DRIFT rather than the fit being wrong"
 
@@ -175,9 +267,14 @@ done
 # one -- so a stale second site plus one correct mention elsewhere printed
 # "all of them carry the computed value", asserting agreement it had not
 # tested. Both chain values are swept for contradicting mentions.
+# Swept over an emphasis-stripped copy. Round 42: `**0.123** µs per
+# aircraft-frame` put the asterisks BETWEEN the number and the unit, so
+# the regex never matched it and a stale emphasised site was invisible --
+# the sweep printed "every site carries $good" while the document
+# disagreed with itself.
 for pair in "µs per aircraft-frame:$OBS_US" "µs per observed scalar write:$C6_PER_WRITE"; do
     unit=${pair%%:*}; good=${pair##*:}
-    stale=$(grep -oE "[0-9]+\.[0-9]+ $unit" ORACLE.md | sort -u | grep -v "^$good $unit\$" || true)
+    stale=$(echo "$ORACLE_PLAIN" | grep -oE "[0-9]+\.[0-9]+ $unit" | sort -u | grep -v "^$good $unit\$" || true)
     [ -z "$stale" ] \
         && chk 1 "P2.published: every site stating '$unit' carries $good" \
         || { chk 0 "P2.published: ORACLE states '$unit' as $(echo $stale | tr '\n' ' ')somewhere as well as $good — a stale site would keep a whole-file pin green"; }
