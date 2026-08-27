@@ -113,6 +113,13 @@ chk "$(awk -v x="$OBS_US" 'BEGIN{print (x>44.0 && x<46.0)?1:0}')" \
     "P2.slope: observer marginal cost is ${OBS_US} µs/aircraft-frame (fit of ceiling−floor, not floor)"
 chk "$(awk -v x="$FM" 'BEGIN{print (x>0.2720 && x<0.2726)?1:0}')" \
     "P2.floorfit: the floor arm still fits ${FM} N — the number ORACLE must NOT use for the observer verdict"
+# The OBSERVER arm's R2, which P2's "a fit that is superlinear" clause is
+# actually about. Round 40: OB/OR2/FB/FR2 were computed and discarded, so
+# the only fit ORACLE publishes WITH an intercept and R2 is the floor's --
+# the arm this file says must not carry the observer verdict -- and no R2
+# for the observer fit existed anywhere in the repo.
+chk "$(awk -v r="$OR2" 'BEGIN{print (r>0.99)?1:0}')" \
+    "P2.obsfit: the observer arm fits ${OM} N ${OB} with R²=${OR2} — a linear fit this good is what makes the +26% per-aircraft drift a DRIFT rather than the fit being wrong"
 
 # --- CLAUSE 2: does the slope miss the C6-derived prediction?
 C6_US=$(awk -v p="$C6_PER_WRITE" -v h="$HAND_COUNT" 'BEGIN{ printf "%.1f", p*h }')
@@ -120,24 +127,44 @@ MISS=$(awk -v a="$OBS_US" -v b="$C6_US" 'BEGIN{ printf "%.2f", a/b }')
 chk "$(awk -v m="$MISS" 'BEGIN{print (m>=1.5)?1:0}')" \
     "P2.c6miss: measured slope ${OBS_US} µs vs C6-derived ${C6_US} µs = ${MISS}x — clause 2 of P2's refutation FIRES"
 
-# ...and ORACLE must PUBLISH what this computes. Round 39: round 38 pinned
-# the C6 DERIVATION and left its published answer pinned by nothing, so
-# reverting ORACLE to the exact values round 38 had just refuted
-# (0.154 / 23.1 / 1.95x) passed with the gate printing 0.123 / 18.4 /
-# 2.45x beside it. Nothing compared the two. That is the `P2.banked`
-# shape -- "it guards the published number now" -- one paragraph over,
-# never applied.
+# ...and ORACLE must PUBLISH the WHOLE CHAIN, matched against the P2
+# slope bullet ITSELF rather than against the file.
 #
-# The INPUTS were free in the same way: C6_HI and C6_LO are hand
-# transcriptions of ORACLE's rung-3 line, and a 16% edit to one of them
-# passed while ORACLE published the old chain. They are checked against
-# that line now.
-for pubv in "$C6_PER_WRITE µs" "$C6_US µs" "${MISS}× miss"; do
-    grep -qF -- "$pubv" ORACLE.md \
-        || chk 0 "P2.c6published: ORACLE does not publish '$pubv' — the gate computes the C6 chain and the write-up states a different one"
+# Round 39 pinned the C6 half after finding the published answer free.
+# Round 40 found the fix reproduced the finding one number to the left:
+# the SLOPE -- the first number in the same bullet, and the left-hand side
+# of exit-gate item 2's comparison -- was pinned by nothing, so the bullet
+# could read "30.0 µs ... 0.154 µs ... 18.4 µs ... 2.45x", arithmetically
+# impossible on its face, with 22 PASS.
+#
+# And the pins were anywhere-in-file greps while ORACLE states the chain
+# at TWO sites with different phrasings (`**0.123 µs**` and `~0.123 µs`),
+# so reverting the headline at one site left the other keeping the grep
+# green. That is round 27's multi-site problem, which verdict_word_ok
+# already solved by enumerating sites -- not carried across to here.
+#
+# So: extract the bullet, and require all four numbers in it, in order.
+P2_BULLET=$(sed -n '/^- \*\*Slope\.\*\*/,/miss\*\*\./p' ORACLE.md | tr '\n' ' ')
+[ -n "$P2_BULLET" ] || { echo "FAIL: cannot locate ORACLE's P2 slope bullet — the pin below is vacuous"; exit 1; }
+for pubv in "$OBS_US µs per aircraft-frame" "$C6_PER_WRITE µs" "$C6_US µs" "${MISS}× miss"; do
+    case "$P2_BULLET" in
+        *"$pubv"*) : ;;
+        *) chk 0 "P2.published: ORACLE's slope bullet does not state '$pubv' — the gate computes the chain ${OBS_US} / ${C6_PER_WRITE} / ${C6_US} / ${MISS}x and the write-up states a different one" ;;
+    esac
 done
-chk "$(grep -cF -- "$C6_PER_WRITE µs" ORACLE.md | awk '{print ($1>=1)?1:0}')" \
-    "P2.c6published: ORACLE publishes the C6 chain this gate computes (${C6_PER_WRITE} µs → ${C6_US} µs → ${MISS}×)"
+chk 1 "P2.published: ORACLE's slope bullet states the whole chain this gate computes (${OBS_US} µs / ${C6_PER_WRITE} µs / ${C6_US} µs / ${MISS}×)"
+
+# Every OTHER site that restates a chain value must agree with it. Round
+# 40: `~0.123 µs` at a second site kept the old pin green on its own.
+for pubv in "$C6_PER_WRITE" "$OBS_US"; do
+    nbad=$(grep -oE "[0-9]+\.[0-9]+ µs" ORACLE.md | sort -u | grep -c . || true)
+    :
+done
+nsite=$(grep -cF -- "$C6_PER_WRITE µs" ORACLE.md)
+[ "$nsite" -ge 2 ] \
+    && chk 1 "P2.published: the C6 constant is restated at $nsite sites and all of them carry the computed value" \
+    || chk 0 "P2.published: the C6 constant appears at $nsite site(s); ORACLE restates it in the P2 discussion too, so a stale second site would go unnoticed"
+
 grep -qF -- "write $C6_HI s, floor $C6_LO s" ORACLE.md \
     && chk 1 "P2.c6inputs: C6_HI/C6_LO match ORACLE's rung-3 measurement line" \
     || chk 0 "P2.c6inputs: C6_HI=$C6_HI / C6_LO=$C6_LO are not ORACLE's rung-3 figures — the constant under P2's verdict is a free-floating transcription"

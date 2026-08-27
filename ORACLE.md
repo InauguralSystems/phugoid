@@ -2013,8 +2013,14 @@ sample. Medians are shown where the spread matters.
 
 **The headline: naive all-on observation costs ~1.3-1.5x the unobserved
 floor, and the ratio GROWS SLOWLY with N** across 1 to 32 aircraft — 1.343,
-1.431, 1.425, 1.427, 1.488, 1.489, i.e. +10.8% end to end and a clean step
-from ~1.427 at N≤8 to ~1.488 at N≥16. (Round 23: this said "does not grow
+1.431, 1.425, 1.427, 1.488, 1.489, i.e. +10.8% end to end and a step from ~1.427 at
+N=2..8 to ~1.488 at N≥16 — with N=1 the outlier at **1.343**, 6% below
+that plateau, which is a bigger gap than the 4.3% step itself. (Round 40:
+this said "a clean step from ~1.427 at N≤8", which erases exactly the
+small-N structure round 30 used to revert round 29's relaxation — the
+ratio is SMALLEST at small N, which is why the worst-point gate matters.
+The "+10.8% end to end" in the same sentence is computed from 1.343, not
+from 1.427.) (Round 23: this said "does not grow
 with N" while sitting directly above that column. It is also forced by the
 P2 section below — the observer's per-aircraft cost drifts +26% over
 N=8→32 against the floor's +10%, so the ratio must rise. Round 2 corrected
@@ -2264,7 +2270,9 @@ verdict that had said "MECHANISM IS NOT RESOLVED" flatly since round 1.
   per-binding arming would produce, digest held identical at
   `4466955440` — drops the same ratio to **~0.99**, which the gate's 1.20
   bound rejects. (The description "every assignment" was inexact: **six of
-  thirteen** remain unwrapped, including a `local i is 0` inside the frame
+  thirteen** remain unwrapped (counted mechanically from
+  `tests/swarm_profile.eigs`, not by hand — the previous two counts were
+  each invalidated by a later round's edit to that same function), including a `local i is 0` inside the frame
   loop, which is why the arm sits just under 1.0 rather than well below.
   Round 26 counted five of eleven; round 32 then added `local reads is 0`
   and `reads is reads + 1` to that same function and never updated the

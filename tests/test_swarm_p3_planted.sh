@@ -108,7 +108,7 @@ plant c5 'P3.nuisance P3.profile' 5 f_setbucket '^p3 unit=[a-z]+ ac=[01] sp=0\.0
 plant c6 P3.nfleet 2 f_sed 's/^(p3n n=16 .*)fleet_permille=[0-9]+/\1fleet_permille=400/'
 # c7/c8: vacuity. A field or a whole table that vanishes must FAIL, never
 # pass quietly.
-plant c7 'P3.truth.alive P3.truth.unit' 3 f_sed '/^p3truth ac=0 sp=0\.05 /d'
+plant c7 'P3.truth.alive P3.truth.unit' 4 f_sed '/^p3truth ac=0 sp=0\.05 /d'
 plant c8 P3.rows 1 f_sed '/^p3 unit=/d'
 # c9: THE ROUND-10 REGRESSION GUARD. It reds TWO claims and that is
 # correct: without the deg/mrad rows there are also too few cadence-74

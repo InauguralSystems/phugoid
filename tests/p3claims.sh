@@ -173,6 +173,21 @@ p3_claims() {
             && _cf P3.truth.unit "ORACLE states an airspeed in m/s — the model is imperial, so the figure is out by 3.28x"
     fi
 
+    # The noise control's amplitude is claimed to BE the producer's
+    # q_pp_first for ac0 at sp=0.05 -- the amplitude match that makes the
+    # phugoid-vs-noise inversion a comparison at all. Round 40: it was a
+    # hand transcription in the driver and nothing compared it to the row
+    # printed on the same run.
+    local amp_src qpf
+    amp_src=$(grep -oP '^AMP is \K[0-9.]+' tests/swarm_p3.eigs | head -1)
+    qpf=$(sed -n 's/^p3truth ac=0 sp=0.05 .* q_pp_first=\([0-9-]*\).*/\1/p' "$out" | head -1)
+    if [ -z "$amp_src" ] || [ -z "$qpf" ]; then
+        _cf P3.truth.unit "cannot compare the noise amplitude to the producer's q_pp_first (vacuous check)"
+    else
+        awk -v a="$amp_src" -v q="$qpf" 'BEGIN{ exit !( (a*100000 - q) < 1 && (q - a*100000) < 1 ) }' \
+            || _cf P3.truth.unit "the noise control's amplitude $amp_src does not match ac0's measured q_pp_first ($qpf hundred-thousandths) — the phugoid-vs-noise comparison is no longer amplitude-matched"
+    fi
+
     # The MODEL's imperial-ness, checked against the dataset rather than a
     # comment: a computed-vs-known-constant comparison, which is what makes
     # it a witness and not a restatement.
@@ -271,7 +286,12 @@ p3_claims() {
     if [ "$nrad" -ne 32 ] || [ "$nnonrad" -ne 64 ]; then
         _cf P3.unitdep "unit axis mis-populated (rad rows=$nrad expected 32, non-rad rows=$nnonrad expected 64)"
     else
-        [ "$radmax" -ge 90 ] || _cf P3.unitdep "the false all-clear is gone from the radian rows (max ${radmax}%)"
+        # BOTH ends, at the published values. Round 39 added the ceiling
+        # and left the floor at 90 while ORACLE publishes the peak as
+        # "98-99%" -- so a drift to 90% would contradict the figure and
+        # pass, which is the one-sidedness that commit's own message
+        # condemned, in the other direction.
+        [ "$radmax" -ge 98 ] || _cf P3.unitdep "the radian false-all-clear peak is ${radmax}%, below the 98-99% ORACLE publishes"
         # ...and a CEILING, because ORACLE publishes the peak as a RANGE
         # ("98-99%"). Round 39: only the floor was asserted, so a drift to
         # 100% would contradict the published figure and pass. A range
