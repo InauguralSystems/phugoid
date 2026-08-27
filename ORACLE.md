@@ -1845,6 +1845,31 @@ observation shows first. The move dropped the verdict at the two most
 sensitive points, and the accompanying NOTE asserted a *cause* ("that
 point is noise") for a value that was in fact the regression.
 
+**Round 32 found round 31's witness closed the hole at N=1 only, and the
+real witness is the PREDICATE, not the read.** `hits` cannot serve above
+N=1 because P4's collapse drives it to zero there — which is exactly what
+a gutted arm produces — so an N-scoped gutting (guts for n>1, leaves n==1
+intact) reproduced the pristine self-report bit for bit at every ladder
+point, and `disciplined` at N=16, the N where the DU claim is asserted,
+was witnessed by nothing.
+
+A read counter was not enough either: the mutant kept the read loop and
+moved it inside `unobserved:`, reading the channel 24000 times while
+observing none of them. What distinguishes an observing arm is that its
+**predicate ran**. Every observing arm now counts predicate evaluations
+from inside BOTH branches of a conditional on the predicate, so deleting
+the predicate deletes the counter with it — and unlike `hits`, the count
+is invariant to the collapse, because a predicate returning false has
+still run. At N=4 `ceiling` reports **hits=0, evals=6000**: the collapse
+witnessed rather than mistaken for absence.
+
+Both counters increment inside `unobserved:` so they pay no entropy walk,
+and both were added to **every** arm so the block cost is common and
+cancels in the ratios. This instrumented the identity-pinned workload and
+the hashes were re-banked against it — a decision, not an accident, taken
+because the alternative was leaving the second headline unwitnessed at the
+N where it is asserted.
+
 **Round 31 found the same mutant class one arm over, and the fix for it is
 free.** `disciplined` — the arm carrying the second headline, that
 `unobserved:` buys back essentially the whole penalty — could have its

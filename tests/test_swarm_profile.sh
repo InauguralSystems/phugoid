@@ -28,15 +28,15 @@ file_pin() {
 FP=$(mktemp -d)
 sed 's/^FRAMES is 1500$/FRAMES is 750/' tests/swarm_profile.eigs > "$FP/mut.eigs"
 cmp -s tests/swarm_profile.eigs "$FP/mut.eigs" && { rm -rf "$FP"; echo "FAIL: the file_pin plant did not apply"; exit 1; }
-if ( file_pin "$FP/mut.eigs" a3c522851b0c 53 ) >/dev/null 2>&1; then
+if ( file_pin "$FP/mut.eigs" d937845d4045 55 ) >/dev/null 2>&1; then
     rm -rf "$FP"; echo "FAIL: file_pin ACCEPTED a halved frame count"; exit 1
 fi
 rm -rf "$FP"
 echo "PASS: file_pin planted fault rejected (the real file_pin rejects a halved FRAMES)"
 
-file_pin tests/swarm_profile.eigs         a3c522851b0c 53
+file_pin tests/swarm_profile.eigs         d937845d4045 55
 file_pin tests/swarm_profile_unarmed.eigs ec298d5e32df 14
-file_pin swarm.eigs                       dd252ed85bd1 240
+file_pin swarm.eigs                       65d677bd480c 283
 # sim_core.eigs holds `deriv` and `rk4_step`, where essentially ALL the
 # measured time goes -- round 3 found the pin covering the four swarm files
 # and missing the dominant term, so the stated purpose ("the measurement
@@ -48,7 +48,7 @@ file_pin swarm.eigs                       dd252ed85bd1 240
 file_pin sim.eigs                         2b50c1214318 42
 file_pin sim_core.eigs                    6c6d2044c43c 123
 file_pin data/b747_approach.eigs          e71ab4f72fad 41
-file_pin swarm_unarmed.eigs               11e3d43c59ca 56
+file_pin swarm_unarmed.eigs               dba0a0d91cc7 58
 
 # --- the control must be UNARMED, which is the whole point of it existing.
 # Derived from the runtime's own gate verdict, not asserted.
@@ -104,55 +104,80 @@ run_arm() {
     # binding arming collapses". It reds here now.
     local self="$arm"
     [ -n "$self" ] || self=unarmed
-    # THE OBSERVATION WITNESS. Round 31: every assertion in this file puts
-    # the observed arm in the NUMERATOR, so a DENOMINATOR arm that stops
-    # observing is invisible -- and `disciplined` (the arm carrying
-    # ORACLE's "unobserved: buys back essentially the whole penalty") could
-    # have its verdict read deleted outright with bit-identical fleet
-    # digests and the whole suite green. Worse than round 30's case,
-    # because ORACLE says that arm measures within noise of the floor, so
-    # a disciplined arm that IS the floor is a null result indistinguishable
-    # from the claim by timing in principle.
+    # THE READ WITNESS. Round 32: the `hits` witness added at round 31
+    # closed the hole at N=1 ONLY. Above N=1 it EXPECTS hits=0 -- because
+    # P4's shared-binding collapse zeroes it -- which is exactly what a
+    # gutted arm produces. So an N-scoped gutting (guts for n>1, keeps
+    # n==1 intact) reproduced the pristine arm's self-report bit for bit
+    # at every ladder point, and `disciplined` at N=16, the N where the DU
+    # claim is asserted, was still witnessed by nothing. Both its guards
+    # failed the same way: the timing ratio is one-sided so gutting the
+    # DENOMINATOR raises it, and ORACLE itself says that arm measures
+    # within noise of the floor, so a disciplined arm that IS the floor is
+    # unfalsifiable by timing.
     #
-    # The discriminator was already on stdout and thrown away: every arm
-    # self-reports `<arm> <n> <frames> <hits> <digest>`, and nothing
-    # asserted `hits` -- `grep -rn hits tests/*.sh` returned one COMMENT,
-    # naming this as "the same defect class round 1 found in `hits`",
-    # fixed for run_named4 at round 1 and never for the arms.
+    # `reads` is a counter the collapse cannot zero. Every arm increments
+    # it once per channel read, inside `unobserved:` so it pays no entropy
+    # walk, and it is added to EVERY arm so the block cost is common and
+    # cancels in the ratios. That instrumentation is a deliberate cost --
+    # it changed the pinned workload identity and the numbers were
+    # re-banked against it, which is a decision rather than an accident.
     #
-    # The invariant is NOT "observing arms fire": measured across the
-    # ladder, `ceiling` and `disciplined` report 877 at N=1 and ZERO at
-    # N=4 and N=16. That is not a defect -- it is rung 4's P4 finding
-    # showing up in the hits column. Those arms read N aircraft through one
-    # loop-local `qobs`, so above N=1 the window becomes the round-robin
-    # interleave and the predicate stops firing; `ceiling1`/`onereader`
-    # read ONE aircraft through one binding and hold 877 at every N. So the
-    # witness pins P4's shape as well as catching the gutting. (My first
-    # version asserted `hits > 0` for every observing arm from the N=1
-    # sample alone, and red on the honest N=4 run -- the one-cell
-    # generalisation this rung keeps finding, made while fixing it.)
-    local h; h=$(grep -oP "^$self $nn [0-9]+ \K[0-9]+" "$out" | head -1)
-    LAST_HITS="$h"
-    [ -n "$h" ] || { echo "FAIL: arm '$self' at N=$nn printed no hits field" >&2; sed -n '1,2p' "$out" >&2; exit 1; }
+    #   n-reading arms  (ceiling, disciplined, floor, ceiling0, ceiling0pb)
+    #                   -> reads == n * frames, at every N
+    #   single-channel  (ceiling1, onereader) -> reads == frames
+    #
+    # `hits` is still checked, because it pins P4's collapse: 877 at N=1
+    # for the N-reading observing arms and 0 above, 877 always for the
+    # single-channel ones.
+    # The frame count comes from the ARM'S OWN report, not a constant.
+    # Round 32: the first version used a PROF_FRAMES=1500 literal and red
+    # on the fixed-cost probe, which runs ONE frame -- the constant was
+    # true of the ladder and false of the other caller. Reading it from
+    # the line makes the witness self-describing and correct for both.
+    local h rd ev fr
+    fr=$(grep -oP "^$self $nn \K[0-9]+" "$out" | head -1)
+    h=$(grep -oP "^$self $nn [0-9]+ \K[0-9]+" "$out" | head -1)
+    rd=$(grep -oP "^$self $nn [0-9]+ [0-9]+ [0-9]+ \K[0-9]+" "$out" | head -1)
+    ev=$(grep -oP "^$self $nn [0-9]+ [0-9]+ [0-9]+ [0-9]+ \K[0-9]+" "$out" | head -1)
+    [ -n "$fr" ] && [ -n "$h" ] && [ -n "$rd" ] && [ -n "$ev" ] || { echo "FAIL: arm '$self' at N=$nn printed no frames/hits/reads/evals fields" >&2; sed -n '1,2p' "$out" >&2; exit 1; }
+    local want_reads
+    case "$self" in
+        ceiling1|onereader) want_reads=$(( fr )) ;;
+        *)                  want_reads=$(( nn * fr )) ;;
+    esac
+    [ "$rd" = "$want_reads" ] || {
+        echo "FAIL: arm '$self' at N=$nn performed $rd channel reads, expected $want_reads —" >&2
+        echo "      the arm has stopped reading its channel, and every ratio built on it is a null result." >&2
+        sed -n '1,2p' "$out" >&2; exit 1; }
+    # `reads` alone is not enough: round 32's N-scoped mutant kept the read
+    # loop and moved it inside `unobserved:`, so it read the channel the
+    # right number of times while OBSERVING none of them, and passed. What
+    # distinguishes an observing arm is that its PREDICATE RAN. `evals`
+    # counts predicate evaluations from inside BOTH branches of a
+    # conditional on the predicate, so deleting the predicate deletes the
+    # counter with it -- and unlike `hits` it is invariant to P4's
+    # collapse, because a predicate that returns false has still run.
+    local want_evals
+    case "$self" in
+        ceiling|disciplined|ceiling1|onereader) want_evals=$want_reads ;;
+        *)                                      want_evals=0 ;;
+    esac
+    [ "$ev" = "$want_evals" ] || {
+        echo "FAIL: arm '$self' at N=$nn evaluated its predicate $ev times, expected $want_evals —" >&2
+        echo "      an observing arm whose predicate does not run is not observing, whatever it reads." >&2
+        sed -n '1,2p' "$out" >&2; exit 1; }
     case "$self" in
         ceiling1|onereader)
-            [ "$h" -gt 0 ] || {
-                echo "FAIL: arm '$self' at N=$nn reported hits=0 — a single-channel observing arm fires at every N, so this arm has stopped observing" >&2
-                sed -n '1,2p' "$out" >&2; exit 1; } ;;
+            [ "$h" -gt 0 ] || { echo "FAIL: arm '$self' at N=$nn reported hits=0 — a single-channel arm fires at every N" >&2; exit 1; } ;;
         ceiling|disciplined)
             if [ "$nn" = "1" ]; then
-                [ "$h" -gt 0 ] || {
-                    echo "FAIL: arm '$self' at N=1 reported hits=0 — at N=1 there is no shared-binding collapse to excuse it, so this arm has stopped observing" >&2
-                    sed -n '1,2p' "$out" >&2; exit 1; }
+                [ "$h" -gt 0 ] || { echo "FAIL: arm '$self' at N=1 reported hits=0 — no shared-binding collapse to excuse it" >&2; exit 1; }
             else
-                [ "$h" = "0" ] || {
-                    echo "FAIL: arm '$self' at N=$nn reported hits=$h — P4 says a shared loop-local binding collapses the verdict above N=1; if it now fires, P4 needs re-grading" >&2
-                    sed -n '1,2p' "$out" >&2; exit 1; }
+                [ "$h" = "0" ] || { echo "FAIL: arm '$self' at N=$nn reported hits=$h — P4 says the shared binding collapses the verdict above N=1; if it fires, P4 needs re-grading" >&2; exit 1; }
             fi ;;
         floor|ceiling0|ceiling0pb|unarmed)
-            [ "$h" = "0" ] || {
-                echo "FAIL: arm '$self' at N=$nn reported hits=$h — a SILENT arm is observing, so it is no longer the denominator this gate assumes" >&2
-                sed -n '1,2p' "$out" >&2; exit 1; } ;;
+            [ "$h" = "0" ] || { echo "FAIL: arm '$self' at N=$nn reported hits=$h — a SILENT arm is observing" >&2; exit 1; } ;;
     esac
     if ! grep -q "^$self $nn " "$out"; then
         echo "FAIL: arm '$self' at N=$nn did not report itself as executed — a different arm ran:" >&2
@@ -332,7 +357,15 @@ for n in 1 4 16; do
     # condemns 140 lines up, in the commit that removed the last one. Any
     # first reading inside the ambiguous band (within 20% above the bound,
     # or anywhere below it) gets three shots, whichever side it started.
-    if awk -v x="$rmed" -v b="$CF_BOUND" 'BEGIN{ exit !(x <= b * 1.20) }'; then
+    #
+    # The band is 10%, not the 20% round 31 first used: measured, the
+    # healthy population on this box is 1.33-1.50 and 1.15*1.20 = 1.38
+    # sits inside it, so N=4 and N=16 re-measured on a CLEAN run and cost
+    # ~26 s. 1.15*1.10 = 1.265 clears the observed minimum with margin
+    # while still covering the ambiguous zone around the bound. The
+    # "costs nothing on a healthy run" claim was written for round 30's
+    # below-bound-only trigger and was false for a full round.
+    if awk -v x="$rmed" -v b="$CF_BOUND" 'BEGIN{ exit !(x <= b * 1.10) }'; then
         echo "  N=$n came in at $rmed, inside the ambiguous band around $CF_BOUND — re-measuring, because contention does not reproduce and a dead arm does"
         r2=$(paired_ratio ceiling floor "$n")
         r3=$(paired_ratio ceiling floor "$n")

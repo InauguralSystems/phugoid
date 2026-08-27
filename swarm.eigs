@@ -87,6 +87,8 @@ define frame_step(fleet, t, dt, sched, P) as:
 define run_ceiling(n, frames, dt, spread, tstate, P, sched) as:
     local fleet is fleet_ic of [tstate, n, spread]
     local hits is 0
+    local reads is 0
+    local evals is 0
     local t is 0.0
     local f is 0
     loop while f < frames:
@@ -96,10 +98,17 @@ define run_ceiling(n, frames, dt, spread, tstate, P, sched) as:
             local qobs is fleet[i][2] + 0.0
             if diverging of qobs:
                 hits is hits + 1
+                unobserved:
+                    evals is evals + 1
+            else:
+                unobserved:
+                    evals is evals + 1
+            unobserved:
+                reads is reads + 1
             i is i + 1
         t is t + dt
         f is f + 1
-    print of f"ceiling {n} {frames} {hits} {fleet_digest of (fleet)}"
+    print of f"ceiling {n} {frames} {hits} {fleet_digest of (fleet)} {reads} {evals}"
     return fleet_digest of (fleet)
 
 # disciplined — the best a programmer can write today: the hot math inside
@@ -107,6 +116,8 @@ define run_ceiling(n, frames, dt, spread, tstate, P, sched) as:
 define run_disciplined(n, frames, dt, spread, tstate, P, sched) as:
     local fleet is []
     local hits is 0
+    local reads is 0
+    local evals is 0
     local t is 0.0
     unobserved:
         fleet is fleet_ic of [tstate, n, spread]
@@ -119,11 +130,18 @@ define run_disciplined(n, frames, dt, spread, tstate, P, sched) as:
             local qobs is fleet[i][2] + 0.0
             if diverging of qobs:
                 hits is hits + 1
+                unobserved:
+                    evals is evals + 1
+            else:
+                unobserved:
+                    evals is evals + 1
+            unobserved:
+                reads is reads + 1
             i is i + 1
         unobserved:
             t is t + dt
         f is f + 1
-    print of f"disciplined {n} {frames} {hits} {fleet_digest of (fleet)}"
+    print of f"disciplined {n} {frames} {hits} {fleet_digest of (fleet)} {reads} {evals}"
     return fleet_digest of (fleet)
 
 # floor — everything wrapped. Pure compute, no observer at all: the
@@ -131,6 +149,8 @@ define run_disciplined(n, frames, dt, spread, tstate, P, sched) as:
 define run_floor(n, frames, dt, spread, tstate, P, sched) as:
     local fleet is []
     local hits is 0
+    local reads is 0
+    local evals is 0
     unobserved:
         fleet is fleet_ic of [tstate, n, spread]
         local t is 0.0
@@ -140,10 +160,11 @@ define run_floor(n, frames, dt, spread, tstate, P, sched) as:
             local i is 0
             loop while i < n:
                 local qobs is fleet[i][2] + 0.0
+                reads is reads + 1
                 i is i + 1
             t is t + dt
             f is f + 1
-    print of f"floor {n} {frames} {hits} {fleet_digest of (fleet)}"
+    print of f"floor {n} {frames} {hits} {fleet_digest of (fleet)} {reads} {evals}"
     return fleet_digest of (fleet)
 
 # P1's discriminator — the disciplined shape with only ONE aircraft reading
@@ -154,6 +175,8 @@ define run_floor(n, frames, dt, spread, tstate, P, sched) as:
 define run_onereader(n, frames, dt, spread, tstate, P, sched) as:
     local fleet is []
     local hits is 0
+    local reads is 0
+    local evals is 0
     local t is 0.0
     unobserved:
         fleet is fleet_ic of [tstate, n, spread]
@@ -164,10 +187,17 @@ define run_onereader(n, frames, dt, spread, tstate, P, sched) as:
         local qobs is fleet[0][2] + 0.0
         if diverging of qobs:
             hits is hits + 1
+            unobserved:
+                evals is evals + 1
+        else:
+            unobserved:
+                evals is evals + 1
+        unobserved:
+            reads is reads + 1
         unobserved:
             t is t + dt
         f is f + 1
-    print of f"onereader {n} {frames} {hits} {fleet_digest of (fleet)}"
+    print of f"onereader {n} {frames} {hits} {fleet_digest of (fleet)} {reads} {evals}"
     return fleet_digest of (fleet)
 
 # P1's real discriminator, added at rung 4 after the first attempt could not
@@ -189,6 +219,8 @@ define run_onereader(n, frames, dt, spread, tstate, P, sched) as:
 define run_ceiling1(n, frames, dt, spread, tstate, P, sched) as:
     local fleet is fleet_ic of [tstate, n, spread]
     local hits is 0
+    local reads is 0
+    local evals is 0
     local t is 0.0
     local f is 0
     loop while f < frames:
@@ -196,9 +228,16 @@ define run_ceiling1(n, frames, dt, spread, tstate, P, sched) as:
         local qobs is fleet[0][2] + 0.0
         if diverging of qobs:
             hits is hits + 1
+            unobserved:
+                evals is evals + 1
+        else:
+            unobserved:
+                evals is evals + 1
+        unobserved:
+            reads is reads + 1
         t is t + dt
         f is f + 1
-    print of f"ceiling1 {n} {frames} {hits} {fleet_digest of (fleet)}"
+    print of f"ceiling1 {n} {frames} {hits} {fleet_digest of (fleet)} {reads} {evals}"
     return fleet_digest of (fleet)
 
 # ...and the ZERO-reader ceiling, which separates the two things
@@ -225,6 +264,8 @@ define never_read(z) as:
 define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
     local fleet is fleet_ic of [tstate, n, spread]
     local acc is 0.0
+    local reads is 0
+    local evals is 0
     local t is 0.0
     local f is 0
     loop while f < frames:
@@ -232,10 +273,12 @@ define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
         local i is 0
         loop while i < n:
             acc is acc + fleet[i][2]
+            unobserved:
+                reads is reads + 1
             i is i + 1
         t is t + dt
         f is f + 1
-    print of f"ceiling0 {n} {frames} 0 {fleet_digest of (fleet)}"
+    print of f"ceiling0 {n} {frames} 0 {fleet_digest of (fleet)} {reads} {evals}"
     return fleet_digest of (fleet)
 
 # ---------------------------------------------------- REAL channels

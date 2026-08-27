@@ -92,6 +92,7 @@ define frame_step_u(fleet, t, dt, sched, P) as:
 define run_unarmed(n, frames, dt, spread, tstate, P, sched) as:
     local fleet is fleet_ic_u of [tstate, n, spread]
     local acc is 0.0
+    local reads is 0
     local t is 0.0
     local f is 0
     loop while f < frames:
@@ -99,8 +100,9 @@ define run_unarmed(n, frames, dt, spread, tstate, P, sched) as:
         local i is 0
         loop while i < n:
             acc is acc + fleet[i][2]
+            reads is reads + 1
             i is i + 1
         t is t + dt
         f is f + 1
-    print of f"unarmed {n} {frames} 0 {fleet_digest_u of (fleet)}"
+    print of f"unarmed {n} {frames} 0 {fleet_digest_u of (fleet)} {reads} 0"
     return fleet_digest_u of (fleet)
