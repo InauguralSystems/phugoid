@@ -2037,8 +2037,15 @@ if arming were per-binding or liveness-scoped it would collapse onto the
 floor. It does not — measured **1.2428** and **1.4173** on two runs, both
 far above 1. That is EigenScript#1046's per-`EigsState` arming being paid
 by a hot loop that reads no verdict at all, it is what P1's mechanism half
-is actually about, and it CAN fail: a collapsed ratio of 1.00 is what
-per-binding arming would look like, and the planted fault rejects it.
+is actually about, and it CAN fail, and its planted fault is now a
+MEASUREMENT rather than a literal: `ceiling0pb` is the same arm with every
+assignment individually wrapped in `unobserved:` and the loops left
+observed — what per-binding or liveness-scoped arming produces — returning
+the **identical fleet digest**, so only the observation shape differs. It
+collapses to **0.9445**, against 1.3827 for the shipped arm in the same
+run: a factor of 1.46 across the bound. Round 25 built the counterfactual;
+the plant had been `ratio_ok 1.00`, which proves the bound can fail but not
+that the arm can produce the failing value.
 
 **The read share stays ungated, and that is the finding rather than a
 gap.** Differencing `ceiling` against `ceiling0` does not resolve on this
@@ -2049,16 +2056,42 @@ verdict the wall-time differences did — the arms are within noise of each
 other here — which is what makes "the mechanism is NOT resolved" a
 measurement rather than a shrug.
 
-**P1 is CONFIRMED in its practical form and its MECHANISM IS NOT
-RESOLVED.** Dropping 31 of 32 readers per frame saves nothing measurable.
-The decomposition into read cost versus arming cost did NOT resolve: across
-N = 8, 16, 32 the read share came out **-21.5%, -4.8%, +5.2%** on the
-banked run — re-measured at round 23, the N=32 point ranges over -2.8% to
-+5.2% across three runs, so the decomposition does not resolve at any of
-these sizes and the sign of the N=32 share is not stable. A
-negative share is impossible, so the split is noise at these sizes. Two
-explanations remain live and this rung cannot separate them. **Not
-published as a mechanism.**
+**P1 is CONFIRMED in its practical form. Its mechanism is HALF resolved:
+the ARMING half is settled, the READ half is not.** Round 25 refined a
+verdict that had said "MECHANISM IS NOT RESOLVED" flatly since round 1.
+
+- **Resolved.** `ceiling0/floor` — the unwrapped shape with zero verdict
+  reads — measured **1.35–1.48 in every one of seven interleaved
+  replicates**, and 1.24/1.42/1.48 across three earlier sessions. Arming
+  is paid by a hot loop that reads no verdict at all, which is
+  EigenScript#1046's per-`EigsState` granularity, and the counterfactual
+  confirms it discriminates: wrapping every assignment individually in
+  `unobserved:` while leaving the loops observed — what per-binding arming
+  would produce, digest held identical — drops the same ratio to
+  **0.9855**, which the gate's 1.10 bound rejects.
+- **Not resolved.** The read share, `(ceiling − ceiling0)/(ceiling −
+  floor)`, ranges **-5.6% to +27.6%** over those same seven replicates,
+  and `ceiling1` (ONE reader) measured faster than `ceiling` (sixteen) in
+  **2 of 7** — an ordering that cannot happen. Dropping 15 of 16 readers
+  per frame at the gated ladder point saves nothing this box can resolve.
+
+**Two retracted sentences lived on in this paragraph until round 25.**
+"Dropping 31 of 32 readers" described a sweep the shipped gate does not
+run — the ladder tops out at N=16. And "a negative share is impossible, so
+the split is noise" was the premise round 23 declared false and round 24
+deleted the gate for; it survived here as the stated *reason* the split is
+called noise, while two of round 25's seven replicates put negative shares
+on the board. The honest argument is the one already in the preceding
+clause: the sign is unstable and the ordering violates.
+
+Worse, the gate ENFORCED the error. `P1.verdict` pinned an exact-string
+match on "31 of 32", so correcting it failed the suite — attention follows
+the gate, and this gate pointed at the one clause that must not change
+while the false clause beside it was invisible. It is re-pinned on the
+verdict's substance and on the absence of the retracted premise.
+
+Two explanations remain live for the read half and this box cannot
+separate them. **The read share is not published as a mechanism.**
 
 **P3 — CONFIRMED, and the mechanism splits in two. Seven rewrites. Rounds
 1–8 graded the observer against its own verdict columns; round 9 fixed

@@ -28,13 +28,13 @@ file_pin() {
 FP=$(mktemp -d)
 sed 's/^FRAMES is 1500$/FRAMES is 750/' tests/swarm_profile.eigs > "$FP/mut.eigs"
 cmp -s tests/swarm_profile.eigs "$FP/mut.eigs" && { rm -rf "$FP"; echo "FAIL: the file_pin plant did not apply"; exit 1; }
-if ( file_pin "$FP/mut.eigs" 27b48d89472b 28 ) >/dev/null 2>&1; then
+if ( file_pin "$FP/mut.eigs" 96f09bf62d9d 50 ) >/dev/null 2>&1; then
     rm -rf "$FP"; echo "FAIL: file_pin ACCEPTED a halved frame count"; exit 1
 fi
 rm -rf "$FP"
 echo "PASS: file_pin planted fault rejected (the real file_pin rejects a halved FRAMES)"
 
-file_pin tests/swarm_profile.eigs         3bd07186c79d 28
+file_pin tests/swarm_profile.eigs         96f09bf62d9d 50
 file_pin tests/swarm_profile_unarmed.eigs ec298d5e32df 14
 file_pin swarm.eigs                       dd252ed85bd1 240
 # sim_core.eigs holds `deriv` and `rk4_step`, where essentially ALL the
@@ -251,10 +251,20 @@ ratio_ok "$p1r" "$P1_BOUND" || {
     echo "      arming has become finer than per-EigsState and EigenScript#1046 needs re-grading."
     exit 1; }
 echo "PASS: P1 mechanism — zero-reader arming still costs ${p1r}x the floor at N=$LASTN"
-# ...and the bound must be able to fail: 1.00 is what a collapsed
-# (per-binding) arming would look like.
-ratio_ok 1.00 "$P1_BOUND" && { echo "FAIL: the P1 bound accepted 1.00 — it cannot fail"; exit 1; }
-echo "PASS: P1 planted fault rejected (ratio 1.00 <= $P1_BOUND)"
+# ...and the bound must be able to fail. The plant is a MEASUREMENT, not a
+# literal: `ceiling0pb` is run_ceiling0 with every assignment individually
+# wrapped in `unobserved:` and the loops left observed -- what per-binding
+# or liveness-scoped arming would produce -- and it returns the IDENTICAL
+# fleet digest, so only the observation shape differs. Round 25: the plant
+# had been `ratio_ok 1.00`, which proves the bound can fail but not that
+# the ARM can produce the failing value.
+pbr=$(paired_ratio ceiling0pb floor "$LASTN")
+printf "  ceiling0pb/floor (per-binding counterfactual) at N=%s : %s\n" "$LASTN" "$pbr"
+ratio_ok "$pbr" "$P1_BOUND" && {
+    echo "FAIL: the per-binding counterfactual measured ${pbr}x, above the ${P1_BOUND} bound —"
+    echo "      the gate cannot distinguish per-EigsState arming from per-binding arming."
+    exit 1; }
+echo "PASS: P1 planted fault rejected — per-binding arming collapses to ${pbr}x (<= $P1_BOUND)"
 # The READ share is NOT gated, and that is the finding rather than a gap.
 # Differencing ceiling against ceiling0 on this box does not resolve: one
 # run gives a 36% read share, another 0.6%, and on the first ceiling1 (ONE

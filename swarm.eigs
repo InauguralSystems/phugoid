@@ -178,8 +178,13 @@ define run_onereader(n, frames, dt, spread, tstate, P, sched) as:
 #
 # Same as run_ceiling, but only aircraft 0 is ever read. If arming is
 # per-`EigsState` (EigenScript#1046), this is armed exactly as hard as the
-# N-reader ceiling and should cost the SAME on the write side, differing
-# only by the N-1 reads it skips. If it comes out markedly cheaper, arming
+# N-reader ceiling. It is NOT a read-only delta, though: skipping the inner
+# loop also skips N-1 observed `qobs` WRITES and the loop counter, so
+# ceiling1 minus ceiling is not the read cost. Round 25 -- `run_ceiling0`
+# is the correct pair for the arming question, because it keeps the write
+# count via `acc` while doing zero verdict reads, and this comment used to
+# invite the wrong comparison from inside the identity-pinned workload.
+# If it comes out markedly cheaper, arming
 # is finer than #1046 established and P1 is refuted.
 define run_ceiling1(n, frames, dt, spread, tstate, P, sched) as:
     local fleet is fleet_ic of [tstate, n, spread]

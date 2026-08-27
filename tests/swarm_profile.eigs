@@ -17,6 +17,48 @@ DT is 0.0166667
 # and the verdict checks were flying different fleets.
 SPREAD is 0.05
 
+# THE PER-BINDING COUNTERFACTUAL, used as the planted fault for P1's
+# arming gate. Round 25.
+#
+# `run_ceiling0` is the unwrapped shape with ZERO verdict reads, and it
+# costs ~1.4x the floor -- which is EigenScript#1046's per-EigsState
+# arming being paid by a loop that reads no verdict at all. The gate's
+# plant had been arithmetic (feed the real comparator a literal 1.00 and
+# require rejection). That proves the BOUND can fail; it does not prove
+# the ARM can produce the failing value.
+#
+# This does. Every assignment is individually wrapped in `unobserved:`
+# while the two `loop while` statements stay in observed context -- which
+# is exactly what per-binding or liveness-scoped arming would produce. The
+# fleet digest is identical to run_ceiling0's, so the physics is held
+# fixed and only the observation shape differs. Measured, it collapses to
+# ~0.99 of the floor, and the 1.10 bound rejects that.
+#
+# It lives HERE and not in swarm.eigs deliberately: swarm.eigs is the
+# identity-pinned MEASURED WORKLOAD, and every banked cost number in
+# ORACLE was taken against its current hash. A test-only counterfactual
+# does not belong in the file whose cost is the finding.
+define run_ceiling0_perbinding(n, frames, dt, spread, tstate, P, sched) as:
+    local fleet is []
+    local acc is 0.0
+    local t is 0.0
+    local f is 0
+    unobserved:
+        fleet is fleet_ic of [tstate, n, spread]
+    loop while f < frames:
+        unobserved:
+            fleet is frame_step of [fleet, t, dt, sched, P]
+        local i is 0
+        loop while i < n:
+            unobserved:
+                acc is acc + fleet[i][2]
+                i is i + 1
+        unobserved:
+            t is t + dt
+            f is f + 1
+    print of f"ceiling0pb {n} {frames} 0 {fleet_digest of (fleet)}"
+    return fleet_digest of (fleet)
+
 cli is args of null
 arm is "ceiling"
 if (len of cli) > 0:
@@ -37,6 +79,8 @@ elif arm == "floor":
     r is run_floor of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
 elif arm == "ceiling1":
     r is run_ceiling1 of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
+elif arm == "ceiling0pb":
+    r is run_ceiling0_perbinding of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
 elif arm == "ceiling0":
     r is run_ceiling0 of [n, FRAMES, DT, SPREAD, tr.state, tr.P, sched]
 else:

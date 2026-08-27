@@ -68,8 +68,9 @@ chk() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi;
 while read -r n c f; do
     grep -qF "| $n | $c | $f |" ORACLE.md \
         || { echo "FAIL P2.banked: row N=$n ($c, $f) is not the row published in ORACLE.md"; fail=1; }
+    :
 done <<<"$TABLE"
-chk 1 "P2.banked: all six sweep rows match ORACLE's published table"
+[ "$fail" -eq 0 ] && chk 1 "P2.banked: all six sweep rows match ORACLE's published table"
 
 read -r OM OB OR2 <<<"$(fit 0)"
 read -r FM FB FR2 <<<"$(fit 3)"
@@ -137,10 +138,16 @@ P1_SHARES="8 -21.5
 32 1.7"
 
 # Every share must be the published one.
-while read -r n sh; do
-    grep -qF -- "$sh%" ORACLE.md || { echo "FAIL P1.banked: read share $sh% at N=$n is not published in ORACLE.md"; fail=1; }
-done <<<"$P1_SHARES"
-chk 1 "P1.banked: the read-share decomposition matches ORACLE"
+# Round 25: this was an unanchored grep over the whole 2500-line file, so
+# the (N, share) ASSOCIATION -- the entire content of a decomposition --
+# was unpinned: putting N=32's value at N=8 still passed. And the summary
+# line below printed PASS unconditionally, so a real failure was followed
+# immediately by "matches ORACLE". The triple was also SPLICED -- two
+# points from the banked run plus a median of three later re-runs -- and
+# appears nowhere in ORACLE as a triple, so it is no longer banked as one.
+P1_RANGE_OK=1
+grep -q 'ranges \*\*-5.6% to +27.6%\*\*' ORACLE.md || P1_RANGE_OK=0
+chk "$P1_RANGE_OK" "P1.banked: ORACLE publishes the read share as a RANGE over interleaved replicates, not a spliced triple"
 
 # THE ARGUMENT IS RETRACTED. Round 22 gated the impossibility of a
 # negative read share -- "it says the arm that does fewer reads took
@@ -154,14 +161,27 @@ chk 1 "P1.banked: the read-share decomposition matches ORACLE"
 # -- was itself false: tests/swarm_profile.eigs dispatches
 # ceiling1/ceiling0/onereader and is hash-pinned.
 #
-# P1 is now MEASURED, in tests/test_swarm_profile.sh, as the ratio its
-# practical claim is actually about (disciplined/onereader at the largest
-# ladder point). What remains here is the check that the verdict text
+# P1 is now MEASURED, in tests/test_swarm_profile.sh, as ceiling0/floor at
+# the largest ladder point -- the zero-verdict-read arm against the
+# unobserved floor. (Round 25: this said disciplined/onereader, the pair
+# round 24 REMOVED because swarm.eigs says it cannot test arming. Round 24
+# fixed one stale present-tense comment in this file and introduced two.) What remains here is the check that the verdict text
 # still says what the measurement supports, and that the retracted
 # justification does not creep back.
-grep -q 'MECHANISM IS NOT$' ORACLE.md && grep -q '^RESOLVED\.\*\* Dropping 31 of 32 readers per frame saves nothing' ORACLE.md \
-    && chk 1 "P1.verdict: ORACLE states P1's mechanism as NOT RESOLVED" \
-    || chk 0 "P1.verdict: ORACLE no longer states P1's mechanism as unresolved (exit gate item 7)"
+# Pinned on the verdict's SUBSTANCE, not on a figure. Round 25: this
+# grepped an exact-string match on "31 of 32" -- a number the same ORACLE
+# section calls wrong -- so correcting the error FAILED the suite while
+# the retracted premise sitting beside it was invisible. A gate that
+# enforces the one clause which must not change is worse than no gate.
+grep -q 'the ARMING half is settled, the READ half is not' ORACLE.md \
+    && chk 1 "P1.verdict: ORACLE states which half of P1's mechanism resolves" \
+    || chk 0 "P1.verdict: ORACLE no longer distinguishes the resolved arming half from the unresolved read half (exit gate item 7)"
+
+# ...and the retracted premise must not come back. Matched in ASSERTION
+# form: the retraction quotes it, so a bare grep reds on its own fix.
+grep -q 'negative share is impossible, so the split is noise' ORACLE.md \
+    && chk 0 "P1.premise: the retracted 'a negative share is impossible' argument is asserted again" \
+    || chk 1 "P1.premise: the retracted impossibility argument stays retracted"
 
 # Matched in ASSERTION form only. The retraction quotes the phrase, so a
 # bare grep cannot tell a claim from its withdrawal -- it reds on the
@@ -216,7 +236,8 @@ mutant_check p2 's/^32 13.011/32 12.155/' superlinear
 # P1.impossible and P1.unresolved, both retracted at round 23 -- a plant
 # for a withdrawn claim proves nothing and reads as coverage. P1's
 # replacement gate is a MEASUREMENT in tests/test_swarm_profile.sh, with
-# its own planted fault (a ratio of 1.50, which the 1.20 bound rejects).
+# its own planted fault (a ratio of 1.00, which the 1.10 bound rejects --
+# a collapsed ratio is what per-binding arming would look like).
 
 [ "$fail" -eq 0 ] || { echo "VERDICT GATE FAILED"; exit 1; }
 echo "PASS: P2's refutation clauses fire with plants; P1's verdict text is pinned and its measurement lives in test_swarm_profile.sh"
