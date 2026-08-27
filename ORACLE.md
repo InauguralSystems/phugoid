@@ -1845,6 +1845,31 @@ observation shows first. The move dropped the verdict at the two most
 sensitive points, and the accompanying NOTE asserted a *cause* ("that
 point is noise") for a value that was in fact the regression.
 
+**Round 31 found the same mutant class one arm over, and the fix for it is
+free.** `disciplined` — the arm carrying the second headline, that
+`unobserved:` buys back essentially the whole penalty — could have its
+verdict read deleted outright, with bit-identical fleet digests and the
+whole suite green. That is worse than the ceiling case, because this
+section says the disciplined arm measures within noise of the floor, so a
+disciplined arm that *is* the floor is a null result indistinguishable
+from the claim **by timing in principle**. Every assertion in the harness
+puts the observed arm in the numerator, so a denominator arm that stops
+observing was invisible.
+
+The discriminator was already on stdout and thrown away: every arm prints
+`<arm> <n> <frames> <hits> <digest>`, and nothing asserted `hits`. It is
+asserted now, at zero extra cost — and the invariant turned out to be
+richer than expected. `ceiling` and `disciplined` report 877 at N=1 and
+**zero** at N=4 and N=16; `ceiling1` and `onereader` hold 877 at every N.
+That is not a defect, it is **P4's finding in the hits column**: the first
+pair read N aircraft through one loop-local binding, so above N=1 the
+window becomes the round-robin interleave and the predicate stops firing,
+while the second pair read one aircraft through one binding. The witness
+therefore pins P4's shape as well as catching the gutting. (The first
+version of this check asserted "observing arms fire" from the N=1 sample
+alone and red on the honest N=4 run — the one-cell generalisation this
+rung keeps finding, committed while fixing an instance of it.)
+
 What made the relaxation tempting is that the old gate could not tell
 contention from a dead arm. It can now: **contention does not reproduce
 and a dead arm does**, so a sub-bound point is re-measured twice more and

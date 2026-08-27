@@ -104,6 +104,56 @@ run_arm() {
     # binding arming collapses". It reds here now.
     local self="$arm"
     [ -n "$self" ] || self=unarmed
+    # THE OBSERVATION WITNESS. Round 31: every assertion in this file puts
+    # the observed arm in the NUMERATOR, so a DENOMINATOR arm that stops
+    # observing is invisible -- and `disciplined` (the arm carrying
+    # ORACLE's "unobserved: buys back essentially the whole penalty") could
+    # have its verdict read deleted outright with bit-identical fleet
+    # digests and the whole suite green. Worse than round 30's case,
+    # because ORACLE says that arm measures within noise of the floor, so
+    # a disciplined arm that IS the floor is a null result indistinguishable
+    # from the claim by timing in principle.
+    #
+    # The discriminator was already on stdout and thrown away: every arm
+    # self-reports `<arm> <n> <frames> <hits> <digest>`, and nothing
+    # asserted `hits` -- `grep -rn hits tests/*.sh` returned one COMMENT,
+    # naming this as "the same defect class round 1 found in `hits`",
+    # fixed for run_named4 at round 1 and never for the arms.
+    #
+    # The invariant is NOT "observing arms fire": measured across the
+    # ladder, `ceiling` and `disciplined` report 877 at N=1 and ZERO at
+    # N=4 and N=16. That is not a defect -- it is rung 4's P4 finding
+    # showing up in the hits column. Those arms read N aircraft through one
+    # loop-local `qobs`, so above N=1 the window becomes the round-robin
+    # interleave and the predicate stops firing; `ceiling1`/`onereader`
+    # read ONE aircraft through one binding and hold 877 at every N. So the
+    # witness pins P4's shape as well as catching the gutting. (My first
+    # version asserted `hits > 0` for every observing arm from the N=1
+    # sample alone, and red on the honest N=4 run -- the one-cell
+    # generalisation this rung keeps finding, made while fixing it.)
+    local h; h=$(grep -oP "^$self $nn [0-9]+ \K[0-9]+" "$out" | head -1)
+    LAST_HITS="$h"
+    [ -n "$h" ] || { echo "FAIL: arm '$self' at N=$nn printed no hits field" >&2; sed -n '1,2p' "$out" >&2; exit 1; }
+    case "$self" in
+        ceiling1|onereader)
+            [ "$h" -gt 0 ] || {
+                echo "FAIL: arm '$self' at N=$nn reported hits=0 — a single-channel observing arm fires at every N, so this arm has stopped observing" >&2
+                sed -n '1,2p' "$out" >&2; exit 1; } ;;
+        ceiling|disciplined)
+            if [ "$nn" = "1" ]; then
+                [ "$h" -gt 0 ] || {
+                    echo "FAIL: arm '$self' at N=1 reported hits=0 — at N=1 there is no shared-binding collapse to excuse it, so this arm has stopped observing" >&2
+                    sed -n '1,2p' "$out" >&2; exit 1; }
+            else
+                [ "$h" = "0" ] || {
+                    echo "FAIL: arm '$self' at N=$nn reported hits=$h — P4 says a shared loop-local binding collapses the verdict above N=1; if it now fires, P4 needs re-grading" >&2
+                    sed -n '1,2p' "$out" >&2; exit 1; }
+            fi ;;
+        floor|ceiling0|ceiling0pb|unarmed)
+            [ "$h" = "0" ] || {
+                echo "FAIL: arm '$self' at N=$nn reported hits=$h — a SILENT arm is observing, so it is no longer the denominator this gate assumes" >&2
+                sed -n '1,2p' "$out" >&2; exit 1; } ;;
+    esac
     if ! grep -q "^$self $nn " "$out"; then
         echo "FAIL: arm '$self' at N=$nn did not report itself as executed — a different arm ran:" >&2
         sed -n '1,3p' "$out" >&2; exit 1
@@ -275,8 +325,15 @@ for n in 1 4 16; do
     # contention does not reproduce, a gutted arm does. Re-measure twice
     # more and gate on the median of the three. Costs nothing on a healthy
     # run and ~2 s when the box is loaded.
-    if awk -v x="$rmed" -v b="$CF_BOUND" 'BEGIN{ exit !(x <= b) }'; then
-        echo "  N=$n came in at $rmed (bound: > $CF_BOUND) — re-measuring, because contention does not reproduce and a dead arm does"
+    # SYMMETRIC about the decision. Round 31: re-measuring only BELOW the
+    # bound is a one-sided filter -- it can move a verdict FAIL->PASS and
+    # never the reverse, lifting the escape probability for an arm sitting
+    # exactly at the bound from 0.50 to 0.75. That is the shape this file
+    # condemns 140 lines up, in the commit that removed the last one. Any
+    # first reading inside the ambiguous band (within 20% above the bound,
+    # or anywhere below it) gets three shots, whichever side it started.
+    if awk -v x="$rmed" -v b="$CF_BOUND" 'BEGIN{ exit !(x <= b * 1.20) }'; then
+        echo "  N=$n came in at $rmed, inside the ambiguous band around $CF_BOUND — re-measuring, because contention does not reproduce and a dead arm does"
         r2=$(paired_ratio ceiling floor "$n")
         r3=$(paired_ratio ceiling floor "$n")
         rmed=$(printf '%s\n%s\n%s\n' "$rmed" "$r2" "$r3" | sort -n | sed -n 2p)
@@ -290,7 +347,6 @@ for n in 1 4 16; do
     # 30: the gated quantity and the reported one differed in the last
     # digit.
     WORST=$(awk -v w="$WORST" -v x="$rmed" 'BEGIN{ print (x<w)?x:w }')
-    LASTR="$rmed"
     # NOTE (round 7): an earlier comment here claimed the disciplined and
     # unarmed arms are judged on THESE printed numbers. They are not -- the
     # DU assertions below call paired_ratio again at the largest N, which
@@ -419,9 +475,17 @@ rm -f "$D0" "$DP"
 echo "PASS: driver and workload agree on the fleet (digest $d0; arm-invariant, so not a discriminator)"
 pbr=$(paired_ratio ceiling0pb floor "$LASTN")
 printf "  ceiling0pb/floor (per-binding counterfactual) at N=%s : %s\n" "$LASTN" "$pbr"
-ratio_ok "$pbr" "$P1_BOUND" && {
-    echo "FAIL: the per-binding counterfactual measured ${pbr}x, above the ${P1_BOUND} bound —"
-    echo "      the gate cannot distinguish per-EigsState arming from per-binding arming."
+# TWO-SIDED. Round 31: this was `ratio_ok pbr 1.20 && FAIL`, so any
+# DEGRADATION of the counterfactual lowered its ratio and made the plant
+# "succeed" more easily -- a plant that gets easier to pass as its own arm
+# gets worse is not a plant. ORACLE's measured population for this arm is
+# 0.898-1.041, so a floor of 0.85 admits the spread while rejecting an arm
+# that has stopped doing the work.
+P1_PLANT_FLOOR=0.85
+awk -v x="$pbr" -v lo="$P1_PLANT_FLOOR" -v hi="$P1_BOUND" 'BEGIN{ exit !(x > lo && x <= hi) }' || {
+    echo "FAIL: the per-binding counterfactual measured ${pbr}x, outside [${P1_PLANT_FLOOR}, ${P1_BOUND}] —"
+    echo "      above the bound it cannot distinguish per-EigsState from per-binding arming;"
+    echo "      below the floor the counterfactual arm has itself stopped doing the work."
     exit 1; }
 echo "PASS: P1 planted fault rejected — per-binding arming collapses to ${pbr}x (<= $P1_BOUND)"
 # The READ share is NOT gated, and that is the finding rather than a gap.
