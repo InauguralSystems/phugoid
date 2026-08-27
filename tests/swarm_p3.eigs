@@ -107,7 +107,7 @@ define truth_row(idx, sp) as:
             t is t + 0.05
             f is f + 1
     # Pinned as integers so the row is stable across platforms: airspeed in
-    # hundredths of a m/s, pitch rate in hundred-thousandths of a rad/s.
+    # hundredths of a ft/s, pitch rate in hundred-thousandths of a rad/s.
     local u1 is round of ((au - bu) * 100.0)
     local u2 is round of ((cu - du) * 100.0)
     local q1 is round of ((aq - bq) * 100000.0)

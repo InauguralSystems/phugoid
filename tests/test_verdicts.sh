@@ -282,6 +282,13 @@ mutant_check() { # mutant_check <name> <sed-expr> <clause>
         superlinear) [ "$(awk -v d="$drift" 'BEGIN{print (d>=20)?1:0}')" = "0" ] \
                        && echo "PASS plant $1: clause 1 stops firing (${drift}%)" \
                        || { echo "FAIL plant $1: clause 1 still fires at ${drift}%"; fail=1; } ;;
+        # NO SILENT DEFAULT. Round 36: any clause string other than the two
+        # above executed NO assertion, set nothing, returned 0, and the file
+        # still printed "all plants fire". Third instance of this shape in
+        # this rung's lookups, after `want_hits` (round 34) and p3claims'
+        # truth `case` (round 35) -- a plant that proves nothing is worse
+        # than no plant, because it reads as coverage.
+        *) echo "FAIL: plant $1 names an unknown clause '$3' — it asserted nothing"; fail=1 ;;
     esac
 }
 # p1: halve the observer's cost at every N -> the C6 comparison closes.

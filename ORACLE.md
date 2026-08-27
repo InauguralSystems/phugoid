@@ -1801,7 +1801,7 @@ SS97-100).
    9, which found P3 had been rewritten five times without one: each
    rewrite read the observer's own labels and reported them as the state
    of the world, so `converged` became "the aircraft is quiescent" while
-   it was swinging 4.5–8.8 m/s peak-to-peak. Rungs 1 and 2 both write the
+   it was swinging 4.5–8.8 ft/s peak-to-peak. Rungs 1 and 2 both write the
    truth table first; rung 4 did not, and inverted its headline five times
    in a row as a direct result. The observer is the thing under test and
    cannot be its own oracle. Pinning every column of the wrong table still
@@ -2276,8 +2276,28 @@ over the first and last phugoid period of the 400 s run, dispersion 0.05:
 
 | aircraft | u p-p, first period | u p-p, **last period** |
 |---|---|---|
-| 0 (amp .0240) | 8.44 m/s | **4.52 m/s** |
-| 1 (amp .0466) | 16.41 m/s | **8.80 m/s** |
+| 0 (amp .0240) | 8.44 ft/s | **4.52 ft/s** |
+| 1 (amp .0466) | 16.41 ft/s | **8.80 ft/s** |
+
+**The unit is ft/s, and this section said m/s at seven sites until round
+36.** The model is wholly imperial — `sim_core.eigs` declares the state
+vector as `(ft/s, ft/s, rad/s, rad)`, and the dataset carries
+`g = 32.174 ft/s²`, `rho` in slug/ft³, `S` in ft², `W` in lb, and
+`u0 = 279.1` = Mach 0.25 at sea level in ft/s. Rungs 0-3 label the same
+variable ft/s at seven sites; rung 4's P3 section labelled it m/s at
+seven. `truth_row` performs no conversion, so the numbers were always
+ft/s and only the label was wrong.
+
+Two things about that are worth more than the correction. It sits
+**inside exit gate item 6**, the item written at round 10 because "a claim
+about the observer is not a claim until its unit is stated" — the rung
+swept the *observed* channel through rad/deg/mrad and got the unit wrong
+on the channel it uses as *ground truth*, in the same paragraph. And it
+overstated the rung's central severity claim by **3.28x**: "swinging
+4.5-8.8" is 4.5-8.8 ft/s, which in SI is 1.38-2.68 — a third of what the
+metric label asserted. The values were pinned
+exactly and the dimension was pinned by nothing — "pinning every column of
+the wrong table cannot catch a wrong table", one axis over.
 
 ζ≈0.013, decaying ~7–8% per cycle but **alive for the whole run**. So the
 physics truth is `oscillating` at every read, at every cadence, in every
@@ -2312,7 +2332,7 @@ unit. Two things are then graded separately, because round 9's single
 10-sample window spans 0.79 of a phugoid period. Measured, all **twelve**
 cadence-74 rows (2 aircraft x 2 dispersions x 3 units): **detection = 0**,
 in radians, degrees and milliradians alike, on every read of the run —
-while the aircraft is still swinging 4.5–8.8 m/s peak-to-peak. The
+while the aircraft is still swinging 4.5–8.8 ft/s peak-to-peak. The
 observer misses the live mode entirely.
 
 **This one number was measured wrong three rounds running, and twice the
@@ -2378,8 +2398,8 @@ published claim the moment it was swept. So the strong form is retired.
 What holds at every phase tested, and is what the gate asserts, is that
 the observer detects **at most one read out of ~99**. (The swing figures
 quoted above are the sp=0.05 aircraft; the sp=0.02 pair swing 1.81 and
-3.52 m/s in the final period. Round 15: this section had attached
-"4.5–8.8 m/s" to all twelve cadence-74 rows, which is true of six.) Blind in effect, not blind by
+3.52 ft/s in the final period. Round 15: this section had attached
+"4.5–8.8 ft/s" to all twelve cadence-74 rows, which is true of six.) Blind in effect, not blind by
 construction.
 
 **The unit-DEPENDENT half — the severity.** *Which* wrong answer you get
@@ -2506,7 +2526,7 @@ of the twelve the driver prints. **In the shipped unit there is a cell
 with a period that is perfectly cadence-invariant**: in radians, aircraft
 0 at dispersion 0.02 detects **0% at all eight cadences**, while carrying
 **98–99% false all-clear** at every one of them, and while
-`P3.truth.alive` certifies that same aircraft as still swinging (1.81 m/s
+`P3.truth.alive` certifies that same aircraft as still swinging (1.81 ft/s
 and 1.03e-3 rad/s peak-to-peak in the final period). Flatness is not the
 signature of periodlessness — it is what an absolute deadband produces
 once it swallows the channel: below the band every cadence reads alike

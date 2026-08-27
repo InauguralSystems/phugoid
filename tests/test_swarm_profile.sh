@@ -161,7 +161,14 @@ run_arm() {
     local want_evals
     case "$self" in
         ceiling|disciplined|ceiling1|onereader) want_evals=$want_reads ;;
-        *)                                      want_evals=0 ;;
+        floor|ceiling0|ceiling0pb|unarmed)      want_evals=0 ;;
+        # NO PERMISSIVE DEFAULT. Round 36: `*) want_evals=0` meant any arm
+        # outside the allowlist was expected to evaluate its predicate ZERO
+        # times -- exactly what a gutted observing arm produces -- so a new
+        # observing arm added to the driver would inherit "unwitnessed" as
+        # its default. Round 34 removed this from `want_hits` twelve lines
+        # down and left it here.
+        *) echo "FAIL: arm '$self' is not classified as observing or silent, so its predicate count is unwitnessed" >&2; exit 1 ;;
     esac
     [ "$ev" = "$want_evals" ] || {
         echo "FAIL: arm '$self' at N=$nn evaluated its predicate $ev times, expected $want_evals —" >&2

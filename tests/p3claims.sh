@@ -70,8 +70,8 @@ p3_claims() {
     #
     # The bounds are per-dispersion because the aircraft genuinely swing
     # different amounts: at sp=0.02 the final-period swing is 1.81 and
-    # 3.52 m/s, at sp=0.05 it is 4.52 and 8.80. ORACLE attached "4.5-8.8
-    # m/s" to all twelve cadence-74 rows; that is true of six of them.
+    # 3.52 ft/s, at sp=0.05 it is 4.52 and 8.80. ORACLE attached "4.5-8.8
+    # ft/s" to all twelve cadence-74 rows; that is true of six of them.
     local nt=0 tv ta tsp
     while read -r ta tsp tv; do
         nt=$((nt+1))
@@ -90,6 +90,36 @@ p3_claims() {
         esac
     done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) .* u_pp_last=\([0-9-]*\).*/\1 \2 \3/p' "$out")
     [ "$nt" -eq 4 ] || _cf P3.truth.alive "$nt of 4 physics truth rows found (vacuous check)"
+
+    # THE UNIT. Round 36: this section stated the airspeed in m/s at seven
+    # sites while the model is wholly imperial -- sim_core.eigs declares
+    # the state vector `(ft/s, ft/s, rad/s, rad)`, the dataset carries
+    # g = 32.174 ft/s^2 and u0 = 279.1 ft/s -- so the central severity
+    # claim was overstated 3.28x. `truth_row` does no conversion, so the
+    # VALUES were always right and only the dimension was wrong: pinned
+    # exactly, and pinned by nothing.
+    #
+    # That is exit gate item 6's own defect, inside the paragraph item 6
+    # motivates. The observed channel is swept through three units and
+    # gated (plant c9); the GROUND-TRUTH channel had no unit check at all.
+    # It has one now: the trim airspeed the truth rows are deltas around
+    # is an imperial constant, and it is asserted against the dataset
+    # rather than against a comment.
+    local u0
+    u0=$(grep -oP '"u0":\s*\K[0-9.]+' data/b747_approach.eigs | head -1)
+    local gg
+    gg=$(grep -oP '"g":\s*\K[0-9.]+' data/b747_approach.eigs | head -1)
+    if [ -z "$u0" ] || [ -z "$gg" ]; then
+        _cf P3.truth.unit "cannot read u0/g from data/b747_approach.eigs (vacuous check)"
+    else
+        awk -v g="$gg" 'BEGIN{ exit !(g > 32.0 && g < 32.3) }' \
+            || _cf P3.truth.unit "g = $gg is not the imperial 32.174 ft/s^2 — the truth table's unit label may no longer match the model"
+        awk -v u="$u0" 'BEGIN{ exit !(u > 250 && u < 310) }' \
+            || _cf P3.truth.unit "u0 = $u0 is not ~279 ft/s (Mach 0.25 at sea level) — re-check every airspeed figure in ORACLE before trusting it"
+    fi
+    if grep -qE '[0-9](\.[0-9]+)? m/s' ORACLE.md; then
+        _cf P3.truth.unit "ORACLE states an airspeed in m/s — the model is imperial (g=32.174 ft/s^2, u0=279.1 ft/s), so any such figure is out by 3.28x"
+    fi
     # The OBSERVED channel is pitch rate, not airspeed. Round 16: every
     # verdict in this rung is a verdict on s[2], and the deadband
     # mechanism is stated in rad/s -- yet this check read only u_pp_last.
@@ -248,7 +278,7 @@ p3_claims() {
     # So the strong form ("`oscillating` cannot fire at this cadence") is
     # false and is not asserted. What is true at every phase tested is
     # that the observer detects AT MOST ONE read out of ~99 while the
-    # aircraft swings 4.5-8.8 m/s peak-to-peak. That is the claim.
+    # aircraft swings 4.5-8.8 ft/s peak-to-peak. That is the claim.
     local nph=0 phmax=-1 phminfull=999999 pa pc pp pfull pfosc
     local phkeys=""
     while read -r pa pc pp pfull pfosc; do
