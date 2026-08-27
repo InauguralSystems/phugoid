@@ -1986,7 +1986,11 @@ was never committed.
 **P1 is CONFIRMED in its practical form and its MECHANISM IS NOT
 RESOLVED.** Dropping 31 of 32 readers per frame saves nothing measurable.
 The decomposition into read cost versus arming cost did NOT resolve: across
-N = 8, 16, 32 the read share came out **-21.5%, -4.8%, +29.8%**, and a
+N = 8, 16, 32 the read share came out **-21.5%, -4.8%, +29.8%** — a
+ONE-OFF measurement with no committed producer, stated as such here for
+the same reason the 3000-frame sweep is (round 22 found this was the
+sixth producerless claim in the rung, and the only one carrying a
+prediction's verdict). What is gated is the ARGUMENT: a
 negative share is impossible, so the split is noise at these sizes. Two
 explanations remain live and this rung cannot separate them. **Not
 published as a mechanism.**
@@ -2353,6 +2357,27 @@ now grades detection and false-all-clear separately, over three units,
 against measured physics — and `tests/test_swarm_p3_planted.sh` plant c9
 deletes the unit rows and requires the claims to REFUSE to certify, so the
 axis cannot be dropped again silently.
+
+**P4 — its registered condition is VACUOUS, and the substance behind it
+is nevertheless earned. Round 22, applying exit gate item 8 to the
+prediction that item 8 itself names.**
+
+P4 as registered says *"what breaks first will NOT be the physics"*. Any
+failure not labelled physics satisfies that, including total failure of
+the entire rung — which is exactly the defect item 8 was written for, and
+round 21 added item 8 while leaving P4's verdict standing unqualified. A
+non-vacuous P4 would have predicted something discriminating, and the
+obvious candidate is available and was measured all along: **the six arms
+must remain digest-identical while at least one observer-layer claim is
+refuted.** That is checkable, it is gated (`W2.arm{1..6}.digest`, plant
+`w2` for an arm that silently integrates fewer frames, plant `w5` for a
+saturating digest), and it holds — the arms differ only in observation and
+their fleet digests match exactly, across every round of this rung, while
+the observer layer produced the refutations catalogued above.
+
+So P4's substance stands and is gated; its registered *condition* does not
+discriminate and is recorded as defective rather than counted as evidence.
+The verdict below is kept for what it measured.
 
 **P4 — CONFIRMED, but the finding is WEAKER than first published, and the
 first version was false.** What broke first was not the physics: it was

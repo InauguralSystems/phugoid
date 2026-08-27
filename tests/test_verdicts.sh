@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
-# P2's verdict, gated.
+# The PREDICTIONS' verdicts, gated.
+#
+# Round 22: exit gate item 7 ("every prediction carries a VERDICT and a
+# gate") was added by round 21 -- in a commit that left P1 ungated. P1's
+# verdict could be inverted from CONFIRMED to REFUTED, its mechanism
+# declared resolved, and its impossible negative read-shares replaced with
+# a clean monotone +91/+92/+93, with the entire rung-4 suite still green.
+# A rule violated by the commit that introduces it is worth more than the
+# rule, so both P1 and P2 are gated here.
 #
 # Round 21 found P2 was the only one of the four predictions with NO
 # verdict, no claim ID and no planted fault anywhere in the repo — while
@@ -52,6 +60,17 @@ per_ac() {  # per_ac <col> <N> -> µs per aircraft-frame
 fail=0
 chk() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 
+# The banked table must BE the published one. Round 22: the header claimed
+# this file "catches a silent edit to the table" while it only protected
+# its own private copy -- editing ORACLE's N=32 row (which moves the
+# headline ratio, the 45.0 us slope and the +26% drift) left the gate
+# green. It guards the published number now.
+while read -r n c f; do
+    grep -qF "| $n | $c | $f |" ORACLE.md \
+        || { echo "FAIL P2.banked: row N=$n ($c, $f) is not the row published in ORACLE.md"; fail=1; }
+done <<<"$TABLE"
+chk 1 "P2.banked: all six sweep rows match ORACLE's published table"
+
 read -r OM OB OR2 <<<"$(fit 0)"
 read -r FM FB FR2 <<<"$(fit 3)"
 
@@ -91,6 +110,50 @@ grep -q '^\*\*P2 — REFUTED' ORACLE.md \
     && chk 1 "P2.verdict: ORACLE states P2's verdict" \
     || chk 0 "P2.verdict: ORACLE does not state P2 as REFUTED (exit gate item 3)"
 
+# =====================================================================
+# P1 -- "reducing readers buys ~nothing, and the MECHANISM IS NOT
+# RESOLVED". Round 22 found this was the last ungated prediction, and that
+# its verdict could be inverted with the whole suite green.
+#
+# P1's evidence is a read-share decomposition: the fraction of the
+# observer's marginal cost attributable to READS rather than to arming,
+# obtained by differencing the ceiling arm against ceiling1/ceiling0.
+# It is a ONE-OFF measurement with no committed producer -- like the
+# 3000-frame sweep above, and stated as such in ORACLE rather than
+# implied to be reproducible. What IS gateable is the ARGUMENT it carries,
+# and that argument turns on a specific impossibility.
+P1_SHARES="8 -21.5
+16 -4.8
+32 29.8"
+
+# Every share must be the published one.
+while read -r n sh; do
+    grep -qF -- "$sh%" ORACLE.md || { echo "FAIL P1.banked: read share $sh% at N=$n is not published in ORACLE.md"; fail=1; }
+done <<<"$P1_SHARES"
+chk 1 "P1.banked: the read-share decomposition matches ORACLE"
+
+# THE ARGUMENT. A read share is a fraction of a measured cost, so a
+# NEGATIVE one is physically impossible -- it says the arm that does fewer
+# reads took longer. That impossibility is the entire basis for "the split
+# is noise at these sizes, and the mechanism is NOT resolved". If the
+# shares ever come out all-positive and ordered, the split has resolved
+# and P1's verdict must be rewritten rather than kept.
+NEG=$(echo "$P1_SHARES" | awk '$2 < 0' | wc -l)
+chk "$(awk -v k="$NEG" 'BEGIN{print (k>=1)?1:0}')" \
+    "P1.impossible: $NEG of 3 read shares are negative, which is impossible for a cost fraction — this is what makes the split NOISE"
+
+# The verdict must SAY unresolved. Round 22 inverted it to "MECHANISM IS
+# FULLY RESOLVED" with every gate green.
+grep -q 'MECHANISM IS NOT$' ORACLE.md && grep -q '^RESOLVED\.\*\* Dropping 31 of 32 readers per frame saves nothing' ORACLE.md \
+    && chk 1 "P1.verdict: ORACLE states P1's mechanism as NOT RESOLVED" \
+    || chk 0 "P1.verdict: ORACLE no longer states P1's mechanism as unresolved (exit gate item 7)"
+
+# A resolved split would need every share positive AND ordered. Assert the
+# data does NOT support that, so the claim stops holding the moment it does.
+ORDERED=$(echo "$P1_SHARES" | awk '{v[NR]=$2} END{ print (v[1]>0 && v[2]>v[1] && v[3]>v[2]) ? 1 : 0 }')
+chk "$(awk -v o="$ORDERED" 'BEGIN{print (o==0)?1:0}')" \
+    "P1.unresolved: the shares are not a positive ordered series, so 'arming is per-binding' is not supported"
+
 # --- PLANTED FAULTS. A gate that has never failed has not been shown to
 # work, and this one is new.
 # Re-run the same arithmetic against a mutated table and require the
@@ -126,5 +189,18 @@ mutant_check p1 's/^([0-9]+) ([0-9.]+) ([0-9.]+)$/\1 \2 \3/; s/^1 0.399/1 0.348/
 # p2: flatten the top of the observer curve -> superlinearity vanishes.
 mutant_check p2 's/^32 13.011/32 12.155/' superlinear
 
-[ "$fail" -eq 0 ] || { echo "P2 FIT GATE FAILED"; exit 1; }
-echo "PASS: P2's verdict arithmetic reproduces and both refutation clauses fire, with plants"
+[ "$fail" -eq 0 ] || { echo "VERDICT GATE FAILED"; exit 1; }
+# P1 plant: make the shares a clean positive ordered series -- exactly the
+# mutation round 22 used to invert the verdict -- and require the
+# impossibility argument to stop holding.
+P1_MUT="8 91.0
+16 92.5
+32 93.1"
+NEGM=$(echo "$P1_MUT" | awk '$2 < 0' | wc -l)
+ORDM=$(echo "$P1_MUT" | awk '{v[NR]=$2} END{ print (v[1]>0 && v[2]>v[1] && v[3]>v[2]) ? 1 : 0 }')
+{ [ "$NEGM" -eq 0 ] && [ "$ORDM" -eq 1 ]; } \
+    && echo "PASS plant p3: a resolved split stops satisfying P1.impossible and P1.unresolved" \
+    || { echo "FAIL plant p3: the P1 argument still holds on a resolved split"; fail=1; }
+
+[ "$fail" -eq 0 ] || { echo "VERDICT GATE FAILED"; exit 1; }
+echo "PASS: P1's and P2's verdicts are gated — both refutation clauses fire, the impossibility argument holds, with plants"

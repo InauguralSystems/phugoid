@@ -206,10 +206,12 @@ define run_ceiling1(n, frames, dt, spread, tstate, P, sched) as:
 # whole write/arming cost.
 # NOTE: an earlier version of this comment said deleting `never_read` would
 # unarm the module and silently turn this arm into `floor`. That is FALSE
-# -- four other functions in this file hold predicates, so the module stays
-# armed either way -- eight other functions in this file hold predicates,
-# not four as an earlier version of this comment said (verified with
-# EIGS_OBS_GATE_STATS both with and without it). It is kept only so this arm reads the same in isolation.
+# -- SEVEN other functions in this file hold predicates (eight counting
+# this one), so the module stays armed either way. Verified with
+# EIGS_OBS_GATE_STATS both with and without it. An earlier version said
+# "four"; round 22 corrected that to "eight other", which was the total
+# rather than the others -- a corrected number corrected to the wrong
+# value. It is kept only so this arm reads the same in isolation.
 define never_read(z) as:
     if diverging of z:
         return 1
