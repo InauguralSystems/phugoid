@@ -16,7 +16,9 @@ EIGS="${EIGENSCRIPT:-eigenscript}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 NPLANTS=0
+export P3_SITES
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
+P3_SITES="$WORK/sites"
 # shellcheck source=tests/p3claims.sh
 . tests/p3claims.sh
 
@@ -310,7 +312,9 @@ oplant u5 P3.truth.unit 4 sed -E 's/^\| ([01]) \(amp (\.[0-9]+)\) \| ([0-9.]+) f
 # check that every claim the library can emit is covered. A claim without
 # a plant has never been shown to be able to fail.
 ALLIDS=$(grep -oP '_cf \K[A-Za-z0-9.]+' tests/p3claims.sh | sort -u)
-PLANTED=$(grep -oPh "^o?plant \S+ '?\K[A-Za-z0-9. ]+" tests/test_swarm_p3_planted.sh | tr ' ' '\n' | grep '^P3' | sort -u)
+# `envplant` too: round 43 added a third runner and this pattern only
+# knew two, so IDs declared through it counted as unplanted.
+PLANTED=$(grep -oPh "^(env|o)?plant \S+ '?\K[A-Za-z0-9. ]+" tests/test_swarm_p3_planted.sh | tr ' ' '\n' | grep '^P3' | sort -u)
 MISSING=$(comm -23 <(printf '%s\n' $ALLIDS) <(printf '%s\n' $PLANTED))
 if [ -n "$MISSING" ]; then
     echo "FAIL: these claim IDs are reddened by NO plant, so nothing has shown they can fail:"
@@ -377,6 +381,68 @@ MISSING_W=$(comm -23 <(echo "$DECLARED_W") <(echo "$SEEN_W"))
     || { echo "FAIL: tagged witnesses no plant reds: $(echo $MISSING_W | tr '\n' ' ')— each can be deleted with this harness green"; exit 1; }
 UNDECL_W=$(comm -13 <(echo "$DECLARED_W") <(echo "$SEEN_W"))
 [ -z "$UNDECL_W" ] || { echo "FAIL: plants red witnesses not present in p3claims.sh: $(echo $UNDECL_W | tr '\n' ' ')"; exit 1; }
+
+
+# Round 44's fifteen. The site-level enrollment below reported 16 of 72
+# assertion sites firing under NO plant -- spanning 11 of the 16 claim
+# IDs, eight of them "(vacuous check)" population guards, so the vacuity
+# guards were themselves vacuous. All 16 could be gutted at once with this
+# harness printing PASS, because a site that never fires contributes
+# nothing to any per-plant CLAIMFAIL count.
+# ac0 sp=0.02's alive floor -- one of round 35's NO-SILENT-DEFAULT arms
+plant n1 'P3.truth.alive P3.truth.unit' 2 sed -E 's/^(p3truth ac=0 sp=0.02 .*u_pp_last=)181/\111/'
+# ac1 sp=0.05's alive floor, the other unplanted per-dispersion bound
+plant n2 'P3.truth.alive P3.truth.unit' 2 sed -E 's/^(p3truth ac=1 sp=0.05 .*u_pp_last=)880/\111/'
+# an unrecognised truth row: BOTH default arms, which is what stops a row being graded by nothing
+plant n3 'P3.truth.alive P3.truth.unit' 3 sed -E 's/^p3truth ac=1 sp=0.02 /p3truth ac=7 sp=0.02 /'
+# a radian row at a 100% false all-clear, above the 98-99% ORACLE publishes -- round 44 showed the summary line printing the contradicting value while certifying
+plant n4 'P3.unitdep' 1 awk '{ if ($1=="p3" && $2=="unit=rad" && $3=="ac=1" && $4=="sp=0.05" && $5=="cad=104") { sub(/fosc=[0-9]+/,"fosc=0"); sub(/fquiet=[0-9]+/,"fquiet=67"); sub(/fnoclaim=[0-9]+/,"fnoclaim=0") } print }'
+# radian false all-clears removed at one cadence, so they no longer appear at all 8
+plant n5 'P3.partition P3.profile P3.tail P3.unitdep' 6 awk '{ if ($1=="p3" && $2=="unit=rad" && $5=="cad=134") sub(/fquiet=[0-9]+/,"fquiet=0"); print }'
+# a zero-full row. This is the plant that found the P3.nuisance vacuity guard UNREACHABLE: an earlier loop divided by the same field unguarded, so the row died as 'division by 0' with the whole library silent
+plant n6 'P3.nuisance P3.partition P3.profile P3.unitdep P3.unitid' 8 awk '{ if ($1=="p3" && $2=="unit=deg" && $5=="cad=74" && $3=="ac=0" && $4=="sp=0.02") sub(/full=[0-9]+/,"full=0"); print }'
+# a phase cell at the wrong cadence
+plant n7 'P3.phase' 1 sed -E '0,/^p3ph ac=0 cad=74 /s//p3ph ac=0 cad=84 /'
+# a monotone control cell with too few full-window reads
+plant n8 'P3.monoclass P3.monotone' 2 awk '{ if ($1=="p3mono" && $2=="kind=decay_slow" && $3=="unit=rad" && $4=="cad=94") sub(/full=[0-9]+/,"full=3"); print }'
+# noise no longer saturating at cadence 74 -- the inversion this rung reports
+plant n9 'P3.noise P3.profile' 7 awk '{ if ($1=="p3mono" && $2=="kind=noise" && $4=="cad=74") sub(/fosc=[0-9]+/,"fosc=1"); print }'
+# the noise-control rows deleted outright
+plant n10 'P3.noise P3.profile' 2 awk '!($1=="p3mono" && $2=="kind=noise" && $3=="unit=deg")'
+# the decay_slow rows deleted
+plant n11 'P3.monoclass P3.monotone' 3 awk '!($1=="p3mono" && $2=="kind=decay_slow" && $3=="unit=deg")'
+# negative-control cells with too few reads
+plant n12 'P3.control' 6 awk '{ if ($1=="p3nc") sub(/full=[0-9]+/,"full=3"); print }'
+# the cadence-134 rows absent from the sweep
+plant n13 'P3.profile P3.tail P3.unitdep P3.unitid' 4 awk '!($1=="p3" && $5=="cad=134")'
+# an N-sweep row missing
+plant n14 'P3.nfleet' 1 awk '!($1=="p3n" && $2=="n=4")'
+# the detector no longer firing on a healthy fleet at N=2
+# a zero-full NOISE row: reds the second unguarded-division instance, the
+# one that made the P3.profile zero-full guard unreachable in turn
+plant n16 'P3.monotone P3.noise P3.profile' 3 awk '{ if ($1=="p3mono" && $2=="kind=noise" && $3=="unit=deg" && $4=="cad=94") sub(/full=[0-9]+/,"full=0"); print }'
+plant n15 'P3.nfleet' 3 awk '{ if ($1=="p3n" && $2=="n=2") sub(/ffleet_permille=[0-9]+/,"ffleet_permille=1"); print }'
+# SITE ENROLLMENT -- the class round 43 fixed only one instance of.
+# Round 44 instrumented `_cf` with its own call-site line and took this
+# set difference: 72 sites, 56 fired under some plant, 16 fired under
+# none, spanning 11 of the 16 claim IDs. All 16 could be gutted at once
+# with this harness printing PASS, because a site that never fires
+# contributes nothing to any per-plant CLAIMFAIL count. Eight were the
+# "(vacuous check)" guards -- the vacuity guards were themselves vacuous.
+# One (round 39's radmax ceiling) is the sole guard on ORACLE's published
+# 98-99% false-all-clear peak: gutted, a planted 100% row certifies while
+# the summary line prints the contradicting value.
+SITES_ALL=$(grep -n '_cf P3' tests/p3claims.sh | cut -d: -f1 | sort -u)
+SITES_FIRED=$(sort -u "$P3_SITES" 2>/dev/null || true)
+NSITES=$(echo "$SITES_ALL" | grep -c .)
+[ "$NSITES" -ge 70 ] || { echo "FAIL: only $NSITES _cf sites found in tests/p3claims.sh — the enumeration broke and this check is vacuous"; exit 1; }
+SITES_DEAD=$(comm -23 <(echo "$SITES_ALL") <(echo "$SITES_FIRED"))
+if [ -n "$SITES_DEAD" ]; then
+    echo "FAIL: $(echo "$SITES_DEAD" | grep -c .) of $NSITES assertion sites in tests/p3claims.sh fire under NO plant — each can be deleted with this harness green:"
+    for L in $SITES_DEAD; do printf '         p3claims.sh:%s  %s\n' "$L" "$(sed -n "${L}p" tests/p3claims.sh | sed 's/^ *//' | cut -c1-96)"; done
+    exit 1
+fi
+echo "--- site enrollment: all $NSITES assertion sites fire under some plant"
 
 # The count is COUNTED, not transcribed: this line said "38" while 42
 # plants ran, so a deleted plant was silent whenever another shared its ID.

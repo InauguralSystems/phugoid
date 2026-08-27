@@ -355,6 +355,15 @@ loop while a7i < NA7:
     local td7 is period_dft of [ch7[a7i], DT7]
     if plant == "w8":
         td7 is period_peaks of [ch7[a7i], DT7]
+    # w11/w12: the MIRROR aliases. Round 44 found as_tp7 and as_zl7 could
+    # be gutted to `return res` with every plant still flipping exactly
+    # its declared count -- only as_td7 had a plant, so two thirds of the
+    # identity defense was decoration. w11 feeds the DFT result into the
+    # extrema slot (no n_extrema); w12 feeds the envelope estimator into
+    # the log-decrement slot (no n_ratios), which is invisible
+    # numerically because the two zeta estimators agree on the phugoid.
+    if plant == "w11":
+        tp7 is period_dft of [ch7[a7i], DT7]
     local z7 is zeta_logdec of [ch7[a7i], DT7]
     # w9: the grading timestep wrong by 2%, which moves BOTH period rows
     # off truth by 2% against a 0.5% tolerance. Without it the Tpeaks
@@ -367,6 +376,8 @@ loop while a7i < NA7:
     # passes it through and the row must red through the NUMERIC arm --
     # rung 1's round-7 rule, which is what makes this a plant of the
     # measurement rather than of the plumbing.
+    if plant == "w12":
+        z7 is zeta_envelope of [ch7[a7i], DT7]
     if plant == "w10":
         if z7.ok == 1:
             z7 is {"ok": 1, "zeta": z7.zeta * 1.05, "n_ratios": z7.n_ratios}

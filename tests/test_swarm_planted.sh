@@ -56,6 +56,13 @@ run_plant w8; expect_reds 4; expect_red 'W7\.Tdft\.a0' 'W7\.Tdft\.a3'
 # numeric rows that could have been deleted with this harness green.
 run_plant w9;  expect_reds 8; expect_red 'W7\.Tpeaks\.a0' 'W7\.Tdft\.a3'
 run_plant w10; expect_reds 4; expect_red 'W7\.zeta\.a0' 'W7\.zeta\.a3'
+# w11/w12: round 44 gutted as_tp7 and as_zl7 to `return res` and every
+# plant still flipped exactly its declared count -- only as_td7 had a
+# plant (w8), so two thirds of W7's identity defense was decoration. These
+# are its mirror aliases, invisible numerically because the estimator
+# pairs agree on the phugoid to within a fraction of the tolerance.
+run_plant w11; expect_reds 4; expect_red 'W7\.Tpeaks\.a0' 'W7\.Tpeaks\.a3'
+run_plant w12; expect_reds 4; expect_red 'W7\.zeta\.a0' 'W7\.zeta\.a3'
 
 # Every check that CAN be planted must have been red by something.
 "$EIGS" tests/swarm_check.eigs > "$WORK/clean" 2>&1

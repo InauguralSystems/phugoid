@@ -55,7 +55,19 @@ p3_claims() {
     local out="$1"
     local failed=0
 
-    _cf() { echo "CLAIMFAIL $1: $2"; failed=1; }
+    # SITE-LEVEL enrollment. Round 43 tagged the ten witnesses behind one
+    # claim ID; round 44 found the same hole live at 16 of the other 72
+    # `_cf` sites -- eight of them the "(vacuous check)" population guards
+    # this rung keeps adding, so the vacuity guards were themselves
+    # vacuous. Gutting all 16 left the plant harness at PASS.
+    #
+    # An ID-level or line-COUNT assertion cannot see them: a site that
+    # never fires contributes zero CLAIMFAIL lines to every plant. So the
+    # firing SITE is recorded, and tests/test_swarm_p3_planted.sh takes a
+    # set difference against every site in this file. The tags stay --
+    # they name the witness in the failure text -- but enrollment no
+    # longer depends on anyone remembering to add one.
+    _cf() { echo "CLAIMFAIL $1: $2"; if [ -n "${P3_SITES:-}" ]; then echo "${BASH_LINENO[0]}" >> "$P3_SITES"; fi; failed=1; }
     # (The former `_num` helper is gone -- round 35 found it dead,
     # carrying an eight-line comment about a plant, reading as coverage.)
 
@@ -281,6 +293,13 @@ p3_claims() {
     # all-clear exists only in radians".
     local radmax=-1 degmax=-1 nrad=0 nnonrad=0 radcad="" ncadr nradfq cd ncell
     while read -r u a s c full fosc fq fnc fot; do
+        # GUARDED, because this is the FIRST loop over the rows. Round 44
+        # went to plant the zero-full guard further down (the P3.nuisance
+        # one at the `det=` division) and found it unreachable: a row with
+        # full=0 died here first, "division by 0", with zero CLAIMFAIL
+        # lines and the whole claim library silent. A vacuity guard behind
+        # an unguarded division is not a guard.
+        [ "$full" -gt 0 ] || { _cf P3.unitdep "row unit=$u ac=$a sp=$s cad=$c has zero full-window reads (vacuous check)"; continue; }
         fac=$(( fq * 100 / full ))
         if [ "$u" = "rad" ]; then
             nrad=$((nrad+1)); [ "$fac" -gt "$radmax" ] && radmax=$fac
@@ -463,6 +482,12 @@ p3_claims() {
     # fire on drift, and the claim is named for what it is.
     local nmono=0 nnoise=0 mk mu mc mfull mfosc
     while read -r mk mu mc mfull mfosc; do
+        # The >= 40 bound below is not a division guard: it reports and
+        # falls through, and the `mfosc * 100 / mfull` divisions further
+        # down then die on a zero. Round 44 found the identical shape at
+        # the P3.nuisance guard; this is the second instance, and it is
+        # why the P3.profile zero-full guard was unreachable.
+        [ "$mfull" -gt 0 ] || { _cf P3.monotone "control cell $mk/$mu/cad$mc has zero full-window reads (vacuous check)"; continue; }
         [ "$mfull" -ge 40 ] || _cf P3.monotone "control cell $mk/$mu/cad$mc has only $mfull full-window reads (vacuous check)"
         if [ "$mk" = "noise" ]; then
             nnoise=$((nnoise+1))
@@ -527,6 +552,7 @@ p3_claims() {
     local nlo=999 nhi=-1 pc
     while read -r mk mu mc mfull mfosc; do
         [ "$mk" = "noise" ] && [ "$mu" = "deg" ] || continue
+        [ "$mfull" -gt 0 ] || { _cf P3.profile "noise row $mu cad=$mc has zero full-window reads (vacuous check)"; continue; }
         pc=$(( mfosc * 100 / mfull ))
         [ "$pc" -lt "$nlo" ] && nlo=$pc
         [ "$pc" -gt "$nhi" ] && nhi=$pc

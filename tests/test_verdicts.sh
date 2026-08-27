@@ -133,6 +133,16 @@ done <<<"$TABLE"
 # and a grep over raw lines then silently matches nothing -- which under
 # `set -e` killed this script outright rather than reporting anything.
 ORACLE_PLAIN=$(tr -d '*' < ORACLE.md | tr '\n' ' ' | tr -s ' ')
+
+# A COUNTED integration point (§37). Round 44: `derived_check` prints
+# nothing on success and nothing counted its call sites, so deleting two
+# of them -- including ones added the round before -- left this file's
+# output byte-identical at 25 PASS. The mechanism built to stop derived
+# numbers going unpinned could itself be silently shrunk.
+NDERIVED=$(grep -cE '^ *derived_check "' tests/test_verdicts.sh)
+DERIVED_RAN=0
+DERIVED_CALLS=0
+[ "$NDERIVED" -ge 15 ] || { echo "FAIL P2.derived: only $NDERIVED derived_check sites — this file has been shrunk"; exit 1; }
 # PRESENCE IS NOT AGREEMENT -- round 41's lesson, which this very function
 # reproduced on its first planted fault. Setting the headline's end-to-end
 # change to +9.9% left the gate GREEN, because "+10.8% end to end" also
@@ -142,6 +152,7 @@ ORACLE_PLAIN=$(tr -d '*' < ORACLE.md | tr '\n' ' ' | tr -s ' ')
 # third argument -- a regex matching ANY statement of that quantity -- and
 # every match must equal the computed one.
 derived_check() { # derived_check <label> <string ORACLE must contain> [regex matching any statement of it]
+    DERIVED_CALLS=$((DERIVED_CALLS+1))
     case "$ORACLE_PLAIN" in
         *"$2"*) : ;;
         *) echo "FAIL P2.derived: ORACLE does not publish $1 as '$2' — it is computed from the banked sweep and the write-up has drifted"; fail=1; return ;;
@@ -265,6 +276,15 @@ C6_US=$(awk -v p="$C6_PER_WRITE" -v h="$HAND_COUNT" 'BEGIN{ printf "%.1f", p*h }
 IMPLIED=$(awk -v o="$OBS_US" -v p="$C6_PER_WRITE" 'BEGIN{ printf "%.0f", o/p }')
 derived_check "the implied assignment count" "implies ~$IMPLIED observed" "implies ~[0-9]+ observed"
 derived_check "the hand count under it" "a hand count of ~$HAND_COUNT for four" "a hand count of ~[0-9]+ for four"
+
+# ...and the sites must have RUN. A static count catches a deletion; this
+# catches a site that is present but unreachable, which is the shape round
+# 44 found twice in the P3 claim library (a vacuity guard sitting behind
+# an unguarded division). One site is inside the six-row loop, so the
+# runtime count is the static count plus five.
+WANT_CALLS=$(( NDERIVED + 5 ))
+[ "$DERIVED_CALLS" -eq "$WANT_CALLS" ] \
+    || { echo "FAIL P2.derived: $DERIVED_CALLS derived_check calls executed, expected $WANT_CALLS from $NDERIVED sites — a site is present but did not run"; fail=1; }
 MISS=$(awk -v a="$OBS_US" -v b="$C6_US" 'BEGIN{ printf "%.2f", a/b }')
 chk "$(awk -v m="$MISS" 'BEGIN{print (m>=1.5)?1:0}')" \
     "P2.c6miss: measured slope ${OBS_US} µs vs C6-derived ${C6_US} µs = ${MISS}x — clause 2 of P2's refutation FIRES"
