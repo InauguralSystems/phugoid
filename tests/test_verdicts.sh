@@ -40,7 +40,16 @@ TABLE="1 0.399 0.297
 16 6.090 4.093
 32 13.011 8.741"
 FRAMES=3000
-C6_PER_WRITE=0.154   # µs per observed scalar write, measured at rung 3
+# µs per observed scalar write. Round 37: this shipped as a bare literal
+# attributed to "rung 3" while ORACLE's rung-3 section never states it --
+# the unpinned-constant class this rung has named five times, sitting under
+# P2's entire 1.95x verdict. It IS recoverable from C6's own banked
+# figures, so the derivation is pinned here rather than the number:
+C6_HI=0.243          # s, C6's observed arm
+C6_LO=0.169          # s, C6's unobserved arm
+C6_WRITES=480000     # observed scalar writes between them
+C6_PER_WRITE=$(awk -v a="$C6_HI" -v b="$C6_LO" -v w="$C6_WRITES" 'BEGIN{ printf "%.3f", (a-b)*1e6/w }')
+[ "$C6_PER_WRITE" = "0.154" ] || { echo "FAIL: C6's per-write cost derives to $C6_PER_WRITE, not the 0.154 P2's verdict is built on"; exit 1; }
 HAND_COUNT=150       # observed assignments per aircraft-frame, hand count
 
 fit() {  # fit <col: 2=ceiling 3=floor 0=observer> -> "slope intercept r2"

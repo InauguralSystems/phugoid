@@ -83,7 +83,7 @@ plant() { # plant <name> <expected-claims> <expected-red-count> <fn> [args...]
 
 # c1: the phugoid dies before the run ends. Every rate in the rung is
 # void if this is true, so it must red loudest.
-plant c1 P3.truth.alive 1 f_sed 's/^(p3truth ac=0 sp=0\.05 .*)u_pp_last=[0-9]+/\1u_pp_last=120/'
+plant c1 'P3.truth.alive P3.truth.unit' 2 f_sed 's/^(p3truth ac=0 sp=0\.05 .*)u_pp_last=[0-9]+/\1u_pp_last=120/'
 # c2: cadence 74 starts detecting the live mode -- the unit-invariant
 # window/period failure would be gone.
 plant c2 'P3.blind74 P3.noise P3.profile' 5 f_mvdetect '^p3 unit=rad ac=0 sp=0\.05 cad=74 ' 50
@@ -108,7 +108,7 @@ plant c5 'P3.nuisance P3.profile' 5 f_setbucket '^p3 unit=[a-z]+ ac=[01] sp=0\.0
 plant c6 P3.nfleet 1 f_sed 's/^(p3n n=16 .*)fleet_permille=[0-9]+/\1fleet_permille=400/'
 # c7/c8: vacuity. A field or a whole table that vanishes must FAIL, never
 # pass quietly.
-plant c7 P3.truth.alive 2 f_sed '/^p3truth ac=0 sp=0\.05 /d'
+plant c7 'P3.truth.alive P3.truth.unit' 3 f_sed '/^p3truth ac=0 sp=0\.05 /d'
 plant c8 P3.rows 1 f_sed '/^p3 unit=/d'
 # c9: THE ROUND-10 REGRESSION GUARD. It reds TWO claims and that is
 # correct: without the deg/mrad rows there are also too few cadence-74
@@ -238,6 +238,60 @@ plant c11 P3.tail 1 f_setbucket '^p3 unit=rad ac=0 sp=0\.05 cad=134 ' fquiet 2
 # c12: the same collapse from the other side -- the large-amplitude
 # aircraft catching up rather than the small one dropping.
 plant c12 P3.tail 1 f_setbucket '^p3 unit=rad ac=1 sp=0\.05 cad=134 ' fquiet 12
+
+# u1-u4: THE UNIT CLAIM. Round 37 found P3.truth.unit was the only claim
+# ID in the rung with no planted fault, and structurally unplantable --
+# `plant()` filters the driver's STDOUT, while this claim reads ORACLE.md
+# and the dataset. `p3claims.sh` now takes ORACLE's path from $P3_ORACLE
+# so it can be pointed at a mutated copy, and these are round 37's own
+# four mutants, all of which passed the string-grep version.
+oplant() { # oplant <name> <expected-claims> <sed-or-cmd on a copy of ORACLE>
+    local name="$1" want="$2"; shift 2
+    local oc; oc=$(mktemp)
+    if [ "$1" = "--unreadable" ]; then rm -f "$oc"; oc=/nonexistent/ORACLE.md
+    else "$@" < ORACLE.md > "$oc"
+         cmp -s ORACLE.md "$oc" && { echo "FAIL: oplant $name changed nothing (vacuous plant)"; exit 1; }
+    fi
+    local got
+    if P3_ORACLE="$oc" p3_claims "$WORK/clean" > "$WORK/r" 2>&1; then
+        echo "FAIL: oplant $name did not red any claim — $want cannot fail"; cat "$WORK/r"; rm -f "$oc"; exit 1
+    fi
+    got=$(grep -oP '^CLAIMFAIL \K[A-Za-z0-9.]+' "$WORK/r" | sort -u | tr '\n' ' ' | sed 's/ $//')
+    [ "$got" = "$want" ] || { echo "FAIL: oplant $name red '$got', expected '$want'"; cat "$WORK/r"; rm -f "$oc"; exit 1; }
+    echo "--- $name -> $got"
+    [ "$oc" = "/nonexistent/ORACLE.md" ] || rm -f "$oc"
+}
+# the unit moved to a column header, cells left bare
+oplant u1 P3.truth.unit sed -E 's/^\| ([01]) \(amp \.[0-9]+\) \| ([0-9.]+) ft\/s \| \*\*([0-9.]+) ft\/s\*\* \|/| \1 | \2 | **\3** |/'
+# a different WRONG unit -- not metric, so a bare m/s grep never sees it
+oplant u2 P3.truth.unit sed 's| ft/s| kt|g'
+# ORACLE unreadable: the string-grep version returned 2, the `if` was
+# false, and NOTHING fired -- a vacuous pass.
+oplant u3 P3.truth.unit --unreadable
+# the table transcribed 10x wrong while the driver prints the right numbers
+oplant u4 P3.truth.unit sed -E 's/8\.44 ft\/s/84.4 ft\/s/; s/4\.52 ft\/s/45.2 ft\/s/'
+
+# ENROLLMENT. Round 37: P3.truth.unit shipped with no plant and nothing
+# noticed, because this harness -- unlike its sibling
+# test_swarm_planted.sh, which uses a `comm -23` set difference -- had no
+# check that every claim the library can emit is covered. A claim without
+# a plant has never been shown to be able to fail.
+ALLIDS=$(grep -oP '_cf \K[A-Za-z0-9.]+' tests/p3claims.sh | sort -u)
+PLANTED=$(grep -oPh "^o?plant \S+ '?\K[A-Za-z0-9. ]+" tests/test_swarm_p3_planted.sh | tr ' ' '\n' | grep '^P3' | sort -u)
+MISSING=$(comm -23 <(printf '%s\n' $ALLIDS) <(printf '%s\n' $PLANTED))
+if [ -n "$MISSING" ]; then
+    echo "FAIL: these claim IDs are reddened by NO plant, so nothing has shown they can fail:"
+    printf '         %s\n' $MISSING
+    exit 1
+fi
+echo "--- enrollment: every claim ID p3claims.sh can emit has a plant"
+# ...and the header's declared list must match what the file emits.
+# Trailing sentence punctuation is not part of an ID (a period after
+# "P3.nfleet." was captured as part of the name on the first run).
+DECL=$(sed -n '/^# IDs:/,/^# *(Round 37/p' tests/p3claims.sh | grep -oP 'P3\.[A-Za-z0-9.]+' | sed 's/\.$//' | sort -u)
+DMISS=$(comm -3 <(printf '%s\n' $ALLIDS) <(printf '%s\n' $DECL))
+[ -z "$DMISS" ] || { echo "FAIL: p3claims.sh's declared ID list has drifted from what it emits:"; printf '         %s\n' $DMISS; exit 1; }
+echo "--- enrollment: the declared ID list matches the emitted one"
 
 # The round-8 defect itself, checked mechanically: the claim assertions
 # must run BEFORE the exact-row pins. If the pins come first they exit 1

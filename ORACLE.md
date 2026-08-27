@@ -1899,11 +1899,19 @@ fourth — the first one that erred toward PASS.** Working it through
 properly, arm by arm, because every previous attempt reasoned about it in
 the aggregate and got a sign wrong:
 
-- **`ceiling`/`floor`, `ceiling`/`unarmed`, `ceiling0`/`floor`.** The
-  numerator executes 2 blocks per read, the denominator 0. Unequal
-  additive cost, numerator-heavy, so the ratio moves **away from 1** —
-  which for a `> bound` assertion is toward **PASS**. These three are
-  biased toward passing.
+- **`ceiling`/`floor`, `ceiling`/`unarmed`.** The numerator executes 2
+  blocks per read, the denominator 0. Unequal additive cost,
+  numerator-heavy, so the ratio moves **away from 1** — which for a
+  `> bound` assertion is toward **PASS**.
+- **`ceiling0`/`floor`.** Numerator 1, denominator 0 — same direction,
+  half the magnitude. (Round 37: the previous version filed this under
+  "2 blocks", eight lines below the measured line saying `ceiling0`
+  executes one. Direction survived, magnitude did not.)
+- **`ceiling0pb`/`floor`.** Numerator 1, denominator 0 — and this is the
+  **only two-sided bound in the file** (`[0.85, 1.20]`), so
+  "numerator-heavy ⇒ biased toward PASS" does not hold: pushing the ratio
+  up moves it toward the UPPER bound, i.e. toward FAIL. The previous
+  version omitted this pair entirely.
 - **`ceiling`/`disciplined`.** Both execute 2 blocks per read over
   `n*frames` reads, so the added cost is exactly equal. Equal *additive*
   cost on *unequal* baselines still compresses a >1 ratio **toward 1**,
@@ -1912,8 +1920,11 @@ the aggregate and got a sign wrong:
 Round 34's version said the numerator "pays strictly more than its
 denominators" (false for the `ceiling`/`disciplined` pair) and that
 toward-1 means toward PASS (backwards), then concluded the residual was
-"where it is not zero, conservative" — which inverted the sign a fourth
-time, and in the unsafe direction. The magnitude is a few opcodes against
+"where it is not zero, conservative" — inverting the sign a fourth time,
+in the unsafe direction. Round 35's replacement then mis-filed
+`ceiling0` and omitted `ceiling0pb`, for a fifth. **A paragraph that
+catalogues its own four errors has now made five**; the reason each time
+was reasoning about the arms in aggregate instead of enumerating them. The magnitude is a few opcodes against
 a full RK4 per aircraft-frame and every shipped ratio still lands inside
 its published band, so nothing needed re-banking; the point is the
 method.

@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # p3claims.sh -- P3's CLAIM assertions, as one shared implementation.
 # IDs: P3.truth.alive, P3.rows, P3.blind74, P3.unitdep, P3.phase,
-# P3.partition, P3.control, P3.monotone, P3.nuisance, P3.tail, P3.nfleet.
+# P3.partition, P3.control, P3.monotone, P3.noise, P3.profile, P3.nuisance,
+# P3.monoclass, P3.unitid, P3.truth.unit, P3.tail, P3.nfleet.
+# (Round 37: this list declared 11 while the file emitted 16 -- the
+# declared-list-drift shape the CI script count and test_lint's file count
+# exist to catch. tests/test_swarm_p3_planted.sh now checks it.)
 #
 # Why this is a library and not inline in test_swarm.sh: round 8 wrote two
 # claim assertions inline and placed them AFTER the exact-row pins, which
@@ -91,35 +95,6 @@ p3_claims() {
     done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) .* u_pp_last=\([0-9-]*\).*/\1 \2 \3/p' "$out")
     [ "$nt" -eq 4 ] || _cf P3.truth.alive "$nt of 4 physics truth rows found (vacuous check)"
 
-    # THE UNIT. Round 36: this section stated the airspeed in m/s at seven
-    # sites while the model is wholly imperial -- sim_core.eigs declares
-    # the state vector `(ft/s, ft/s, rad/s, rad)`, the dataset carries
-    # g = 32.174 ft/s^2 and u0 = 279.1 ft/s -- so the central severity
-    # claim was overstated 3.28x. `truth_row` does no conversion, so the
-    # VALUES were always right and only the dimension was wrong: pinned
-    # exactly, and pinned by nothing.
-    #
-    # That is exit gate item 6's own defect, inside the paragraph item 6
-    # motivates. The observed channel is swept through three units and
-    # gated (plant c9); the GROUND-TRUTH channel had no unit check at all.
-    # It has one now: the trim airspeed the truth rows are deltas around
-    # is an imperial constant, and it is asserted against the dataset
-    # rather than against a comment.
-    local u0
-    u0=$(grep -oP '"u0":\s*\K[0-9.]+' data/b747_approach.eigs | head -1)
-    local gg
-    gg=$(grep -oP '"g":\s*\K[0-9.]+' data/b747_approach.eigs | head -1)
-    if [ -z "$u0" ] || [ -z "$gg" ]; then
-        _cf P3.truth.unit "cannot read u0/g from data/b747_approach.eigs (vacuous check)"
-    else
-        awk -v g="$gg" 'BEGIN{ exit !(g > 32.0 && g < 32.3) }' \
-            || _cf P3.truth.unit "g = $gg is not the imperial 32.174 ft/s^2 — the truth table's unit label may no longer match the model"
-        awk -v u="$u0" 'BEGIN{ exit !(u > 250 && u < 310) }' \
-            || _cf P3.truth.unit "u0 = $u0 is not ~279 ft/s (Mach 0.25 at sea level) — re-check every airspeed figure in ORACLE before trusting it"
-    fi
-    if grep -qE '[0-9](\.[0-9]+)? m/s' ORACLE.md; then
-        _cf P3.truth.unit "ORACLE states an airspeed in m/s — the model is imperial (g=32.174 ft/s^2, u0=279.1 ft/s), so any such figure is out by 3.28x"
-    fi
     # The OBSERVED channel is pitch rate, not airspeed. Round 16: every
     # verdict in this rung is a verdict on s[2], and the deadband
     # mechanism is stated in rad/s -- yet this check read only u_pp_last.
@@ -127,6 +102,11 @@ p3_claims() {
     # observer says settled about an aircraft that is swinging" while the
     # truth table said the observed channel had flat-lined. Units:
     # hundred-thousandths of a rad/s.
+    #
+    # (Round 37 deleted this block by accident, with an anchored slice
+    # that ate adjacent code -- the fourth such incident in this rung. It
+    # was caught only because plant c24 exists and stopped reddening. A
+    # plant is what makes a silent deletion loud.)
     local nq=0 qv
     while read -r ta tsp qv; do
         nq=$((nq+1))
@@ -139,6 +119,60 @@ p3_claims() {
         esac
     done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) .* q_pp_last=\([0-9-]*\).*/\1 \2 \3/p' "$out")
     [ "$nq" -eq 4 ] || _cf P3.truth.alive "$nq of 4 observed-channel truth rows found (vacuous check)"
+
+    # THE UNIT — derived from the driver, not grepped for a string.
+    #
+    # Round 36 caught this section stating m/s while the model is imperial
+    # (3.28x on the central severity claim), inside the exit-gate item that
+    # is ABOUT units. Round 37 then caught the FIX: it grepped ORACLE for
+    # "N m/s", which is the absence of one string where the claim is "this
+    # table is in ft/s". It passed on four re-introductions -- the unit
+    # moved to a column header, a different wrong unit (kt, 1.69x), an
+    # UNREADABLE ORACLE (grep returns 2, the `if` is false, nothing fires),
+    # and the table transcribed 10x wrong while the driver still printed
+    # the right numbers.
+    #
+    # So the rows are DERIVED from `p3truth` and required present in ORACLE
+    # with `ft/s` adjacent. That is the shape `P2.banked` already used one
+    # table over (round 22: "it guards the published number now"), never
+    # applied to the table item 6 is about. ORACLE's path is a variable so
+    # the claim can be planted; round 37 found it was the only claim ID in
+    # the rung with no planted fault, and structurally unplantable because
+    # `plant()` filters the driver's stdout while this reads two files.
+    local ORC="${P3_ORACLE:-ORACLE.md}"
+    if [ ! -r "$ORC" ]; then
+        _cf P3.truth.unit "cannot read $ORC — the published truth table is unverifiable (vacuous check)"
+    else
+        local tac tsp tf tl want_f want_l nfound=0
+        while read -r tac tsp tf tl; do
+            [ "$tsp" = "0.05" ] || continue
+            want_f=$(awk -v x="$tf" 'BEGIN{ printf "%.2f", x/100 }')
+            want_l=$(awk -v x="$tl" 'BEGIN{ printf "%.2f", x/100 }')
+            nfound=$((nfound+1))
+            grep -qF -- "$want_f ft/s" "$ORC" \
+                || _cf P3.truth.unit "ORACLE does not publish ac=$tac's first-period swing as '$want_f ft/s' — the table is transcribed by hand and no longer matches the producer, or its unit changed"
+            grep -qF -- "$want_l ft/s" "$ORC" \
+                || _cf P3.truth.unit "ORACLE does not publish ac=$tac's final-period swing as '$want_l ft/s' — the table is transcribed by hand and no longer matches the producer, or its unit changed"
+        done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) u_pp_first=\([0-9-]*\) u_pp_last=\([0-9-]*\).*/\1 \2 \3 \4/p' "$out")
+        [ "$nfound" -eq 2 ] || _cf P3.truth.unit "$nfound of 2 sp=0.05 truth rows available to check against ORACLE (vacuous check)"
+        grep -qE '[0-9](\.[0-9]+)? m/s' "$ORC" \
+            && _cf P3.truth.unit "ORACLE states an airspeed in m/s — the model is imperial, so the figure is out by 3.28x"
+    fi
+
+    # The MODEL's imperial-ness, checked against the dataset rather than a
+    # comment: a computed-vs-known-constant comparison, which is what makes
+    # it a witness and not a restatement.
+    local u0 gg
+    u0=$(grep -oP '"u0":\s*\K[0-9.]+' data/b747_approach.eigs | head -1)
+    gg=$(grep -oP '"g":\s*\K[0-9.]+' data/b747_approach.eigs | head -1)
+    if [ -z "$u0" ] || [ -z "$gg" ]; then
+        _cf P3.truth.unit "cannot read u0/g from data/b747_approach.eigs (vacuous check)"
+    else
+        awk -v g="$gg" 'BEGIN{ exit !(g > 32.0 && g < 32.3) }' \
+            || _cf P3.truth.unit "g = $gg is not the imperial 32.174 ft/s^2 — every airspeed figure in ORACLE needs re-checking"
+        awk -v u="$u0" 'BEGIN{ exit !(u > 250 && u < 310) }' \
+            || _cf P3.truth.unit "u0 = $u0 is not ~279 ft/s (Mach 0.25 at sea level)"
+    fi
 
     # Pull every row as "unit ac sp cad full fosc fquiet".
     local rowfile

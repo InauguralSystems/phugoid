@@ -118,8 +118,13 @@ run_arm() {
     #
     # `reads` is a counter the collapse cannot zero. Every arm increments
     # it once per channel read, inside `unobserved:` so it pays no entropy
-    # walk, and it is added to EVERY arm so the block cost is common and
-    # cancels in the ratios. That instrumentation is a deliberate cost --
+    # walk. It is added to every arm, but the block cost is NOT common and
+    # does NOT cancel: measured, ceiling/disciplined execute 2 blocks per
+    # read, ceiling0/ceiling0pb 1, floor/unarmed 0. ORACLE retracts that
+    # sentence; round 37 found this file still asserting it in the present
+    # tense, which is round 24's own lesson recurring -- a claim retracted
+    # in ORACLE stays alive in the file nobody greps. That instrumentation
+    # is a deliberate cost --
     # it changed the pinned workload identity and the numbers were
     # re-banked against it, which is a decision rather than an accident.
     #
