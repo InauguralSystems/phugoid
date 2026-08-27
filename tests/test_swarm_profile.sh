@@ -206,9 +206,31 @@ run_arm() {
         "ceiling 16 1500"|"disciplined 16 1500") want_hits=19850 ;;
         "ceiling1 "*|"onereader "*)              want_hits=0 ;;
         "floor "*|"ceiling0 "*|"ceiling0pb "*|"unarmed "*) want_hits=0 ;;
-        *)                                       want_hits="" ;;
+        # NO SILENT DEFAULT. Round 34: this was `want_hits=""` plus an
+        # `[ -n "$want_hits" ]` guard, so any (arm, N, frames) triple not
+        # in the rows above skipped the witness WITHOUT SAYING SO. Since
+        # `want_reads`/`want_evals` are computed they stayed total, and
+        # the only non-derivable check -- the only real witness -- was the
+        # one with a lookup and a silent fallback.
+        #
+        # That is a live edit path in this rung's own history: ORACLE
+        # records a round-4 note that the ladder moved to 4/16/32 which
+        # was never applied. Making that one-line edit leaves LADDER_N
+        # correct and every timing bound intact, and silently unwitnesses
+        # `disciplined` at all three points -- the hole rounds 31-33 spent
+        # three rounds closing. Demonstrated: a fully gutted `disciplined`
+        # was ACCEPTED at N=32 (hits=0, reads and evals and digest all
+        # intact) purely because 32 is not a banked row.
+        *) want_hits="UNBANKED" ;;
     esac
-    if [ -n "$want_hits" ] && [ "$h" != "$want_hits" ]; then
+    case "$self:$want_hits" in
+        ceiling:UNBANKED|disciplined:UNBANKED)
+            echo "FAIL: no banked verdict count for arm '$self' at N=$nn, frames=$fr —" >&2
+            echo "      the ladder moved and this arm is now unwitnessed. Bank the count from a" >&2
+            echo "      pristine run before gating on it; a lookup miss must not be a pass." >&2
+            exit 1 ;;
+    esac
+    if [ "$want_hits" != "UNBANKED" ] && [ "$h" != "$want_hits" ]; then
         echo "FAIL: arm '$self' at N=$nn fired its predicate $h times, expected the banked $want_hits —" >&2
         echo "      that count is not derivable from n and frames, so a mismatch means this arm's observation changed." >&2
         sed -n '1,2p' "$out" >&2; exit 1

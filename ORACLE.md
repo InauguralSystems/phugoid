@@ -1872,8 +1872,14 @@ on the interleave, which is round 1's original P4 finding, giving
 **0 / 5533 / 19850** across the ladder. Those are not derivable from `n`
 and `frames`, so they are banked as values, and a gutted arm can only
 match them by copying three constants from a pristine run — a
-categorically louder mutation than a `+1`. It is a swap, not an addition,
-so it adds no cost bias. Residual, stated: at N=1 the channel is clean and
+categorically louder mutation than a `+1`. It is a swap, not an addition — but that
+reasoning is not the evidence, and round 34 caught the same
+assert-instead-of-measure shape here too: the call count is equal, yet the
+TAKEN BRANCH changed, since `hits is hits + 1` is an observed assignment
+that ran 0 times under `diverging` and 19850 of 24000 times under
+`oscillating`. **Measured** rather than argued: interleaved n=9 at N=16,
+median 2.788 s under `oscillating` against 2.833 s under `diverging`,
+i.e. −1.6% and inside noise. Residual, stated: at N=1 the channel is clean and
 a decaying phugoid gives `oscillating` 0, so healthy and gutted coincide
 there; N=1 is covered instead by the CF timing gate, which a gutted
 ceiling collapses toward 1.0.
@@ -1883,18 +1889,28 @@ Both counters increment inside `unobserved:` so they pay no entropy walk.
 **The instrumentation is NOT cost-neutral, and the earlier claim that it
 "is common to every arm and cancels in the ratios" was wrong in both
 halves (round 33).** `unobserved:` is a runtime construct, and the blocks
-executed per channel read are not common — measured: `ceiling` and
-`disciplined` execute **2** per read, `ceiling0`/`ceiling0pb` **1**, and
-`floor`/`unarmed` **0** (their counters sit inside an arm-wide block). So
-the numerator arms pay strictly more than their denominators. And even
-had the cost been equal, equal *absolute* cost added to both terms does
-not cancel in a ratio — it moves it toward 1. Both errors push the same
-way: **toward PASS**. The magnitude is small (a few opcodes against a full
-RK4 per aircraft-frame) and every shipped ratio still lands inside its
-published band, so nothing needed re-banking — but the residual is real,
-one-directional, and recorded rather than asserted away. Instrumenting a
-measured workload is legitimate; asserting without measuring that the
-instrumentation is neutral is the defect. This instrumented the identity-pinned workload and
+executed per channel read are not common — measured: `ceiling`,
+`disciplined` **2**; `ceiling0`/`ceiling0pb` **1**; `floor` **0** (its
+counter sits inside an arm-wide block); `swarm_unarmed.eigs` has no
+`unobserved:` block at all.
+
+**Round 34 corrected this paragraph twice more, and both of my errors were
+in the conservative direction — which is the only reason they were not
+worse.** (a) "The numerator arms pay strictly more than their
+denominators" is **false for `ceiling`/`disciplined`**: both execute 2
+blocks per read over `n*frames` reads, so that pair — the one carrying the
+second headline — is exactly equal. It holds only against `floor`.
+(b) Moving a ratio toward 1 pushes a `> bound` assertion toward **FAIL**,
+not toward PASS; I inverted the sign while correcting a claim about
+sign. The residual is therefore small and, where it is not zero,
+conservative.
+
+The magnitude is small (a few opcodes against a full RK4 per
+aircraft-frame) and every shipped ratio still lands inside its published
+band, so nothing needed re-banking. Instrumenting a measured workload is
+legitimate; **asserting without measuring that the instrumentation is
+neutral is the defect** — and this paragraph has now committed that error
+three times, twice while fixing it. This instrumented the identity-pinned workload and
 the hashes were re-banked against it — a decision, not an accident, taken
 because the alternative was leaving the second headline unwitnessed at the
 N where it is asserted.
@@ -1913,13 +1929,24 @@ observing was invisible.
 The discriminator was already on stdout and thrown away: every arm prints
 `<arm> <n> <frames> <hits> <digest>`, and nothing asserted `hits`. It is
 asserted now, at zero extra cost — and the invariant turned out to be
-richer than expected. `ceiling` and `disciplined` report 877 at N=1 and
-**zero** at N=4 and N=16; `ceiling1` and `onereader` hold 877 at every N.
-That is not a defect, it is **P4's finding in the hits column**: the first
+richer than expected. `ceiling` and `disciplined` reported 877 at N=1 and
+**zero** at N=4 and N=16 while the arms read `diverging`; `ceiling1` and
+`onereader` held 877 at every N. That was **P4's finding in the hits
+column**: the first
 pair read N aircraft through one loop-local binding, so above N=1 the
-window becomes the round-robin interleave and the predicate stops firing,
-while the second pair read one aircraft through one binding. The witness
-therefore pins P4's shape as well as catching the gutting. (The first
+window becomes the round-robin interleave and `diverging` stops firing,
+while the second pair read one aircraft through one binding.
+
+**That shape is now INVERTED, because round 33 swapped the arms to
+`oscillating`** — the collapse is precisely why `diverging` could not
+serve as a witness above N=1. The shipped counts are **0 / 5533 / 19850**
+for `ceiling`/`disciplined` and **0 at every N** for `ceiling1` and
+`onereader`: the shared-binding arms *manufacture* verdicts on the
+interleave, and the clean single-channel arms report none on a decaying
+phugoid. Same P4 finding, read off the predicate that survives it. (Cost
+of the swap: those two single-channel arms lose the only non-derivable
+witness they ever had. They are executed by no gate here, and that is
+recorded rather than left to be discovered.) (The first
 version of this check asserted "observing arms fire" from the N=1 sample
 alone and red on the honest N=4 run — the one-cell generalisation this
 rung keeps finding, committed while fixing an instance of it.)
@@ -1960,9 +1987,11 @@ N=8→32 against the floor's +10%, so the ratio must rise. Round 2 corrected
 the range and left the non-growth clause standing.) (The
 first write-up said "1.4-1.6x", which overstated both tables — the maximum
 observed is 1.49 at 3000 frames; at 1500 frames round 2 recorded 1.42,
-and the shipped harness has since produced 1.50 as a paired median, so
-that figure was the maximum of the runs available then rather than a
-ceiling. Round 28.)
+round 28 measured 1.50 and round 34 measured **1.66** at N=1. Each
+"maximum" has been the maximum of the runs available when it was written,
+never a ceiling — and the small-N points, being the shortest runs, drift
+most. The headline range is the banked 3000-frame sweep's; the 1500-frame
+harness reports a wider one and is not re-banked against it.)
 
 **P2 — REFUTED, on both clauses of its own registered condition, and it
 took twenty rounds to say so because it was the only prediction with no
