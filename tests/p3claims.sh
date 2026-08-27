@@ -52,14 +52,8 @@ p3_claims() {
     local failed=0
 
     _cf() { echo "CLAIMFAIL $1: $2"; failed=1; }
-    # _num <regex>; echoes the value or nothing. It must NOT report its own
-    # vacuity: it is called in a command substitution, so anything it
-    # echoes lands in the caller's variable and any `failed=1` it sets is
-    # lost with the subshell. The first version did exactly that, and the
-    # c5 plant caught it -- a vacuous field passed the claim silently
-    # while printing its own failure message into the value. Vacuity is
-    # reported by the CALLER, in the caller's shell.
-    _num() { grep -oP "$1" "$out" 2>/dev/null | head -1; }
+    # (The former `_num` helper is gone -- round 35 found it dead,
+    # carrying an eight-line comment about a plant, reading as coverage.)
 
     # --- claim 1: the PHYSICS truth. The phugoid must still be alive at
     # the end of the run, or "the observer contradicts the aircraft" is
@@ -86,6 +80,13 @@ p3_claims() {
             1/0.02) [ "$tv" -ge 240 ] || _cf P3.truth.alive "ac1 sp=0.02 phugoid has died (u_pp_last=$tv)" ;;
             0/0.05) [ "$tv" -ge 300 ] || _cf P3.truth.alive "ac0 sp=0.05 phugoid has died (u_pp_last=$tv)" ;;
             1/0.05) [ "$tv" -ge 600 ] || _cf P3.truth.alive "ac1 sp=0.05 phugoid has died (u_pp_last=$tv)" ;;
+            # NO SILENT DEFAULT (round 35): an unrecognised (aircraft,
+            # dispersion) label was graded by NOTHING -- only the count
+            # guarded it, so relabelling a row sp=0.05 -> sp=0.06 with every
+            # figure zeroed was ACCEPTED, in the check that licenses every
+            # rate in P3, in a file whose header says a missing field is a
+            # FAIL and never a pass.
+            *) _cf P3.truth.alive "unrecognised physics-truth row ac=$ta sp=$tsp — it is graded by nothing" ;;
         esac
     done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) .* u_pp_last=\([0-9-]*\).*/\1 \2 \3/p' "$out")
     [ "$nt" -eq 4 ] || _cf P3.truth.alive "$nt of 4 physics truth rows found (vacuous check)"
@@ -104,6 +105,7 @@ p3_claims() {
             1/0.02) [ "$qv" -ge 130 ] || _cf P3.truth.alive "ac1 sp=0.02 observed channel has flat-lined (q_pp_last=$qv)" ;;
             0/0.05) [ "$qv" -ge 170 ] || _cf P3.truth.alive "ac0 sp=0.05 observed channel has flat-lined (q_pp_last=$qv)" ;;
             1/0.05) [ "$qv" -ge 330 ] || _cf P3.truth.alive "ac1 sp=0.05 observed channel has flat-lined (q_pp_last=$qv)" ;;
+            *) _cf P3.truth.alive "unrecognised observed-channel truth row ac=$ta sp=$tsp — it is graded by nothing" ;;
         esac
     done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) .* q_pp_last=\([0-9-]*\).*/\1 \2 \3/p' "$out")
     [ "$nq" -eq 4 ] || _cf P3.truth.alive "$nq of 4 observed-channel truth rows found (vacuous check)"

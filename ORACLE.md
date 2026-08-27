@@ -1894,16 +1894,29 @@ executed per channel read are not common — measured: `ceiling`,
 counter sits inside an arm-wide block); `swarm_unarmed.eigs` has no
 `unobserved:` block at all.
 
-**Round 34 corrected this paragraph twice more, and both of my errors were
-in the conservative direction — which is the only reason they were not
-worse.** (a) "The numerator arms pay strictly more than their
-denominators" is **false for `ceiling`/`disciplined`**: both execute 2
-blocks per read over `n*frames` reads, so that pair — the one carrying the
-second headline — is exactly equal. It holds only against `floor`.
-(b) Moving a ratio toward 1 pushes a `> bound` assertion toward **FAIL**,
-not toward PASS; I inverted the sign while correcting a claim about
-sign. The residual is therefore small and, where it is not zero,
-conservative.
+**This paragraph has now been wrong four times, and round 35 caught the
+fourth — the first one that erred toward PASS.** Working it through
+properly, arm by arm, because every previous attempt reasoned about it in
+the aggregate and got a sign wrong:
+
+- **`ceiling`/`floor`, `ceiling`/`unarmed`, `ceiling0`/`floor`.** The
+  numerator executes 2 blocks per read, the denominator 0. Unequal
+  additive cost, numerator-heavy, so the ratio moves **away from 1** —
+  which for a `> bound` assertion is toward **PASS**. These three are
+  biased toward passing.
+- **`ceiling`/`disciplined`.** Both execute 2 blocks per read over
+  `n*frames` reads, so the added cost is exactly equal. Equal *additive*
+  cost on *unequal* baselines still compresses a >1 ratio **toward 1**,
+  i.e. toward **FAIL**. This pair alone is conservative.
+
+Round 34's version said the numerator "pays strictly more than its
+denominators" (false for the `ceiling`/`disciplined` pair) and that
+toward-1 means toward PASS (backwards), then concluded the residual was
+"where it is not zero, conservative" — which inverted the sign a fourth
+time, and in the unsafe direction. The magnitude is a few opcodes against
+a full RK4 per aircraft-frame and every shipped ratio still lands inside
+its published band, so nothing needed re-banking; the point is the
+method.
 
 The magnitude is small (a few opcodes against a full RK4 per
 aircraft-frame) and every shipped ratio still lands inside its published
@@ -2017,7 +2030,7 @@ and both have been visible since round 3:
   P2 is actually about, the drift is more than double.
 
 Two figures that earlier rounds retired as unreproducible are simply
-points of this table rather than fits: 33.5 µs is its N=1 point (round 3)
+points of this table rather than fits: 34.0 µs is its N=1 point (round 3 published 33.5, which this table does not produce)
 and 41.6 µs its N=16 point (round 8).
 
 **Why this sat undetected while P3 was rewritten seven times:** P3 had a

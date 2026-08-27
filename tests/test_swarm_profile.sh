@@ -199,6 +199,53 @@ run_arm() {
     # channel and so report 0 at every N; they are executed by no gate
     # here, and their branch is kept only so a future caller inherits the
     # check rather than silently getting none.
+    # THE PHYSICS WITNESS, for the DENOMINATOR arms.
+    #
+    # Round 35: rounds 31-34 closed the gutted-arm hole on the NUMERATOR
+    # arms only. Every assertion here is one-sided with the observing arm
+    # on top, and for `floor`/`ceiling0`/`ceiling0pb`/`unarmed` all three
+    # counters expect exactly what a gutted arm produces -- hits=0,
+    # evals=0, and `reads == nn*fr` where `fr` is read from the arm's OWN
+    # self-report, so it is self-consistent at any frame count. That is
+    # round 33's rule ("a counter whose expected value the gate can DERIVE
+    # is a target, not a witness") applied to the numerator and never to
+    # the denominator.
+    #
+    # Demonstrated: an `unarmed` control integrating every OTHER frame
+    # above N=7 kept every inspected field bit-identical and was ACCEPTED
+    # -- and it did not merely evade the gate, it DOUBLED the headline
+    # (ceiling/unarmed 1.47 -> 2.86). A halved FRAMES was accepted the
+    # same way. That is plant w2's own defect class, in the arm ORACLE
+    # records as having already once silently flown a different aircraft.
+    #
+    # The discriminator was on the same line and being parsed past: field
+    # 5, the fleet digest, moved 4466955440 -> 4458131063. The comment
+    # further down is right that arm-invariance makes the digest useless
+    # for proving ONE arm differs only in observation shape -- and that is
+    # exactly what makes it the correct CROSS-ARM witness here. Banked per
+    # (N, frames), with the same no-silent-default discipline as the
+    # verdict counts.
+    local want_digest
+    case "$nn $fr" in
+        "1 1500")  want_digest=279590118 ;;
+        "2 1500")  want_digest=559690091 ;;
+        "4 1500")  want_digest=1119436234 ;;
+        "16 1500") want_digest=4466955440 ;;
+        "1 1")     want_digest=279212764 ;;
+        *)         want_digest=UNBANKED ;;
+    esac
+    local dg; dg=$(grep -oP "^$self $nn [0-9]+ [0-9]+ \K[0-9]+" "$out" | head -1)
+    if [ "$want_digest" = "UNBANKED" ]; then
+        echo "FAIL: no banked fleet digest for N=$nn, frames=$fr — the ladder or the frame count moved" >&2
+        echo "      and every arm at this point is now unwitnessed on physics. Bank it from a pristine run." >&2
+        exit 1
+    fi
+    [ "$dg" = "$want_digest" ] || {
+        echo "FAIL: arm '$self' at N=$nn flew a different fleet (digest $dg, banked $want_digest) —" >&2
+        echo "      the arms differ only in OBSERVATION, so a digest that moves means this arm is" >&2
+        echo "      doing different physics: fewer frames, a different fleet, or a skipped step." >&2
+        sed -n '1,2p' "$out" >&2; exit 1; }
+
     local want_hits
     case "$self $nn $fr" in
         "ceiling 1 1500"|"disciplined 1 1500")   want_hits=0 ;;
@@ -232,7 +279,11 @@ run_arm() {
     esac
     if [ "$want_hits" != "UNBANKED" ] && [ "$h" != "$want_hits" ]; then
         echo "FAIL: arm '$self' at N=$nn fired its predicate $h times, expected the banked $want_hits —" >&2
-        echo "      that count is not derivable from n and frames, so a mismatch means this arm's observation changed." >&2
+        echo "      DO NOT RE-BANK THIS WITHOUT READING THE NEXT TWO LINES. file_pin ran before this" >&2
+        echo "      check and passed, which proves swarm.eigs and the drivers are BYTE-IDENTICAL to" >&2
+        echo "      the versions these counts were taken from. The physics therefore cannot have" >&2
+        echo "      changed, so a mismatch here is either an upstream runtime change (re-bank, and say" >&2
+        echo "      which upstream change in the commit) or a real regression in observation (do not)." >&2
         sed -n '1,2p' "$out" >&2; exit 1
     fi
     if ! grep -q "^$self $nn " "$out"; then
