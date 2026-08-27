@@ -1851,7 +1851,13 @@ sample. Medians are shown where the spread matters.
 | 32 | 13.011 | 8.741 | 1.49 |
 
 **The headline: naive all-on observation costs ~1.3-1.5x the unobserved
-floor, and the ratio does not grow with N** across 1 to 32 aircraft. (The
+floor, and the ratio GROWS SLOWLY with N** across 1 to 32 aircraft — 1.343,
+1.431, 1.425, 1.427, 1.488, 1.489, i.e. +10.8% end to end and a clean step
+from ~1.427 at N≤8 to ~1.488 at N≥16. (Round 23: this said "does not grow
+with N" while sitting directly above that column. It is also forced by the
+P2 section below — the observer's per-aircraft cost drifts +26% over
+N=8→32 against the floor's +10%, so the ratio must rise. Round 2 corrected
+the range and left the non-growth clause standing.) (The
 first write-up said "1.4-1.6x", which overstated both tables — the maximum
 observed is 1.49 at 3000 frames and 1.42 at 1500. Round 2.)
 
@@ -1888,7 +1894,7 @@ planted fault and no assertion anywhere in the repo — `test_swarm_profile.sh`
 asserts two ratios and nothing about a fit, a slope or the C6 comparison.
 The component without an oracle is the one that goes wrong quietly, and
 the loop's attention followed the gates rather than the risk.
-`tests/test_p2_fit.sh` now recomputes both fits, the C6 comparison and
+`tests/test_verdicts.sh` now recomputes both fits, the C6 comparison and
 both clauses from the banked table, with planted faults that make each
 clause stop firing. The timing itself stays where it belongs, in
 `test_swarm_profile.sh`; what is gated here is the arithmetic that turns
@@ -1983,14 +1989,48 @@ output, which is the shipped harness — round 1 found the first table
 unreproducible from the artifact, measured with a throwaway driver that
 was never committed.
 
+**P1 — its registered condition is UNSATISFIABLE by construction, which
+the repo's own source says. Round 23, applying exit gate item 8 to the
+third of four predictions.**
+
+P1 is registered as *"refutable by measuring disciplined-with-1-reader
+against disciplined-with-N-readers and finding the write cost differs"*.
+`swarm.eigs` states the opposite in a comment written at rung 4:
+*"comparing DISCIPLINED against ONEREADER cannot test arming, because both
+wrap the integration, so neither pays write cost whatever the arming
+granularity is."* The difference that clause reads is zero whether P1 is
+true or false. Item 8 has now caught three of the four registered
+conditions — P3's (a dead cell satisfies it), P4's (any failure not
+labelled physics satisfies it), and P1's (its discriminator cannot
+discriminate). That is a fact about how the predictions were written, not
+about the observer, and it is the most transferable thing this rung
+produced.
+
+**P1's practical claim is CONFIRMED, and it is now MEASURED rather than
+argued.** Round 22 gated an *argument* — that a negative read share is
+impossible — having justified doing so with "no committed producer".
+Round 23 found both halves false. The producer ships
+(`tests/swarm_profile.eigs` dispatches `ceiling1`/`ceiling0`/`onereader`
+and is hash-pinned in `test_swarm_profile.sh`), and a negative share is
+not impossible: it is the ordinary sign flip of a ~1.5%-of-total quantity
+taken as the difference of two ~5 s wall times, and the same N=32
+measurement came out **-2.8%** and **+5.2%** ninety seconds apart. The
+published **+29.8%** at N=32 does not reproduce — three re-runs gave
++5.2%, +1.7%, -2.8% — and is withdrawn.
+
+What is gated now is the ratio the practical claim is about:
+`disciplined/onereader` at the largest ladder point, measured with the
+same paired-median estimator as the other arms, at **~1.01** against a
+1.20 bound. Dropping 31 of 32 readers per frame costs about 1.5%, inside
+the box's ±10% noise floor.
+
 **P1 is CONFIRMED in its practical form and its MECHANISM IS NOT
 RESOLVED.** Dropping 31 of 32 readers per frame saves nothing measurable.
 The decomposition into read cost versus arming cost did NOT resolve: across
-N = 8, 16, 32 the read share came out **-21.5%, -4.8%, +29.8%** — a
-ONE-OFF measurement with no committed producer, stated as such here for
-the same reason the 3000-frame sweep is (round 22 found this was the
-sixth producerless claim in the rung, and the only one carrying a
-prediction's verdict). What is gated is the ARGUMENT: a
+N = 8, 16, 32 the read share came out **-21.5%, -4.8%, +5.2%** on the
+banked run — re-measured at round 23, the N=32 point ranges over -2.8% to
++5.2% across three runs, so the decomposition does not resolve at any of
+these sizes and the sign of the N=32 share is not stable. A
 negative share is impossible, so the split is noise at these sizes. Two
 explanations remain live and this rung cannot separate them. **Not
 published as a mechanism.**

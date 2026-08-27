@@ -122,9 +122,14 @@ grep -q '^\*\*P2 — REFUTED' ORACLE.md \
 # 3000-frame sweep above, and stated as such in ORACLE rather than
 # implied to be reproducible. What IS gateable is the ARGUMENT it carries,
 # and that argument turns on a specific impossibility.
+# The banked shares, as re-measured at round 23. The N=32 point is the
+# unstable one: three runs gave +5.2, +1.7, -2.8, so its SIGN is not a
+# property of the system. It is banked as a record, not as a pin on a
+# conclusion -- round 22 made `a negative share is impossible` the pin on
+# P1's verdict, and that premise was false.
 P1_SHARES="8 -21.5
 16 -4.8
-32 29.8"
+32 5.2"
 
 # Every share must be the published one.
 while read -r n sh; do
@@ -132,27 +137,41 @@ while read -r n sh; do
 done <<<"$P1_SHARES"
 chk 1 "P1.banked: the read-share decomposition matches ORACLE"
 
-# THE ARGUMENT. A read share is a fraction of a measured cost, so a
-# NEGATIVE one is physically impossible -- it says the arm that does fewer
-# reads took longer. That impossibility is the entire basis for "the split
-# is noise at these sizes, and the mechanism is NOT resolved". If the
-# shares ever come out all-positive and ordered, the split has resolved
-# and P1's verdict must be rewritten rather than kept.
-NEG=$(echo "$P1_SHARES" | awk '$2 < 0' | wc -l)
-chk "$(awk -v k="$NEG" 'BEGIN{print (k>=1)?1:0}')" \
-    "P1.impossible: $NEG of 3 read shares are negative, which is impossible for a cost fraction — this is what makes the split NOISE"
-
-# The verdict must SAY unresolved. Round 22 inverted it to "MECHANISM IS
-# FULLY RESOLVED" with every gate green.
+# THE ARGUMENT IS RETRACTED. Round 22 gated the impossibility of a
+# negative read share -- "it says the arm that does fewer reads took
+# longer" -- and made `NEG >= 1` the pin on P1's verdict. Round 23 showed
+# the premise is false: the read share is a ~1.5%-of-total quantity taken
+# as the difference of two ~5 s wall times, and the SAME N=32 measurement
+# came out -2.8% and +5.2% ninety seconds apart. A negative share is not
+# impossible, it is an ordinary sign flip, so `NEG >= 1` pinned which
+# sample got banked rather than a property of the system. Worse, the
+# justification for gating an argument at all -- "no committed producer"
+# -- was itself false: tests/swarm_profile.eigs dispatches
+# ceiling1/ceiling0/onereader and is hash-pinned.
+#
+# P1 is now MEASURED, in tests/test_swarm_profile.sh, as the ratio its
+# practical claim is actually about (disciplined/onereader at the largest
+# ladder point). What remains here is the check that the verdict text
+# still says what the measurement supports, and that the retracted
+# justification does not creep back.
 grep -q 'MECHANISM IS NOT$' ORACLE.md && grep -q '^RESOLVED\.\*\* Dropping 31 of 32 readers per frame saves nothing' ORACLE.md \
     && chk 1 "P1.verdict: ORACLE states P1's mechanism as NOT RESOLVED" \
     || chk 0 "P1.verdict: ORACLE no longer states P1's mechanism as unresolved (exit gate item 7)"
 
-# A resolved split would need every share positive AND ordered. Assert the
-# data does NOT support that, so the claim stops holding the moment it does.
-ORDERED=$(echo "$P1_SHARES" | awk '{v[NR]=$2} END{ print (v[1]>0 && v[2]>v[1] && v[3]>v[2]) ? 1 : 0 }')
-chk "$(awk -v o="$ORDERED" 'BEGIN{print (o==0)?1:0}')" \
-    "P1.unresolved: the shares are not a positive ordered series, so 'arming is per-binding' is not supported"
+# Matched in ASSERTION form only. The retraction quotes the phrase, so a
+# bare grep cannot tell a claim from its withdrawal -- it reds on the
+# paragraph that fixes it.
+grep -q 'with no committed producer' ORACLE.md \
+    && chk 0 "P1.producer: ORACLE still claims the read-share decomposition has no committed producer — tests/swarm_profile.eigs is that producer and is hash-pinned" \
+    || chk 1 "P1.producer: the false 'no committed producer' justification is gone"
+
+grep -qE '^N = 8, 16, 32 the read share came out .*\+29\.8' ORACLE.md \
+    && chk 0 "P1.reproduce: ORACLE still publishes +29.8% at N=32, which three re-runs did not reproduce (+5.2, +1.7, -2.8)" \
+    || chk 1 "P1.reproduce: the unreproducible +29.8% figure is retracted"
+
+grep -q 'P1 — its registered condition is UNSATISFIABLE' ORACLE.md \
+    && chk 1 "P1.item8: P1's registered condition is recorded as defective (exit gate item 8)" \
+    || chk 0 "P1.item8: P1's registered condition is not recorded as defective — it compares two arms that BOTH wrap the integration, so the difference it reads is zero whether P1 is true or false"
 
 # --- PLANTED FAULTS. A gate that has never failed has not been shown to
 # work, and this one is new.
@@ -188,19 +207,11 @@ mutant_check() { # mutant_check <name> <sed-expr> <clause>
 mutant_check p1 's/^([0-9]+) ([0-9.]+) ([0-9.]+)$/\1 \2 \3/; s/^1 0.399/1 0.348/; s/^2 0.750/2 0.637/; s/^4 1.456/4 1.239/; s/^8 2.829/8 2.406/; s/^16 6.090/16 5.092/; s/^32 13.011/32 10.876/' c6miss
 # p2: flatten the top of the observer curve -> superlinearity vanishes.
 mutant_check p2 's/^32 13.011/32 12.155/' superlinear
+# The p3 plant is GONE with the argument it validated. It exercised
+# P1.impossible and P1.unresolved, both retracted at round 23 -- a plant
+# for a withdrawn claim proves nothing and reads as coverage. P1's
+# replacement gate is a MEASUREMENT in tests/test_swarm_profile.sh, with
+# its own planted fault (a ratio of 1.50, which the 1.20 bound rejects).
 
 [ "$fail" -eq 0 ] || { echo "VERDICT GATE FAILED"; exit 1; }
-# P1 plant: make the shares a clean positive ordered series -- exactly the
-# mutation round 22 used to invert the verdict -- and require the
-# impossibility argument to stop holding.
-P1_MUT="8 91.0
-16 92.5
-32 93.1"
-NEGM=$(echo "$P1_MUT" | awk '$2 < 0' | wc -l)
-ORDM=$(echo "$P1_MUT" | awk '{v[NR]=$2} END{ print (v[1]>0 && v[2]>v[1] && v[3]>v[2]) ? 1 : 0 }')
-{ [ "$NEGM" -eq 0 ] && [ "$ORDM" -eq 1 ]; } \
-    && echo "PASS plant p3: a resolved split stops satisfying P1.impossible and P1.unresolved" \
-    || { echo "FAIL plant p3: the P1 argument still holds on a resolved split"; fail=1; }
-
-[ "$fail" -eq 0 ] || { echo "VERDICT GATE FAILED"; exit 1; }
-echo "PASS: P1's and P2's verdicts are gated — both refutation clauses fire, the impossibility argument holds, with plants"
+echo "PASS: P2's refutation clauses fire with plants; P1's verdict text is pinned and its measurement lives in test_swarm_profile.sh"
