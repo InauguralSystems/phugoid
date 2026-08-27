@@ -12,6 +12,12 @@
 # calls -- not a copy). Transversality: a plant must red its own claim and
 # ONLY its own claim.
 set -euo pipefail
+# A `set -e` death prints NOTHING, which in a plant harness is the worst
+# possible failure mode: the run stops mid-suite and the log's last line is
+# the previous plant's PASS. CI failed exactly that way on 6832101 while
+# every local run was green, and there was no way to tell which command
+# died. The trap makes the harness name its own failing command.
+trap 'rc=$?; echo "FAIL: harness died at line $LINENO (rc=$rc): ${BASH_COMMAND}" >&2; exit $rc' ERR
 EIGS="${EIGENSCRIPT:-eigenscript}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
