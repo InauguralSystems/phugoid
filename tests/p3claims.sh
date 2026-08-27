@@ -144,8 +144,12 @@ p3_claims() {
         _cf P3.truth.unit "cannot read $ORC — the published truth table is unverifiable (vacuous check)"
     else
         local tac tsp tf tl want_f want_l nfound=0
+        # BOTH dispersions. Round 39: the exact-row match was scoped to
+        # sp=0.05, so the sp=0.02 pair -- the rows the radian/ac0/sp0.02
+        # dead cell rests on, which is P3's sharpest claim -- were held
+        # only by loose `>=` floors while ORACLE publishes them to three
+        # digits ("1.81 and 3.52 ft/s").
         while read -r tac tsp tf tl; do
-            [ "$tsp" = "0.05" ] || continue
             want_f=$(awk -v x="$tf" 'BEGIN{ printf "%.2f", x/100 }')
             want_l=$(awk -v x="$tl" 'BEGIN{ printf "%.2f", x/100 }')
             nfound=$((nfound+1))
@@ -164,7 +168,7 @@ p3_claims() {
             awk -v f="$want_f" -v l="$want_l" 'BEGIN{ exit !(f > l) }' \
                 || _cf P3.truth.unit "ac=$tac's first-period swing ($want_f) is not larger than its final-period swing ($want_l) — the phugoid is not decaying, and every 'still swinging' claim in P3 rests on that"
         done < <(sed -n 's/^p3truth ac=\([0-9]*\) sp=\([0-9.]*\) u_pp_first=\([0-9-]*\) u_pp_last=\([0-9-]*\).*/\1 \2 \3 \4/p' "$out")
-        [ "$nfound" -eq 2 ] || _cf P3.truth.unit "$nfound of 2 sp=0.05 truth rows available to check against ORACLE (vacuous check)"
+        [ "$nfound" -eq 4 ] || _cf P3.truth.unit "$nfound of 4 truth rows available to check against ORACLE (vacuous check)"
         grep -qE '[0-9](\.[0-9]+)? m/s' "$ORC" \
             && _cf P3.truth.unit "ORACLE states an airspeed in m/s — the model is imperial, so the figure is out by 3.28x"
     fi
@@ -268,6 +272,11 @@ p3_claims() {
         _cf P3.unitdep "unit axis mis-populated (rad rows=$nrad expected 32, non-rad rows=$nnonrad expected 64)"
     else
         [ "$radmax" -ge 90 ] || _cf P3.unitdep "the false all-clear is gone from the radian rows (max ${radmax}%)"
+        # ...and a CEILING, because ORACLE publishes the peak as a RANGE
+        # ("98-99%"). Round 39: only the floor was asserted, so a drift to
+        # 100% would contradict the published figure and pass. A range
+        # claim needs both ends.
+        [ "$radmax" -le 99 ] || _cf P3.unitdep "the radian false-all-clear peak is ${radmax}%, above the 98-99% ORACLE publishes"
         ncadr=$(printf '%s\n' $radcad | sort -u | grep -c .)
         [ "$ncadr" -eq 8 ] || _cf P3.unitdep "radian rows carry a false all-clear at only $ncadr of 8 cadences"
         # PER-ROW, like its non-radian twin. Round 17: the non-radian half
@@ -642,6 +651,16 @@ p3_claims() {
         if [ "${np[1]}" -lt "${np[0]}" ] || [ "${np[2]}" -lt "${np[1]}" ] || [ "${np[3]}" -lt "${np[2]}" ]; then
             _cf P3.nfleet "the fleet alert rate FALLS with N (${np[*]} permille); channels are no longer independent"
         fi
+        # ORACLE publishes this as "exactly 0.789 from N=2 to N=16", not
+        # as "non-decreasing". Round 39: only the weaker property was
+        # asserted, so 0.55/0.60/0.65/0.70 would pass while the write-up
+        # claimed a constant. Constancy is the claim, so constancy is what
+        # is checked.
+        if [ "${np[0]}" != "${np[1]}" ] || [ "${np[1]}" != "${np[2]}" ] || [ "${np[2]}" != "${np[3]}" ]; then
+            _cf P3.nfleet "the fleet alert rate is not CONSTANT across N (${np[*]} permille); ORACLE publishes it as exactly one value"
+        fi
+        grep -qF -- "0.$(printf '%03d' "${np[0]}") from N=2 to N=16" "${P3_ORACLE:-ORACLE.md}" \
+            || _cf P3.nfleet "ORACLE does not publish the measured fleet rate 0.$(printf '%03d' "${np[0]}") — the constant it states is hand-transcribed and has drifted"
     fi
 
     rm -f "$rowfile"

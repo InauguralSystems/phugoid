@@ -120,6 +120,28 @@ MISS=$(awk -v a="$OBS_US" -v b="$C6_US" 'BEGIN{ printf "%.2f", a/b }')
 chk "$(awk -v m="$MISS" 'BEGIN{print (m>=1.5)?1:0}')" \
     "P2.c6miss: measured slope ${OBS_US} µs vs C6-derived ${C6_US} µs = ${MISS}x — clause 2 of P2's refutation FIRES"
 
+# ...and ORACLE must PUBLISH what this computes. Round 39: round 38 pinned
+# the C6 DERIVATION and left its published answer pinned by nothing, so
+# reverting ORACLE to the exact values round 38 had just refuted
+# (0.154 / 23.1 / 1.95x) passed with the gate printing 0.123 / 18.4 /
+# 2.45x beside it. Nothing compared the two. That is the `P2.banked`
+# shape -- "it guards the published number now" -- one paragraph over,
+# never applied.
+#
+# The INPUTS were free in the same way: C6_HI and C6_LO are hand
+# transcriptions of ORACLE's rung-3 line, and a 16% edit to one of them
+# passed while ORACLE published the old chain. They are checked against
+# that line now.
+for pubv in "$C6_PER_WRITE µs" "$C6_US µs" "${MISS}× miss"; do
+    grep -qF -- "$pubv" ORACLE.md \
+        || chk 0 "P2.c6published: ORACLE does not publish '$pubv' — the gate computes the C6 chain and the write-up states a different one"
+done
+chk "$(grep -cF -- "$C6_PER_WRITE µs" ORACLE.md | awk '{print ($1>=1)?1:0}')" \
+    "P2.c6published: ORACLE publishes the C6 chain this gate computes (${C6_PER_WRITE} µs → ${C6_US} µs → ${MISS}×)"
+grep -qF -- "write $C6_HI s, floor $C6_LO s" ORACLE.md \
+    && chk 1 "P2.c6inputs: C6_HI/C6_LO match ORACLE's rung-3 measurement line" \
+    || chk 0 "P2.c6inputs: C6_HI=$C6_HI / C6_LO=$C6_LO are not ORACLE's rung-3 figures — the constant under P2's verdict is a free-floating transcription"
+
 # --- CLAUSE 1: is the observer arm superlinear? Per-aircraft cost must
 # rise with N once past the small-N overhead. The floor drifts too, which
 # is why the comparison matters: ORACLE called the floor's drift "small"

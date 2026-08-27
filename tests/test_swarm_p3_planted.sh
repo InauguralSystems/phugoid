@@ -105,7 +105,7 @@ plant c4 'P3.unitdep P3.unitid' 2 f_setbucket '^p3 unit=deg ac=0 sp=0\.05 cad=74
 plant c5 'P3.nuisance P3.profile' 5 f_setbucket '^p3 unit=[a-z]+ ac=[01] sp=0\.0[25] cad=(104|114|124|134|148) ' fosc 10
 # c6: the fleet alert rate falls with N -- channels sharing state again,
 # which is rung 4's P4 defect returning.
-plant c6 P3.nfleet 1 f_sed 's/^(p3n n=16 .*)fleet_permille=[0-9]+/\1fleet_permille=400/'
+plant c6 P3.nfleet 2 f_sed 's/^(p3n n=16 .*)fleet_permille=[0-9]+/\1fleet_permille=400/'
 # c7/c8: vacuity. A field or a whole table that vanishes must FAIL, never
 # pass quietly.
 plant c7 'P3.truth.alive P3.truth.unit' 3 f_sed '/^p3truth ac=0 sp=0\.05 /d'
@@ -140,7 +140,7 @@ plant c14 P3.phase 1 f_sed '/^p3ph ac=0 /d'
 plant c16 P3.unitid 2 f_setbucket '^p3 unit=deg ac=0 sp=0\.02 cad=94 ' fosc 20
 plant c17 'P3.unitdep P3.unitid' 2 f_sed '/^p3 unit=deg .* cad=134 /d'
 # c18: the physics truth must cover BOTH dispersions.
-plant c18 P3.truth.alive 1 f_sed 's/^(p3truth ac=1 sp=0\.02 .*)u_pp_last=[0-9]+/\1u_pp_last=10/'
+plant c18 'P3.truth.alive P3.truth.unit' 2 f_sed 's/^(p3truth ac=1 sp=0\.02 .*)u_pp_last=[0-9]+/\1u_pp_last=10/'
 # c19/c20: the phase claim's denominator and its distinctness.
 plant c19 P3.phase 1 f_sed 's/^(p3ph ac=[01] cad=74 phase=[0-9]+ )full=[0-9]+/\1full=3/'
 plant c20 P3.phase 1 f_sed 's/^p3ph ac=1 cad=74 phase=[0-9]+ /p3ph ac=1 cad=74 phase=7 /'
@@ -267,7 +267,7 @@ oplant u1 P3.truth.unit sed -E 's/^\| ([01]) \(amp \.[0-9]+\) \| ([0-9.]+) ft\/s
 oplant u2 P3.truth.unit sed 's| ft/s| kt|g'
 # ORACLE unreadable: the string-grep version returned 2, the `if` was
 # false, and NOTHING fired -- a vacuous pass.
-oplant u3 P3.truth.unit --unreadable
+oplant u3 'P3.nfleet P3.truth.unit' --unreadable
 # the table transcribed 10x wrong while the driver prints the right numbers
 oplant u4 P3.truth.unit sed -E 's/8\.44 ft\/s/84.4 ft\/s/; s/4\.52 ft\/s/45.2 ft\/s/'
 # u5: the two COLUMNS swapped -- every value still present, so the

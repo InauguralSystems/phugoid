@@ -2263,10 +2263,14 @@ verdict that had said "MECHANISM IS NOT RESOLVED" flatly since round 1.
   `unobserved:` while leaving the loop statements observed — what
   per-binding arming would produce, digest held identical at
   `4466955440` — drops the same ratio to **~0.99**, which the gate's 1.20
-  bound rejects. (The description "every assignment" was inexact: five of
-  eleven remain unwrapped, including a `local i is 0` inside the frame
+  bound rejects. (The description "every assignment" was inexact: **six of
+  thirteen** remain unwrapped, including a `local i is 0` inside the frame
   loop, which is why the arm sits just under 1.0 rather than well below.
-  Round 26.)
+  Round 26 counted five of eleven; round 32 then added `local reads is 0`
+  and `reads is reads + 1` to that same function and never updated the
+  count, and round 38 fixed a different wording of this sentence and
+  missed this one — an unpinned hand count invalidated twice by later
+  rounds' own edits. Round 39.)
 - **Not resolved.** The read share, `(ceiling − ceiling0)/(ceiling −
   floor)`, ranges **-5.6% to +27.6%** over those same seven replicates,
   and `ceiling1` (ONE reader) measured faster than `ceiling` (sixteen) in
@@ -2307,12 +2311,22 @@ claim had inverted.
 
 **The truth, measured with the observer uninvolved** (`truth_row` in
 `tests/swarm_p3.eigs`; whole integration inside `unobserved:`), peak-to-peak
-over the first and last phugoid period of the 400 s run, dispersion 0.05:
+over the first and last phugoid period of the 400 s run. **All four rows
+are published**, not just the shipped dispersion — round 39 found the
+sp=0.02 pair stated only in prose and therefore graded by loose floors
+while quoted to three digits, and those are the rows the radian/ac0/sp0.02
+dead cell rests on, which is P3's sharpest claim:
 
 | aircraft | u p-p, first period | u p-p, **last period** |
 |---|---|---|
 | 0 (amp .0240) | 8.44 ft/s | **4.52 ft/s** |
 | 1 (amp .0466) | 16.41 ft/s | **8.80 ft/s** |
+| 0 (amp .0096) | 3.37 ft/s | **1.81 ft/s** |
+| 1 (amp .0186) | 6.56 ft/s | **3.52 ft/s** |
+
+The first two rows are dispersion 0.05, the last two 0.02. Every cell is
+matched against the producer as a whole row, in order, with `ft/s`
+adjacent and the decay direction asserted.
 
 **The unit is ft/s, and this section said m/s at seven sites until round
 36.** The model is wholly imperial — `sim_core.eigs` declares the state
