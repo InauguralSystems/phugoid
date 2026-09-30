@@ -207,7 +207,14 @@ expect_out() {
     [ "$got" = "$2" ] || { echo "FAIL: $1 variant did not execute its declared work"; echo "  expected: $2"; echo "  got:      $got"; exit 1; }
 }
 expect_out_file tests/ap_profile_noread.eigs "" "noread 120000"
-expect_out read  "read 133286 480000"
+# Re-banked at the phugoid#8 re-grade, 133286 -> 76551, naming the
+# upstream change: EigenScript#1045's scale-free relative step. Split on
+# main a7a4ca3: osc(u)=0, conv(w)=7637, stable(q)=12348, div(th)=56566,
+# and the same split with every channel scaled x1000 -- a pure unit
+# change the verdicts must not see. v0.43.0 gave 133286 at x1 and 77766
+# at x1000 (conv(w) 11563 vs 7639, stable(q) 65157 vs 13561: the sub-unit
+# absolute deadband, G5); main gives 76551 at both. div(th) is unchanged.
+expect_out read  "read 76551 480000"
 expect_out write "write 120000"
 expect_out floor "floor 120000"
 R=$(med read); W=$(med write); F=$(med floor); NR=$(med_file tests/ap_profile_noread.eigs)

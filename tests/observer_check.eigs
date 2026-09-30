@@ -78,8 +78,20 @@ loop while i < (len of recS.t):
         check_verdict of ["O.sp.t10", report of x, "oscillating", "agree"]
     if i == 15:
         check_verdict of ["O.sp.t15", report of x, "oscillating", "agree"]
+    # Re-graded 2026-09-30 against EigenScript main (phugoid#8). The row
+    # was `converged`/agree; that agreement was the sub-unit absolute
+    # deadband (GAPS G5, EigenScript#1045): on v0.43.0 this very
+    # trajectory reads `converged` in ft/s and `stable` in mm/s. Physics
+    # at t = 20..29 s: the SP mode (t-half 1.26 s) is below 2e-5 of its
+    # IC, and what w still carries is the phugoid residue the nonlinear
+    # model re-injects -- a monotone drift of ~1.4e-4 ft/s per sample on
+    # |w| ~ 0.015 ft/s, i.e. ~1% of |w| per sample, ten times the
+    # converged tolerance. Truth: a 46.9 s oscillation seen through a 10 s
+    # window (G4's slow side), which no windowed band can fold; the
+    # unit-free runtime reads `moving` in every unit, which abstains
+    # rather than contradicting it. Divergence class, like O.ph1s.*.
     if i == 29:
-        check_verdict of ["O.sp.t29", report of x, "converged", "agree"]
+        check_verdict of ["O.sp.t29", report of x, "moving", "divergence"]
     i is i + 1
 
 # ---------------------------------------------------------- phugoid replay

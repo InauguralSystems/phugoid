@@ -26,25 +26,29 @@ grep -q '^CHECKS_RUN 13$' "$OUT" || { echo "FAIL: check population not 13"; tail
 grep -q '^FAILURES 0$' "$OUT" || { echo "FAIL: failures reported"; grep '^FAIL' "$OUT"; exit 1; }
 echo "PASS: 13/13 rung-2 observer checks green"
 
-echo "--- O1: replay frozen at first sample -> the 10 motion-expecting checks red ---"
+# phugoid#8 re-grade: O2.units.rad now expects `moving` and O2.phi.t35
+# `oscillating`, so a frozen (converged) replay reds both -- 10 -> 12.
+echo "--- O1: replay frozen at first sample -> the 12 motion-expecting checks red ---"
 if "$EIGS" tests/observer_lat_check.eigs o1 > "$OUT" 2>&1; then
     echo "FAIL: plant o1 did not make observer_lat_check exit nonzero"; exit 1
 fi
 grep -q '^CHECKS_RUN 13$' "$OUT" || { echo "FAIL: o1 population != 13"; exit 1; }
-[ "$(grep -c '^FAIL ' "$OUT")" -eq 10 ] || { echo "FAIL: o1 expected 10 FAILs"; grep '^FAIL ' "$OUT"; exit 1; }
-for name in 'O2\.dr\.t15 ' 'O2\.dr\.t30 ' 'O2\.dr\.t44 ' 'O2\.mirror\.mag ' 'O2\.units\.deg ' 'O2\.units\.mrad ' 'O2\.roll\.fast ' 'O2\.roll\.matched ' 'O2\.phi\.t10 ' 'O2\.phi\.t20 '; do
+[ "$(grep -c '^FAIL ' "$OUT")" -eq 12 ] || { echo "FAIL: o1 expected 12 FAILs"; grep '^FAIL ' "$OUT"; exit 1; }
+for name in 'O2\.dr\.t15 ' 'O2\.dr\.t30 ' 'O2\.dr\.t44 ' 'O2\.mirror\.mag ' 'O2\.units\.rad ' 'O2\.units\.deg ' 'O2\.units\.mrad ' 'O2\.roll\.fast ' 'O2\.roll\.matched ' 'O2\.phi\.t10 ' 'O2\.phi\.t20 ' 'O2\.phi\.t35 '; do
     grep -Eq "^FAIL $name" "$OUT" || { echo "FAIL: o1 expected red '$name'"; exit 1; }
 done
-grep '^FAIL ' "$OUT" | grep -Eq 'O2\.mirror\.flip |O2\.units\.rad |O2\.phi\.t35 ' && { echo "FAIL: o1 reddened a frozen-compatible check"; exit 1; }
+grep '^FAIL ' "$OUT" | grep -Eq 'O2\.mirror\.flip ' && { echo "FAIL: o1 reddened a frozen-compatible check"; exit 1; }
 echo "PASS: O1 red pattern exact"
 
-echo "--- O2: unequal-magnitude alternation -> the 7 non-oscillating pins red ---"
+# phugoid#8 re-grade: O2.phi.t35 now expects `oscillating`, which the
+# alternation produces, so it left this set -- 7 -> 6.
+echo "--- O2: unequal-magnitude alternation -> the 6 non-oscillating pins red ---"
 if "$EIGS" tests/observer_lat_check.eigs o2 > "$OUT" 2>&1; then
     echo "FAIL: plant o2 did not make observer_lat_check exit nonzero"; exit 1
 fi
 grep -q '^CHECKS_RUN 13$' "$OUT" || { echo "FAIL: o2 population != 13"; exit 1; }
-[ "$(grep -c '^FAIL ' "$OUT")" -eq 7 ] || { echo "FAIL: o2 expected 7 FAILs"; grep '^FAIL ' "$OUT"; exit 1; }
-for name in 'O2\.mirror\.flip ' 'O2\.units\.rad ' 'O2\.units\.deg ' 'O2\.units\.mrad ' 'O2\.roll\.fast ' 'O2\.roll\.matched ' 'O2\.phi\.t35 '; do
+[ "$(grep -c '^FAIL ' "$OUT")" -eq 6 ] || { echo "FAIL: o2 expected 6 FAILs"; grep '^FAIL ' "$OUT"; exit 1; }
+for name in 'O2\.mirror\.flip ' 'O2\.units\.rad ' 'O2\.units\.deg ' 'O2\.units\.mrad ' 'O2\.roll\.fast ' 'O2\.roll\.matched '; do
     grep -Eq "^FAIL $name" "$OUT" || { echo "FAIL: o2 expected red '$name'"; exit 1; }
 done
 echo "PASS: O2-plant red pattern exact"

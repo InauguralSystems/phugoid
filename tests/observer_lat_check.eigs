@@ -22,6 +22,12 @@
 #         window to span enough of the mode. At 0.2 s cadence (window
 #         3.6 t-half) the same decay reads `improving` correctly.
 #     (c) G5's small-magnitude corollary on the doublet's phi tail.
+#   RE-GRADED 2026-09-30 against EigenScript main (phugoid#8): #1045
+#   removed mechanism (a) and (c), and with them (b)'s `stable`. The
+#   unit triplet now reads one verdict in all three units, roll.fast
+#   abstains (`moving`), and phi.t35 was the Dutch roll all along and
+#   now agrees (`oscillating`). 9 agree, 4 divergence; ORACLE.md,
+#   "Re-grade against EigenScript main", has the evidence.
 
 load_file of "data/b747_approach.eigs"
 load_file of "modes.eigs"
@@ -113,7 +119,17 @@ loop while i < (len of recs.t):
     udeg is s * 57.29577951308232 + 0.0
     umr is s * 1000.0 + 0.0
     if i == 30:
-        check_verdict of ["O2.units.rad", report of urad, "converged", "divergence"]
+        # Re-graded 2026-09-30 (phugoid#8): EigenScript#1045 made the
+        # step scale-free, so radians now read what degrees and mrad read
+        # -- the G5 unit split this triplet pinned is CLOSED, and all
+        # three rows now pin one verdict. They stay divergence: the
+        # physics is a geometric decay (improving), but at t-half = 14.9
+        # samples a 10-sample window's halves contract by 2^(-5/14.9) =
+        # 0.79 per half-window, above improving's 0.7, so the runtime
+        # abstains (`moving`) in every unit -- G4's slow side, no longer
+        # G5. `converged` would contradict the physics: rel step per
+        # sample is 1 - 2^(-1/14.9) = 4.5%, 45x the settle tolerance.
+        check_verdict of ["O2.units.rad", report of urad, "moving", "divergence"]
         check_verdict of ["O2.units.deg", report of udeg, "moving", "divergence"]
         check_verdict of ["O2.units.mrad", report of umr, "moving", "divergence"]
     i is i + 1
@@ -131,7 +147,15 @@ i is 0
 loop while i < (len of recr.t):
     z1 is replay_at of [recr.p, i]
     if i == 30:
-        check_verdict of ["O2.roll.fast", report of z1, "stable", "divergence"]
+        # Re-graded 2026-09-30 (phugoid#8): v0.43.0 read `stable` in rad/s
+        # and `moving` in mrad/s on this same sample (the sub-unit absolute
+        # deadband, G5). Scale-free (#1045) it reads `moving` in both. The
+        # physics is unchanged -- the chain's roll root -1.2308/s gives a
+        # per-sample ratio e^(-1.2308*0.02) = 0.9757, a 2.4% step (above
+        # stable's 1% band), and 0.885 per half-window (above improving's
+        # 0.7): truth improving, verdict abstains. Still a divergence, now
+        # G4's fast side only.
+        check_verdict of ["O2.roll.fast", report of z1, "moving", "divergence"]
     i is i + 1
 recr2 is lat_run of [icr, nosched, 0.02, 125, 10, P, "rk4"]
 z2 is 0.0
@@ -143,9 +167,8 @@ loop while i < (len of recr2.t):
     i is i + 1
 
 # ---------------------------------------------------- phi, three timescales
-# Rudder doublet: phi carries the DR (t=10/20, oscillating — agree),
-# then the sub-milliradian spiral tail reads `converged` while still
-# actively decaying (t=35/55 — G5's small-magnitude corollary).
+# Rudder doublet: phi carries the DR (t=10/20/35, oscillating — agree;
+# see the t35 re-grade note below).
 schedD is [[1.0, 0.0, 0.03], [2.0, 0.0, 0.0 - 0.03], [1e9, 0.0, 0.0]]
 recD is lat_run of [[0.0, 0.0, 0.0, 0.0], schedD, 0.02, 3000, 50, P, "rk4"]
 y is 0.0
@@ -157,7 +180,15 @@ loop while i < (len of recD.t):
     if i == 20:
         check_verdict of ["O2.phi.t20", report of y, "oscillating", "agree"]
     if i == 35:
-        check_verdict of ["O2.phi.t35", report of y, "converged", "divergence"]
+        # Re-graded 2026-09-30 (phugoid#8), and its physics truth
+        # CORRECTED: the old comment called t=26..35 "the sub-milliradian
+        # spiral tail". The recorded phi changes sign at t = 27-28, 30-31
+        # and 35-36 s -- the Dutch roll (T 8.45 s, t-half 8.59 s from the
+        # chain) is still ringing, at 2^(-33/8.59) = 7% of its t=2 s
+        # amplitude. Truth: oscillating. v0.43.0 said `converged` (the
+        # sub-unit absolute deadband, G5); scale-free (#1045) it says
+        # `oscillating`. Agree class now.
+        check_verdict of ["O2.phi.t35", report of y, "oscillating", "agree"]
     i is i + 1
 
 print of f"CHECKS_RUN {checks_run}"
