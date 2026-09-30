@@ -62,6 +62,12 @@ define run_ceiling_more(n, frames, dt, spread, tstate, P, sched) as:
         fleet is frame_step of [fleet, t, dt, sched, P]
         local i is 0
         loop while i < n:
+            # Deliberate: this arm's qobs reads all N aircraft through one
+            # binding on purpose. `hits` here is a COST witness (the predicate ran and its taken
+            # branch varies), not a per-aircraft verdict; the round-robin interleave W024 warns
+            # about is the measured object (ORACLE.md rung 4, GAPS.md G8). Per-aircraft verdicts
+            # live in run_named4 / run_closure_n, which W024 does not flag.
+            # lint: allow W024 -- deliberate interleave, see the comment above
             local qobs is fleet[i][2] + 0.0
             if oscillating of qobs:
                 hits is hits + 1
