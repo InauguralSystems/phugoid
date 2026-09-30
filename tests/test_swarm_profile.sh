@@ -430,7 +430,13 @@ CF_BOUND=1.15
 # container the two excluded points agreed with the kept one to 1%
 # (ratios 1.41, 1.40, 1.40), and on a faster box it excluded two of three
 # and hard-failed the suite.
-OVT=$(mktemp -d); sed 's/^FRAMES is 1500$/FRAMES is 1/' tests/swarm_profile.eigs > "$OVT/ovh.eigs"
+# The probe is a generated DRIVER that load_files repo-relative paths, so
+# it must live under the project root: EigenScript v0.43.0 (#1056, #1123)
+# resolves load_file against the containing file and then the nearest
+# eigs.json, and no longer tries the cwd -- from /tmp nothing resolves
+# (phugoid#7). The trap removes it on any exit, so a failed probe cannot
+# leave a stray .eigs for test_lint.sh's recursive count to see.
+OVT=$(mktemp -d "$ROOT/.ovh.XXXXXX"); trap 'rm -rf "$OVT"' EXIT; sed 's/^FRAMES is 1500$/FRAMES is 1/' tests/swarm_profile.eigs > "$OVT/ovh.eigs"
 cmp -s tests/swarm_profile.eigs "$OVT/ovh.eigs" && { rm -rf "$OVT"; echo "FAIL: the overhead probe did not apply"; exit 1; }
 OVH=$(mins "$OVT/ovh.eigs" floor 1)
 rm -rf "$OVT"
