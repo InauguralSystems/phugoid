@@ -247,8 +247,15 @@ loop while ai2 < 4:
 # the initialiser sample (EigenScript#1049) and the rest is physics. The sentence that used
 # to sit here called 74 "rung 3's result, not a tuning knob" -- the exact
 # transplanted number ORACLE.md retracts.
+# Re-banked at the phugoid#8 re-grade (EigenScript main a7a4ca3): 208 ->
+# 268, per channel 41/61/61/45 -> 67/67/67/67. The four aircraft differ
+# only in excitation amplitude (the dispersion), and a linear mode's
+# verdict stream must not depend on amplitude; v0.43.0's spread was the
+# sub-unit absolute deadband (G5, fixed by #1045). `oscillating` is the
+# physics truth on every read of this live phugoid, so the count rose
+# toward it. Fleet == solo and closure == named still hold exactly.
 tot is hs[0] + hs[1] + hs[2] + hs[3]
-check_exact of ["W5.stream.live", tot, 208]
+check_exact of ["W5.stream.live", tot, 268]
 cn is run_closure_n of [4, FRL, 0.05, SP, CAD, tr.state, tr.P, sched]
 ci is 0
 loop while ci < 4:

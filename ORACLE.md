@@ -2505,7 +2505,7 @@ unit. Two things are then graded separately, because round 9's single
   full-window, including `p3_fleet`'s — round 11 found that one had no
   exclusion at all while this sentence claimed otherwise. Round 13 then
   found its boundary off by one, for precisely the reason round 12 gave
-  for moving it. The fleet rate is **0.789**.
+  for moving it. The fleet rate is **0.789** (0.803 on EigenScript main, see the re-grade section at the end).
 
   **Round 14: the buckets now PARTITION the full-window count.** `fosc`
   had been graded at `asn>9` while `fquiet`/`fnoclaim` were graded at
@@ -2775,7 +2775,7 @@ deadband distorts (EigenScript#1045).
 **The N half — CONFIRMED, but construction-bound, and that is a weaker
 statement than round 9 made.** P3 predicts a rate "that does not fall with
 N". Measured (`p3_fleet`, one closure channel per aircraft): exactly
-0.789 from N=2 to N=16. But `fleet_ic` gives aircraft *i* an N-independent
+0.803 from N=2 to N=16 on EigenScript main (0.789 on v0.43.0; re-graded at phugoid#8, see the re-grade section at the end). But `fleet_ic` gives aircraft *i* an N-independent
 initial condition, `frame_step` has no inter-aircraft coupling, and each
 aircraft owns its channel — so each alert set is N-independent and the
 union is monotone in N. **The rate cannot fall, by construction.** It is
@@ -2914,3 +2914,139 @@ verdict-preserving.
 Note the contrast with rung 3's C6, where reads dominated writes ~2:1 on a
 deliberately read-heavy micro-shape. That conclusion is SHAPE-SPECIFIC, not
 a property of the observer, and this rung is the counter-example.
+
+# Re-grade against EigenScript main (phugoid#8, 2026-09-30)
+
+phugoid#8 asked for every red against EigenScript main to be classified
+against this repo's physical oracle rather than against whatever the
+runtime now prints. Re-measured on main **a7a4ca3** (the issue's table was
+taken on fed280f) and on the **v0.43.0** pin, all 19 scripts, one at a
+time, each under `timeout`. Classes: (A) phugoid's own defect, pre-existing
+on the pin; (B) a runtime regression, filed upstream, the script stays red;
+(C) an intended runtime change that moved a verdict or a count, re-graded
+only with a physical justification; (D) a lint finding.
+
+## What moved upstream
+
+One change accounts for every class-C row: **EigenScript#1045**, the
+value channel's relative step is now `Δv / max(|v|, |v_prev|, 0.001)`
+instead of `Δv / (1 + |v|)`. Below |v| ≈ 1 the old form was an absolute
+deadband, so the verdict depended on the unit the binding was stored in
+and on the excitation amplitude. That was this repo's G5 finding. The
+default window (#1044) is unchanged at 10. #1049 (`unobserved:` keeps
+the value sample) is not attributed separately in any verdict row below;
+its cost shows up in the B row.
+
+## The oracle used for every class-C re-grade
+
+The physics this repo grades against is linear modal dynamics (the rung-0
+chain). Two things it does not depend on are the unit a channel is stored
+in and, for a free response, the excitation amplitude. So a verdict stream
+that is right for the physics must be **invariant** under both, and the
+truth band on a live oscillatory mode is `oscillating`. Every changed
+stream was measured against that, on both runtimes:
+
+| stream family | reads differing, channel ×1 vs ×1000, v0.43.0 | same, main | `oscillating` v0.43.0 → main |
+|---|---|---|---|
+| C4.ph | 18 of 80 | 0 | 56 → 56 |
+| C5.p1.inner | 3650 of 8000 | 0 | 0 → 0 |
+| C5.ph.p045 / p100 / p365 / p370 | 529 / 250 / 100 / 75 | 0 / 0 / 0 / 0 | 0/0/0/1 → 0/0/0/1 |
+| C5.p4.a020 / a030 / a035 / a040 | 80 / 57 / 46 / 40 | 0 each | 0/23/34/40 → 57 each |
+| C5.sp.c010 … c102 (7 streams) | 75, 75, 47, 45, 39, 26, 28 | 113, 45, 21, 20, 15, 4, 10 | c100 1 → 7, c102 0 → 3, rest unchanged |
+
+- Every **phugoid** stream is exactly unit-invariant on main and was not
+  on v0.43.0. The four p4 amplitudes (0.2 to 0.4) give one identical
+  stream on main (osc 57, onset 9, horizon 79, the last read). That is the
+  linear homogeneity the physics requires; on v0.43.0 they gave four.
+- `oscillating` never fell on any stream.
+- The **short-period** streams stay unit-dependent on main, because after
+  the first read |q| is below the 0.001 rad/s characteristic scale and
+  the verdicts ride the absolute floor (`1e-6`) that the scale's design
+  makes unit-dependent. Their non-`oscillating` counts are re-banked as a
+  regression record of that regime, and `tests/ap_check.eigs` says so.
+  Their new sightings are the SP's own fold: at cadence 51, q changes sign
+  between reads 1 and 2 and turns again at read 7 inside the first window
+  (ζ = 0.63 to 0.71, underdamped), so `oscillating` at read 9 agrees with
+  the physics.
+
+The same test on the other surfaces: `tests/ap_profile.eigs`'s read
+variant gives 76551 hits at ×1 and ×1000 on main, and 133286 against
+77766 on v0.43.0. `tests/swarm_p3.eigs` gives 96 verdict rows in which
+every radian row equals its degree and milliradian twins on main (31 of
+32 differed on v0.43.0). Of its 164 pinned lines, 44 moved: 31 radian
+rows, 8 monotone-decay rows, 1 noise row and the 4 N-sweep rows. **No
+degree or milliradian verdict row moved.** #1045 made radians read what
+the other units already read.
+
+## The ledger (every row red in the issue's fed280f table)
+
+| script | v0.43.0 | main a7a4ca3 | class | resolution |
+|---|---|---|---|---|
+| `test_swarm_profile` | red: `load_file` from `/tmp` | same | **A** (phugoid#7) | probe driver moved under the repo root. The script then runs to its timing bands and is still red on both runtimes; see the B row below |
+| `test_swarm_profile` (bands) | red: `unarmed/floor` 0.87 at N=1, band [0.90, 1.10] | red: `ceiling/floor` 1.11, bound > 1.15 | **B** | the floor arm's driver runs about 40% slower than on v0.42.0 while the unarmed control does not. Bisected to EigenScript b4f60ac (#1096 GC trigger), filed as **EigenScript#1442** with a 20-line repro (3.4×). On main the floor is about 15% slower again, because #1049 keeps the value sample inside `unobserved:`. That was bisected to 2eabdd5 (floor 2445 → 2801 ms against its parent 24acd59) and filed as **EigenScript#1443**. So `ceiling/floor` fails first. Neither bound is re-banked, because a cost claim has no physical justification to re-grade against |
+| `test_lint` | green | red: W024 ×3 | **D** | `swarm.eigs` run_ceiling / run_disciplined and `tests/swarm_profile.eigs` run_ceiling_more read N aircraft through one binding **on purpose**: that interleave is the cost witness (rounds 31-34 above), not a per-aircraft verdict. Each site carries a reasoned `# lint: allow W024`. Not a lint false positive, so nothing was filed |
+| `test_observer` | green | red: O.sp.t29 | **C** | `converged`/agree → `moving`/divergence. On v0.43.0 this trajectory reads `converged` in ft/s and `stable` in mm/s, so the old agreement was G5. At t = 20 to 29 s the SP (t½ 1.26 s) is below 2e-5 of its IC, and w carries a phugoid residue moving about 1% of \|w\| per sample, ten times the settle tolerance. That is a 46.9 s mode seen through a 10 s window (G4). Plants: o1 9 → 10, o2 5 → 5 |
+| `test_observer_lat` | green | red: 3 rows | **C** | O2.units.rad `converged` → `moving`: the triplet now reads one verdict in every unit and stays a divergence, because at t½ = 14.9 samples the half-window contraction is 0.79 > 0.7. O2.roll.fast `stable` → `moving`: v0.43.0 read `stable` in rad/s and `moving` in mrad/s, and the chain's roll root gives a 2.4% step per sample. O2.phi.t35 `converged`/divergence → `oscillating`/**agree**: the old truth label was wrong. phi changes sign at t = 27-28, 30-31 and 35-36 s; that is the Dutch roll (T 8.45 s, t½ 8.59 s) still ringing at 7%. Plants: o1 10 → 12, o2 7 → 6 |
+| `test_ap` | green | red: 104 C4/C5 rows | **C** | re-banked from main's streams (table above); 30 closing rows added (217 → 247) |
+| `test_ap_planted` | green | red: 73 → 133 | **C** | re-derived by running each plant on main. Every plant's C0-C3 red set is identical to v0.43.0's; only C4/C5 moved. S1 75, S2 77, S3 43, S4 128, S7 140, S9 119, S12 134. 23 plantables became structural (zero `converged` counts no plant can move) |
+| `test_ap_profile` | green | red: read hits | **C** | 133286 → 76551 (unit-invariant on main, see above) |
+| `test_swarm` | green | red: W5.stream.live | **C** | 208 → 268, per channel 41/61/61/45 → 67/67/67/67. The four aircraft differ only in amplitude. The 164 P3 lines were re-banked after the claims |
+| `test_swarm_planted` | green | red: 2 reds, expected 1 | **C** | follows W5.stream.live; its W1 plant reds exactly W3.dispersion again once the clean value is re-banked |
+| `test_swarm_p3_planted` | green | red: 17 claim failures | **C** | see "P3 on main" below |
+
+`test_comparator`, `test_modes`, `test_measure`, `test_planted`, `test_sim`,
+`test_sim_planted`, `test_latsim`, `test_latsim_planted` and
+`test_verdicts` are green on both runtimes and were not touched.
+
+## P3 on main: the radian-only false all-clear is gone
+
+Rung 4's P3 section above published, as its sharpest finding, that the
+false all-clear exists **only in radians**: a 98-99% peak, 30 of 32 radian
+rows, 0 of 64 others. The monotone decay split three ways (`converged` /
+`stable` / `moving`), and the amplitude dependence survived at long
+cadence in the false-all-clear column. Each of those was the #1045
+deadband. On main, over the same 96 rows: **zero false all-clears in any
+unit**, every radian row identical to its twins, the monotone decay reads
+`moving` in all three units, and at cadence 134 the two aircraft detect
+35 and 35. P3's truth rows (the observer uninvolved) are unchanged, so the
+phugoid is alive on every read and all of this is the observer moving
+toward the physics.
+
+`tests/p3claims.sh` therefore **refuses** the old defect class rather than
+certifying it. P3.unitdep reds on any false all-clear in any unit and on
+any radian row that differs from its twins. P3.monoclass requires `moving`
+in all three units. P3.tail requires the two aircraft to detect within one
+read of each other at cadence 134. The unit-invariant half of P3 is
+unchanged and still holds on main: cadence 74 detects nothing (P3.blind74),
+and the detector alerts on up to 100% of reads of a healthy aircraft
+(P3.nuisance). So P3's verdict line above stands, on its invariant half.
+The fleet rate is 0.803 at N = 2, 4, 8 and 16, up from 0.789, and
+per-aircraft counts are 62 each (on v0.43.0 they were 40/60/60/44 with a
+0 aircraft, the deadband-killed one).
+
+Plant harness: 65 → 64 plants (n5 retired, since its site asserted the
+removed defect), 76 → 72 assertion sites, and every site still fires.
+c11, c12, c27 and c31 were re-aimed at the new claims. The other changed
+expectations were re-derived by running each plant, and
+`tests/test_swarm_p3_planted.sh` lists why.
+
+## Superseded statements above (history, not current)
+
+These figures are true of v0.43.0 and were not rewritten in place:
+rung 3's SP band upper edge at cadence 51 ("first blind") and its G5
+horizon story, and the C5.P4 ramp and "supervision runs out" law (on main
+every tested amplitude sights the phugoid to the last read). Also
+prediction 1's `converged` 4056 (378 on main, with `diverging` 3934
+unchanged) and G5's unit triplet (closed upstream). In rung 4: the
+98-99% radian false-all-clear peak, the three-way monotone split and the
+long-cadence amplitude tail, and the 0 / 5533 / 19850 interleave counts
+(0 / 5974 / 21126 on main, re-banked in `tests/test_swarm_profile.sh`).
+
+## Green on main only
+
+On v0.43.0 these scripts are now red **by design**, since they pin main's
+verdicts: `test_observer`, `test_observer_lat`, `test_ap`,
+`test_ap_planted`, `test_ap_profile`, `test_swarm`, `test_swarm_planted`
+and `test_swarm_p3_planted`. The Dockerfile pin stays at v0.43.0 until a
+release carries #1045 (the issue's last box). `test_swarm_profile` is
+red on both runtimes (B: EigenScript#1442 on both, plus #1443 on main).

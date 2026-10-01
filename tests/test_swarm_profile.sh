@@ -194,7 +194,8 @@ run_arm() {
     # where the DU claim is actually asserted -- the healthy value and the
     # gutted value were the same number. `oscillating` does not collapse:
     # it MANUFACTURES verdicts on the interleave, which is round 1's
-    # original P4 finding, giving 0 / 5533 / 19850 across the ladder.
+    # original P4 finding, giving 0 / 5533 / 19850 across the ladder
+    # (0 / 5974 / 21126 on EigenScript main, re-banked for #1045).
     # (b) Those are not derivable from n and frames. A gutted arm can only
     # reproduce them by hard-coding three constants copied from a pristine
     # run -- a categorically louder mutation than a `+1`.
@@ -263,12 +264,20 @@ run_arm() {
         # `ceilingmore` shares the ceiling's banked hits BY CONSTRUCTION --
         # it is the ceiling arm plus scratch work that touches no fleet
         # state and no predicate. That identity is the whole point: at n=2
-        # both print `... 2 1500 2588 559690091 3000 3000`, every witness
+        # both print `... 2 1500 2588 559690091 3000 3000` (2995 on main), every witness
         # field equal, only the label different. Round 46.
         "ceiling 1 1500"|"disciplined 1 1500"|"ceilingmore 1 1500")   want_hits=0 ;;
-        "ceiling 4 1500"|"disciplined 4 1500"|"ceilingmore 4 1500")   want_hits=5533 ;;
-        "ceiling 16 1500"|"disciplined 16 1500"|"ceilingmore 16 1500") want_hits=19850 ;;
-        "ceilingmore 2 1500")                    want_hits=2588 ;;
+        # Re-banked at the phugoid#8 re-grade, naming the upstream change
+        # as the FAIL text below requires: EigenScript#1045 (the
+        # scale-free value-channel step) moved the interleave's
+        # manufactured verdicts, 5533 -> 5974, 19850 -> 21126, 2588 ->
+        # 2995, with file_pin green and every fleet digest, reads and
+        # evals field identical on v0.43.0 and main. These counts are the
+        # interleave's, not physics; the single-channel arms (ceiling1,
+        # onereader) still read 0 on the decaying phugoid on both.
+        "ceiling 4 1500"|"disciplined 4 1500"|"ceilingmore 4 1500")   want_hits=5974 ;;
+        "ceiling 16 1500"|"disciplined 16 1500"|"ceilingmore 16 1500") want_hits=21126 ;;
+        "ceilingmore 2 1500")                    want_hits=2995 ;;
         "ceiling1 "*|"onereader "*)              want_hits=0 ;;
         "floor "*|"ceiling0 "*|"ceiling0pb "*|"unarmed "*) want_hits=0 ;;
         # NO SILENT DEFAULT. Round 34: this was `want_hits=""` plus an
