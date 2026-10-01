@@ -3050,3 +3050,7 @@ verdicts: `test_observer`, `test_observer_lat`, `test_ap`,
 and `test_swarm_p3_planted`. The Dockerfile pin stays at v0.43.0 until a
 release carries #1045 (the issue's last box). `test_swarm_profile` is
 red on both runtimes (B: EigenScript#1442 on both, plus #1443 on main).
+With the interleave hits re-banked to main's values, a v0.43.0 run now
+stops earlier, at the hits check (5533 against the banked 5974). The
+0.864/0.868 band reading in the ledger was taken with only the class-A fix
+applied.
