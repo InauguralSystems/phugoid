@@ -4,7 +4,10 @@
 # Plant o1: every replayed sample frozen at the channel's first value —
 # proves each verdict check can fail. Population pinned at exactly 11.
 #
-# Two check classes (both regression-pinned):
+# Check classes (all regression-pinned):
+#   empirical  — baseline pin fails half-excitation; no physics grade.
+# Round 2: t29 and ph1s.t120 are empirical, all other point checks
+# retain their class after x1000 and half-excitation tests.
 #   agree      — the verdict matches physics truth.
 #   divergence — the verdict is measured to CONTRADICT physics truth
 #                (recorded 2026-08-24; GAPS.md G4): the value-channel
@@ -78,20 +81,12 @@ loop while i < (len of recS.t):
         check_verdict of ["O.sp.t10", report of x, "oscillating", "agree"]
     if i == 15:
         check_verdict of ["O.sp.t15", report of x, "oscillating", "agree"]
-    # Re-graded 2026-09-30 against EigenScript main (phugoid#8). The row
-    # was `converged`/agree; that agreement was the sub-unit absolute
-    # deadband (GAPS G5, EigenScript#1045): on v0.43.0 this very
-    # trajectory reads `converged` in ft/s and `stable` in mm/s. Physics
-    # at t = 20..29 s: the SP mode (t-half 1.26 s) is below 2e-5 of its
-    # IC, and what w still carries is the phugoid residue the nonlinear
-    # model re-injects -- a monotone drift of ~1.4e-4 ft/s per sample on
-    # |w| ~ 0.015 ft/s, i.e. ~1% of |w| per sample, ten times the
-    # converged tolerance. Truth: a 46.9 s oscillation seen through a 10 s
-    # window (G4's slow side), which no windowed band can fold; the
-    # unit-free runtime reads `moving` in every unit, which abstains
-    # rather than contradicting it. Divergence class, like O.ph1s.*.
+    # EMPIRICAL, not a modal physics grade: main reads moving at the
+    # baseline and x1000, but stable at half SP excitation. The nonlinear
+    # residue changes with the excitation. Round 1's general amplitude
+    # and unit-free interpretation is superseded (ORACLE.md round 2).
     if i == 29:
-        check_verdict of ["O.sp.t29", report of x, "moving", "divergence"]
+        check_verdict of ["O.sp.t29", report of x, "moving", "empirical"]
     i is i + 1
 
 # ---------------------------------------------------------- phugoid replay
@@ -126,7 +121,7 @@ loop while i < (len of recB.t):
     if recB.t[i] >= 45.0:
         w1 is replay_at of [recB.u, i]
         if i == 120:
-            check_verdict of ["O.ph1s.t120", report of w1, "stable", "divergence"]
+            check_verdict of ["O.ph1s.t120", report of w1, "stable", "empirical"]
         if i == 200:
             check_verdict of ["O.ph1s.t200", report of w1, "diverging", "divergence"]
         if i == 280:

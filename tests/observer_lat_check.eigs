@@ -7,6 +7,11 @@
 # entropy-invisible by the very identity being pinned).
 # Population pinned at exactly 13.
 #
+# Round 2: mirror.mag is an absolute entropy instrument calibration,
+# not a unit-invariant physics grade (it fails x1000). All verdict
+# point checks pass x1000 and half-excitation; #1045 retains a deliberate
+# floor, so "scale-free" below applies only to these tested ranges.
+# The pre-#1045 mechanisms below are historical, superseded by the re-grade.
 # Check classes (rung-1 convention):
 #   agree      — verdict/measurement matches physics truth.
 #   divergence — measured to CONTRADICT physics truth, pinned so an
@@ -26,7 +31,7 @@
 #   removed mechanism (a) and (c), and with them (b)'s `stable`. The
 #   unit triplet now reads one verdict in all three units, roll.fast
 #   abstains (`moving`), and phi.t35 was the Dutch roll all along and
-#   now agrees (`oscillating`). 9 agree, 4 divergence; ORACLE.md,
+#   now agrees (`oscillating`). 8 agree, 4 divergence, 1 instrument; ORACLE.md,
 #   "Re-grade against EigenScript main", has the evidence.
 
 load_file of "data/b747_approach.eigs"
@@ -101,13 +106,13 @@ mag_dh is why is m
 mag_alive is 0
 if (abs of mag_dh) >= 0.1:
     mag_alive is 1
-check_verdict of ["O2.mirror.mag", f"{mag_alive}", "1", "agree"]
+check_verdict of ["O2.mirror.mag", f"{mag_alive}", "1", "instrument"]
 
 # ---------------------------------------------------- the unit triplet
 # One physical trajectory (the spiral-pure decay, amplitude 0.05 rad,
 # t-half 14.9 s — still halving at every probe), replayed in radians,
 # degrees, and milliradians. Physics truth is identical; the verdicts
-# are not — G5.
+# now agree in the tested range; the old split was G5.
 recs is lat_run of [lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "spiral", [0.0, 0.0, 1.0, 0.0], 2, 0.05], nosched, 0.05, 1200, 20, P, "rk4"]
 urad is replay_at of [recs.phi, 0]
 udeg is (replay_at of [recs.phi, 0]) * 57.29577951308232

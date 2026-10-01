@@ -43,8 +43,9 @@ Rung 1 (shipped 2026-08-24) is the first model, graded by rung 0:
   0.15% (arms in ORACLE.md, twenty-two-plant fault matrix in
   `tests/test_sim_planted.sh`).
 - **`tests/observer_check.eigs`** — the observer's verdicts graded against
-  the same physics: 8 agreement pins, and 3 pinned *divergences* — the
-  fixed 10-sample predicate window reads a 47 s mode at 1 Hz as
+  the same physics: agreement, divergence, and empirical rows (current
+  grades and variation results in ORACLE.md). The fixed 10-sample
+  predicate window reads a 47 s mode at 1 Hz as
   `diverging` on its quarter-cycles (GAPS.md G4, the first measured
   instance of the proposal's two-timescale prediction).
 
@@ -61,16 +62,16 @@ a closed-loop autopilot, with the observer as its supervisory layer:
   were **refuted**, which is the rung's main result. At inner-loop rate
   the observer is not noisy — but neither is it merely blind: on a
   smoothly *decaying* phugoid it never says `oscillating` (0 of 8000
-  reads) and instead alternates `diverging` (49%) and `converged` (51%),
-  so an autopilot would fight a healthy mode half the time. Supervision
-  does not hold cleanly either; it *flickers* 17 times in one phugoid
-  episode for want of hysteresis. The corrected design law needs two
-  conditions: a verdict is actionable only when the regime persists
-  beyond ~1–2 observation windows **and** the observed channel still clears
-  the deadband. The second condition is a *horizon*, not a gate: the
-  onset never moves (the window filling), only the cutoff does, so as a
-  mode decays under the band supervision runs out of time rather than
-  switching off — EigenScript#1045 changing what an actuator does.
+  reads). On main a7a4ca3, with physical observer seeds, it reports
+  `diverging` on 3941 reads and `converged` on 378, with the rest in
+  `stable`, `equilibrium`, or `moving`. These are empirical stream pins;
+  their counts also depend on excitation. Supervision still flickers 17
+  times in one phugoid episode. The v0.43.0 amplitude-dependent cutoff
+  story is superseded on main; the current phugoid sweep reaches the last
+  read at every shipped amplitude. Short-period observer rows are
+  **BELOW-FLOOR**, because q falls below #1045's deliberate 0.001 rad/s
+  characteristic scale. They are excluded from physics-graded verdict
+  claims. See [ORACLE.md](ORACLE.md) for physical variation results.
 - **`tests/ap_profile.eigs`** — the observer's READ path, which no
   consumer had put under load. The whole read-bearing program costs
   1.75–2.50× the write-only one on this shape; for a program that reads
@@ -94,10 +95,12 @@ the level-set stress:
 - **`tests/observer_lat_check.eigs`** — the level-set grading: the value
   channel correctly reads zero-symmetric motion the entropy channel is
   provably blind to (the mirror pin: a +5 → −5 assignment registers
-  `why == 0` exactly), and the rung's new find — **verdicts are
-  unit-dependent below |v| ≈ 1** (the same still-decaying bank angle
-  reads `converged` in radians, `moving` in degrees; GAPS.md G5,
-  EigenScript#1045).
+  `why == 0` exactly). The original radian/degree/milliradian unit
+  split (GAPS.md G5, EigenScript#1045) is fixed on main: the spiral
+  triplet now reads `moving` in all three units. Below the remaining
+  characteristic floor, verdicts still depend on the numerical unit
+  unless the floor is converted too; that policy was deliberately chosen
+  upstream.
 
 ## Run it
 
@@ -113,8 +116,8 @@ bash tests/test_observer.sh    # 11 observer-verdict checks + 2 plants
 bash tests/test_latsim.sh      # 76 rung-2 model checks vs the rung-0 chain
 bash tests/test_latsim_planted.sh # 22 rung-2 plants, exact red sets + manifest
 bash tests/test_observer_lat.sh   # 13 rung-2 observer checks + 2 plants
-bash tests/test_ap.sh          # 217 rung-3 closed-loop checks
-bash tests/test_ap_planted.sh  # 16 rung-3 plants, exact red sets + manifest
+bash tests/test_ap.sh          # 250 rung-3 closed-loop and input-history checks
+bash tests/test_ap_planted.sh  # 20 rung-3 plants, exact red sets + manifest
 bash tests/test_ap_profile.sh  # the observer read-path ratio gate
 ```
 

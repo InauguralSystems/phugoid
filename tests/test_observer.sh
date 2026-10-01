@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
-# Rung-1 O checks (ORACLE.md): observer verdicts graded against physics
-# ground truth on the graded trajectories — 7 physics-agreement pins plus
-# 4 pinned, measured divergences (the 10-sample value-channel window vs a
-# 47 s mode at 1 Hz; GAPS.md G4 — O.sp.t29 joined them at the phugoid#8
-# re-grade, see ORACLE.md). Both observer plants must
-# flip exactly their declared sets; population pinned at 11.
+# Rung-1 O checks: 7 agreement pins, 2 measured divergences, 2 empirical
+# baseline pins (SP t29 and ph1s t120 fail half-excitation). ORACLE.md
+# round 2 records unit/half variations. Both plants must flip exactly
+# their declared sets; population pinned at 11.
 set -euo pipefail
 
 EIGS="${EIGENSCRIPT:-eigenscript}"

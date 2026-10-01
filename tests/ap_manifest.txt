@@ -50,99 +50,187 @@ ap C2.ph.Tdft plantable reltol=0.01
 ap C2.ph.zlog plantable reltol=0.05
 ap C2.ph.Tdft.k plantable exact=8
 ap C5.sp.c010.seed plantable exact=0.001954899167907798
+# BELOW-FLOOR C5.sp.c010.osc: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c010.osc plantable exact=0
+# BELOW-FLOOR C5.sp.c010.reads: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c010.reads plantable exact=300
+# BELOW-FLOOR C5.sp.c010.div: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c010.div plantable exact=140
+# BELOW-FLOOR C5.sp.c010.conv: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c010.conv plantable exact=92
+# BELOW-FLOOR C5.sp.c010.stable: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c010.stable plantable exact=18
+# BELOW-FLOOR C5.sp.c010.equil: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c010.equil plantable exact=3
+# BELOW-FLOOR C5.sp.c010.runs: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c010.runs plantable exact=15
+# BELOW-FLOOR C5.sp.c010.maxrun: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c010.maxrun plantable exact=113
+# BELOW-FLOOR C5.sp.c010.didx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c010.didx plantable exact=23736
+# BELOW-FLOOR C5.sp.c010.cidx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c010.cidx plantable exact=18064
+# BELOW-FLOOR C5.sp.c010.improving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c010.improving plantable exact=25
+# BELOW-FLOOR C5.sp.c010.moving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c010.moving plantable exact=22
 ap C5.sp.c020.seed plantable exact=0.001954899167907798
+# BELOW-FLOOR C5.sp.c020.osc: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c020.osc plantable exact=0
+# BELOW-FLOOR C5.sp.c020.reads: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c020.reads plantable exact=150
+# BELOW-FLOOR C5.sp.c020.div: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c020.div plantable exact=62
+# BELOW-FLOOR C5.sp.c020.conv: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c020.conv plantable exact=15
+# BELOW-FLOOR C5.sp.c020.stable: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c020.stable plantable exact=24
+# BELOW-FLOOR C5.sp.c020.equil: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c020.equil plantable exact=6
+# BELOW-FLOOR C5.sp.c020.runs: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c020.runs plantable exact=19
+# BELOW-FLOOR C5.sp.c020.maxrun: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c020.maxrun plantable exact=54
+# BELOW-FLOOR C5.sp.c020.didx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c020.didx plantable exact=5705
+# BELOW-FLOOR C5.sp.c020.cidx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c020.cidx plantable exact=1430
+# BELOW-FLOOR C5.sp.c020.improving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c020.improving plantable exact=20
+# BELOW-FLOOR C5.sp.c020.moving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c020.moving plantable exact=23
 ap C5.sp.c040.seed plantable exact=0.001954899167907798
+# BELOW-FLOOR C5.sp.c040.osc: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c040.osc plantable exact=0
+# BELOW-FLOOR C5.sp.c040.reads: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c040.reads plantable exact=75
+# BELOW-FLOOR C5.sp.c040.div: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c040.div plantable exact=25
+# BELOW-FLOOR C5.sp.c040.conv: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c040.conv plantable exact=3
+# BELOW-FLOOR C5.sp.c040.stable: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c040.stable plantable exact=15
+# BELOW-FLOOR C5.sp.c040.equil: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c040.equil plantable exact=3
+# BELOW-FLOOR C5.sp.c040.runs: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c040.runs plantable exact=10
+# BELOW-FLOOR C5.sp.c040.maxrun: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c040.maxrun plantable exact=25
+# BELOW-FLOOR C5.sp.c040.didx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c040.didx plantable exact=1350
+# BELOW-FLOOR C5.sp.c040.cidx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c040.cidx plantable exact=120
+# BELOW-FLOOR C5.sp.c040.improving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c040.improving plantable exact=6
+# BELOW-FLOOR C5.sp.c040.moving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c040.moving plantable exact=23
 ap C5.sp.c042.seed plantable exact=0.001954899167907798
+# BELOW-FLOOR C5.sp.c042.osc: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c042.osc plantable exact=0
+# BELOW-FLOOR C5.sp.c042.reads: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c042.reads plantable exact=71
+# BELOW-FLOOR C5.sp.c042.div: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c042.div plantable exact=24
+# BELOW-FLOOR C5.sp.c042.conv: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c042.conv plantable exact=2
+# BELOW-FLOOR C5.sp.c042.stable: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c042.stable plantable exact=15
+# BELOW-FLOOR C5.sp.c042.equil: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c042.equil plantable exact=3
+# BELOW-FLOOR C5.sp.c042.runs: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c042.runs plantable exact=12
+# BELOW-FLOOR C5.sp.c042.maxrun: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c042.maxrun plantable exact=24
+# BELOW-FLOOR C5.sp.c042.didx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c042.didx plantable exact=1236
+# BELOW-FLOOR C5.sp.c042.cidx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c042.cidx plantable exact=77
+# BELOW-FLOOR C5.sp.c042.improving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c042.improving plantable exact=5
+# BELOW-FLOOR C5.sp.c042.moving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c042.moving plantable exact=22
 ap C5.sp.c050.seed plantable exact=0.001954899167907798
+# BELOW-FLOOR C5.sp.c050.osc: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c050.osc plantable exact=0
+# BELOW-FLOOR C5.sp.c050.reads: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c050.reads plantable exact=60
+# BELOW-FLOOR C5.sp.c050.div: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c050.div plantable exact=19
+# BELOW-FLOOR C5.sp.c050.conv: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c050.conv plantable exact=0
+# BELOW-FLOOR C5.sp.c050.stable: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c050.stable plantable exact=15
+# BELOW-FLOOR C5.sp.c050.equil: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c050.equil plantable exact=3
+# BELOW-FLOOR C5.sp.c050.runs: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c050.runs plantable exact=7
+# BELOW-FLOOR C5.sp.c050.maxrun: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c050.maxrun plantable exact=19
+# BELOW-FLOOR C5.sp.c050.didx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c050.didx plantable exact=836
+# BELOW-FLOOR C5.sp.c050.cidx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c050.cidx plantable exact=0
+# BELOW-FLOOR C5.sp.c050.improving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c050.improving plantable exact=4
+# BELOW-FLOOR C5.sp.c050.moving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c050.moving plantable exact=19
 ap C5.sp.c100.seed plantable exact=0.001954899167907798
+# BELOW-FLOOR C5.sp.c100.osc: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.osc plantable exact=6
+# BELOW-FLOOR C5.sp.c100.reads: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.reads plantable exact=30
+# BELOW-FLOOR C5.sp.c100.div: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.div plantable exact=0
+# BELOW-FLOOR C5.sp.c100.conv: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.conv plantable exact=0
+# BELOW-FLOOR C5.sp.c100.stable: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.stable plantable exact=7
+# BELOW-FLOOR C5.sp.c100.equil: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.equil plantable exact=0
+# BELOW-FLOOR C5.sp.c100.runs: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.runs plantable exact=10
+# BELOW-FLOOR C5.sp.c100.maxrun: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.maxrun plantable exact=8
+# BELOW-FLOOR C5.sp.c100.didx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.didx plantable exact=0
+# BELOW-FLOOR C5.sp.c100.cidx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.cidx plantable exact=0
+# BELOW-FLOOR C5.sp.c100.at: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.at plantable exact=12
+# BELOW-FLOOR C5.sp.c100.improving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.improving plantable exact=1
+# BELOW-FLOOR C5.sp.c100.moving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.moving plantable exact=16
+# BELOW-FLOOR C5.sp.c100.oidx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c100.oidx plantable exact=103
 ap C5.sp.c102.seed plantable exact=0.001954899167907798
+# BELOW-FLOOR C5.sp.c102.osc: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.osc plantable exact=2
+# BELOW-FLOOR C5.sp.c102.reads: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.reads plantable exact=29
+# BELOW-FLOOR C5.sp.c102.div: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.div plantable exact=1
+# BELOW-FLOOR C5.sp.c102.conv: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.conv plantable exact=0
+# BELOW-FLOOR C5.sp.c102.stable: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.stable plantable exact=10
+# BELOW-FLOOR C5.sp.c102.equil: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.equil plantable exact=0
+# BELOW-FLOOR C5.sp.c102.runs: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.runs plantable exact=8
+# BELOW-FLOOR C5.sp.c102.maxrun: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.maxrun plantable exact=12
+# BELOW-FLOOR C5.sp.c102.didx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.didx plantable exact=28
+# BELOW-FLOOR C5.sp.c102.cidx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.cidx plantable exact=0
+# BELOW-FLOOR C5.sp.c102.at: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.at plantable exact=16
+# BELOW-FLOOR C5.sp.c102.improving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.improving plantable exact=1
+# BELOW-FLOOR C5.sp.c102.moving: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.moving plantable exact=15
+# BELOW-FLOOR C5.sp.c102.oidx: |q| falls below 0.001 rad/s; #1045 deliberate absolute floor; no physics grade.
 ap C5.sp.c102.oidx plantable exact=34
 ap C5.ph.p365.reads plantable exact=109
 ap C5.ph.p365.stable plantable exact=0
@@ -316,3 +404,10 @@ streamfam C2.ph        dist=none idx=none runs=none maxrun=none
 streamfam C3.amp       dist=none idx=none runs=none maxrun=none
 streamfam C3.dt        dist=none idx=none runs=none maxrun=none
 streamfam C3.lin       dist=none idx=none runs=none maxrun=none
+
+# Round-2 stream grades (full base/unit/half comparisons in ORACLE.md):
+# PHYSICAL at tested variations: C4.ph, C5.ph.p365, C5.p4.a035, C5.p4.a040.
+# EMPIRICAL: C5.p1.inner, C5.ph.p045, C5.ph.p100, C5.ph.p370,
+# C5.p4.a020, C5.p4.a030 (regenerated half-excitation changes verdicts).
+# Every C5.sp verdict row is BELOW-FLOOR as individually marked above;
+# C5.sp.*.seed certifies actual input state independently of the floor.

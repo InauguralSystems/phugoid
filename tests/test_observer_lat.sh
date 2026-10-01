@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
-# Rung-2 O2 checks (ORACLE.md): the level-set stress — 8 agreement pins
-# (value channel classifying zero-symmetric motion; the mirror identity
-# why==0 across a +5 -> -5 flip with a live-instrument control; the
-# matched-window roll verdict) and 5 pinned divergences (the G5 unit
-# triplet: one trajectory, three units, three verdicts; the fast-mode
-# window misread; the sub-milliradian converged tail). Both plants must
-# flip exactly their declared sets; population pinned at 13.
+# Rung-2 O2 checks: 8 agreement pins, 4 measured divergences and one
+# absolute entropy instrument calibration (mirror.mag). The G5 unit
+# triplet now agrees across its three units; it still abstains on a
+# decaying mode. Both plants must flip their exact sets, population 13.
 set -euo pipefail
 
 EIGS="${EIGENSCRIPT:-eigenscript}"

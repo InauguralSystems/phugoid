@@ -74,7 +74,11 @@ as `divergence`-class rows so an upstream windowing change flips them
 loudly and rung 1 re-grades.
 
 ### G5 — value-channel verdicts are unit-dependent below |v| ≈ 1
-**Upstreamed: EigenScript#1045 (2026-08-24).**
+**Upstreamed: EigenScript#1045 (2026-08-24); original unit-triplet defect
+closed on main a7a4ca3.** The following measurements describe v0.43.0.
+The replacement deliberately has a 0.001 characteristic floor; round 2
+marks the remaining SP floor regime BELOW-FLOOR, with physical seeds.
+See ORACLE.md, "Re-grade against EigenScript main", for current grading.
 **Hit at rung 2 (2026-08-24, observer grading layer).** The value channel's
 relative step `rel = Δv/(1+|v|)` degenerates to an ABSOLUTE deadband for
 sub-unit magnitudes, so the verdict depends on the binding's UNIT.
