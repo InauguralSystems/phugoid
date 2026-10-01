@@ -585,6 +585,9 @@ ratio_ok "$WORST" "$CF_BOUND" || {
     echo "      unobserved floor ($WORST). Either #915's gate got much better — in"
     echo "      which case re-measure and re-justify the curve in ORACLE.md — or an"
     echo "      arm stopped doing its work."
+    echo "      Measured on EigenScript main a7a4ca3 (phugoid#8): 1.11, because the FLOOR got"
+    echo "      dearer -- #1049 keeps the value sample inside unobserved: (+15% on an armed hot"
+    echo "      loop, bisected to 2eabdd5, EigenScript#1443) on top of #1442. Not re-banked."
     exit 1; }
 echo "PASS: the ceiling arm costs ${WORST}x the floor at its weakest N"
 
@@ -648,6 +651,10 @@ for nm in disciplined unarmed; do
             echo "FAIL: $nm/floor at N=$n is $dfr, outside [$DF_LO, $DF_HI] —"
             echo "      the second headline says this arm sits within noise of the floor at EVERY N."
             echo "      Above the band, \`unobserved:\` stopped eliding the work; below it, the floor did."
+            echo "      Measured on v0.43.0 and main (phugoid#8): unarmed/floor fires LOW (0.87) because"
+            echo "      the floor driver runs ~40% slower than on v0.42.0 and the unarmed control does not,"
+            echo "      bisected to EigenScript b4f60ac (#1096 GC trigger), EigenScript#1442. Not waived:"
+            echo "      this band is the witness that the regression is fixed."
             exit 1; }
     done
 done
