@@ -468,7 +468,13 @@ define p3_control(cad, uscale, uname) as:
 # evidence about the fleet's 100% cell.
 define p3_control_ch(kind, amp, cad, uscale, uname) as:
     local rs is 12345.0
-    local q is 0.0
+    # Physical/synthetic value at t=0, including the seeded noise process.
+    local v0 is (amp / 2.0) * (((rs / 65537.0) * 2.0) - 1.0)
+    if kind == "decay_slow" or kind == "decay_fast":
+        v0 is amp
+    if kind == "ramp":
+        v0 is 0.0
+    local q is v0 * uscale + 0.0
     local seeded is 0
     local asn is 0
     local fl is 0
@@ -493,19 +499,8 @@ define p3_control_ch(kind, amp, cad, uscale, uname) as:
                 else:
                     a is (amp / 2.0) * (((rs / 65537.0) * 2.0) - 1.0)
             q is (a * uscale) + 0.0
-            # The FIRST sample seeds and is not counted -- which is what
-            # makes the `local q is 0.0` declaration above harmless here,
-            # since the fictitious delta is evicted before `asn > 9` opens
-            # the window. (Verified equivalent: seeding the declaration
-            # with the real first value reproduces all 24 rows byte for
-            # byte.) Round 18 found this file had reverted to an UNSKIPPED
-            # `local q is 0.0` -- the exact defect that
-            # cost rounds 10 through 13 in p3_row, in the same file that
-            # carries the comment forbidding it. Its fictitious 0 -> A
-            # jump was also the ONLY sign reversal in the "monotone"
-            # control, so that channel was not monotone in its first
-            # window, and the published 75/76 vs 76/76 asymmetry between
-            # the units was entirely this artifact.
+            # Preserve the existing full-window population: the first sampled
+            # value is not counted. The declaration now also carries truth.
             if seeded == 0:
                 seeded is 1
             else:

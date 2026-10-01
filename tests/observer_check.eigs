@@ -58,7 +58,7 @@ define replay_at(chan, i) as:
 
 # ---------------------------------------------------------- trim hold
 hold is sim_run of [tr.state, [[1e9, tr.de]], 0.05, 400, 20, tr.P, "rk4"]
-z is 0.0
+z is replay_at of [hold.u, 0]
 i is 0
 loop while i < (len of hold.t):
     z is replay_at of [hold.u, i]
@@ -70,7 +70,7 @@ check_verdict of ["O.hold", report of z, "converged", "agree"]
 # ---------------------------------------------------------- SP replay
 ic is sp_subspace_ic of [A, ph.re, ph.im, tr.state, 2.0]
 recS is sim_run of [ic, [[1e9, tr.de]], 0.02, 1500, 50, tr.P, "rk4"]
-x is 0.0
+x is replay_at of [recS.w, 0]
 i is 0
 loop while i < (len of recS.t):
     x is replay_at of [recS.w, i]
@@ -100,7 +100,7 @@ recB is sim_run of [tr.state, schedB, 0.05, 5600, 20, tr.P, "rk4"]
 
 # 5 s cadence: ~9.4 samples/cycle — the oscillation folds inside the
 # 10-sample window and the verdict tracks physics.
-y is 0.0
+y is replay_at of [recB.u, 45]
 i is 0
 loop while i < (len of recB.t):
     if recB.t[i] >= 45.0 and i % 5 == 0:
@@ -120,7 +120,7 @@ check_verdict of ["O.ph5s.named", f"{onamed}", "1", "agree"]
 # 1 s cadence: ~47 samples/cycle — the window cannot see the fold; the
 # measured contradictions are pinned (divergence class; GAPS.md G4).
 # Physics truth at ALL THREE points: oscillating.
-w1 is 0.0
+w1 is replay_at of [recB.u, 45]
 i is 0
 loop while i < (len of recB.t):
     if recB.t[i] >= 45.0:

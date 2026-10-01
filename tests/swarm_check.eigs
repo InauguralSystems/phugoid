@@ -219,43 +219,15 @@ loop while ai2 < 4:
     local solo is run_solo of [ai2, 4, FRL, 0.05, SP, CAD, tr.state, tr.P, sched]
     check_exact of [f"W5.fleet.eq.solo.a{ai2}", hs[ai2], solo]
     ai2 is ai2 + 1
-# ...and the counts must not be vacuously zero, which is how round 1's
-# stream passed for the wrong reason: at dt=0.05 read every frame, the
-# 10-sample window spans 1% of the phugoid period and NOTHING ever fires.
-# The dispersion is 0.05, not 0.02. Round 5: at 0.02 the counts were
-# 1/17/17/1 and a seed probe (initialise the channel at 100.0 instead of
-# 0.0) turned them into 0/16/16/0 -- so exactly ONE hit per channel was the
-# initialiser sample, and aircraft 0 and 3 had ZERO physics-driven
-# verdicts. Those two fleet-vs-solo rows were comparing 1 == 1 where the 1
-# was an artifact, which is the same vacuity the cadence fix below claims
-# to have removed. At 0.05 all four carry physics (41/61/61/45), so all
-# four rows compare something.
-# The cadence is 94, not 74. Round 3: the harness was still running at
-# the cadence ORACLE.md's own P3 section derives as too short -- a
-# 10-sample window at cadence 74 spans 0.79 of a phugoid period, so
-# `oscillating` essentially cannot fire, and these four checks were
-# comparing 1 == 1. Cadence is 94 -- chosen because the oracle binds well
-# there, NOT because a
-# threshold exists: the cadence curve is non-monotone with
-# aircraft-dependent peaks, measured over the uniform grid in
-# tests/swarm_p3.eigs and pinned in tests/test_swarm.sh. Five earlier
-# readings of that curve were wrong in five different ways, every one of
-# them taken from a table in a comment rather than from a producer.
-# At 94 with the shipped dispersion
-# 0.05 they compare
-# 41/61/61/45 against the solo oracle -- of which exactly 1 per channel is
-# the initialiser sample (EigenScript#1049) and the rest is physics. The sentence that used
-# to sit here called 74 "rung 3's result, not a tuning knob" -- the exact
-# transplanted number ORACLE.md retracts.
-# Re-banked at the phugoid#8 re-grade (EigenScript main a7a4ca3): 208 ->
-# 268, per channel 41/61/61/45 -> 67/67/67/67. The four aircraft differ
-# only in excitation amplitude (the dispersion), and a linear mode's
-# verdict stream must not depend on amplitude; v0.43.0's spread was the
-# sub-unit absolute deadband (G5, fixed by #1045). `oscillating` is the
-# physics truth on every read of this live phugoid, so the count rose
-# toward it. Fleet == solo and closure == named still hold exactly.
+# The liveness witness must not be vacuously zero. This is an EMPIRICAL
+# count on the actual aircraft streams, independent of fleet == solo and
+# closure == named. Original zero seeds and the one-frame initial gap
+# are superseded: all three channel forms now start at the aircraft's
+# true q and sample first after a full cadence (94 frames = 4.7 s).
+# Measured round 2 on a7a4ca3: total 248, not round 1's 268. The count
+# is a runtime fingerprint; mode truth is measured separately in W7/P3.
 tot is hs[0] + hs[1] + hs[2] + hs[3]
-check_exact of ["W5.stream.live", tot, 268]
+check_exact of ["W5.stream.live", tot, 248]
 cn is run_closure_n of [4, FRL, 0.05, SP, CAD, tr.state, tr.P, sched]
 ci is 0
 loop while ci < 4:
@@ -320,7 +292,7 @@ mm7 is modes_of of (dk_roots of [charpoly4 of (A_ref7), 60])
 ph7 is mm7.osc[0]
 
 # Propagate the shipped fleet form long enough for the phugoid to show
-# several periods, then read each aircraft's u-channel from t=45 s so the
+# several periods, then read each aircraft's u-channel from t=10 s so the
 # short-period transient is out of the window.
 NA7 is 4
 DT7 is 0.1
@@ -358,33 +330,36 @@ if plant == "w7":
 # plants exist for one rung down.
 a7i is 0
 loop while a7i < NA7:
-    local tp7 is period_peaks of [ch7[a7i], DT7]
-    local td7 is period_dft of [ch7[a7i], DT7]
-    if plant == "w8":
-        td7 is period_peaks of [ch7[a7i], DT7]
-    # w11/w12: the MIRROR aliases. Round 44 found as_tp7 and as_zl7 could
-    # be gutted to `return res` with every plant still flipping exactly
-    # its declared count -- only as_td7 had a plant, so two thirds of the
-    # identity defense was decoration. w11 feeds the DFT result into the
-    # extrema slot (no n_extrema); w12 feeds the envelope estimator into
-    # the log-decrement slot (no n_ratios), which is invisible
-    # numerically because the two zeta estimators agree on the phugoid.
-    if plant == "w11":
-        tp7 is period_dft of [ch7[a7i], DT7]
-    local z7 is zeta_logdec of [ch7[a7i], DT7]
-    # w9: the grading timestep wrong by 2%, which moves BOTH period rows
-    # off truth by 2% against a 0.5% tolerance. Without it the Tpeaks
-    # rows were red by no plant at all -- the enrollment set-difference
-    # in tests/test_swarm_planted.sh caught that on the first run.
+    # Plant the grading timestep BEFORE estimating. The old w9 computed
+    # a baseline DFT per aircraft, then discarded it and recomputed; the
+    # full planted run exhausted the 1.5 GB cap at aircraft 3. No baseline
+    # result is needed in a deliberately wrong-dt run.
+    local gdt7 is DT7
     if plant == "w9":
-        tp7 is period_peaks of [ch7[a7i], DT7 * 1.02]
-        td7 is period_dft of [ch7[a7i], DT7 * 1.02]
+        gdt7 is DT7 * 1.02
+    local tp7 is null
+    local td7 is null
+    if plant == "w11":
+        # Alias the extrema slot to the actual DFT result. Recomputing an
+        # identical DFT only adds allocation; its missing identity field
+        # is what the read-site accessor must reject.
+        td7 is period_dft of [ch7[a7i], gdt7]
+        tp7 is td7
+    else:
+        tp7 is period_peaks of [ch7[a7i], gdt7]
+        if plant == "w8":
+            td7 is tp7
+        else:
+            td7 is period_dft of [ch7[a7i], gdt7]
+    local z7 is null
+    if plant == "w12":
+        z7 is zeta_envelope of [ch7[a7i], DT7]
+    else:
+        z7 is zeta_logdec of [ch7[a7i], DT7]
     # w10: zeta fabricated, carrying n_ratios so the identity accessor
     # passes it through and the row must red through the NUMERIC arm --
     # rung 1's round-7 rule, which is what makes this a plant of the
     # measurement rather than of the plumbing.
-    if plant == "w12":
-        z7 is zeta_envelope of [ch7[a7i], DT7]
     if plant == "w10":
         if z7.ok == 1:
             z7 is {"ok": 1, "zeta": z7.zeta * 1.05, "n_ratios": z7.n_ratios}
@@ -394,7 +369,7 @@ loop while a7i < NA7:
     a7i is a7i + 1
 # ...and the aircraft must not be IDENTICAL, or "each one" grades one
 # trajectory four times. The dispersion W3 asserts at t=0 must still be
-# visible at t=45 s, which is a different claim: a fleet that collapses
+# visible at the final t=180 s, which is a different claim: a fleet that collapses
 # under propagation passes W3 and fails this.
 ends7 is []
 e7 is 0

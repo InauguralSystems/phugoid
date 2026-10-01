@@ -36,7 +36,7 @@ echo "PASS: file_pin planted fault rejected (the real file_pin rejects a halved 
 
 file_pin tests/swarm_profile.eigs         7514edd2558b 88
 file_pin tests/swarm_profile_unarmed.eigs ec298d5e32df 14
-file_pin swarm.eigs                       7e9ade956d8b 283
+file_pin swarm.eigs                       669398d62b00 283
 # sim_core.eigs holds `deriv` and `rk4_step`, where essentially ALL the
 # measured time goes -- round 3 found the pin covering the four swarm files
 # and missing the dominant term, so the stated purpose ("the measurement

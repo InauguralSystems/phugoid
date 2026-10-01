@@ -143,13 +143,21 @@ define cl_run(rn, state0, de_trim, kq, dt, nsteps, decim, P, method) as:
 # s7, supervisory layer inert), "forced" -> always `oscillating` (plant
 # s12, the dual — without it the blind-cadence rows, which pin ZERO
 # oscillating verdicts, could never be shown able to fail).
+# Round-2 plants: false-seed fabricates q=0; allclear alternates
+# converged/equilibrium; improving forces that verdict. They expose
+# false histories and false all-clears through real consumer checks.
 # `method` selects the integrator, as in cl_run.
 define sup_run(rn, state0, de_trim, kq, dt, nsteps, decim, cadence, P, method, freeze) as:
     print of f"ROW {rn} params={kq}|{dt}|{decim}|{cadence}|{nsteps}|{state0[0]}|{state0[1]}|{state0[2]}|{state0[3]}"
     local s is [state0[0], state0[1], state0[2], state0[3]]
     local rec is {"t": [], "q": [], "engaged": [], "verdict": [], "reads": 0, "toggles": 0}
     local gain is 0.0
-    local qobs is 0.0
+    # Seed with the actual aircraft state; a zero seed fabricates a rise.
+    local seed is state0[2]
+    if freeze == "false-seed":
+        seed is 0.0
+    local qobs is seed + 0.0
+    rec.seed is qobs + 0.0
     local n is 0
     local reads is 0
     local toggles is 0
@@ -168,6 +176,12 @@ define sup_run(rn, state0, de_trim, kq, dt, nsteps, decim, cadence, P, method, f
                 v is "stable"
             if freeze == "forced":
                 v is "oscillating"
+            if freeze == "allclear":
+                v is "converged"
+                if reads % 2 == 1:
+                    v is "equilibrium"
+            if freeze == "improving":
+                v is "improving"
             reads is reads + 1
             local newgain is 0.0
             if v == "oscillating":

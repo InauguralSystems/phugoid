@@ -74,7 +74,7 @@ define replay_at(chan, i) as:
 # the motion the entropy channel cannot see (the level-set headline).
 icd is lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "dr", [1.0, 0.0, 0.0, 0.0], 0, 5.0]
 recd is lat_run of [icd, nosched, 0.02, 2250, 50, P, "rk4"]
-x is 0.0
+x is replay_at of [recd.v, 0]
 i is 0
 loop while i < (len of recd.t):
     x is replay_at of [recd.v, i]
@@ -109,9 +109,9 @@ check_verdict of ["O2.mirror.mag", f"{mag_alive}", "1", "agree"]
 # degrees, and milliradians. Physics truth is identical; the verdicts
 # are not — G5.
 recs is lat_run of [lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "spiral", [0.0, 0.0, 1.0, 0.0], 2, 0.05], nosched, 0.05, 1200, 20, P, "rk4"]
-urad is 0.0
-udeg is 0.0
-umr is 0.0
+urad is replay_at of [recs.phi, 0]
+udeg is (replay_at of [recs.phi, 0]) * 57.29577951308232
+umr is (replay_at of [recs.phi, 0]) * 1000.0
 i is 0
 loop while i < (len of recs.t):
     local s is replay_at of [recs.phi, i]
@@ -142,7 +142,7 @@ loop while i < (len of recs.t):
 # relative in BOTH directions (G4 was the slow side; this is the fast).
 icr is lat_mode_ic of [A, dr.re, dr.im, roll.re, spiral.re, "roll", [0.0, 1.0, 0.0, 0.0], 1, 0.1]
 recr is lat_run of [icr, nosched, 0.02, 125, 1, P, "rk4"]
-z1 is 0.0
+z1 is replay_at of [recr.p, 0]
 i is 0
 loop while i < (len of recr.t):
     z1 is replay_at of [recr.p, i]
@@ -158,7 +158,7 @@ loop while i < (len of recr.t):
         check_verdict of ["O2.roll.fast", report of z1, "moving", "divergence"]
     i is i + 1
 recr2 is lat_run of [icr, nosched, 0.02, 125, 10, P, "rk4"]
-z2 is 0.0
+z2 is replay_at of [recr2.p, 0]
 i is 0
 loop while i < (len of recr2.t):
     z2 is replay_at of [recr2.p, i]
@@ -171,7 +171,7 @@ loop while i < (len of recr2.t):
 # see the t35 re-grade note below).
 schedD is [[1.0, 0.0, 0.03], [2.0, 0.0, 0.0 - 0.03], [1e9, 0.0, 0.0]]
 recD is lat_run of [[0.0, 0.0, 0.0, 0.0], schedD, 0.02, 3000, 50, P, "rk4"]
-y is 0.0
+y is replay_at of [recD.phi, 0]
 i is 0
 loop while i < (len of recD.t):
     y is replay_at of [recD.phi, i]

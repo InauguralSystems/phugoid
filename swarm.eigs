@@ -335,10 +335,10 @@ define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
 # because it is a boundary or a peak.
 define run_named4(frames, dt, spread, cadence, tstate, P, sched, shared) as:
     local fleet is fleet_ic of [tstate, 4, spread]
-    local q0 is 0.0
-    local q1 is 0.0
-    local q2 is 0.0
-    local q3 is 0.0
+    local q0 is fleet[0][2] + 0.0
+    local q1 is fleet[1][2] + 0.0
+    local q2 is fleet[2][2] + 0.0
+    local q3 is fleet[3][2] + 0.0
     local h0 is 0
     local h1 is 0
     local h2 is 0
@@ -348,7 +348,7 @@ define run_named4(frames, dt, spread, cadence, tstate, P, sched, shared) as:
     loop while f < frames:
         unobserved:
             fleet is frame_step of [fleet, t, dt, sched, P]
-        if (f % cadence) == 0:
+        if (f % cadence) == (cadence - 1):
             if shared == 1:
                 # THE ROUND-1 DEFECT, injected here rather than
                 # re-implemented in the check file. Round 2 found the
@@ -400,14 +400,14 @@ define run_named4(frames, dt, spread, cadence, tstate, P, sched, shared) as:
 define run_solo(idx, n, frames, dt, spread, cadence, tstate, P, sched) as:
     local fleet is fleet_ic of [tstate, n, spread]
     local s is fleet[idx]
-    local q is 0.0
+    local q is s[2] + 0.0
     local h is 0
     local t is 0.0
     local f is 0
     loop while f < frames:
         unobserved:
             s is rk4_step of [s, t, dt, sched, P]
-        if (f % cadence) == 0:
+        if (f % cadence) == (cadence - 1):
             q is s[2] + 0.0
             if oscillating of q:
                 h is h + 1
@@ -427,8 +427,8 @@ define run_solo(idx, n, frames, dt, spread, cadence, tstate, P, sched) as:
 # It is the counter-example to two claims this rung published and retracted
 # (GAPS G8, EigenScript#1048): a runtime-sized population CAN be observed
 # per-entity, with ordinary static source that lints, no `eval`.
-define make_channel as:
-    local q is 0.0
+define make_channel(v0) as:
+    local q is v0 + 0.0
     local hits is 0
     define feed_ch(v) as:
         q is v + 0.0
@@ -459,7 +459,7 @@ define run_closure_n(n, frames, dt, spread, cadence, tstate, P, sched) as:
     # every channel's verdict count by one and broke agreement with
     # run_solo ([0,16,16,0] against [1,17,17,1] at the dispersion then in use). EigenScript#1049.
     loop while i < n:
-        append of [chans, make_channel of null]
+        append of [chans, make_channel of (fleet[i][2])]
         append of [counts, 0]
         i is i + 1
     local t is 0.0
@@ -467,7 +467,7 @@ define run_closure_n(n, frames, dt, spread, cadence, tstate, P, sched) as:
     loop while f < frames:
         unobserved:
             fleet is frame_step of [fleet, t, dt, sched, P]
-        if (f % cadence) == 0:
+        if (f % cadence) == (cadence - 1):
             local a is 0
             loop while a < n:
                 counts[a] is chans[a] of (fleet[a][2])
