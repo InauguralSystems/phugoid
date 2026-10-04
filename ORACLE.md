@@ -10,8 +10,10 @@ it is print-rounding rather than a defect.**
 **Runtime provenance:** observer verdicts, seeds and timing measurements in
 older rung narratives are historical v0.43.0 results unless explicitly
 re-graded. The final “Re-grade against EigenScript main” section records
-the current a7a4ca3 result; its round-2 seed/floor/coverage corrections
-supersede the affected older interpretations.
+the archived a7a4ca3 result; its round-2 seed/floor/coverage corrections
+supersede the affected older interpretations within that epoch. The
+current-runtime ledger below distinguishes current observations and the
+revised mandatory work/budget contract; historical tables stay verbatim.
 
 ## Source of truth
 
@@ -1744,20 +1746,22 @@ observing" — in THREE arms, because emission is gated per compilation
 unit, not per binding, so an armed unit pays the walk on every assignment
 including scratch:
 
-- **ceiling** — no `unobserved:` blocks anywhere (naive all-on). The design
+- **ceiling** — observed integration/qobs; reads/evals instrumentation is
+  unobserved. The historical naive all-on label overstated this. The design
   named `EIGS_OBS_FORCE=1` here; round 5 found nothing in the repo sets it,
   and nothing needs to: the module holds predicates, so it is armed anyway
   (G7). The arm is what it always measured; the description was wrong.
 - **disciplined** — `unobserved:` around the hot math, observation only on
   the state the predicates actually read (the best a programmer can write
   today);
-- **floor** — everything wrapped (pure compute, no observer at all).
+- **floor** — hot loop wrapped in an armed process; on the current runtime
+  numeric history remains, while entropy/dH work is elided (#1049).
 
 `ceiling - disciplined` = what `unobserved:` ergonomics buy, and how
 painful they were to apply (a language-design finding in itself).
-`disciplined - floor` = the true cost of only the WANTED observation — the
-number that justifies or kills #915's natural successor, per-binding
-liveness gating.
+`disciplined - floor` is the measured source-shape difference. It does not
+alone isolate wanted observation or establish an arming design; numeric
+history is retained by the armed floor, absent in the unarmed program.
 
 ## Pre-registered predictions (recorded 2026-08-26, BEFORE the swarm exists)
 
@@ -1923,8 +1927,9 @@ that ran 0 times under `diverging` and 19850 of 24000 times under
 median 2.788 s under `oscillating` against 2.833 s under `diverging`,
 i.e. −1.6% and inside noise. Residual, stated: at N=1 the channel is clean and
 a decaying phugoid gives `oscillating` 0, so healthy and gutted coincide
-there; N=1 is covered instead by the CF timing gate, which a gutted
-ceiling collapses toward 1.0.
+there. Historically N=1 relied on the CF timing minimum; the current
+contract replaces that dependence with stored fold state and an actual
+positive N1 query. Original historical measurements are retained below.
 
 Both counters increment inside `unobserved:` so they pay no entropy walk.
 
@@ -3396,3 +3401,118 @@ Complete executed red sets and a plantable-only vocabulary now enforce
 the correction. With a dimensional observer scale, unit conversion must
 include that scale to preserve shape classification; below-floor pins
 and identical-tape replays cannot certify modal physics.
+
+## Current-runtime claim ledger and work contract (2026-10-04)
+
+The v0.43.0 research tables and the final a7a4ca3 regrade above are
+**archives**, not a current-runtime acceptance verdict. `test_verdicts.sh`
+continues to check their arithmetic, mutations and historical verdict text.
+It does not publish a fresh P2 fit, reader cost share or timing mechanism
+proof. All historical table cells above are retained verbatim.
+
+Current evidence below used EigenScript
+`e1e613dc7e58f772f9f80c829d5a5c351ef6d118`, strict default JIT, the same
+1500-frame arm code at phugoid `e52478e4282a0487a73d595435bfc343148ceba8`
+plus the reviewed file-pin calibration correction. Binary SHA256:
+`784d94e1781e727edf3ba5d2a06942cd94b68b809d63c01bfa2bcb8d7b3bf570`.
+Receipts: retained `1621-phugoid-wall.log`, complete
+`phugoid-later-diagnostic-run/{manifest,result}.json`, and independent
+55-pair/110-output audit. The earlier mandatory gate exited on CF; the
+later diagnostic deliberately did not claim acceptance (rc3). Its fixed
+cost was .076 s; the earlier CF measurement used .063 s. These are
+separate declared populations, not one spliced timing sweep.
+
+| Current comparison | Paired median | Old criterion outcome | Current mandatory criterion |
+|---|---:|---|---|
+| ceiling/floor N1/4/16 (earlier CF remeasurement) | 1.1489 / 1.1092 / 1.1589 | >1.15 refuted / refuted / supported | <1.90 at EACH N; missing work checked separately |
+| ceiling/disciplined N16 | 1.1397 | >1.20 refuted | <1.90 |
+| ceiling/unarmed N16 | 1.3704 | >1.20 supported | <1.90 |
+| disciplined/floor N1/4/16 | .9679 / 1.0543 / .9816 | [.90,1.10] all supported | unchanged [.90,1.10] at EACH N |
+| unarmed/floor N1/4/16 | .7436 / .8636 / .8668 | [.90,1.10] all refuted low | existing <=1.10 only; no lower bound |
+| zero-reader ceiling0/floor N16 | 1.1410 | >1.20 refuted | <1.90 |
+| entropy-elision ceiling0pb/floor N16 | .9884 | (.85,1.20] supported | unchanged executable integrity band |
+| actual added-work ceilingmore/floor N4 | 2.5089 | rejected by <1.90 | unchanged real extra-work rejection, >=1.90 |
+
+There are **five failed later criteria plus the original CF failure**.
+The current contract explicitly retires CF>1.15, BOTH DU>1.20 minima,
+zero-reader P1>1.20 and the unarmed/floor .90 lower requirement. This
+changes release enforcement; it does not relabel the old results green.
+A correct faster implementation need not waste a minimum amount of time.
+The gate still reports every original ratio and supported/refuted old
+criterion, uses the same full five-pair arithmetic and historical CF
+three-median remeasurement, and retains every workload point and bank.
+No alternative permissive gate or narrower suite is introduced.
+
+The semantic distinction is concrete. An **armed** unobserved numeric
+write keeps value samples and numeric trajectory (#1049), but elides
+stored entropy/dH folding. The separately compiled **unarmed** program
+lacks that numeric history. Equal work between those programs is not a
+current premise. Source shapes and costs must be reported separately:
+the zero-reader/counterfactual timings no longer straddle 1.20 reliably,
+so they are neither a P1 timing mechanism proof nor a rejected plant.
+
+`tests/swarm_work_check.py`, called by the mandatory profile gate, derives
+untimed copies of the exact pinned source. It reads stored qobs
+`last_entropy`/`dh` after the final-frame actual read and local derivative
+V immediately before its actual return. No hook assigns either target.
+Compact counts distinguish observed ceiling/zero-reader integration from
+elided disciplined/floor/counterfactual integration, and observed
+ceiling/disciplined qobs from elided floor qobs, at N1/4/16. V's dh length
+is zero in BOTH cases (one assignment per fresh call); stored
+`last_entropy` is essential. Current entropy alone is not evidence,
+because snapshot queries can recompute it without replacing stored state.
+Ordinary stdout, digest/counters and exact 4*N*frames derivative-call
+populations must agree. No reader hook enters a timed or unarmed file.
+These untimed hooks do not prove identical compiled paths or costs.
+
+The positive N1 companion calls the same actual `run_ceiling`, with only
+frames150/dt=.5 substituted, unchanged .05 spread, model, trim and schedule.
+Feasibility observed hits1, digest280833547, reads/evals150. Before that
+bank grants acceptance, the checker requires ordinary and instrumented
+outputs/physical states to agree on both VM and JIT. Its real
+constant-false predicate must fail the named semantic query witness while
+all 150 physical rows remain byte-identical. Real assignment/integration
+elisions and N-scoped gutting must likewise fail by name with physics
+correct; disabling each new witness demonstrates missing enforcement.
+The existing 12 w1..w12 swarm plants, actual partial-observed disciplined
+SEMANTIC fault, extra work, dispatch, reduced-work and real file-pin
+controls remain required. Comparator arithmetic alone is not their
+execution evidence. Current ordinary VM and JIT runs both measured the
+partial-observed control's 96,000 derivative calls as 32,000 folded and
+64,000 elided, with the unchanged digest/hits/reads/evals; the checker
+rejected it by `semantic.integration-fold` while physics held.
+
+The retained real partial-observed COST calibration subsequently measured
+paired median1.0036 (OVH .065 s) and returned rc2: the [.90,1.10] band did
+NOT reject it. This refutes guaranteed current cost detection of that
+semantic fault. Its original failed r2 receipt remains archived, rather
+than being relabeled green. That receipt retained the median/actual
+source/terminal status but deleted raw pair files through the original
+function's cleanup; it cannot support independent raw-ratio recomputation.
+No time threshold changes follow from it.
+
+The independently reviewed replacement cost control is predeclared ONCE:
+actual `run_disciplined` plus the EXACT existing `run_ceiling_more` scratch
+block, retaining pad<360, at N16/frames1500. Model, trim, schedule, ordinary
+stdout, physical digest, hits and read/eval populations must remain
+unchanged. The same full five-pair arithmetic and existing `in_band` must
+reject it ABOVE1.10. A lower-side failure is not a valid added-cost control;
+in-band execution remains a hold, and the work amount must not be tuned.
+The external actual-function runner saves every timestamp, arm output and
+raw rounded ratio only AFTER each recorded timed endpoint. The comparator
+and arithmetic are not rewritten. This control's measurement is pending
+until the exact source and receipt instrumentation pass independent review.
+
+Instruction-count benefit is a different claim from cross-arm native wall
+ratios. Exact #1621 base/candidate callgrind measurements reduced floor
+Ir by 6.5440% and ceiling Ir by 5.7357%; unarmed was +.0604%. Ordinary
+outputs were byte-identical. Native wall samples are broad and do not
+support a precise wall-speed gain; RSS populations overlap. No new P2
+scaling fit, precise reader share or wall-speed claim follows.
+
+**Validation state:** this contract's implementation and its new controls
+require actual green receipts; the preceding diagnostic/feasibility work
+is not those receipts. The released runtime pin remains v0.43.0. Testing
+coordinated future-runtime sources does not establish published-pin
+compatibility or authorize a release, consumer closure or a 16-consumer
+acceptance waiver.

@@ -17,22 +17,13 @@ DT is 0.0166667
 # and the verdict checks were flying different fleets.
 SPREAD is 0.05
 
-# THE PER-BINDING COUNTERFACTUAL, used as the planted fault for P1's
-# arming gate. Round 25.
-#
-# `run_ceiling0` is the unwrapped shape with ZERO verdict reads, and it
-# costs ~1.4x the floor -- which is EigenScript#1046's per-EigsState
-# arming being paid by a loop that reads no verdict at all. The gate's
-# plant had been arithmetic (feed the real comparator a literal 1.00 and
-# require rejection). That proves the BOUND can fail; it does not prove
-# the ARM can produce the failing value.
-#
-# This does. The assignments are wrapped in `unobserved:` while the two
-# `loop while` statements stay in observed context -- which
-# is exactly what per-binding or liveness-scoped arming would produce. The
-# fleet digest is identical to run_ceiling0's, so the physics is held
-# fixed and only the observation shape differs. Measured, it collapses to
-# ~0.99 of the floor, and the 1.20 bound rejects that.
+# THE ENTROPY-ELISION COUNTERFACTUAL (historically named per-binding).
+# Its assignments are unobserved while its loops remain observed. Numeric
+# history is retained in the armed state (#1049); entropy/dH is elided.
+# This is a source-shape control, not an implementation of temporal or
+# per-binding arming. The actual fleet/digest, call population and existing
+# (.85,1.20] integrity band remain mandatory. Current timings no longer
+# prove P1's old >1.20 mechanism discriminator or a rejected plant.
 #
 # It lives HERE and not in swarm.eigs deliberately: swarm.eigs is the
 # identity-pinned MEASURED WORKLOAD, and every banked cost number in

@@ -19,6 +19,7 @@ RUN apt-get update \
         build-essential \
         ca-certificates \
         git \
+        python3 \
  && rm -rf /var/lib/apt/lists/*
 
 ARG EIGS_REF=v0.43.0

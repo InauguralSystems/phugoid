@@ -156,7 +156,11 @@ trigger: `const_pool_names_observer` scans the constant pool for bare
 names, so a string literal `"report"` costs +48% on a program that uses no
 observer feature.
 
-Consequences measured in this repo's own C6 gate (`tests/test_ap_profile.sh`):
+Historical consequences measured in this repo's C6 gate
+(`tests/test_ap_profile.sh`), in the runtime epoch of this entry. These
+do not establish current equal work: #1049 now retains numeric samples
+in armed unobserved loops; unarmed programs omit that history (see
+ORACLE current-runtime ledger):
 - `write/floor` was read as "observed writes cost +44% over the unobserved
   floor". It is not measuring intrinsic write cost. Neutering only the four
   predicate reads inside `run_read` — a function the `write` variant never
@@ -283,9 +287,13 @@ consumers reach for first and its absence fails silently.
 
 ### G9 — `unobserved:` is not semantically neutral
 Found at rung-4 blind-critic round 4, 2026-08-26. Upstreamed as
-**EigenScript#1049**.
+**EigenScript#1049**. The missing numeric-initializer history described
+below is an archived finding, subsequently repaired by #1049. Current
+armed unobserved writes retain numeric samples; stored entropy/dH folding
+is still elided, and nonnumeric behavior needs its own contract. The
+current profile work checker distinguishes these channels explicitly.
 
-`unobserved:` is documented and used as a PERFORMANCE tool, but an
+Historical behavior: `unobserved:` is documented and used as a PERFORMANCE tool, but an
 assignment inside it is not merely uncounted — it is absent from the
 observer's window. A binding whose initialiser sits inside an
 `unobserved:` block therefore carries a different history for up to WINDOW_N reads, then re-converges:
