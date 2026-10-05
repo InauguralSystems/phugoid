@@ -23,10 +23,10 @@
 N is 120000
 
 define run_noread(n) as:
-    local u is 0.0
-    local w is 0.0
+    local u is 280.0
+    local w is 3.0
     local q is 0.0
-    local th is 0.0
+    local th is 0.02
     local i is 0
     loop while i < n:
         u is 280.0 + (sin of (i * 0.01))

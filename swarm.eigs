@@ -81,9 +81,9 @@ define frame_step(fleet, t, dt, sched, P) as:
 # them and each one's executed work can be pinned independently — rung 3's
 # C6 lesson, where a gate that measured LESS still printed OK.
 
-# ceiling — every assignment observed, nothing wrapped. This is the naive
-# all-on shape: an armed unit pays the entropy walk on EVERY assignment,
-# scratch included, because emission is gated per unit and not per binding.
+# ceiling — observed integration and qobs assignments in an armed state.
+# The reads/evals witness increments are explicitly unobserved; this is
+# not a claim that every assignment in the arm takes the entropy path.
 define run_ceiling(n, frames, dt, spread, tstate, P, sched) as:
     local fleet is fleet_ic of [tstate, n, spread]
     local hits is 0
@@ -95,6 +95,12 @@ define run_ceiling(n, frames, dt, spread, tstate, P, sched) as:
         fleet is frame_step of [fleet, t, dt, sched, P]
         local i is 0
         loop while i < n:
+            # Deliberate: this arm's qobs reads all N aircraft through one
+            # binding on purpose. `hits` here is a COST witness (the predicate ran and its taken
+            # branch varies), not a per-aircraft verdict; the round-robin interleave W024 warns
+            # about is the measured object (ORACLE.md rung 4, GAPS.md G8). Per-aircraft verdicts
+            # live in run_named4 / run_closure_n, which W024 does not flag.
+            # lint: allow W024 -- deliberate interleave, see the comment above
             local qobs is fleet[i][2] + 0.0
             if oscillating of qobs:
                 hits is hits + 1
@@ -127,6 +133,12 @@ define run_disciplined(n, frames, dt, spread, tstate, P, sched) as:
             fleet is frame_step of [fleet, t, dt, sched, P]
         local i is 0
         loop while i < n:
+            # Deliberate: this arm's qobs reads all N aircraft through one
+            # binding on purpose. `hits` here is a COST witness (the predicate ran and its taken
+            # branch varies), not a per-aircraft verdict; the round-robin interleave W024 warns
+            # about is the measured object (ORACLE.md rung 4, GAPS.md G8). Per-aircraft verdicts
+            # live in run_named4 / run_closure_n, which W024 does not flag.
+            # lint: allow W024 -- deliberate interleave, see the comment above
             local qobs is fleet[i][2] + 0.0
             if oscillating of qobs:
                 hits is hits + 1
@@ -144,8 +156,9 @@ define run_disciplined(n, frames, dt, spread, tstate, P, sched) as:
     print of f"disciplined {n} {frames} {hits} {fleet_digest of (fleet)} {reads} {evals}"
     return fleet_digest of (fleet)
 
-# floor — everything wrapped. Pure compute, no observer at all: the
-# denominator the other two arms are measured against.
+# floor — the hot loop is unobserved inside an ARMED process. Numeric
+# value history is retained (#1049); entropy/dH folding is elided. The
+# separately compiled unarmed control does not perform that history work.
 define run_floor(n, frames, dt, spread, tstate, P, sched) as:
     local fleet is []
     local hits is 0
@@ -170,8 +183,9 @@ define run_floor(n, frames, dt, spread, tstate, P, sched) as:
 # P1's discriminator — the disciplined shape with only ONE aircraft reading
 # a verdict. EigenScript#1046 says arming is per-EigsState and monotonic,
 # so this should cost the same on the WRITE side as the N-reader arm, and
-# differ only by the reads it does not do. If it is markedly cheaper than
-# `disciplined`, P1 is refuted and arming is finer than #1046 established.
+# differ in their reader shape. These costs are measurements, not a
+# proof of arming granularity; the current stored-work checker supplies
+# the observation-shape evidence (ORACLE current-runtime ledger).
 define run_onereader(n, frames, dt, spread, tstate, P, sched) as:
     local fleet is []
     local hits is 0
@@ -214,8 +228,8 @@ define run_onereader(n, frames, dt, spread, tstate, P, sched) as:
 # is the correct pair for the arming question, because it keeps the write
 # count via `acc` while doing zero verdict reads, and this comment used to
 # invite the wrong comparison from inside the identity-pinned workload.
-# If it comes out markedly cheaper, arming
-# is finer than #1046 established and P1 is refuted.
+# A cheaper result alone does not identify arming granularity or lost
+# work; the current checker witnesses stored fold state separately.
 define run_ceiling1(n, frames, dt, spread, tstate, P, sched) as:
     local fleet is fleet_ic of [tstate, n, spread]
     local hits is 0
@@ -246,8 +260,9 @@ define run_ceiling1(n, frames, dt, spread, tstate, P, sched) as:
 # negligible share of this shape's observed operations". This arm removes
 # the reads entirely while KEEPING the module armed (the dead function
 # below holds a predicate, which arms per G7 without ever executing), so
-# ceilingN - ceiling0 is the whole read cost and ceiling0 - floor is the
-# whole write/arming cost.
+# ceilingN - ceiling0 is an empirical source-shape difference, and
+# ceiling0 - floor includes the difference in entropy folding. Neither
+# difference establishes a current precise read share or arming law.
 # NOTE: an earlier version of this comment said deleting `never_read` would
 # unarm the module and silently turn this arm into `floor`. That is FALSE
 # -- SEVEN other functions in this file hold predicates (eight counting
@@ -323,10 +338,10 @@ define run_ceiling0(n, frames, dt, spread, tstate, P, sched) as:
 # because it is a boundary or a peak.
 define run_named4(frames, dt, spread, cadence, tstate, P, sched, shared) as:
     local fleet is fleet_ic of [tstate, 4, spread]
-    local q0 is 0.0
-    local q1 is 0.0
-    local q2 is 0.0
-    local q3 is 0.0
+    local q0 is fleet[0][2] + 0.0
+    local q1 is fleet[1][2] + 0.0
+    local q2 is fleet[2][2] + 0.0
+    local q3 is fleet[3][2] + 0.0
     local h0 is 0
     local h1 is 0
     local h2 is 0
@@ -336,7 +351,7 @@ define run_named4(frames, dt, spread, cadence, tstate, P, sched, shared) as:
     loop while f < frames:
         unobserved:
             fleet is frame_step of [fleet, t, dt, sched, P]
-        if (f % cadence) == 0:
+        if (f % cadence) == (cadence - 1):
             if shared == 1:
                 # THE ROUND-1 DEFECT, injected here rather than
                 # re-implemented in the check file. Round 2 found the
@@ -388,14 +403,14 @@ define run_named4(frames, dt, spread, cadence, tstate, P, sched, shared) as:
 define run_solo(idx, n, frames, dt, spread, cadence, tstate, P, sched) as:
     local fleet is fleet_ic of [tstate, n, spread]
     local s is fleet[idx]
-    local q is 0.0
+    local q is s[2] + 0.0
     local h is 0
     local t is 0.0
     local f is 0
     loop while f < frames:
         unobserved:
             s is rk4_step of [s, t, dt, sched, P]
-        if (f % cadence) == 0:
+        if (f % cadence) == (cadence - 1):
             q is s[2] + 0.0
             if oscillating of q:
                 h is h + 1
@@ -415,8 +430,8 @@ define run_solo(idx, n, frames, dt, spread, cadence, tstate, P, sched) as:
 # It is the counter-example to two claims this rung published and retracted
 # (GAPS G8, EigenScript#1048): a runtime-sized population CAN be observed
 # per-entity, with ordinary static source that lints, no `eval`.
-define make_channel as:
-    local q is 0.0
+define make_channel(v0) as:
+    local q is v0 + 0.0
     local hits is 0
     define feed_ch(v) as:
         q is v + 0.0
@@ -447,7 +462,7 @@ define run_closure_n(n, frames, dt, spread, cadence, tstate, P, sched) as:
     # every channel's verdict count by one and broke agreement with
     # run_solo ([0,16,16,0] against [1,17,17,1] at the dispersion then in use). EigenScript#1049.
     loop while i < n:
-        append of [chans, make_channel of null]
+        append of [chans, make_channel of (fleet[i][2])]
         append of [counts, 0]
         i is i + 1
     local t is 0.0
@@ -455,7 +470,7 @@ define run_closure_n(n, frames, dt, spread, cadence, tstate, P, sched) as:
     loop while f < frames:
         unobserved:
             fleet is frame_step of [fleet, t, dt, sched, P]
-        if (f % cadence) == 0:
+        if (f % cadence) == (cadence - 1):
             local a is 0
             loop while a < n:
                 counts[a] is chans[a] of (fleet[a][2])

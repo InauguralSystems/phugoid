@@ -7,6 +7,14 @@ fault that proves the check can fail. **Tolerances may not be widened without a
 written justification in this file recording the measured discrepancy and why
 it is print-rounding rather than a defect.**
 
+**Runtime provenance:** observer verdicts, seeds and timing measurements in
+older rung narratives are historical v0.43.0 results unless explicitly
+re-graded. The final “Re-grade against EigenScript main” section records
+the archived a7a4ca3 result; its round-2 seed/floor/coverage corrections
+supersede the affected older interpretations within that epoch. The
+current-runtime ledger below distinguishes current observations and the
+revised mandatory work/budget contract; historical tables stay verbatim.
+
 ## Source of truth
 
 Caughey, David A., *Introduction to Aircraft Stability and Control*, Course
@@ -1328,7 +1336,8 @@ than one that does not:
   wrong-plant error round 13 caught on `maxrun`, recurring inside the fix
   for round 15's finding.)
 
-  The two edges have different causes: below, too little of a fold in the
+  **Historical v0.43.0 result with a fabricated zero seed; superseded by
+round 2 below.** The two edges have different causes: below, too little of a fold in the
   window to classify; above, the G5 horizon — by the time the window fills
   (10 reads; the window is 10 deltas, so it is full at read index 9, at
   10·cadence·dt — which is how the table above computes 4.2 s at cadence
@@ -1737,20 +1746,22 @@ observing" — in THREE arms, because emission is gated per compilation
 unit, not per binding, so an armed unit pays the walk on every assignment
 including scratch:
 
-- **ceiling** — no `unobserved:` blocks anywhere (naive all-on). The design
+- **ceiling** — observed integration/qobs; reads/evals instrumentation is
+  unobserved. The historical naive all-on label overstated this. The design
   named `EIGS_OBS_FORCE=1` here; round 5 found nothing in the repo sets it,
   and nothing needs to: the module holds predicates, so it is armed anyway
   (G7). The arm is what it always measured; the description was wrong.
 - **disciplined** — `unobserved:` around the hot math, observation only on
   the state the predicates actually read (the best a programmer can write
   today);
-- **floor** — everything wrapped (pure compute, no observer at all).
+- **floor** — hot loop wrapped in an armed process; on the current runtime
+  numeric history remains, while entropy/dH work is elided (#1049).
 
 `ceiling - disciplined` = what `unobserved:` ergonomics buy, and how
 painful they were to apply (a language-design finding in itself).
-`disciplined - floor` = the true cost of only the WANTED observation — the
-number that justifies or kills #915's natural successor, per-binding
-liveness gating.
+`disciplined - floor` is the measured source-shape difference. It does not
+alone isolate wanted observation or establish an arming design; numeric
+history is retained by the armed floor, absent in the unarmed program.
 
 ## Pre-registered predictions (recorded 2026-08-26, BEFORE the swarm exists)
 
@@ -1916,8 +1927,9 @@ that ran 0 times under `diverging` and 19850 of 24000 times under
 median 2.788 s under `oscillating` against 2.833 s under `diverging`,
 i.e. −1.6% and inside noise. Residual, stated: at N=1 the channel is clean and
 a decaying phugoid gives `oscillating` 0, so healthy and gutted coincide
-there; N=1 is covered instead by the CF timing gate, which a gutted
-ceiling collapses toward 1.0.
+there. Historically N=1 relied on the CF timing minimum; the current
+contract replaces that dependence with stored fold state and an actual
+positive N1 query. Original historical measurements are retained below.
 
 Both counters increment inside `unobserved:` so they pay no entropy walk.
 
@@ -2505,7 +2517,7 @@ unit. Two things are then graded separately, because round 9's single
   full-window, including `p3_fleet`'s — round 11 found that one had no
   exclusion at all while this sentence claimed otherwise. Round 13 then
   found its boundary off by one, for precisely the reason round 12 gave
-  for moving it. The fleet rate is **0.789**.
+  for moving it. The fleet rate is **0.789** (0.803 on EigenScript main, see the re-grade section at the end).
 
   **Round 14: the buckets now PARTITION the full-window count.** `fosc`
   had been graded at `asn>9` while `fquiet`/`fnoclaim` were graded at
@@ -2775,7 +2787,7 @@ deadband distorts (EigenScript#1045).
 **The N half — CONFIRMED, but construction-bound, and that is a weaker
 statement than round 9 made.** P3 predicts a rate "that does not fall with
 N". Measured (`p3_fleet`, one closure channel per aircraft): exactly
-0.789 from N=2 to N=16. But `fleet_ic` gives aircraft *i* an N-independent
+0.803 from N=2 to N=16 on EigenScript main (0.789 on v0.43.0; re-graded at phugoid#8, see the re-grade section at the end). But `fleet_ic` gives aircraft *i* an N-independent
 initial condition, `frame_step` has no inter-aircraft coupling, and each
 aircraft owns its channel — so each alert set is N-independent and the
 union is monotone in N. **The rate cannot fall, by construction.** It is
@@ -2914,3 +2926,593 @@ verdict-preserving.
 Note the contrast with rung 3's C6, where reads dominated writes ~2:1 on a
 deliberately read-heavy micro-shape. That conclusion is SHAPE-SPECIFIC, not
 a property of the observer, and this rung is the counter-example.
+
+# Re-grade against EigenScript main (phugoid#8, 2026-09-30)
+
+phugoid#8 asked for every red against EigenScript main to be classified
+against this repo's physical oracle rather than against whatever the
+runtime now prints. Re-measured on main **a7a4ca3** (the issue's table was
+taken on fed280f) and on the **v0.43.0** pin, all 19 scripts, one at a
+time, each under `timeout`. Classes: (A) phugoid's own defect, pre-existing
+on the pin; (B) a runtime regression, filed upstream, the script stays red;
+(C) an intended runtime change that moved a verdict or a count, re-graded
+only with a physical justification; (D) a lint finding.
+
+## What moved upstream
+
+One change accounts for every class-C row: **EigenScript#1045**, the
+value channel's relative step is now `Δv / max(|v|, |v_prev|, 0.001)`
+instead of `Δv / (1 + |v|)`. Below |v| ≈ 1 the old form was an absolute
+deadband, so the verdict depended on the unit the binding was stored in
+and on the excitation amplitude. That was this repo's G5 finding. The
+default window (#1044) is unchanged at 10. #1049 (`unobserved:` keeps
+the value sample) is not attributed separately in any verdict row below;
+its cost shows up in the B row.
+
+## The oracle used for every class-C re-grade
+
+The physics this repo grades against is linear modal dynamics (the rung-0
+chain). Two things it does not depend on are the unit a channel is stored
+in and, for a free response, the excitation amplitude. So a verdict stream
+that is right for the physics must be **invariant** under both, and the
+truth band on a live oscillatory mode is `oscillating`. The following **round-1 table is historical and includes the fabricated
+zero seed**. Round 2's physical-seed variation table below replaces it;
+passing one variation does not certify invariance under the other:
+
+| stream family | reads differing, channel ×1 vs ×1000, v0.43.0 | same, main | `oscillating` v0.43.0 → main |
+|---|---|---|---|
+| C4.ph | 18 of 80 | 0 | 56 → 56 |
+| C5.p1.inner | 3650 of 8000 | 0 | 0 → 0 |
+| C5.ph.p045 / p100 / p365 / p370 | 529 / 250 / 100 / 75 | 0 / 0 / 0 / 0 | 0/0/0/1 → 0/0/0/1 |
+| C5.p4.a020 / a030 / a035 / a040 | 80 / 57 / 46 / 40 | 0 each | 0/23/34/40 → 57 each |
+| C5.sp.c010 … c102 (7 streams) | 75, 75, 47, 45, 39, 26, 28 | 113, 45, 21, 20, 15, 4, 10 | c100 1 → 7, c102 0 → 3, rest unchanged |
+
+- Every **phugoid** stream is exactly unit-invariant on main and was not
+  on v0.43.0. The four p4 amplitudes (0.2 to 0.4) give one identical
+  stream on main (osc 57, onset 9, horizon 79, the last read). That is the
+  linear homogeneity the physics requires for an identical sample tape;
+  this is not a guarantee for regenerated nonlinear feedback trajectories.
+  Round 2 below measures both axes after fixing the initial history.
+- `oscillating` never fell on any stream.
+- The **short-period** streams stay unit-dependent on main, because they
+  cross below the 0.001 rad/s characteristic scale early in the run and
+  the verdicts ride the absolute floor (`1e-6`) that the scale's design
+  makes unit-dependent. Round 2 marks **every SP verdict row BELOW-FLOOR** in
+  `tests/ap_manifest.txt`, citing the deliberate floor in #1045. These
+  rows certify runtime behavior only and are excluded from physics-graded
+  observer claims. **Superseded:** round 1 called read 9 the SP's own fold.
+  Its seed was zero while the aircraft's initial q was 0.001954899167907798
+  rad/s, fabricating a rise. With the physical seed c042/c050 never
+  say oscillating; c100 detects 6 reads starting at 12 and c102 2 starting at 16.
+  No read-9 detection is now credited to the aircraft.
+
+Round-1 measurements, superseded for AP seeds/hits below: `tests/ap_profile.eigs`'s read
+variant gives 76551 hits at ×1 and ×1000 on main, and 133286 against
+77766 on v0.43.0. `tests/swarm_p3.eigs` gives 96 verdict rows in which
+every radian row equals its degree and milliradian twins on main (31 of
+32 differed on v0.43.0). Of its 164 pinned lines, 44 moved: 31 radian
+rows, 8 monotone-decay rows, 1 noise row and the 4 N-sweep rows. **No
+degree or milliradian verdict row moved.** #1045 made radians read what
+the other units already read.
+
+## Round-1 ledger (historical; round-2 corrections below supersede it)
+
+| script | v0.43.0 | main a7a4ca3 | class | resolution |
+|---|---|---|---|---|
+| `test_swarm_profile` | red: `load_file` from `/tmp` | same | **A** (phugoid#7) | probe driver moved under the repo root. The script then runs to its timing bands and is still red on both runtimes; see the B row below |
+| `test_swarm_profile` (bands) | red: `unarmed/floor` 0.87 at N=1, band [0.90, 1.10] | red: `ceiling/floor` 1.11, bound > 1.15 | **B** | the floor arm's driver runs about 40% slower than on v0.42.0 while the unarmed control does not. Bisected to EigenScript b4f60ac (#1096 GC trigger), filed as **EigenScript#1442** with a 20-line repro (3.4×). On main the floor is about 15% slower again, because #1049 keeps the value sample inside `unobserved:`. That was bisected to 2eabdd5 (floor 2445 → 2801 ms against its parent 24acd59) and filed as **EigenScript#1443**. So `ceiling/floor` fails first. Neither bound is re-banked, because a cost claim has no physical justification to re-grade against |
+| `test_lint` | green | red: W024 ×3 | **D** | `swarm.eigs` run_ceiling / run_disciplined and `tests/swarm_profile.eigs` run_ceiling_more read N aircraft through one binding **on purpose**: that interleave is the cost witness (rounds 31-34 above), not a per-aircraft verdict. Each site carries a reasoned `# lint: allow W024`. Not a lint false positive, so nothing was filed |
+| `test_observer` | green | red: O.sp.t29 | **C** | `converged`/agree → `moving`/divergence. On v0.43.0 this trajectory reads `converged` in ft/s and `stable` in mm/s, so the old agreement was G5. At t = 20 to 29 s the SP (t½ 1.26 s) is below 2e-5 of its IC, and w carries a phugoid residue moving about 1% of \|w\| per sample, ten times the settle tolerance. That is a 46.9 s mode seen through a 10 s window (G4). Plants: o1 9 → 10, o2 5 → 5 |
+| `test_observer_lat` | green | red: 3 rows | **C** | O2.units.rad `converged` → `moving`: the triplet now reads one verdict in every unit and stays a divergence, because at t½ = 14.9 samples the half-window contraction is 0.79 > 0.7. O2.roll.fast `stable` → `moving`: v0.43.0 read `stable` in rad/s and `moving` in mrad/s, and the chain's roll root gives a 2.4% step per sample. O2.phi.t35 `converged`/divergence → `oscillating`/**agree**: the old truth label was wrong. phi changes sign at t = 27-28, 30-31 and 35-36 s; that is the Dutch roll (T 8.45 s, t½ 8.59 s) still ringing at 7%. Plants: o1 10 → 12, o2 7 → 6 |
+| `test_ap` | green | red: 104 C4/C5 rows | **C** | re-banked from main's streams (table above); 30 closing rows added (217 → 247) |
+| `test_ap_planted` | green | red: 73 → 133 | **C** | re-derived by running each plant on main. Every plant's C0-C3 red set is identical to v0.43.0's; only C4/C5 moved. S1 75, S2 77, S3 43, S4 128, S7 140, S9 119, S12 134. **Superseded at round 2:** 23 assertions had been wrongly exempted as structural. Verdict-corruption plants restore them; all assertion sites now enroll, including fixed-count comparators |
+| `test_ap_profile` | green | red: read hits | **C** | 133286 → 76551 (unit-invariant on main, see above) |
+| `test_swarm` | green | red: W5.stream.live | **C** | 208 → 268, per channel 41/61/61/45 → 67/67/67/67. The four aircraft differ only in amplitude. The 164 P3 lines were re-banked after the claims |
+| `test_swarm_planted` | green | red: 2 reds, expected 1 | **C** | follows W5.stream.live; its W1 plant reds exactly W3.dispersion again once the clean value is re-banked |
+| `test_swarm_p3_planted` | green | red: 17 claim failures | **C** | see "P3 on main" below |
+
+`test_comparator`, `test_modes`, `test_measure`, `test_planted`, `test_sim`,
+`test_sim_planted`, `test_latsim`, `test_latsim_planted` and
+`test_verdicts` are green on both runtimes and were not touched.
+
+## P3 on main: the radian-only false all-clear is gone
+
+Rung 4's P3 section above published, as its sharpest finding, that the
+false all-clear exists **only in radians**: a 98-99% peak, 30 of 32 radian
+rows, 0 of 64 others. The monotone decay split three ways (`converged` /
+`stable` / `moving`), and the amplitude dependence survived at long
+cadence in the false-all-clear column. Each of those was the #1045
+deadband. On main, over the same 96 rows: **zero false all-clears in any
+unit**, every radian row identical to its twins, the monotone decay reads
+`moving` in all three units, and at cadence 134 the two aircraft detect
+35 and 35. P3's truth rows (the observer uninvolved) are unchanged, so the
+phugoid is alive on every read and all of this is the observer moving
+toward the physics.
+
+`tests/p3claims.sh` therefore **refuses** the old defect class rather than
+certifying it. P3.unitdep reds on any false all-clear in any unit and on
+any radian row that differs from its twins. P3.monoclass requires `moving`
+in all three units. P3.tail requires the two aircraft to detect within one
+read of each other at cadence 134. The unit-invariant half of P3 is
+unchanged and still holds on main: cadence 74 detects nothing (P3.blind74),
+and the detector alerts on up to 100% of reads of a healthy aircraft
+(P3.nuisance). So P3's verdict line above stands, on its invariant half.
+The fleet rate is 0.803 at N = 2, 4, 8 and 16, up from 0.789, and
+per-aircraft counts are 62 each (on v0.43.0 they were 40/60/60/44 with a
+0 aircraft, the deadband-killed one).
+
+Plant harness: 65 → 64 plants (n5 retired, since its site asserted the
+removed defect), 76 → 72 assertion sites, and every site still fires.
+c11, c12, c27 and c31 were re-aimed at the new claims. The other changed
+expectations were re-derived by running each plant, and
+`tests/test_swarm_p3_planted.sh` lists why.
+
+## Superseded statements above (history, not current)
+
+Historical sections before this re-grade describe v0.43.0 and may include
+consumer seed defects. Their observer counts and general invariance claims
+are superseded by the round-2 measurements below. In particular:
+rung 3's SP band upper edge at cadence 51 ("first blind") and its G5
+horizon story, and the C5.P4 ramp and "supervision runs out" law (on main
+every tested amplitude sights the phugoid to the last read). Also
+prediction 1's `converged` 4056 (378 on main, with physically seeded
+`diverging` now 3941) and G5's unit triplet (closed upstream). In rung 4: the
+98-99% radian false-all-clear peak, the three-way monotone split and the
+long-cadence amplitude tail, and the 0 / 5533 / 19850 interleave counts
+(0 / 5974 / 21126 on main, re-banked in `tests/test_swarm_profile.sh`).
+
+## Green on main only
+
+On v0.43.0 these scripts are now red **by design**, since they pin main's
+verdicts: `test_observer`, `test_observer_lat`, `test_ap`,
+`test_ap_planted`, `test_ap_profile`, `test_swarm`, `test_swarm_planted`
+and `test_swarm_p3_planted`. The Dockerfile pin stays at v0.43.0 until a
+release carries #1045 (the issue's last box). `test_swarm_profile` is
+red on both runtimes (B: EigenScript#1442 on both, plus #1443 on main).
+With the interleave hits re-banked to main's values, a v0.43.0 run now
+stops earlier, at the hits check (5533 against the banked 5974). The
+0.864/0.868 band reading in the ledger was taken with only the class-A fix
+applied.
+
+## Round 2: physical observer histories and honest enrollment
+
+The blind critic rejected round 1's read-9 interpretation and its 23
+structural exemptions. This round corrects consumer defects (class A),
+qualifies the #1045 re-grade (class C), and keeps the class-B timing
+failures visible. No runtime is edited and no push is made.
+
+### Floor decision, reproduced rather than inferred
+
+[The owner's #1045 comment](https://github.com/InauguralSystems/EigenScript/issues/1045#issuecomment-5575612700)
+explicitly chooses default scale 0.001 to reject float noise near zero,
+retain geometric decay until the floor, and collapse the original unit
+triplet. Unit freedom is expressly limited to above that floor. The
+remaining absolute scale is deliberate design, so no new issue is filed.
+
+The critic's import-free `minimal_sp_covariant.eigs` uses eleven
+consecutive physical samples, the first as the seed and ten real deltas.
+On a7a4ca3 it prints:
+
+```text
+unit=1 verdict=stable
+unit=1000 verdict=moving
+unit=1000 verdict=stable
+```
+
+The exact import-free repro (plain invocation, no arguments):
+
+```eigs
+# Eleven consecutive q samples from C5.sp.c100, original reads 13..23.
+# First value seeds the binding; ten real deltas fill the default window.
+define replay(unit) as:
+    local samples is [-3.416187747964679e-05, -3.777042239283379e-05, -3.849665914765455e-05, -3.69352315498508e-05, -2.7719650978667825e-05, -2.3301983646494314e-05, -2.0687945928875783e-05, -1.8146741077752694e-05, -1.5104636104863381e-05, -1.4233502465454527e-05, -1.0529768360695782e-05]
+    local q is samples[0] * unit
+    local i is 1
+    loop while i < (len of samples):
+        q is samples[i] * unit + 0.0
+        i is i + 1
+    local verdict is report of q
+    print of f"unit={unit} verdict={verdict}"
+replay of 1.0
+replay of 1000.0
+set_observer_scale of 1.0
+replay of 1000.0
+```
+
+The third replay also converts the floor from 0.001 to 1.0. This isolates
+the absolute floor from plant nonlinearity or feedback. On v0.43.0 the
+first two reads are converged/stable; the scale API is absent. A unit
+conversion without converting this dimensional policy is not invariant.
+We do not tune the floor downstream to obtain favorable verdicts.
+
+Every C5.sp verdict assertion is explicitly BELOW-FLOOR in the manifest:
+the seed is 0.001954899167907798 rad/s, but the trajectory promptly drops
+below 0.001 rad/s; each stream includes characteristic-floor reads. Its
+exact distributions/onsets are not physical grading. The `.seed` rows
+check input-history fidelity; the numerical C2 modal oracles remain
+physical checks of the plant, independent of observer verdicts.
+
+The critic's plain-argument `minimal_seed.eigs` was also re-run before
+editing the consumer. Its same physical tape gives:
+
+| Initial q seed (rad/s) | Pin | Candidate |
+|---|---|---|
+| fabricated 0 | converged | oscillating |
+| physical 0.001954899167907798 | converged | moving |
+
+This isolates history fabrication from the floor policy. S17 reinstates
+that exact consumer defect and makes the named seed checks fail.
+
+### Seed audit
+
+Every executable report, motion-predicate and why site was traced to its
+binding creation and channel generator. Thirty false constant seeds are
+corrected, including write/floor workload twins. The only intentionally
+false state left is the explicit S17 negative plant. The old column
+below identifies the fabricated state in f1910ba; lines are current.
+
+| File:line (current) | Binding | Old seed → actual initial sample |
+|---|---|---|
+| `autopilot.eigs:159` | qobs | 0 → state0[2] (SP 0.001954899167907798 rad/s) |
+| `swarm.eigs:338` | q0 | 0 → fleet[0][2] |
+| `swarm.eigs:339` | q1 | 0 → fleet[1][2] |
+| `swarm.eigs:340` | q2 | 0 → fleet[2][2] |
+| `swarm.eigs:341` | q3 | 0 → fleet[3][2] |
+| `swarm.eigs:403` | solo q | 0 → s[2] |
+| `swarm.eigs:431` | closure q | 0 → fleet[i][2], passed as v0 |
+| `tests/observer_check.eigs:64` | z | 0 → hold.u[0] |
+| `tests/observer_check.eigs:76` | x | 0 → recS.w[0] |
+| `tests/observer_check.eigs:98` | y | 0 → recB.u[45] |
+| `tests/observer_check.eigs:118` | w1 | 0 → recB.u[45] |
+| `tests/observer_lat_check.eigs:82` | x | 0 → recd.v[0] |
+| `tests/observer_lat_check.eigs:117` | urad | 0 → recs.phi[0] |
+| `tests/observer_lat_check.eigs:118` | udeg | 0 → recs.phi[0] × 57.29577951308232 |
+| `tests/observer_lat_check.eigs:119` | umr | 0 → recs.phi[0] × 1000 |
+| `tests/observer_lat_check.eigs:150` | z1 | 0 → recr.p[0] |
+| `tests/observer_lat_check.eigs:166` | z2 | 0 → recr2.p[0] |
+| `tests/ap_profile.eigs:29` | run_read.u | 0 → 280.0 (generator at t=0) |
+| `tests/ap_profile.eigs:30` | run_read.w | 0 → 3.0 (generator at t=0) |
+| `tests/ap_profile.eigs:32` | run_read.th | 0 → 0.02 (generator at t=0) |
+| `tests/ap_profile.eigs:52` | run_write.u | 0 → 280.0 (generator at t=0) |
+| `tests/ap_profile.eigs:53` | run_write.w | 0 → 3.0 (generator at t=0) |
+| `tests/ap_profile.eigs:55` | run_write.th | 0 → 0.02 (generator at t=0) |
+| `tests/ap_profile.eigs:66` | run_floor.u | 0 → 280.0 (generator at t=0) |
+| `tests/ap_profile.eigs:67` | run_floor.w | 0 → 3.0 (generator at t=0) |
+| `tests/ap_profile.eigs:69` | run_floor.th | 0 → 0.02 (generator at t=0) |
+| `tests/ap_profile_noread.eigs:26` | run_noread.u | 0 → 280.0 (generator at t=0) |
+| `tests/ap_profile_noread.eigs:27` | run_noread.w | 0 → 3.0 (generator at t=0) |
+| `tests/ap_profile_noread.eigs:29` | run_noread.th | 0 → 0.02 (generator at t=0) |
+| `tests/swarm_p3.eigs:477` | control q | 0 → decay amp, ramp 0, or deterministic noise value at t=0, in the chosen unit |
+
+Already-valid seeds, including a valid zero now read from its record:
+
+| File:line | Channel and seed evidence |
+|---|---|
+| `swarm.eigs:104` | cost interleave: actual current fleet sample; deliberate sharing, no per-aircraft physics claim |
+| `swarm.eigs:142` | cost interleave: actual current fleet sample; deliberate sharing, no per-aircraft physics claim |
+| `swarm.eigs:174` | cost interleave: actual current fleet sample; deliberate sharing, no per-aircraft physics claim |
+| `swarm.eigs:199` | cost interleave: actual current fleet sample; deliberate sharing, no per-aircraft physics claim |
+| `swarm.eigs:240` | cost interleave: actual current fleet sample; deliberate sharing, no per-aircraft physics claim |
+| `tests/swarm_profile.eigs:71` | padded cost interleave: actual current fleet sample |
+| `tests/swarm_p3.eigs:61` | P3 closure / row / phase / dead-channel control: actual aircraft q, with unit conversion when used |
+| `tests/swarm_p3.eigs:193` | P3 closure / row / phase / dead-channel control: actual aircraft q, with unit conversion when used |
+| `tests/swarm_p3.eigs:423` | P3 closure / row / phase / dead-channel control: actual aircraft q, with unit conversion when used |
+| `tests/swarm_p3.eigs:604` | P3 closure / row / phase / dead-channel control: actual aircraft q, with unit conversion when used |
+| `tests/observer_lat_check.eigs:179` | doublet phi: initial record is physically 0 |
+| `tests/observer_lat_check.eigs:100` | mirror instrument: actual synthetic first sample +5 |
+| `tests/ap_profile.eigs:31` | synthetic q: generator sin(0)=0; valid zero |
+| `tests/ap_profile.eigs:54` | synthetic q: generator sin(0)=0; valid zero |
+| `tests/ap_profile.eigs:68` | synthetic q: generator sin(0)=0; valid zero |
+| `tests/ap_profile_noread.eigs:28` | synthetic q: generator sin(0)=0; valid zero |
+
+`swarm.eigs:271`'s never_read argument is never executed: it arms a cost
+program without creating a sampled channel. Closure callers pass actual
+state (`swarm.eigs:462`, `tests/swarm_p3.eigs:346`), never null.
+Named/solo/closure swarm samples now also use
+`f % cadence == cadence - 1` so initial and subsequent gaps are equal,
+as P3 already did. Cost interleave channels deliberately remain shared.
+The resulting W5 liveness count is **248**, replacing round 1's 268.
+The original CI run rejected `W5.stream.live exact=268 val=248`; the
+affected pin/candidate swarm scripts were re-run against the corrected
+bank. The physical-seed probe gives **62 per aircraft** at base, ×1000
+and half excitation (248 total in each arm). This checks counts, not
+complete label streams. W5 remains an empirical liveness count, with
+mode truth separately checked by W7/P3.
+
+
+### Physical variations and plant enrollment
+
+The critic's `ap_variants.eigs` was re-run against this tree, replacing
+its zero seeds with `state0[2]`, with unit conversion, and adding a
+half-scale replay of the identical tape. All **17** probe baselines
+match the real `sup_run` and the ×1 replay read for read. Counts below
+compare complete label streams including partial-window reads. ×1000
+regenerates the same plant with a converted observer channel;
+half-excitation regenerates the nonlinear feedback trajectory. Replay
+columns hold the original physical tape fixed.
+
+| Stream | Reads | ×1000 differences | Half-excitation differences | Replay ×1000 | Replay ×½ | Grade |
+|---|---:|---:|---:|---:|---:|---|
+| C5.sp.c010 | 300 | 113 | 8 | 113 | 8 | BELOW-FLOOR |
+| C5.sp.c020 | 150 | 45 | 40 | 45 | 40 | BELOW-FLOOR |
+| C5.sp.c040 | 75 | 21 | 11 | 21 | 11 | BELOW-FLOOR |
+| C5.sp.c042 | 71 | 20 | 9 | 20 | 9 | BELOW-FLOOR |
+| C5.sp.c050 | 60 | 18 | 8 | 18 | 8 | BELOW-FLOOR |
+| C5.sp.c100 | 30 | 8 | 0 | 8 | 0 | BELOW-FLOOR |
+| C5.sp.c102 | 29 | 10 | 0 | 10 | 0 | BELOW-FLOOR |
+| C4.ph | 80 | 0 | 0 | 0 | 0 | physical at tested variations |
+| C5.p1.inner | 8000 | 0 | 350 | 0 | 0 | EMPIRICAL |
+| C5.ph.p045 | 888 | 0 | 38 | 0 | 0 | EMPIRICAL |
+| C5.ph.p100 | 400 | 0 | 23 | 0 | 0 | EMPIRICAL |
+| C5.ph.p365 | 109 | 0 | 0 | 0 | 0 | physical at tested variations |
+| C5.ph.p370 | 108 | 0 | 1 | 0 | 0 | EMPIRICAL |
+| C5.p4.a020 | 80 | 0 | 12 | 0 | 0 | EMPIRICAL |
+| C5.p4.a030 | 80 | 0 | 12 | 0 | 0 | EMPIRICAL |
+| C5.p4.a035 | 80 | 0 | 0 | 0 | 0 | physical at tested variations |
+| C5.p4.a040 | 80 | 0 | 0 | 0 | 0 | physical at tested variations |
+
+All seven SP streams fail unit invariance. No SP verdict row in this
+manifest is physics-graded. The c042/c050 onset/oidx checks are removed
+because no oscillating read exists: osc=0 already rejects a fabricated
+sighting. The `.seed` checks independently grade input-history fidelity.
+c100/c102 retain onset pins 12/16, explicitly BELOW-FLOOR. C2's numeric
+period/zeta and amplitude/dt checks remain unchanged.
+
+Only C4.ph, p365, a035 and a040 qualify as physical observer streams at
+the tested variations. Other phugoid distributions are EMPIRICAL:
+unchanged tape scaling cannot prove regenerated amplitude invariance.
+The p4 baseline still reaches read 79 at all four shipped amplitudes,
+but halving a020/a030 changes 12 reads, so the general amplitude law
+is superseded. p370's one changed read also prevents calling its exact
+edge a physical invariant.
+
+Longitudinal point replays: ×1000 preserves **11/11** expectations.
+Half-excitation preserves **9/11**: O.sp.t29 moving → stable and
+O.ph1s.t120 stable → converged. These two are now `empirical`; remaining
+point checks retain their classes at both tested variations. Lateral
+replays: half-excitation preserves all **11 motion-verdict rows**; the
+two mirror checks were also run but their generator was unchanged in
+that arm. ×1000 preserves all **12 verdict/identity rows**, while O2.mirror.mag fails its absolute 0.1
+entropy threshold. That row is now `instrument`, not a unit-invariant
+physics grade. Scaling entropy's input need not preserve an absolute
+threshold on the entropy difference.
+AP's physically seeded synthetic profile yields **76552 hits** at base
+and ×1000, **84542** at half harmonic excitation: an empirical work
+checksum, not a modal quantity. No timing bound is changed.
+
+All 23 previously plantable rows changed to structural in 82bb6f7 are
+retained and plantable again. Their executed rejecting plants are:
+
+| Formerly exempt assertion | Executed rejecting plant |
+|---|---|
+| C5.sp.c100.conv | s18, s20 |
+| C5.sp.c100.cidx | s18, s20 |
+| C5.sp.c102.conv | s18, s20 |
+| C5.sp.c102.cidx | s18, s20 |
+| C5.ph.p365.runs | s18, s20 |
+| C5.ph.p365.maxrun | s18, s20 |
+| C5.ph.p045.conv | s18, s20 |
+| C5.ph.p045.equil | s18, s20 |
+| C5.ph.p045.cidx | s18, s20 |
+| C5.ph.p100.conv | s18, s20 |
+| C5.ph.p100.equil | s18, s20 |
+| C5.ph.p100.cidx | s18, s20 |
+| C5.p4.a020.conv | s18, s20 |
+| C5.p4.a020.cidx | s18, s20 |
+| C5.p4.a030.conv | s18, s20 |
+| C5.p4.a030.equil | s18, s20 |
+| C5.p4.a030.cidx | s18, s20 |
+| C5.p4.a040.conv | s18, s20 |
+| C5.p4.a040.equil | s18, s20 |
+| C5.p4.a040.cidx | s18, s20 |
+| C5.p4.a035.conv | s18, s20 |
+| C5.p4.a035.equil | s18, s20 |
+| C5.p4.a035.cidx | s18, s20 |
+
+S18 alternates the real supervisor's verdicts to converged/equilibrium
+and rejects every one of these 23. S19 forces improving. S17 restores
+the false-zero seed and rejects all seven C5.sp.*.seed checks (58 reds).
+S20 displaces actual exact-comparator results by one, including fixed
+populations. This calibrates comparators; it does not claim a verdict
+mutation changes read count. S13 includes the four fixed kinematic
+parity comparators rather than exempting them.
+
+Clean population **250** = 247 + seven seeds − four vacuous onset/index
+checks. Executed S1–S20 red counts:
+**64,65,40,125,1,6,135,13,128,1,16,131,21,19,2,1,58,154,126,210**.
+The union is **250/250 distinct assertion sites**. Complete sets are in
+`tests/ap_plant_reds.txt`; the gate diffs each executed set, checks the
+population, forbids structural assertion classes, and then requires
+every site to fire. These are executed results, not inferred coverage.
+A count-preserving substitution of C2.k025.zlog by C5.sp.c010.seed in
+S1's 64 reds makes the actual shell gate fail `plant s1 red set drifted`.
+The unchanged representative red/green predicates would accept that
+substitution; the complete-set comparison rejects it.
+
+The first complete swarm-plant attempt reached W9 but exhausted the
+1,500,000 KiB virtual-memory cap after 532 seconds. Its wrong-dt plant
+computed a baseline DFT per aircraft only to discard it and recompute;
+W11 similarly computed the identical DFT twice. The owned test fixture
+now chooses the planted timestep/estimator before estimating. W9 still
+rejects all eight period rows and W11 all four extrema identity rows;
+W12 uses only the deliberately aliased damping estimator. No tolerance,
+input tape or enrollment requirement changed. This is removal of unused
+fixture work, not evidence that a runtime memory defect was fixed.
+The final 12-plant run completed in **924 seconds**, with red counts
+**1,6,6,9,1,24,1,4,8,4,4,4** and all **60** sites enrolled. P3 completed
+all **64** plants and **72** tagged witness sites.
+
+### Final CI runs
+
+All **19 scripts on both runtimes** completed: candidate **18/19** green,
+pin **10/19** green. Nine pin failures are expected against these main-only
+banks. Candidate's sole red is the unchanged class-B swarm timing gate,
+tracked in EigenScript#1442/#1443; it is not re-banked. The final candidate
+ratios were 1.15 (N=1) and 1.11 (N=4), below the naive-cost requirements.
+
+Each script used the exact inner CI command
+`EIGENSCRIPT=eigenscript bash "$t"`, one at a time under `nice -n 10`,
+`ulimit -v 1500000`, `EIGS_STRICT=1`, with the runtime's src first on PATH.
+Timeout was 900 seconds except the full swarm plant matrix (2100 seconds:
+14 measured checker invocations at about 99 seconds each plus margin) and
+lint (60 seconds). Exit 124 is named HANG; **no completed run hung**.
+An initial parent run was interrupted to resize the swarm budget; its
+partial log and the later OOM attempt are retained, not reported as passes.
+Candidate `test_swarm.sh` completed in 274 seconds and
+`test_swarm_planted.sh` in 924 seconds. Logs and all attempt timings are
+under `/tmp/phugoid-8-r2/` (`ci.tsv`, `logs/`); the table uses the final
+attempt of each script/runtime pair.
+
+| Script (`tests/`) | Pin rc | Candidate rc | Candidate last line |
+|---|---:|---:|---|
+| `test_ap.sh` | 1 | 0 | PASS: 250/250 rung-3 checks green |
+| `test_ap_planted.sh` | 1 | 0 | PASS: all 20 rung-3 plants flip exactly their declared checks |
+| `test_ap_profile.sh` | 1 | 0 | PASS: C6 arming planted fault rejected (ratio 1.00 <= 1.15) |
+| `test_comparator.sh` | 0 | 0 | PASS: 15/15 comparator boundary checks green |
+| `test_latsim.sh` | 0 | 0 | PASS: 76/76 rung-2 checks green |
+| `test_latsim_planted.sh` | 0 | 0 | PASS: all 22 rung-2 plants flip exactly their declared checks |
+| `test_lint.sh` | 0 | 0 | PASS: planted fault (unused variable) is caught |
+| `test_measure.sh` | 0 | 0 | PASS: 126/126 estimator checks green |
+| `test_modes.sh` | 0 | 0 | PASS: 180/180 oracle checks green |
+| `test_observer.sh` | 1 | 0 | PASS: observer layer graded; both plants flip exactly their declared checks |
+| `test_observer_lat.sh` | 1 | 0 | PASS: rung-2 observer layer graded; both plants flip exactly their declared checks |
+| `test_planted.sh` | 0 | 0 | PASS: all 18 plants flip exactly their declared checks |
+| `test_sim.sh` | 0 | 0 | PASS: 79/79 rung-1 checks green |
+| `test_sim_planted.sh` | 0 | 0 | PASS: all 22 rung-1 plants flip exactly their declared checks |
+| `test_swarm.sh` | 1 | 0 | PASS: P3's 164 pinned rows reproduce (4 physics truth, 96 verdict over a uniform 3x2x2x8 grid, 12 phase cells, 6 equilibrium + 18 monotone + 24 noise controls, 4 N-axis) |
+| `test_swarm_p3_planted.sh` | 1 | 0 | PASS: all 64 P3 claim plants red exactly their own claim set and count, every tagged witness has a plant, and the claims precede the row pins |
+| `test_swarm_planted.sh` | 1 | 0 | PASS: all 12 rung-4 plants flip exactly their declared checks, and every check is red under some plant |
+| `test_swarm_profile.sh` | 1 | 1 |       loop, bisected to 2eabdd5, EigenScript#1443) on top of #1442. Not re-banked. |
+| `test_verdicts.sh` | 0 | 0 | PASS: P2's refutation clauses fire with plants; P1's verdict text is pinned and its measurement lives in test_swarm_profile.sh |
+
+The Git metadata for this worktree is mounted read-only. Class commits
+are delivered from `/tmp/phugoid-8-r2/committed` in
+`/tmp/phugoid-8-r2/phugoid-8-r2.bundle`; the original worktree remains at
+f1910ba with the completed edits. No push is performed.
+
+### Distilled lesson
+
+Round 1's fake q=0 made the healthy-history interpretation depend on a
+rise the aircraft never made. Physical seeding is now twinned through
+every observer channel and explicit input-history checks are calibrated
+with that same fault. Declaring a constant expectation structural had
+also suppressed the corruption it should reject (p045 forced converged).
+Complete executed red sets and a plantable-only vocabulary now enforce
+the correction. With a dimensional observer scale, unit conversion must
+include that scale to preserve shape classification; below-floor pins
+and identical-tape replays cannot certify modal physics.
+
+## Current-runtime claim ledger and work contract (2026-10-04)
+
+The v0.43.0 research tables and the final a7a4ca3 regrade above are
+**archives**, not a current-runtime acceptance verdict. `test_verdicts.sh`
+continues to check their arithmetic, mutations and historical verdict text.
+It does not publish a fresh P2 fit, reader cost share or timing mechanism
+proof. All historical table cells above are retained verbatim.
+
+Current evidence below used EigenScript
+`e1e613dc7e58f772f9f80c829d5a5c351ef6d118`, strict default JIT, the same
+1500-frame arm code at phugoid `e52478e4282a0487a73d595435bfc343148ceba8`
+plus the reviewed file-pin calibration correction. Binary SHA256:
+`784d94e1781e727edf3ba5d2a06942cd94b68b809d63c01bfa2bcb8d7b3bf570`.
+Receipts: retained `1621-phugoid-wall.log`, complete
+`phugoid-later-diagnostic-run/{manifest,result}.json`, and independent
+55-pair/110-output audit. The earlier mandatory gate exited on CF; the
+later diagnostic deliberately did not claim acceptance (rc3). Its fixed
+cost was .076 s; the earlier CF measurement used .063 s. These are
+separate declared populations, not one spliced timing sweep.
+
+| Current comparison | Paired median | Old criterion outcome | Current mandatory criterion |
+|---|---:|---|---|
+| ceiling/floor N1/4/16 (earlier CF remeasurement) | 1.1489 / 1.1092 / 1.1589 | >1.15 refuted / refuted / supported | <1.90 at EACH N; missing work checked separately |
+| ceiling/disciplined N16 | 1.1397 | >1.20 refuted | <1.90 |
+| ceiling/unarmed N16 | 1.3704 | >1.20 supported | <1.90 |
+| disciplined/floor N1/4/16 | .9679 / 1.0543 / .9816 | [.90,1.10] all supported | unchanged [.90,1.10] at EACH N |
+| unarmed/floor N1/4/16 | .7436 / .8636 / .8668 | [.90,1.10] all refuted low | existing <=1.10 only; no lower bound |
+| zero-reader ceiling0/floor N16 | 1.1410 | >1.20 refuted | <1.90 |
+| entropy-elision ceiling0pb/floor N16 | .9884 | (.85,1.20] supported | unchanged executable integrity band |
+| actual added-work ceilingmore/floor N4 | 2.5089 | rejected by <1.90 | unchanged real extra-work rejection, >=1.90 |
+
+There are **five failed later criteria plus the original CF failure**.
+The current contract explicitly retires CF>1.15, BOTH DU>1.20 minima,
+zero-reader P1>1.20 and the unarmed/floor .90 lower requirement. This
+changes release enforcement; it does not relabel the old results green.
+A correct faster implementation need not waste a minimum amount of time.
+The gate still reports every original ratio and supported/refuted old
+criterion, uses the same full five-pair arithmetic and historical CF
+three-median remeasurement, and retains every workload point and bank.
+No alternative permissive gate or narrower suite is introduced.
+
+The semantic distinction is concrete. An **armed** unobserved numeric
+write keeps value samples and numeric trajectory (#1049), but elides
+stored entropy/dH folding. The separately compiled **unarmed** program
+lacks that numeric history. Equal work between those programs is not a
+current premise. Source shapes and costs must be reported separately:
+the zero-reader/counterfactual timings no longer straddle 1.20 reliably,
+so they are neither a P1 timing mechanism proof nor a rejected plant.
+
+`tests/swarm_work_check.py`, called by the mandatory profile gate, derives
+untimed copies of the exact pinned source. It reads stored qobs
+`last_entropy`/`dh` after the final-frame actual read and local derivative
+V immediately before its actual return. No hook assigns either target.
+Compact counts distinguish observed ceiling/zero-reader integration from
+elided disciplined/floor/counterfactual integration, and observed
+ceiling/disciplined qobs from elided floor qobs, at N1/4/16. V's dh length
+is zero in BOTH cases (one assignment per fresh call); stored
+`last_entropy` is essential. Current entropy alone is not evidence,
+because snapshot queries can recompute it without replacing stored state.
+Ordinary stdout, digest/counters and exact 4*N*frames derivative-call
+populations must agree. No reader hook enters a timed or unarmed file.
+These untimed hooks do not prove identical compiled paths or costs.
+
+The positive N1 companion calls the same actual `run_ceiling`, with only
+frames150/dt=.5 substituted, unchanged .05 spread, model, trim and schedule.
+Feasibility observed hits1, digest280833547, reads/evals150. Before that
+bank grants acceptance, the checker requires ordinary and instrumented
+outputs/physical states to agree on both VM and JIT. Its real
+constant-false predicate must fail the named semantic query witness while
+all 150 physical rows remain byte-identical. Real assignment/integration
+elisions and N-scoped gutting must likewise fail by name with physics
+correct; disabling each new witness demonstrates missing enforcement.
+The existing 12 w1..w12 swarm plants, actual partial-observed disciplined
+SEMANTIC fault, extra work, dispatch, reduced-work and real file-pin
+controls remain required. Comparator arithmetic alone is not their
+execution evidence. Current ordinary VM and JIT runs both measured the
+partial-observed control's 96,000 derivative calls as 32,000 folded and
+64,000 elided, with the unchanged digest/hits/reads/evals; the checker
+rejected it by `semantic.integration-fold` while physics held.
+
+The retained real partial-observed COST calibration subsequently measured
+paired median1.0036 (OVH .065 s) and returned rc2: the [.90,1.10] band did
+NOT reject it. This refutes guaranteed current cost detection of that
+semantic fault. Its original failed r2 receipt remains archived, rather
+than being relabeled green. That receipt retained the median/actual
+source/terminal status but deleted raw pair files through the original
+function's cleanup; it cannot support independent raw-ratio recomputation.
+No time threshold changes follow from it.
+
+The independently reviewed replacement cost control is predeclared ONCE:
+actual `run_disciplined` plus the EXACT existing `run_ceiling_more` scratch
+block, retaining pad<360, at N16/frames1500. Model, trim, schedule, ordinary
+stdout, physical digest, hits and read/eval populations must remain
+unchanged. The same full five-pair arithmetic and existing `in_band` must
+reject it ABOVE1.10. A lower-side failure is not a valid added-cost control;
+in-band execution remains a hold, and the work amount must not be tuned.
+The external actual-function runner saves every timestamp, arm output and
+raw rounded ratio only AFTER each recorded timed endpoint. The comparator
+and arithmetic are not rewritten. This control's measurement is pending
+until the exact source and receipt instrumentation pass independent review.
+
+Instruction-count benefit is a different claim from cross-arm native wall
+ratios. Exact #1621 base/candidate callgrind measurements reduced floor
+Ir by 6.5440% and ceiling Ir by 5.7357%; unarmed was +.0604%. Ordinary
+outputs were byte-identical. Native wall samples are broad and do not
+support a precise wall-speed gain; RSS populations overlap. No new P2
+scaling fit, precise reader share or wall-speed claim follows.
+
+**Validation state:** this contract's implementation and its new controls
+require actual green receipts; the preceding diagnostic/feasibility work
+is not those receipts. The released runtime pin remains v0.43.0. Testing
+coordinated future-runtime sources does not establish published-pin
+compatibility or authorize a release, consumer closure or a 16-consumer
+acceptance waiver.

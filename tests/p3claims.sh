@@ -50,6 +50,13 @@
 # assert an EXACT red set rather than "something failed".
 #
 # Vacuity: a missing field is a FAIL, never a pass.
+#
+# RE-GRADED at phugoid#8 against EigenScript main a7a4ca3: #1045 made the
+# value-channel step scale-free, and P3.unitdep, P3.monoclass and P3.tail
+# -- which asserted the radian-only false all-clear that step produced --
+# now REFUSE that defect class instead of certifying it. On v0.43.0 this
+# library therefore reds by design. ORACLE.md, "Re-grade against
+# EigenScript main", records the old and new figures.
 
 p3_claims() {
     local out="$1"
@@ -268,81 +275,42 @@ p3_claims() {
     # units = 12 cadence-74 rows.
     [ "$nb74" -eq 12 ] || _cf P3.blind74 "$nb74 cadence-74 rows found, expected 12 (vacuous check)"
 
-    # --- claim 3: the SEVERITY of that failure is unit-dependent, and the
-    # dangerous direction exists in the shipped unit. In radians the
-    # observer issues a FALSE ALL-CLEAR; rescaled to degrees or
-    # milliradians -- identical physics, identical cadence -- it declines
-    # to claim instead. This is EigenScript#1045's absolute zero-band, and
-    # it is why a claim about the observer is not a claim until its unit
-    # is stated. Round 9 published the false-all-clear as if it were a
-    # property of the observer rather than of the radian scaling.
-    # WHOLE GRID, not cadence 74. Round 16: round 15 grew the population
-    # from 46 rows to 96 and did not re-scope a single claim to it, so 84
-    # of 96 rows were invisible here -- and `fquiet`, the DANGEROUS
-    # direction and the whole point of round 10's split, was read by only
-    # two claims covering 14 rows. Moving every non-radian row's
-    # `fnoclaim` bucket into `fquiet` at every cadence except 74 (634
-    # reads, partition preserved) left the gate printing `nonrad_max=0%`
-    # and certifying.
-    #
-    # The shipped data supports the stronger claim for free: 0 of the 64
-    # deg/mrad rows carry a false all-clear at ANY of the 8 cadences,
-    # while every radian cadence has at least three of four cells
-    # carrying one. The finding is not "at cadence 74 the unit decides
-    # which wrong answer you get" but "across the whole grid, the false
-    # all-clear exists only in radians".
-    local radmax=-1 degmax=-1 nrad=0 nnonrad=0 radcad="" ncadr nradfq cd ncell
+    # --- claim 3: RE-GRADED at phugoid#8 against EigenScript main a7a4ca3.
+    # Through v0.43.0 this claim read "the false all-clear exists ONLY in
+    # radians": a 98-99% peak, 30 of 32 radian rows, 0 of 64 degree and
+    # milliradian rows. That was the value channel's sub-unit ABSOLUTE
+    # deadband (EigenScript#1045, the rung's own G5 finding), and #1045
+    # replaced it with a scale-free step. Measured on main over the same
+    # 96 rows: ZERO false all-clears in any unit, and every radian row's
+    # full-window signature byte-identical to its degree and milliradian
+    # twins. Claim 1 certifies the phugoid alive, so the physics truth is
+    # `oscillating` on every read -- a false all-clear contradicts it, and
+    # a unit is a relabelling the physics cannot see. Both are therefore
+    # what the physics requires, and the claim now REFUSES the old defect
+    # class instead of certifying it (mechanical-gates section 182): any
+    # false all-clear, in any unit, or any unit-dependent row, reds.
+    # The populations stay exact, as round 16/17 made them.
+    local radmax=-1 degmax=-1 nrad=0 nnonrad=0 nuid
     while read -r u a s c full fosc fq fnc fot; do
-        # GUARDED, because this is the FIRST loop over the rows. Round 44
-        # went to plant the zero-full guard further down (the P3.nuisance
-        # one at the `det=` division) and found it unreachable: a row with
-        # full=0 died here first, "division by 0", with zero CLAIMFAIL
-        # lines and the whole claim library silent. A vacuity guard behind
-        # an unguarded division is not a guard.
+        # GUARDED, because this is the FIRST loop over the rows (round 44:
+        # a full=0 row died on the division with the library silent).
         [ "$full" -gt 0 ] || { _cf P3.unitdep "row unit=$u ac=$a sp=$s cad=$c has zero full-window reads (vacuous check)"; continue; }
         fac=$(( fq * 100 / full ))
         if [ "$u" = "rad" ]; then
             nrad=$((nrad+1)); [ "$fac" -gt "$radmax" ] && radmax=$fac
-            [ "$fq" -gt 0 ] && radcad="$radcad $c"
         else
             nnonrad=$((nnonrad+1)); [ "$fac" -gt "$degmax" ] && degmax=$fac
-            [ "$fq" -eq 0 ] || _cf P3.unitdep "a false all-clear appeared in unit=$u ac=$a sp=$s cad=$c ($fq of $full reads) — the deadband attribution is wrong"
         fi
+        [ "$fq" -eq 0 ] || _cf P3.unitdep "a false all-clear appeared in unit=$u ac=$a sp=$s cad=$c ($fq of $full reads): the observer says settled about a live phugoid"
     done < "$rowfile"
-    # EXACT populations. A ">= 2" bound is the shape this file condemns
-    # further up and P3.blind74 already fixed.
     if [ "$nrad" -ne 32 ] || [ "$nnonrad" -ne 64 ]; then
         _cf P3.unitdep "unit axis mis-populated (rad rows=$nrad expected 32, non-rad rows=$nnonrad expected 64)"
     else
-        # BOTH ends, at the published values. Round 39 added the ceiling
-        # and left the floor at 90 while ORACLE publishes the peak as
-        # "98-99%" -- so a drift to 90% would contradict the figure and
-        # pass, which is the one-sidedness that commit's own message
-        # condemned, in the other direction.
-        [ "$radmax" -ge 98 ] || _cf P3.unitdep "the radian false-all-clear peak is ${radmax}%, below the 98-99% ORACLE publishes"
-        # ...and a CEILING, because ORACLE publishes the peak as a RANGE
-        # ("98-99%"). Round 39: only the floor was asserted, so a drift to
-        # 100% would contradict the published figure and pass. A range
-        # claim needs both ends.
-        [ "$radmax" -le 99 ] || _cf P3.unitdep "the radian false-all-clear peak is ${radmax}%, above the 98-99% ORACLE publishes"
-        ncadr=$(printf '%s\n' $radcad | sort -u | grep -c .)
-        [ "$ncadr" -eq 8 ] || _cf P3.unitdep "radian rows carry a false all-clear at only $ncadr of 8 cadences"
-        # PER-ROW, like its non-radian twin. Round 17: the non-radian half
-        # was made per-row and exact at round 16 while the radian half --
-        # the one carrying the safety finding -- stayed a max-over-rows
-        # plus one-cell-per-cadence. Erasing `fquiet` from 22 of the 32
-        # radian rows (1045 of 1285 dangerous-direction reads, partition
-        # preserved) left both bounds satisfied and the headline
-        # `rad_falseallclear_max=98%` unchanged. Measured, 30 of 32 radian
-        # rows carry a false all-clear -- 4 of 4 cells at six cadences and
-        # 3 of 4 at cadences 104 and 114 -- so that is what is asserted.
-        local nradfq
-        nradfq=$(awk '$1=="rad" && $7>0' "$rowfile" | wc -l)
-        [ "$nradfq" -ge 30 ] || _cf P3.unitdep "only $nradfq of 32 radian rows carry a false all-clear (expected at least 30); the dangerous direction has largely vanished"
-        for cd in 74 84 94 104 114 124 134 148; do
-            ncell=$(awk -v c="$cd" '$1=="rad" && $4==c && $7>0' "$rowfile" | wc -l)
-            [ "$ncell" -ge 3 ] || _cf P3.unitdep "at cadence $cd only $ncell of 4 radian cells carry a false all-clear (expected at least 3)"
-        done
+        # Unit identity, per row: a missing twin compares as empty and so
+        # counts as a difference, never as a pass.
+        nuid=$(awk '{k=$2" "$3" "$4; g=$5" "$6" "$7" "$8" "$9; if ($1=="rad") r[k]=g; else o[k" "$1]=g}
+                    END {b=0; for (k in r) if (o[k" deg"]!=r[k] || o[k" mrad"]!=r[k]) b++; print b}' "$rowfile")
+        [ "$nuid" -eq 0 ] || _cf P3.unitdep "$nuid of 32 radian rows differ from their degree or milliradian twin: the verdict depends on the unit again (EigenScript#1045)"
     fi
 
     # --- claim 4: P3's REGISTERED CONFIRMATION, restated at round 11.
@@ -627,10 +595,12 @@ p3_claims() {
             mdom=$(sed -n "s/^p3mono kind=decay_slow unit=$mu cad=$cd2 .*/&/p" "$out")
             [ -n "$mdom" ] || { _cf P3.monoclass "decay_slow/$mu/cad$cd2 row absent (vacuous check)"; continue; }
             mfull=$(echo "$mdom" | grep -oP 'full=\K[0-9]+')
+            # RE-GRADED at phugoid#8: through v0.43.0 the three units split
+            # this decay three ways (converged / stable / moving). On main
+            # all three read `moving` on every full-window read -- the
+            # unit-invariance the physics requires (EigenScript#1045).
             case "$mu" in
-                rad)  mcls=conv;   mlbl=converged ;;
-                deg)  mcls=stable; mlbl=stable ;;
-                mrad) mcls=moving; mlbl=moving ;;
+                rad|deg|mrad) mcls=moving; mlbl=moving ;;
             esac
             mv2=$(echo "$mdom" | grep -oP "$mcls=\K[0-9]+")
             [ "$mv2" = "$mfull" ] || _cf P3.monoclass "in $mu a monotone decay no longer reads '$mlbl' on every read ($mv2 of $mfull)"
@@ -668,31 +638,23 @@ p3_claims() {
     done < "$rowfile"
     [ "$nbad" -eq 0 ] || _cf P3.partition "$nbad of $nrows rows have buckets that do not sum to the full-window count; every rate below is over mismatched populations"
 
-    # --- claim 5: the long-cadence tail. Round 11 concluded "from cadence
-    # 134 on, ac0 and ac1 are identical -- the amplitude dependence
-    # vanishes once the step clears the deadband, the same mechanism as
-    # the unit axis". Round 12 refuted the mechanism but kept two
-    # assertions that round 13 then showed were RUN-LENGTH COINCIDENCES,
-    # true at 8000 frames and nowhere else:
-    #
-    #   frames        6000      8000      10000     12000
-    #   fosc ac0/ac1  24/24     35/35     45/46     45/56    <- "equal"
-    #   fquiet        10/0      14/2      19/6      34/11    <- the real one
-    #
-    # "Equal detection" and "frozen detection count from 134 to 148" both
-    # dissolve as the run lengthens; only ONE thing survives every run
-    # length tested, and it is the thing that matters: at long cadence the
-    # SMALL-amplitude aircraft issues far more false all-clears than the
-    # large one. The amplitude dependence did not vanish -- it moved into
-    # the dangerous column. That is what is pinned, with a margin chosen
-    # from the smallest gap measured (10), not from the shipped run.
-    local t0q t1q
-    t0q=$(awk '$1=="rad" && $2=="0" && $3=="0.05" && $4=="134" {print $7}' "$rowfile")
-    t1q=$(awk '$1=="rad" && $2=="1" && $3=="0.05" && $4=="134" {print $7}' "$rowfile")
-    if [ -z "$t0q" ] || [ -z "$t1q" ]; then
+    # --- claim 5: the long-cadence tail. RE-GRADED at phugoid#8. Through
+    # v0.43.0 the claim was that the AMPLITUDE dependence survived at long
+    # cadence in the false-all-clear column (radians, cadence 134: ac0 14
+    # vs ac1 2 at the shipped run length; round 13's run-length table).
+    # That was the absolute deadband again: the small aircraft sat nearer
+    # it. On main the two aircraft's radian rows at cadence 134 are
+    # identical (35 detections each, 0 false all-clears) -- a linear mode's
+    # verdicts do not depend on its amplitude. The claim now refuses the
+    # amplitude dependence: the two detection counts may differ by at most
+    # the single-read deadband crossing P3.unitid already tolerates.
+    local t0o t1o
+    t0o=$(awk '$1=="rad" && $2=="0" && $3=="0.05" && $4=="134" {print $6}' "$rowfile")
+    t1o=$(awk '$1=="rad" && $2=="1" && $3=="0.05" && $4=="134" {print $6}' "$rowfile")
+    if [ -z "$t0o" ] || [ -z "$t1o" ]; then
         _cf P3.tail "cadence 134 rows absent from the sweep (vacuous check)"
-    elif [ "$(( t0q - t1q ))" -lt 5 ]; then
-        _cf P3.tail "the amplitude dependence has left the false-all-clear column at cadence 134 IN RADIANS (ac0 $t0q vs ac1 $t1q); round 11's retracted claim that it vanishes at long cadence would be right"
+    elif [ "$(( t0o - t1o ))" -gt 1 ] || [ "$(( t1o - t0o ))" -gt 1 ]; then
+        _cf P3.tail "the amplitude dependence has returned at cadence 134 IN RADIANS (ac0 detects $t0o, ac1 $t1o)"
     fi
 
     # --- claim 6: the fleet alert rate does not FALL with N.
@@ -720,7 +682,7 @@ p3_claims() {
         if [ "${np[1]}" -lt "${np[0]}" ] || [ "${np[2]}" -lt "${np[1]}" ] || [ "${np[3]}" -lt "${np[2]}" ]; then
             _cf P3.nfleet "the fleet alert rate FALLS with N (${np[*]} permille); channels are no longer independent"
         fi
-        # ORACLE publishes this as "exactly 0.789 from N=2 to N=16", not
+        # ORACLE publishes this as "exactly 0.803 from N=2 to N=16" (0.789 on v0.43.0), not
         # as "non-decreasing". Round 39: only the weaker property was
         # asserted, so 0.55/0.60/0.65/0.70 would pass while the write-up
         # claimed a constant. Constancy is the claim, so constancy is what

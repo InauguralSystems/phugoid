@@ -1,8 +1,9 @@
 # swarm_unarmed.eigs — rung 4's ARMING control.
 #
 # The disciplined arm's shape with NO predicate and no observer NAME
-# anywhere, so this module compiles UNARMED. That difference alone is the
-# measurement.
+# anywhere, so this module compiles UNARMED. Its cost is measured
+# separately: this compilation lacks numeric history retained by the
+# hot unobserved loop in an already-armed process.
 #
 # Why it has to be a separate program. `EIGS_OBS_GATE_STATS=1` on the main
 # swarm reports `observed` for EVERY unit — including `sim.eigs` and the
@@ -10,12 +11,14 @@
 # per-`EigsState` and monotonic (GAPS.md G7 / EigenScript#1046). So the
 # `floor` arm inside swarm.eigs is "everything wrapped in `unobserved:`
 # inside an ARMED process", which is NOT the same thing as an unarmed
-# program, and calling it the floor would have measured one no-walk state
-# against another — a tautology, exactly the circularity rung 3's round 13
-# caught in the C6 attribution.
+# program. On the current runtime the armed floor retains numeric
+# value samples, while this unarmed compilation does not. Equal work or
+# a .90 lower ratio is therefore not a current contract.
 #
-# This file must stay predicate-free AND observer-NAME-free: the gate also
-# scans the constant pool, so a bare string "report" arms it just as well.
+# This file must stay predicate-free AND observer-NAME-free. Historical
+# runtimes also armed on bare constant-pool strings; do not rely on that
+# old trigger as a current mechanism claim. The compilation witness is
+# derived from the actual runtime gate verdict.
 # tests/test_swarm_profile.sh pins that with a whole-file hash.
 
 load_file of "data/b747_approach.eigs"

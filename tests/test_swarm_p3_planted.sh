@@ -118,12 +118,27 @@ plant() { # plant <name> <expected-claims> <expected-red-count> <fn> [args...]
     echo "--- $name -> $got ($n)"
 }
 
+# phugoid#8 RE-GRADE (EigenScript main a7a4ca3). The clean output is
+# main's, where #1045 removed the radian-only false all-clear this file's
+# plants were aimed around, and P3.unitdep/monoclass/tail were rewritten
+# to refuse that defect class (see tests/p3claims.sh). Every expected set
+# and count below was re-derived by running the plant, not typed. The
+# systematic changes, each checked against the plant's own purpose:
+#   - a plant that edits one unit's rows now ALSO reds P3.unitdep, because
+#     radian rows must equal their degree/milliradian twins: c2, c15, c16,
+#     c23, c36, c37, n4, n6 (+1 line each, the identity line).
+#   - P3.profile's "deadband-killed cell" exemption has no cell to exempt
+#     on main (no row is >=95% false all-clear), so c5, c10 and n13 no
+#     longer trip it; its other sites still fire under c2/c23/c36/c37.
+#   - c3/c4/c21 now red through the per-row false-all-clear site (a false
+#     all-clear anywhere is the defect) with one CLAIMFAIL per dirty row.
+#   - c11/c12/c27/c31 re-aimed and n5 retired; each says why in place.
 # c1: the phugoid dies before the run ends. Every rate in the rung is
 # void if this is true, so it must red loudest.
 plant c1 'P3.truth.alive P3.truth.unit' 2 f_sed 's/^(p3truth ac=0 sp=0\.05 .*)u_pp_last=[0-9]+/\1u_pp_last=120/'
 # c2: cadence 74 starts detecting the live mode -- the unit-invariant
 # window/period failure would be gone.
-plant c2 'P3.blind74 P3.noise P3.profile' 5 f_mvdetect '^p3 unit=rad ac=0 sp=0\.05 cad=74 ' 50
+plant c2 'P3.blind74 P3.noise P3.profile P3.unitdep' 4 f_mvdetect '^p3 unit=rad ac=0 sp=0\.05 cad=74 ' 50
 
 # c3: the FALSE ALL-CLEAR shrinks below the bound on EVERY radian row.
 # The dangerous direction is what makes P3 a safety finding rather than a
@@ -131,15 +146,15 @@ plant c2 'P3.blind74 P3.noise P3.profile' 5 f_mvdetect '^p3 unit=rad ac=0 sp=0\.
 # refutes anything now the claim ranges over the whole grid -- the other
 # seven radian cadences still carry it. A claim over 96 rows needs a plant
 # over 96 rows.
-plant c3 'P3.profile P3.tail P3.unitdep' 3 f_setbucket '^p3 unit=rad ' fquiet 10
+plant c3 P3.unitdep 21 f_setbucket '^p3 unit=rad ' fquiet 10
 # c4: a false all-clear appears in a NON-radian unit, which would refute
 # the deadband attribution (EigenScript#1045) the write-up now rests on.
-plant c4 'P3.unitdep P3.unitid' 2 f_setbucket '^p3 unit=deg ac=0 sp=0\.05 cad=74 ' fquiet 50
+plant c4 'P3.unitdep P3.unitid' 3 f_setbucket '^p3 unit=deg ac=0 sp=0\.05 cad=74 ' fquiet 50
 # c5: the detector stops firing on healthy aircraft at EVERY cadence --
 # P3's registered refutation condition ("a clean verdict stream") actually
 # firing. Caps only the high-detection cadences, so the cadence-74
 # blindness claim must stay green and only P3.nuisance may move.
-plant c5 'P3.nuisance P3.profile' 5 f_setbucket '^p3 unit=[a-z]+ ac=[01] sp=0\.0[25] cad=(104|114|124|134|148) ' fosc 10
+plant c5 P3.nuisance 1 f_setbucket '^p3 unit=[a-z]+ ac=[01] sp=0\.0[25] cad=(104|114|124|134|148) ' fosc 10
 # c6: the fleet alert rate falls with N -- channels sharing state again,
 # which is rung 4's P4 defect returning.
 plant c6 P3.nfleet 2 f_sed 's/^(p3n n=16 .*)fleet_permille=[0-9]+/\1fleet_permille=400/'
@@ -165,7 +180,7 @@ plant c9 'P3.blind74 P3.profile P3.unitdep P3.unitid' 12 f_sed '/^p3 unit=(deg|m
 # `flate` column it had been moved onto was structurally blind to it --
 # `flate` is `fosc` minus precisely the one read the artifact lands on.
 # Twelve plants existed and none used the value that actually occurred.
-plant c10 'P3.blind74 P3.noise P3.profile' 19 f_mvdetect 'cad=74 ' 1
+plant c10 'P3.blind74 P3.noise' 15 f_mvdetect 'cad=74 ' 1
 
 # c13: the phase axis must not be droppable, and the phase claim must be
 # able to fail. Round 14 found phase was the fifth unswept hidden variable
@@ -174,7 +189,7 @@ plant c13 P3.phase 1 f_sed 's/^(p3ph ac=1 cad=74 phase=7 .*)fosc=[0-9]+/\1fosc=4
 plant c14 P3.phase 1 f_sed '/^p3ph ac=0 /d'
 # c16/c17: the unit-collapse claim -- the sole evidence for the round-6/7
 # downgrade, mis-stated twice from partial sweeps.
-plant c16 P3.unitid 2 f_setbucket '^p3 unit=deg ac=0 sp=0\.02 cad=94 ' fosc 20
+plant c16 'P3.unitdep P3.unitid' 3 f_setbucket '^p3 unit=deg ac=0 sp=0\.02 cad=94 ' fosc 20
 plant c17 'P3.unitdep P3.unitid' 2 f_sed '/^p3 unit=deg .* cad=134 /d'
 # c18: the physics truth must cover BOTH dispersions.
 plant c18 'P3.truth.alive P3.truth.unit' 2 f_sed 's/^(p3truth ac=1 sp=0\.02 .*)u_pp_last=[0-9]+/\1u_pp_last=10/'
@@ -195,31 +210,26 @@ f_nonrad_fac() {
       print s; next
     } { print }'
 }
-plant c21 P3.unitdep 48 f_nonrad_fac
+plant c21 P3.unitdep 49 f_nonrad_fac
 # c22/c23: the vacuity guards P3.unitid was missing -- population, then
 # distinctness. Both are the shape round 15 fixed for P3.phase and did
 # not apply here.
 plant c22 'P3.profile P3.unitdep P3.unitid' 13 f_sed '/^p3 unit=deg ac=[01] sp=0\.02 cad=(84|94|104|114|124|134|148) /d'
-plant c23 'P3.profile P3.unitid' 12 f_sed 's/^p3 unit=deg ac=1 sp=0\.0[25] (cad=(84|94|104|114|124|134|148) )/p3 unit=deg ac=0 sp=0.02 \1/'
+plant c23 'P3.profile P3.unitdep P3.unitid' 13 f_sed 's/^p3 unit=deg ac=1 sp=0\.0[25] (cad=(84|94|104|114|124|134|148) )/p3 unit=deg ac=0 sp=0.02 \1/'
 # c24: the OBSERVED channel (pitch rate) must be graded, not only airspeed.
 plant c24 P3.truth.alive 4 f_sed 's/^(p3truth .*)q_pp_last=[0-9-]+/\1q_pp_last=0/'
 # c25/c26: the negative control must exist and must be able to fail.
 plant c25 P3.control 1 f_sed 's/^(p3nc unit=deg cad=104 .*)fosc=[0-9]+/\1fosc=9/'
 plant c26 P3.control 1 f_sed '/^p3nc /d'
-# c27: the RADIAN half of unitdep, per row. Erase the false all-clear
-# from 22 of the 32 radian rows -- 1045 of 1285 dangerous-direction reads,
-# partition preserved -- which the pre-round-17 max-plus-existence bounds
-# certified with the headline number unchanged.
-f_erase_rad_fac() {
-    awk '/^p3 unit=rad (ac=0 sp=0.02|ac=1 sp=0.02|ac=1 sp=0.05) / {
-      for (i=1;i<=NF;i++) { if (split($i,a,"=") < 2) { bare[i]=1; o[i]=$i } else { v[a[1]]=a[2]; o[i]=a[1] } }
-      v["fnoclaim"] += v["fquiet"]; v["fquiet"] = 0
-      s=""
-      for (i=1;i<=NF;i++) s = s (i>1?" ":"") (bare[i] ? o[i] : o[i] "=" v[o[i]])
-      print s; next
-    } { print }'
-}
-plant c27 'P3.profile P3.unitdep' 10 f_erase_rad_fac
+# c27: RE-DESIGNED at the phugoid#8 re-grade. It used to erase the
+# radian false all-clear from 22 of 32 rows, testing the per-row radian
+# bounds of the old "false all-clear only in radians" claim. On EigenScript
+# main there is no false all-clear to erase (the plant would change
+# nothing), and the claim now refuses ANY false all-clear. So c27 plants
+# ONE false-all-clear read in every cell of one cadence, in all three
+# units at once -- unit identity and P3.unitid's degree collapse both
+# preserved -- so only the per-row false-all-clear site can red it.
+plant c27 P3.unitdep 12 f_setbucket '^p3 unit=[a-z]+ ac=[01] sp=0\.0[25] cad=94 ' fquiet 1
 # c28: radian rows deleted -- the nrad population guard was unplanted.
 plant c28 P3.unitdep 1 f_sed '/^p3 unit=rad ac=1 sp=0\.05 cad=(84|104) /d'
 # c29/c30: the MONOTONE control -- a moving, non-oscillating channel at
@@ -230,7 +240,10 @@ plant c29 P3.monotone 1 f_sed 's/^(p3mono kind=decay_fast unit=deg cad=104 .*)fo
 plant c30 'P3.monoclass P3.monotone' 2 f_sed '/^p3mono kind=ramp unit=mrad /d'
 # c31/c32: the three-unit verdict divergence, and the ramp's contrasting
 # unit-INVARIANCE.
-plant c31 P3.monoclass 1 f_sed 's/^(p3mono kind=decay_slow unit=deg cad=94 .*)stable=[0-9]+/\1stable=2/'
+# c31 re-aimed at the phugoid#8 re-grade: the claim is now that all three
+# units read `moving` on every read, so the plant moves the degree row's
+# `moving` count (it used to move `stable`, the old degree class).
+plant c31 P3.monoclass 1 f_sed 's/^(p3mono kind=decay_slow unit=deg cad=94 .*)moving=[0-9]+/\1moving=2/'
 plant c32 P3.monoclass 1 f_sed 's/^(p3mono kind=ramp unit=rad .*)diverging=[0-9]+/\1diverging=3/'
 # c33/c34: THE DISCRIMINATING CONTROL. Aperiodic noise at the phugoid's
 # own amplitude has no mode and no period, and the observer reports
@@ -248,7 +261,7 @@ plant c35 'P3.noise P3.profile' 3 f_sed 's/^(p3mono kind=noise unit=deg cad=(84|
 # collapse, the noise inversion and the profile contrast ALL rest on the
 # fleet reading 0 at cadence 74. Partition-preserving so the arithmetic
 # claim does not fire spuriously on top.
-plant c36 'P3.blind74 P3.noise P3.profile P3.unitid' 7 f_setbucket '^p3 unit=deg ac=0 sp=0\.05 cad=74 ' fosc 90
+plant c36 'P3.blind74 P3.noise P3.profile P3.unitdep P3.unitid' 6 f_setbucket '^p3 unit=deg ac=0 sp=0\.05 cad=74 ' fosc 90
 # c37: a fleet cell goes flat WITHOUT being deadband-killed. Round 20: the
 # profile claim used to read one hand-picked cell -- the maximum-spread
 # one of twelve -- and the shipped unit contains a cell that is flat at 0%
@@ -262,19 +275,24 @@ f_flatten_cell() {
       print s; next
     } { print }'
 }
-plant c37 'P3.profile P3.unitid' 12 f_flatten_cell
+plant c37 'P3.profile P3.unitdep P3.unitid' 11 f_flatten_cell
 # c15: the buckets must partition the full-window count.
-plant c15 P3.partition 1 f_sed 's/^(p3 unit=rad ac=0 sp=0\.05 cad=94 .*)fother=[0-9]+/\1fother=7/'
+plant c15 'P3.partition P3.unitdep' 2 f_sed 's/^(p3 unit=rad ac=0 sp=0\.05 cad=94 .*)fother=[0-9]+/\1fother=7/'
 
 # c11/c12: the long-cadence tail. The claim is that the amplitude
 # dependence survives at long cadence IN THE FALSE-ALL-CLEAR COLUMN.
 # Round 11 read the tail off `fosc` alone and concluded the dependence
 # vanished; round 13 showed the two assertions that replaced it were true
 # only at the shipped run length.
-plant c11 P3.tail 1 f_setbucket '^p3 unit=rad ac=0 sp=0\.05 cad=134 ' fquiet 2
+# c11/c12 RE-AIMED at the phugoid#8 re-grade: P3.tail now refuses an
+# amplitude dependence in DETECTION at cadence 134 (the old claim pinned
+# one in the false-all-clear column, which #1045 removed). Moving 5 reads
+# into fosc on one aircraft's radian row reds it -- and reds P3.unitdep
+# too, because that row now differs from its degree twin, which is true.
+plant c11 'P3.tail P3.unitdep' 2 f_mvdetect '^p3 unit=rad ac=0 sp=0\.05 cad=134 ' 5
 # c12: the same collapse from the other side -- the large-amplitude
 # aircraft catching up rather than the small one dropping.
-plant c12 P3.tail 1 f_setbucket '^p3 unit=rad ac=1 sp=0\.05 cad=134 ' fquiet 12
+plant c12 'P3.tail P3.unitdep' 2 f_mvdetect '^p3 unit=rad ac=1 sp=0\.05 cad=134 ' 5
 
 # u1-u4: THE UNIT CLAIM. Round 37 found P3.truth.unit was the only claim
 # ID in the rung with no planted fault, and structurally unplantable --
@@ -429,11 +447,14 @@ plant n2 'P3.truth.alive P3.truth.unit' 2 sed -E 's/^(p3truth ac=1 sp=0.05 .*u_p
 # an unrecognised truth row: BOTH default arms, which is what stops a row being graded by nothing
 plant n3 'P3.truth.alive P3.truth.unit' 3 sed -E 's/^p3truth ac=1 sp=0.02 /p3truth ac=7 sp=0.02 /'
 # a radian row at a 100% false all-clear, above the 98-99% ORACLE publishes -- round 44 showed the summary line printing the contradicting value while certifying
-plant n4 'P3.unitdep' 1 awk '{ if ($1=="p3" && $2=="unit=rad" && $3=="ac=1" && $4=="sp=0.05" && $5=="cad=104") { sub(/fosc=[0-9]+/,"fosc=0"); sub(/fquiet=[0-9]+/,"fquiet=67"); sub(/fnoclaim=[0-9]+/,"fnoclaim=0") } print }'
-# radian false all-clears removed at one cadence, so they no longer appear at all 8
-plant n5 'P3.partition P3.profile P3.tail P3.unitdep' 6 awk '{ if ($1=="p3" && $2=="unit=rad" && $5=="cad=134") sub(/fquiet=[0-9]+/,"fquiet=0"); print }'
+plant n4 'P3.unitdep' 2 awk '{ if ($1=="p3" && $2=="unit=rad" && $3=="ac=1" && $4=="sp=0.05" && $5=="cad=104") { sub(/fosc=[0-9]+/,"fosc=0"); sub(/fquiet=[0-9]+/,"fquiet=67"); sub(/fnoclaim=[0-9]+/,"fnoclaim=0") } print }'
+# n5 RETIRED at the phugoid#8 re-grade: it removed the radian false
+# all-clears at one cadence to fire the old "radian rows carry a false
+# all-clear at all 8 cadences" site. That site asserted the #1045 defect
+# and is gone with it; on EigenScript main there is no false all-clear to
+# remove, so the plant would be vacuous.
 # a zero-full row. This is the plant that found the P3.nuisance vacuity guard UNREACHABLE: an earlier loop divided by the same field unguarded, so the row died as 'division by 0' with the whole library silent
-plant n6 'P3.nuisance P3.partition P3.profile P3.unitdep P3.unitid' 7 awk '{ if ($1=="p3" && $2=="unit=deg" && $5=="cad=74" && $3=="ac=0" && $4=="sp=0.02") sub(/full=[0-9]+/,"full=0"); print }'
+plant n6 'P3.nuisance P3.partition P3.profile P3.unitdep P3.unitid' 6 awk '{ if ($1=="p3" && $2=="unit=deg" && $5=="cad=74" && $3=="ac=0" && $4=="sp=0.02") sub(/full=[0-9]+/,"full=0"); print }'
 # a phase cell at the wrong cadence
 plant n7 'P3.phase' 1 sed -E '0,/^p3ph ac=0 cad=74 /s//p3ph ac=0 cad=84 /'
 # a monotone control cell with too few full-window reads
@@ -447,7 +468,7 @@ plant n11 'P3.monoclass P3.monotone' 3 awk '!($1=="p3mono" && $2=="kind=decay_sl
 # negative-control cells with too few reads
 plant n12 'P3.control' 6 awk '{ if ($1=="p3nc") sub(/full=[0-9]+/,"full=3"); print }'
 # the cadence-134 rows absent from the sweep
-plant n13 'P3.profile P3.tail P3.unitdep P3.unitid' 4 awk '!($1=="p3" && $5=="cad=134")'
+plant n13 'P3.tail P3.unitdep P3.unitid' 3 awk '!($1=="p3" && $5=="cad=134")'
 # an N-sweep row missing
 plant n14 'P3.nfleet' 1 awk '!($1=="p3n" && $2=="n=4")'
 # the detector no longer firing on a healthy fleet at N=2

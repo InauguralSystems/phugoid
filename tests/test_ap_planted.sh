@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # The rung-3 planted-fault matrix (ORACLE.md): each s-plant must flip
 # EXACTLY its declared red set, every plant run executes the full pinned
-# 217-check population, and the manifest rules hold (identity incl.
+# 250-check population (217 until the phugoid#8 re-grade), and the manifest rules hold (identity incl.
 # tolerance tokens and ROW parameters; every plantable name in some red
-# set; structural names in none; unknown class tokens FAIL).
+# set; no structural assertion exemptions; unknown class tokens FAIL).
 set -euo pipefail
 EIGS="${EIGENSCRIPT:-eigenscript}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -14,8 +14,12 @@ run_plant() {
     if "$EIGS" tests/ap_check.eigs "$1" > "$OUT" 2>&1; then
         echo "FAIL: plant $1 did not make ap_check exit nonzero — the checker cannot fail"; exit 1
     fi
-    grep '^FAIL ' "$OUT" | awk '{print $2}' >> "$WORK/red_union" || true
-    grep -q '^CHECKS_RUN 217$' "$OUT" || { echo "FAIL: plant $1 run population != 217"; exit 1; }
+    grep '^FAIL ' "$OUT" | awk '{print $2}' | sort > "$WORK/actual"
+    awk -v plant="$1" '$1==plant { for(i=2;i<=NF;i++) print $i }' tests/ap_plant_reds.txt | sort > "$WORK/expected"
+    [ -s "$WORK/expected" ] || { echo "FAIL: plant $1 has no declared red set"; exit 1; }
+    diff -u "$WORK/expected" "$WORK/actual" || { echo "FAIL: plant $1 red set drifted"; exit 1; }
+    cat "$WORK/actual" >> "$WORK/red_union"
+    grep -q '^CHECKS_RUN 250$' "$OUT" || { echo "FAIL: plant $1 run population != 250"; exit 1; }
 }
 expect_total_fails() {
     got=$(grep -c '^FAIL ' "$OUT" || true)
@@ -26,27 +30,29 @@ expect_red() { for pat in "$@"; do grep -Eq "^FAIL $pat" "$OUT" || { echo "FAIL:
 expect_green() { for pat in "$@"; do if grep '^FAIL ' "$OUT" | grep -Eq "$pat"; then echo "FAIL: '$pat' flipped but should stay green"; grep '^FAIL ' "$OUT"; exit 1; fi; done; }
 no_refusals() { grep '^FAIL ' "$OUT" | grep -q 'refused' && { echo "FAIL: $1 reds must use the numeric arm, found a refusal"; exit 1; }; return 0; }
 
+# Round 2: physical seeds and complete measured red sets in ap_plant_reds.txt.
+# Every invocation is compared by check identity, not count alone.
 echo "--- S1: gain sign flipped -> pitch rows + every zeta + the gain witnesses ---"
-run_plant s1; expect_total_fails 73
-expect_red 'C0\.a23 ' 'C0\.a33 ' 'C2\.k050\.T ' 'C2\.k100\.zlog ' 'C3\.gain\.use ' 'C2\.ph\.Tdft\.k ' 'C3\.amp\.zenv ' 'C5\.p4\.a035\.horizon '
+run_plant s1; expect_total_fails 64
+expect_red 'C0\.a23 ' 'C0\.a33 ' 'C2\.k050\.T ' 'C2\.k100\.zlog ' 'C3\.gain\.use ' 'C2\.ph\.Tdft\.k ' 'C3\.amp\.zenv ' 'C5\.p4\.a020\.osc '
 expect_green 'C1\.'
 echo "PASS: S1 red pattern exact"
 
 echo "--- S2: gain never reaches the dynamics (inert controller) ---"
-run_plant s2; expect_total_fails 71
+run_plant s2; expect_total_fails 65
 expect_red 'C3\.gain\.use ' 'C3\.lin\.shrinks ' 'C2\.k100\.T ' 'C2\.ph\.T ' 'C3\.amp\.zenv '
 expect_green 'C1\.'
 echo "PASS: S2 red pattern exact"
 
 echo "--- S3: integrator RK4 -> Euler -> periods + dt invariance + supervisory toggles ---"
-run_plant s3; expect_total_fails 60
-expect_red 'C2\.k025\.T ' 'C2\.k050\.T ' 'C2\.k100\.T ' 'C3\.dt\.T ' 'C3\.dt\.zlog ' 'C3\.dt\.zenv ' 'C2\.ph\.zlog ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a035\.horizon '
+run_plant s3; expect_total_fails 40
+expect_red 'C2\.k025\.T ' 'C2\.k050\.T ' 'C2\.k100\.T ' 'C3\.dt\.T ' 'C3\.dt\.zlog ' 'C3\.dt\.zenv ' 'C2\.ph\.zlog ' 'C5\.sp\.c010\.conv ' 'C5\.p1\.inner\.moving '
 expect_green 'C0\.' 'C1\.'
 echo "PASS: S3 red pattern exact"
 
 echo "--- S4: trim offset -> C1 + parity + every graded mode ---"
-run_plant s4; expect_total_fails 133
-expect_red 'C1\.res\.' 'C1\.hold\.' 'C0\.a13 ' 'C2\.k025\.T ' 'C3\.gain\.use ' 'C5\.sp\.c050\.osc '
+run_plant s4; expect_total_fails 125
+expect_red 'C1\.res\.' 'C1\.hold\.' 'C0\.a13 ' 'C2\.k025\.T ' 'C3\.gain\.use ' 'C5\.sp\.c100\.osc '
 echo "PASS: S4 red pattern exact"
 
 echo "--- S5: linearity witness made vacuous (rerun at the base amplitude) -> exactly 1 ---"
@@ -62,8 +68,8 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.zlog' 'C4\.' 'C5\.sp'
 echo "PASS: S6 red pattern exact"
 
 echo "--- S7: verdict stream frozen to 'stable' (supervisory inert) ---"
-run_plant s7; expect_total_fails 132
-expect_red 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C4\.ph\.horizon ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a035\.horizon ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.onset ' 'C4\.ph\.moving '
+run_plant s7; expect_total_fails 135
+expect_red 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C4\.ph\.horizon ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a035\.horizon ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.onset ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S7 red pattern exact"
 
@@ -75,7 +81,7 @@ expect_green 'C0\.' 'C1\.' '\.n ' '\.nr ' '\.nf ' 'C4\.' 'C5\.'
 echo "PASS: S8 red pattern exact"
 
 echo "--- S9: dataset broadly poisoned -> parity + graded modes + verdicts ---"
-run_plant s9; expect_total_fails 110
+run_plant s9; expect_total_fails 128
 expect_red 'C0\.a11 ' 'C0\.a33 ' 'C2\.k050\.zlog ' 'C3\.gain\.use ' 'C4\.ph\.osc ' 'C2\.ph\.Tdft ' 'C5\.p4\.a030\.osc '
 expect_green 'C1\.'
 echo "PASS: S9 red pattern exact"
@@ -93,15 +99,15 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.T ' 'C4\.' 'C5\.'
 echo "PASS: S11 red pattern exact"
 
 echo "--- S12: verdicts forced to 'oscillating' (the dual of S7) ---"
-run_plant s12; expect_total_fails 141
-expect_red 'C5\.sp\.c010\.osc ' 'C5\.sp\.c020\.osc ' 'C5\.sp\.c050\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C5\.p1\.inner\.osc ' 'C5\.p1\.inner\.engagements ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a020\.osc ' 'C5\.p1\.inner\.diverging ' 'C5\.p1\.inner\.converged ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.stable ' 'C4\.ph\.moving '
+run_plant s12; expect_total_fails 131
+expect_red 'C5\.sp\.c010\.osc ' 'C5\.sp\.c020\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C5\.p1\.inner\.osc ' 'C5\.p1\.inner\.engagements ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a020\.onset ' 'C5\.p4\.a020\.osc ' 'C5\.p1\.inner\.diverging ' 'C5\.p1\.inner\.converged ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C5\.p1\.inner\.moving ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S12 red pattern exact"
 
 echo "--- S13: below/relabs values displaced 1.1x their executed tolerance -> C1 + plantable C0 ---"
-run_plant s13; expect_total_fails 17
+run_plant s13; expect_total_fails 21
 expect_red 'C1\.res\.' 'C1\.hold\.' 'C0\.a11 ' 'C0\.a34 '
-expect_green 'C0\.a41 ' 'C0\.a42 ' 'C0\.a43 ' 'C0\.a44 ' 'C2\.' 'C3\.' 'C4\.' 'C5\.'
+expect_green 'C2\.' 'C3\.' 'C4\.' 'C5\.'
 echo "PASS: S13 red pattern exact"
 
 echo "--- S14: check_rel values displaced 1.1x their executed arm -> the tolerance rows ---"
@@ -122,6 +128,21 @@ run_plant s16; expect_total_fails 1
 expect_red 'C2\.ph\.T '
 expect_green 'C2\.ph\.Tdft ' 'C0\.' 'C1\.' 'C3\.' 'C4\.' 'C5\.'
 echo "PASS: S16 red pattern exact (round-3 review: as_tp was the one accessor with no plant driving its refusal arm — gutting it passed 73/73 and all 15 plants)"
+
+# Consumer seed defect: this runs the real supervisor with a false seed.
+echo "--- S17: fabricated zero initial pitch rate ---"
+run_plant s17; expect_total_fails 58
+expect_red 'C5\.sp\.c010\.seed ' 'C5\.sp\.c102\.seed '
+expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
+echo "--- S18: alternating false all-clears (converged/equilibrium) ---"
+run_plant s18; expect_total_fails 154
+expect_red 'C5\.ph\.p045\.conv ' 'C5\.ph\.p100\.equil ' 'C5\.ph\.p365\.runs ' 'C5\.ph\.p365\.maxrun '
+echo "--- S19: verdicts forced to improving ---"
+run_plant s19; expect_total_fails 126
+expect_red 'C5\.sp\.c100\.improving ' 'C5\.sp\.c102\.improving '
+echo "--- S20: exact-comparator result displaced by one (fixed counts included) ---"
+run_plant s20; expect_total_fails 210
+expect_red 'C5\.sp\.c010\.reads ' 'C5\.p4\.a020\.reads '
 
 # ------------------------------------------------------------------
 # peer_ok <streamfam line> <idx families> -> 0 if every family a PEER
@@ -293,11 +314,11 @@ structural_ok() {       # <manifest> <red-union>  -- no structural may red
     done < <(grep -v '^#' "$1")
     return 0
 }
-class_ok() {            # <manifest> -- vocabulary is exactly {plantable,structural}
+class_ok() {            # <manifest> -- every assertion is plantable; exemptions are forbidden
     local kind name klass tolspec
     while read -r kind name klass tolspec; do
         [ "$kind" = ap ] || continue
-        case "$klass" in plantable|structural) ;; *) return 1;; esac
+        case "$klass" in plantable) ;; *) return 1;; esac
     done < <(grep -v '^#' "$1")
     return 0
 }
@@ -317,13 +338,13 @@ manifest_identity "$MF/m1" "$WORK/names" && { rm -rf "$MF"; echo "FAIL: manifest
 sed 's/^rowparams C1.hold.run params=0|/rowparams C1.hold.run params=9|/' tests/ap_manifest.txt > "$MF/m2"
 cmp -s tests/ap_manifest.txt "$MF/m2" && { rm -rf "$MF"; echo "FAIL: rowparams plant did not apply"; exit 1; }
 rowparams_identity "$MF/m2" "$WORK/rows" && { rm -rf "$MF"; echo "FAIL: rowparams_identity ACCEPTED drifted run parameters"; exit 1; }
-sed 's/^ap C0.a41 structural /ap C0.a41 plantable /' tests/ap_manifest.txt > "$MF/m3"
-cmp -s tests/ap_manifest.txt "$MF/m3" && { rm -rf "$MF"; echo "FAIL: coverage plant did not apply"; exit 1; }
-coverage_ok "$MF/m3" "$WORK/redu" && { rm -rf "$MF"; echo "FAIL: coverage_ok ACCEPTED a plantable no plant reds"; exit 1; }
+sed '/^C0.a41$/d' "$WORK/redu" > "$MF/redu-missing"
+cmp -s "$WORK/redu" "$MF/redu-missing" && { rm -rf "$MF"; echo "FAIL: coverage plant did not apply"; exit 1; }
+coverage_ok tests/ap_manifest.txt "$MF/redu-missing" && { rm -rf "$MF"; echo "FAIL: coverage_ok ACCEPTED a plantable no plant reds"; exit 1; }
 sed 's/^ap C5.p1.inner.diverging plantable /ap C5.p1.inner.diverging structural /' tests/ap_manifest.txt > "$MF/m4"
 cmp -s tests/ap_manifest.txt "$MF/m4" && { rm -rf "$MF"; echo "FAIL: structural plant did not apply"; exit 1; }
 structural_ok "$MF/m4" "$WORK/redu" && { rm -rf "$MF"; echo "FAIL: structural_ok ACCEPTED a structural row that plants do red"; exit 1; }
-sed 's/^ap C0.a41 structural /ap C0.a41 mystery /' tests/ap_manifest.txt > "$MF/m5"
+sed 's/^ap C0.a41 plantable /ap C0.a41 mystery /' tests/ap_manifest.txt > "$MF/m5"
 cmp -s tests/ap_manifest.txt "$MF/m5" && { rm -rf "$MF"; echo "FAIL: class-vocabulary plant did not apply"; exit 1; }
 class_ok "$MF/m5" && { rm -rf "$MF"; echo "FAIL: class_ok ACCEPTED an unknown manifest class"; exit 1; }
 rm -rf "$MF"
@@ -334,5 +355,5 @@ rowparams_identity tests/ap_manifest.txt "$WORK/rows" || { echo "FAIL: run-param
 coverage_ok tests/ap_manifest.txt "$WORK/redu" || { echo "FAIL: a plantable check never went red"; exit 1; }
 structural_ok tests/ap_manifest.txt "$WORK/redu" || { echo "FAIL: a structural check went red — exemption stale"; exit 1; }
 class_ok tests/ap_manifest.txt || { echo "FAIL: unknown manifest class token"; exit 1; }
-echo "PASS: manifest identity holds; all plantable checks proven able to fail"
-echo "PASS: all 16 rung-3 plants flip exactly their declared checks"
+echo "PASS: manifest identity holds; all 250 assertion sites fire under some plant (no exemptions)"
+echo "PASS: all 20 rung-3 plants flip exactly their declared checks"

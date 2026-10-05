@@ -19,9 +19,10 @@ RUN apt-get update \
         build-essential \
         ca-certificates \
         git \
+        python3 \
  && rm -rf /var/lib/apt/lists/*
 
-ARG EIGS_REF=v0.43.0
+ARG EIGS_REF=v0.44.0
 RUN git clone --depth 1 --branch "${EIGS_REF}" \
         https://github.com/InauguralSystems/EigenScript.git /opt/eigenscript \
  && make -C /opt/eigenscript CC=gcc

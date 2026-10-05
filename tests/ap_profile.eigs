@@ -26,10 +26,10 @@ N is 120000
 READ_SITES is 4
 
 define run_read(n) as:
-    local u is 0.0
-    local w is 0.0
+    local u is 280.0
+    local w is 3.0
     local q is 0.0
-    local th is 0.0
+    local th is 0.02
     local hits is 0
     local i is 0
     loop while i < n:
@@ -49,10 +49,10 @@ define run_read(n) as:
     print of f"read {hits} {i * READ_SITES}"
 
 define run_write(n) as:
-    local u is 0.0
-    local w is 0.0
+    local u is 280.0
+    local w is 3.0
     local q is 0.0
-    local th is 0.0
+    local th is 0.02
     local i is 0
     loop while i < n:
         u is 280.0 + (sin of (i * 0.01))
@@ -63,10 +63,10 @@ define run_write(n) as:
     print of f"write {i}"
 
 define run_floor(n) as:
-    local u is 0.0
-    local w is 0.0
+    local u is 280.0
+    local w is 3.0
     local q is 0.0
-    local th is 0.0
+    local th is 0.02
     local i is 0
     unobserved:
         loop while i < n:

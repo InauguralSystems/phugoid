@@ -170,13 +170,13 @@ file_pin() {
 # rule that a gate and its fault must share the constant.
 # The correct shape was already in tests/test_lint.sh: build a dirty input
 # and run the REAL function over it, asserting nonzero.
-PROFILE_HASH=f674b4b84476
+PROFILE_HASH=2fe67575300e
 PROFILE_LINES=61
-NOREAD_HASH=743df838d495
+NOREAD_HASH=78851e8baba8
 NOREAD_LINES=15
-[ "$PROFILE_HASH" = "f674b4b84476" ] || { echo "FAIL: PROFILE_HASH is $PROFILE_HASH, declared f674b4b84476 — the workload identity is DATA and gets the same identity pin the bounds do"; exit 1; }
+[ "$PROFILE_HASH" = "2fe67575300e" ] || { echo "FAIL: PROFILE_HASH is $PROFILE_HASH, declared 2fe67575300e — the workload identity is DATA and gets the same identity pin the bounds do"; exit 1; }
 [ "$PROFILE_LINES" = "61" ]          || { echo "FAIL: PROFILE_LINES is $PROFILE_LINES, declared 61"; exit 1; }
-[ "$NOREAD_HASH" = "743df838d495" ]  || { echo "FAIL: NOREAD_HASH is $NOREAD_HASH, declared 743df838d495"; exit 1; }
+[ "$NOREAD_HASH" = "78851e8baba8" ]  || { echo "FAIL: NOREAD_HASH is $NOREAD_HASH, declared 78851e8baba8"; exit 1; }
 [ "$NOREAD_LINES" = "15" ]           || { echo "FAIL: NOREAD_LINES is $NOREAD_LINES, declared 15"; exit 1; }
 FP_TMP=$(mktemp -d)
 sed 's/^N is 120000$/N is 60000/' tests/ap_profile.eigs > "$FP_TMP/mut.eigs"
@@ -207,7 +207,11 @@ expect_out() {
     [ "$got" = "$2" ] || { echo "FAIL: $1 variant did not execute its declared work"; echo "  expected: $2"; echo "  got:      $got"; exit 1; }
 }
 expect_out_file tests/ap_profile_noread.eigs "" "noread 120000"
-expect_out read  "read 133286 480000"
+# Round 2: physically seed u=280, w=3, q=0, th=0.02. Main's measured
+# total is 76552 (76551 used fabricated seeds). x1000 also gives 76552;
+# half harmonic excitation gives 84542, so this is an EMPIRICAL work
+# checksum, never a modal physics or amplitude-invariance claim.
+expect_out read  "read 76552 480000"
 expect_out write "write 120000"
 expect_out floor "floor 120000"
 R=$(med read); W=$(med write); F=$(med floor); NR=$(med_file tests/ap_profile_noread.eigs)

@@ -9,8 +9,10 @@
 # forced to `oscillating` (the dual of s7),
 # s13 comparator displacement (below/relabs), s14 check_rel displacement,
 # s15 the phugoid DFT slot aliased to period_peaks (makes as_td live),
-# s16 its mirror, the extrema slot fed by the DFT (makes as_tp live).
-# Population pinned at exactly 217.
+# s16 its mirror, the extrema slot fed by the DFT (makes as_tp live),
+# s17 false initial q, s18 false all-clears, s19 forced improving,
+# s20 exact-comparator displacement including fixed populations.
+# Population pinned at exactly 250.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -45,24 +47,17 @@ define check_rel(name, ours, truth, reltol) as:
         failures is failures + 1
         print of f"FAIL {name} reltol={reltol} ours={v} truth={truth}"
 
-define c0_exempt(name) as:
-    for nm in ["C0.a41", "C0.a42", "C0.a43", "C0.a44"]:
-        if nm == name:
-            return 1
-    return 0
-
 define check_relabs(name, ours, ref, reltol, abstol) as:
     checks_run is checks_run + 1
     local v is ours
     if plant == "s13":
-        if (c0_exempt of (name)) == 0:
-            local eff is reltol * (abs of ref)
-            if abstol > eff:
-                eff is abstol
-            local sg is 1.0
-            if v < ref:
-                sg is 0.0 - 1.0
-            v is v + sg * 1.1 * eff
+        local eff is reltol * (abs of ref)
+        if abstol > eff:
+            eff is abstol
+        local sg is 1.0
+        if v < ref:
+            sg is 0.0 - 1.0
+        v is v + sg * 1.1 * eff
     local diff is abs of (v - ref)
     local ok is 0
     if diff <= reltol * (abs of ref):
@@ -88,11 +83,14 @@ define check_below(name, val, bound) as:
 
 define check_exact(name, val, want) as:
     checks_run is checks_run + 1
-    if val == want:
-        print of f"PASS {name} exact={want} val={val}"
+    local v is val
+    if plant == "s20":
+        v is v + 1
+    if v == want:
+        print of f"PASS {name} exact={want} val={v}"
     else:
         failures is failures + 1
-        print of f"FAIL {name} exact={want} val={val}"
+        print of f"FAIL {name} exact={want} val={v}"
 
 define check_result(name, res, field, truth, reltol) as:
     if res.ok == 1:
@@ -362,6 +360,12 @@ if plant == "s7":
     freeze is "frozen"
 if plant == "s12":
     freeze is "forced"
+if plant == "s17":
+    freeze is "false-seed"
+if plant == "s18":
+    freeze is "allclear"
+if plant == "s19":
+    freeze is "improving"
 
 pk05 is predicted of (0.5)
 ic_sp is sp_subspace_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[0].re, pk05.osc[0].im, tr.state, 0.1]
@@ -409,6 +413,9 @@ check_result of ["C2.ph.Tdft", as_td of (ph_Td), "T", pk05.osc[0].T, 0.01]
 check_result of ["C2.ph.zlog", as_zl of (ph_z), "zeta", pk05.osc[0].zeta, 0.05]
 check_exact of ["C2.ph.Tdft.k", ph_Td.k, 8]
 
+# Historical v0.43.0 order arithmetic below is superseded on main: runs
+# are now 87, not 37, and exact counts/runs are EMPIRICAL (half-excitation
+# changes 350 reads). These helpers still bind order as intended.
 # Round-12 review: the counts above pin WHAT the stream contains and the
 # distribution is closed, but nothing pinned its ORDER -- and the order IS
 # the finding. A count-preserving repack (group by category in
@@ -538,45 +545,25 @@ define osc_count(rec) as:
         i is i + 1
     return n
 
-# C5.P3 — the cadence sweep on the SHORT PERIOD: no cadence both sees the
-# fold and reports in time. The response is a two-sided BAND, and round 15
-# refuted the mechanism this comment used to state ("requires the window to
-# span a period"): the shipped c050 row is itself the counter-example, at
-# window span 0.55 of the SP period, sighted.
-# Round 16 then corrected round 15's own table twice. (1) It quoted spans
-# against the kq=0.5 period, but these runs fly at gain 0 for essentially
-# the whole run (.osc is 0 or 1), so the plant is A and the period is the
-# kq=0 row, T = 9.1341s -- the same wrong-plant error round 13 found on
-# maxrun, recurring one table over. (2) Swept at one-cadence resolution the
-# edges are not where round 15 put them. Measured, window = 10 samples so
-# span = 10*cadence*dt:
-#   cad 20 (span 4.0s, 0.438 T)  blind    <- lower edge, last blind
-#   cad 21 (span 4.2s, 0.460 T)  SIGHTED  <- visibility starts near HALF a period
-#   cad 25 (span 5.0s, 0.547 T)  sighted     (the row that refuted the story)
-#   cad 50 (span 10.0s, 1.095 T) sighted  <- upper edge, last sighted
-#   cad 51 (span 10.2s, 1.117 T) blind    <- blind again, FIRST blind
-# Round 17: round 16 pinned cadence 52 as the upper edge without testing
-# 51, which is the actual first blind -- so the lower edge was bracketed at
-# one-cadence resolution and the upper was not. A 2% sensitivity change in
-# the observed sample moved the upper edge a full cadence with all 98
-# checks and every plant still green; the same movement at the lower edge
-# cannot hide, because c040/c042 are adjacent. Both edges are adjacent now.
-# The two edges have DIFFERENT causes -- too little of a fold to classify,
-# then the G5 horizon (by the time the window fills the mode is under the
-# deadband). Round 16 tested that with an amplitude sweep: the upper edge
-# collapses between amp 0.1 and 0.5 while the lower edge is unmoved from
-# amp 0.1 to 100, three orders of magnitude of difference in sensitivity.
-# All four edges are pinned so no windowing change can restore the monotone
-# "fast = blind, slow = too late" story -- the defect round 2 closed for
-# C5.p4's ramp.
-for cs in [["c010", 5, 0, 0.0 - 1.0, 300, 133, 157, 9, 1, 10, 23694, 21111, 113],
-           ["c020", 10, 0, 0.0 - 1.0, 150, 59, 81, 9, 1, 9, 5693, 5437, 54],
-           ["c040", 20, 0, 0.0 - 1.0, 75, 25, 40, 9, 1, 5, 1350, 1380, 32],
-           ["c042", 21, 1, 9, 71, 23, 38, 9, 0, 5, 1196, 1244, 31],
-           ["c050", 25, 1, 9, 60, 20, 30, 9, 0, 5, 890, 835, 25],
-           ["c100", 50, 1, 9, 30, 7, 13, 9, 0, 4, 182, 208, 13],
-           ["c102", 51, 0, 0.0 - 1.0, 29, 7, 13, 9, 0, 3, 175, 195, 13]]:
+# C5.P3 — empirical short-period observer regression bank, BELOW-FLOOR.
+# SUPERSEDES the pre-#1045 cadence-band story and round 1's fake-zero
+# seed sweep. Every stream crosses the deliberate 0.001 rad/s floor;
+# the verdict rows are never physics-graded. The manifest labels each
+# BELOW-FLOOR with #1045. After physical seeding c042/c050 have no
+# oscillating reads, c100 has 6 first at read 12, c102 has 2 first at 16.
+# Unit x1000 changes 113/300 verdicts on c010; half-excitation changes
+# 8/300. ORACLE.md round 2 records all seven rows and both variations.
+# The .seed checks separately certify input fidelity, independent of
+# the observer's absolute floor; s17 fabricates a zero and reddens them.
+for cs in [["c010", 5, 0, -1, 300, 140, 92, 18, 3, 15, 23736, 18064, 113, 22, 25, 0],
+           ["c020", 10, 0, -1, 150, 62, 15, 24, 6, 19, 5705, 1430, 54, 23, 20, 0],
+           ["c040", 20, 0, -1, 75, 25, 3, 15, 3, 10, 1350, 120, 25, 23, 6, 0],
+           ["c042", 21, 0, -1, 71, 24, 2, 15, 3, 12, 1236, 77, 24, 22, 5, 0],
+           ["c050", 25, 0, -1, 60, 19, 0, 15, 3, 7, 836, 0, 19, 19, 4, 0],
+           ["c100", 50, 6, 12, 30, 0, 0, 7, 0, 10, 0, 0, 8, 16, 1, 103],
+           ["c102", 51, 2, 16, 29, 1, 0, 10, 0, 8, 28, 0, 12, 15, 1, 34]]:
     local rec is sup_run of [f"C5.sp.{cs[0]}.run", ic_sp, tr.de, eff_gain of (0.5), 0.02, 1500, 25, cs[1], tr.P, method, freeze]
+    check_exact of [f"C5.sp.{cs[0]}.seed", rec.seed, ic_sp[2]]
     check_exact of [f"C5.sp.{cs[0]}.osc", osc_count of (rec), cs[2]]
     # Round 22: these seven were the ONLY verdict streams with no interior
     # pins -- and the streamfam gate exempted them by the very token that
@@ -594,6 +581,13 @@ for cs in [["c010", 5, 0, 0.0 - 1.0, 300, 133, 157, 9, 1, 10, 23694, 21111, 113]
     check_exact of [f"C5.sp.{cs[0]}.maxrun", verdict_maxrun of (rec), cs[12]]
     check_exact of [f"C5.sp.{cs[0]}.didx", verdict_idxsum of [rec, "diverging"], cs[10]]
     check_exact of [f"C5.sp.{cs[0]}.cidx", verdict_idxsum of [rec, "converged"], cs[11]]
+    # phugoid#8 re-grade (EigenScript#1045): the scale-free step moved
+    # reads out of converged/stable into `moving` and `improving`, which
+    # these streams had never emitted, so the pinned classes no longer
+    # summed to `reads`. Both classes are pinned on every SP stream (the
+    # twin rule) so the distribution closes again.
+    check_exact of [f"C5.sp.{cs[0]}.moving", verdict_count of [rec, "moving"], cs[13]]
+    check_exact of [f"C5.sp.{cs[0]}.improving", verdict_count of [rec, "improving"], cs[14]]
     # Round 14: first_osc/last_osc return -1 IFF osc_count == 0, so a `.at`
     # row pinned at -1 cannot fail independently of its `.osc == 0`
     # sibling -- verified across all 16 plants, where they fire only as a
@@ -602,7 +596,15 @@ for cs in [["c010", 5, 0, 0.0 - 1.0, 300, 133, 157, 9, 1, 10, 23694, 21111, 113]
     # information.
     if cs[2] > 0:
         check_exact of [f"C5.sp.{cs[0]}.at", first_osc of (rec), cs[3]]
+        # phugoid#8: c100 returns oscillating on 6 reads and c102 on 2 (BELOW-FLOOR), so
+        # `.at` alone pins the first and leaves the rest free; the order
+        # checksum C4.ph and C5.p4 carry pins them all.
+        check_exact of [f"C5.sp.{cs[0]}.oidx", verdict_oidx of (rec), cs[15]]
 
+# SUPERSEDED physical interpretation: the band/disjoint claims below
+# were made before #1045 and with fabricated observer seeds. p045, p100
+# and p370 now remain EMPIRICAL: half-excitation changes 38/888, 23/400
+# and 1/108 verdicts. p365 passes both variations (0/109).
 # C5.P3b — the PHUGOID half of prediction 3, which the rung asserted and
 # never measured until round 18. The claim is that no single cadence
 # serves both modes; the SP half was swept, the phugoid half was not.
@@ -634,7 +636,7 @@ for cs in [["c010", 5, 0, 0.0 - 1.0, 300, 133, 157, 9, 1, 10, 23694, 21111, 113]
 # These are verdict streams, so they get the full family -- the streamfam
 # gate rejected a `dist=none` declaration for them, which is the gate
 # catching its own author doing the thing it was built to stop.
-for pe in [["p365", 73, 0, 109, 100, 9, 3, 90, 0 - 1], ["p370", 74, 1, 108, 75, 32, 9, 51, 41]]:
+for pe in [["p365", 73, 0, 109, 0, 109, 1, 109, 0 - 1], ["p370", 74, 1, 108, 0, 107, 3, 66, 41]]:
     local erec is sup_run of [f"C5.ph.{pe[0]}.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, pe[1], tr.P, method, freeze]
     check_exact of [f"C5.ph.{pe[0]}.osc", osc_count of (erec), pe[2]]
     check_exact of [f"C5.ph.{pe[0]}.reads", len of erec.verdict, pe[3]]
@@ -655,7 +657,7 @@ for pe in [["p365", 73, 0, 109, 100, 9, 3, 90, 0 - 1], ["p370", 74, 1, 108, 75, 
     if pe[2] > 0:
         check_exact of [f"C5.ph.{pe[0]}.at", first_osc of (erec), pe[8]]
 
-for pc in [["p045", 9, 888, 359, 520, 9, 0, 0, 163742, 35, 33, 230050], ["p100", 20, 400, 120, 101, 58, 91, 30, 23583, 91, 17, 29322]]:
+for pc in [["p045", 9, 888, 365, 0, 0, 0, 94, 163775, 70, 25, 0, 429], ["p100", 20, 400, 118, 0, 0, 0, 38, 23574, 70, 9, 0, 244]]:
     local prec is sup_run of [f"C5.ph.{pc[0]}.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, pc[1], tr.P, method, freeze]
     check_exact of [f"C5.ph.{pc[0]}.osc", osc_count of (prec), 0]
     check_exact of [f"C5.ph.{pc[0]}.reads", len of prec.verdict, pc[2]]
@@ -679,6 +681,8 @@ for pc in [["p045", 9, 888, 359, 520, 9, 0, 0, 163742, 35, 33, 230050], ["p100",
     check_exact of [f"C5.ph.{pc[0]}.runs", verdict_runs of (prec), pc[9]]
     check_exact of [f"C5.ph.{pc[0]}.maxrun", verdict_maxrun of (prec), pc[10]]
     check_exact of [f"C5.ph.{pc[0]}.cidx", verdict_idxsum of [prec, "converged"], pc[11]]
+    # phugoid#8 re-grade: `moving` appeared (#1045), closes the distribution.
+    check_exact of [f"C5.ph.{pc[0]}.moving", verdict_count of [prec, "moving"], pc[12]]
 
 # C4 — the POSITIVE control: a persistent regime IS actionable. The
 # phugoid at a matched cadence yields sustained oscillating verdicts.
@@ -704,8 +708,8 @@ check_exact of ["C4.ph.oidx", verdict_oidx of (ph_rec), 2497]
 # the 56 oscillating were pinned, leaving 24 of 80 reads uncategorised --
 # among them the SIXTH verdict class, `moving`, which appeared in no pin, no
 # comment and no manifest row anywhere in the rung. 18 + 56 + 6 = 80.
-check_exact of ["C4.ph.stable", verdict_count of [ph_rec, "stable"], 18]
-check_exact of ["C4.ph.moving", verdict_count of [ph_rec, "moving"], 6]
+check_exact of ["C4.ph.stable", verdict_count of [ph_rec, "stable"], 0]
+check_exact of ["C4.ph.moving", verdict_count of [ph_rec, "moving"], 24]
 # The SATURATED horizon — the whole evidence for "the flat count is the
 # window, not the physics". Round 4 repacked this stream (count, onset,
 # toggles and reads all preserved) to move the horizon 79 -> 64, i.e. a
@@ -731,24 +735,27 @@ check_exact of ["C5.p1.inner.osc", osc_count of (inner), 0]
 check_exact of ["C5.p1.inner.engagements", inner.toggles, 0]
 # The ACTUATOR is silent; the OBSERVER is loud and wrong. On a smoothly
 # DECAYING phugoid, sampled at inner-loop rate, the classifier never once
-# says `oscillating` — it alternates between `diverging` (3934 of 8000,
-# 49%) and `converged` (4056), because a window spanning 1% of a cycle
-# sees a locally monotone slice of a sinusoid and calls it a trend. An
+# says `oscillating`. With physical seeds on main it yields diverging
+# 3941, converged 378, stable 2024, equilibrium 72, moving 1585, zero
+# improving: 8000 reads. Unit conversion preserves this stream but
+# half-excitation changes 350 reads, so its exact counts are EMPIRICAL. An
 # autopilot acting on this would command corrective action against a
 # healthy decaying mode half the time. "Blind" understates it: the
 # verdicts are confidently wrong, not absent.
-check_exact of ["C5.p1.inner.diverging", verdict_count of [inner, "diverging"], 3934]
-check_exact of ["C5.p1.inner.converged", verdict_count of [inner, "converged"], 4056]
-# ...and the remainder, so the distribution is CLOSED: 3934 + 4056 + 9 +
-# 1 = 8000. The first draft pinned only the two large bands while the
-# prose implied completeness, leaving 10 reads unaccounted (round 4).
-check_exact of ["C5.p1.inner.stable", verdict_count of [inner, "stable"], 9]
-check_exact of ["C5.p1.inner.equilibrium", verdict_count of [inner, "equilibrium"], 1]
+check_exact of ["C5.p1.inner.diverging", verdict_count of [inner, "diverging"], 3941]
+check_exact of ["C5.p1.inner.converged", verdict_count of [inner, "converged"], 378]
+# ...and the remainder, so the distribution is CLOSED on main. The
+# historical 3934 + 4056 + 9 + 1 bank belonged to v0.43.0, not this run.
+check_exact of ["C5.p1.inner.stable", verdict_count of [inner, "stable"], 2024]
+check_exact of ["C5.p1.inner.equilibrium", verdict_count of [inner, "equilibrium"], 72]
+# phugoid#8 re-grade: `moving` appeared (#1045); pinned so the five
+# classes sum to reads again.
+check_exact of ["C5.p1.inner.moving", verdict_count of [inner, "moving"], 1585]
 # ...and the ORDER, which is what "alternates" means and what the counts
 # above cannot see (round 12). Both rows are red under s7 (stream frozen
 # -> 1 run) and s12 (forced oscillating -> 1 run), so the existing plant
 # matrix covers them.
-check_exact of ["C5.p1.inner.runs", verdict_runs of (inner), 37]
+check_exact of ["C5.p1.inner.runs", verdict_runs of (inner), 87]
 # Round 16: runs and maxrun are BOTH reversal-invariant (a reversal
 # preserves the run-length multiset), so "pinned for ORDER" was false for
 # this stream -- reversing all 8000 verdicts passed 96/96, every plant and
@@ -756,13 +763,13 @@ check_exact of ["C5.p1.inner.runs", verdict_runs of (inner), 37]
 # GROWING ones: the verdict signature of an amplifying mode, which is the
 # one thing a supervisory layer exists to distinguish from a healthy one.
 # verdict_oidx would be vacuous here (osc = 0), so the checksum keys on
-# this stream's `diverging` class (round 19: NOT its dominant one -- converged 4056 exceeds diverging 3934) instead.
-check_exact of ["C5.p1.inner.didx", verdict_idxsum of [inner, "diverging"], 16038601]
+# this stream's `diverging` class (now dominant) instead.
+check_exact of ["C5.p1.inner.didx", verdict_idxsum of [inner, "diverging"], 16038643]
 # Round 21 read the matrix AS a matrix and found `cidx` on the four
 # SMALLEST converged-bearing streams and absent from the three largest --
 # and absent silently, since a missing entry inside a comma list is not a
 # missing line. Both index sums now cover every stream that has the class.
-check_exact of ["C5.p1.inner.cidx", verdict_idxsum of [inner, "converged"], 15957354]
+check_exact of ["C5.p1.inner.cidx", verdict_idxsum of [inner, "converged"], 1508201]
 check_exact of ["C5.p1.inner.maxrun", verdict_maxrun of (inner), 260]
 # And the supervisory layer does NOT hold cleanly either: it sees the
 # regime (56 of 80 reads, pinned by C4.ph.osc) but the engagement
@@ -809,7 +816,21 @@ check_exact of ["C4.ph.first_engaged", first_engaged of (ph_rec), 19]
 # the saturation boundary — a row there (uamp 0.5: horizon 78 against a
 # last read of 79) flips by one under any perturbing plant, which is
 # brittleness rather than signal.
-for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0, 71, 9, 0, 3124], ["a030", 0.3, 23, 38, 9, 12, 554, 42, 9, 6, 2447], ["a040", 0.4, 40, 58, 9, 15, 1376, 21, 12, 7, 1449], ["a035", 0.35, 34, 53, 9, 16, 1053, 27, 9, 10, 1772]]:
+# Round-1 re-grade (historical baseline, qualified below): THE RAMP IS GONE. On EigenScript main
+# all four amplitudes give the IDENTICAL stream (osc 57, onset 9, horizon
+# 79 = the last read, 23 moving), and each is identical again with the
+# channel scaled x1000; on v0.43.0 the four differed and every one
+# changed under x1000. A linear mode's free response scales with the
+# excitation, so its verdict stream must not depend on the amplitude: the
+# ramp was the sub-unit absolute deadband (G5, #1045), exactly as the
+# paragraph above says of "the band is absolute". Supervision on this
+# mode no longer runs out inside 400 s at any tested amplitude.
+# Round 2 qualification: all four baseline streams match, but regenerating
+# half-excitation changes 12/80 reads for a020/a030 and zero for a035/a040.
+# Only the latter two pass the tested physical invariances. Identical-tape
+# scaling passes all four and cannot prove nonlinear closed-loop amplitude
+# invariance. This supersedes the general amplitude claim just above.
+for ramp in [["a020", 0.2, 57, 79, 9, 18, 2569, 0, 0, 0, 0, 23], ["a030", 0.3, 57, 79, 9, 18, 2569, 0, 0, 0, 0, 23], ["a040", 0.4, 57, 79, 9, 18, 2569, 0, 0, 0, 0, 23], ["a035", 0.35, 57, 79, 9, 18, 2569, 0, 0, 0, 0, 23]]:
     local icr is mode_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 0, ramp[1]]
     local rc is sup_run of [f"C5.p4.{ramp[0]}.run", icr, tr.de, eff_gain of (0.5), 0.05, 8000, 100, 100, tr.P, method, freeze]
     check_exact of [f"C5.p4.{ramp[0]}.osc", osc_count of (rc), ramp[2]]
@@ -829,11 +850,12 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0, 71, 9, 0, 3124], ["a03
     check_exact of [f"C5.p4.{ramp[0]}.reads", len of rc.verdict, 80]
     check_exact of [f"C5.p4.{ramp[0]}.conv", verdict_count of [rc, "converged"], ramp[7]]
     check_exact of [f"C5.p4.{ramp[0]}.stable", verdict_count of [rc, "stable"], ramp[8]]
-    # a020's equilibrium count is 0 and no plant can move it -- declared
-    # `structural` in the manifest, the class C0.a41-a44 and the `.reads`
-    # rows already use, rather than left as a plantable that never reds.
+    # False equilibrium (s18) must redden this zero; fixed populations
+    # also enroll through comparator calibration s20. No exemptions.
     check_exact of [f"C5.p4.{ramp[0]}.equil", verdict_count of [rc, "equilibrium"], ramp[9]]
     check_exact of [f"C5.p4.{ramp[0]}.cidx", verdict_idxsum of [rc, "converged"], ramp[10]]
+    # phugoid#8 re-grade: `moving` (the partial-window reads) closes it.
+    check_exact of [f"C5.p4.{ramp[0]}.moving", verdict_count of [rc, "moving"], ramp[11]]
     if ramp[2] > 0:
         check_exact of [f"C5.p4.{ramp[0]}.horizon", last_osc of (rc), ramp[3]]
         check_exact of [f"C5.p4.{ramp[0]}.onset", first_osc of (rc), ramp[4]]
@@ -851,8 +873,8 @@ for ramp in [["a020", 0.2, 0, 0.0 - 1.0, 0.0 - 1.0, 0, 0, 71, 9, 0, 3124], ["a03
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 217:
-    print of f"FAIL harness: expected exactly 217 checks, ran {checks_run}"
+if checks_run != 250:
+    print of f"FAIL harness: expected exactly 250 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

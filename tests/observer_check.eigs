@@ -4,7 +4,10 @@
 # Plant o1: every replayed sample frozen at the channel's first value —
 # proves each verdict check can fail. Population pinned at exactly 11.
 #
-# Two check classes (both regression-pinned):
+# Check classes (all regression-pinned):
+#   empirical  — baseline pin fails half-excitation; no physics grade.
+# Round 2: t29 and ph1s.t120 are empirical, all other point checks
+# retain their class after x1000 and half-excitation tests.
 #   agree      — the verdict matches physics truth.
 #   divergence — the verdict is measured to CONTRADICT physics truth
 #                (recorded 2026-08-24; GAPS.md G4): the value-channel
@@ -58,7 +61,7 @@ define replay_at(chan, i) as:
 
 # ---------------------------------------------------------- trim hold
 hold is sim_run of [tr.state, [[1e9, tr.de]], 0.05, 400, 20, tr.P, "rk4"]
-z is 0.0
+z is replay_at of [hold.u, 0]
 i is 0
 loop while i < (len of hold.t):
     z is replay_at of [hold.u, i]
@@ -70,7 +73,7 @@ check_verdict of ["O.hold", report of z, "converged", "agree"]
 # ---------------------------------------------------------- SP replay
 ic is sp_subspace_ic of [A, ph.re, ph.im, tr.state, 2.0]
 recS is sim_run of [ic, [[1e9, tr.de]], 0.02, 1500, 50, tr.P, "rk4"]
-x is 0.0
+x is replay_at of [recS.w, 0]
 i is 0
 loop while i < (len of recS.t):
     x is replay_at of [recS.w, i]
@@ -78,8 +81,12 @@ loop while i < (len of recS.t):
         check_verdict of ["O.sp.t10", report of x, "oscillating", "agree"]
     if i == 15:
         check_verdict of ["O.sp.t15", report of x, "oscillating", "agree"]
+    # EMPIRICAL, not a modal physics grade: main reads moving at the
+    # baseline and x1000, but stable at half SP excitation. The nonlinear
+    # residue changes with the excitation. Round 1's general amplitude
+    # and unit-free interpretation is superseded (ORACLE.md round 2).
     if i == 29:
-        check_verdict of ["O.sp.t29", report of x, "converged", "agree"]
+        check_verdict of ["O.sp.t29", report of x, "moving", "empirical"]
     i is i + 1
 
 # ---------------------------------------------------------- phugoid replay
@@ -88,7 +95,7 @@ recB is sim_run of [tr.state, schedB, 0.05, 5600, 20, tr.P, "rk4"]
 
 # 5 s cadence: ~9.4 samples/cycle — the oscillation folds inside the
 # 10-sample window and the verdict tracks physics.
-y is 0.0
+y is replay_at of [recB.u, 45]
 i is 0
 loop while i < (len of recB.t):
     if recB.t[i] >= 45.0 and i % 5 == 0:
@@ -108,13 +115,13 @@ check_verdict of ["O.ph5s.named", f"{onamed}", "1", "agree"]
 # 1 s cadence: ~47 samples/cycle — the window cannot see the fold; the
 # measured contradictions are pinned (divergence class; GAPS.md G4).
 # Physics truth at ALL THREE points: oscillating.
-w1 is 0.0
+w1 is replay_at of [recB.u, 45]
 i is 0
 loop while i < (len of recB.t):
     if recB.t[i] >= 45.0:
         w1 is replay_at of [recB.u, i]
         if i == 120:
-            check_verdict of ["O.ph1s.t120", report of w1, "stable", "divergence"]
+            check_verdict of ["O.ph1s.t120", report of w1, "stable", "empirical"]
         if i == 200:
             check_verdict of ["O.ph1s.t200", report of w1, "diverging", "divergence"]
         if i == 280:

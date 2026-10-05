@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# The PREDICTIONS' verdicts, gated.
+# ARCHIVAL prediction arithmetic and claim consistency, gated.
+# The banked v0.43-era tables and their verdict prose remain historical.
+# This script is not fresh current-runtime performance or arming evidence;
+# current acceptance lives in test_swarm_profile.sh and its stored-work
+# companion (ORACLE current-runtime ledger).
 #
 # Round 22: exit gate item 7 ("every prediction carries a VERDICT and a
 # gate") was added by round 21 -- in a commit that left P1 ungated. P1's
@@ -94,7 +98,7 @@ per_ac() {  # per_ac <col> <N> -> µs per aircraft-frame
 }
 
 fail=0
-chk() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+chk() { if [ "$1" = "1" ]; then echo "PASS archive $2"; else echo "FAIL archive $2"; fail=1; fi; }
 
 # The banked table must BE the published one. Round 22: the header claimed
 # this file "catches a silent edit to the table" while it only protected
@@ -593,4 +597,4 @@ mutant_check p2 's/^32 13.011/32 12.155/' superlinear
 # about a drifted workload.
 
 [ "$fail" -eq 0 ] || { echo "VERDICT GATE FAILED"; exit 1; }
-echo "PASS: P2's refutation clauses fire with plants; P1's verdict text is pinned and its measurement lives in test_swarm_profile.sh"
+echo "PASS: ARCHIVE ONLY: historical P2 arithmetic/real table mutations and P1 verdict text agree; no fresh current-runtime scientific claim"

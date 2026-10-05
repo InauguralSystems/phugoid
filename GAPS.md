@@ -74,7 +74,11 @@ as `divergence`-class rows so an upstream windowing change flips them
 loudly and rung 1 re-grades.
 
 ### G5 — value-channel verdicts are unit-dependent below |v| ≈ 1
-**Upstreamed: EigenScript#1045 (2026-08-24).**
+**Upstreamed: EigenScript#1045 (2026-08-24); original unit-triplet defect
+closed on main a7a4ca3.** The following measurements describe v0.43.0.
+The replacement deliberately has a 0.001 characteristic floor; round 2
+marks the remaining SP floor regime BELOW-FLOOR, with physical seeds.
+See ORACLE.md, "Re-grade against EigenScript main", for current grading.
 **Hit at rung 2 (2026-08-24, observer grading layer).** The value channel's
 relative step `rel = Δv/(1+|v|)` degenerates to an ABSOLUTE deadband for
 sub-unit magnitudes, so the verdict depends on the binding's UNIT.
@@ -152,7 +156,11 @@ trigger: `const_pool_names_observer` scans the constant pool for bare
 names, so a string literal `"report"` costs +48% on a program that uses no
 observer feature.
 
-Consequences measured in this repo's own C6 gate (`tests/test_ap_profile.sh`):
+Historical consequences measured in this repo's C6 gate
+(`tests/test_ap_profile.sh`), in the runtime epoch of this entry. These
+do not establish current equal work: #1049 now retains numeric samples
+in armed unobserved loops; unarmed programs omit that history (see
+ORACLE current-runtime ledger):
 - `write/floor` was read as "observed writes cost +44% over the unobserved
   floor". It is not measuring intrinsic write cost. Neutering only the four
   predicate reads inside `run_read` — a function the `write` variant never
@@ -279,9 +287,13 @@ consumers reach for first and its absence fails silently.
 
 ### G9 — `unobserved:` is not semantically neutral
 Found at rung-4 blind-critic round 4, 2026-08-26. Upstreamed as
-**EigenScript#1049**.
+**EigenScript#1049**. The missing numeric-initializer history described
+below is an archived finding, subsequently repaired by #1049. Current
+armed unobserved writes retain numeric samples; stored entropy/dH folding
+is still elided, and nonnumeric behavior needs its own contract. The
+current profile work checker distinguishes these channels explicitly.
 
-`unobserved:` is documented and used as a PERFORMANCE tool, but an
+Historical behavior: `unobserved:` is documented and used as a PERFORMANCE tool, but an
 assignment inside it is not merely uncounted — it is absent from the
 observer's window. A binding whose initialiser sits inside an
 `unobserved:` block therefore carries a different history for up to WINDOW_N reads, then re-converges:
