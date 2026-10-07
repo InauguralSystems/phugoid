@@ -22,7 +22,7 @@ RUN apt-get update \
         python3 \
  && rm -rf /var/lib/apt/lists/*
 
-ARG EIGS_REF=v0.45.0
+ARG EIGS_REF=v0.45.1
 RUN git clone --depth 1 --branch "${EIGS_REF}" \
         https://github.com/InauguralSystems/EigenScript.git /opt/eigenscript \
  && make -C /opt/eigenscript CC=gcc
