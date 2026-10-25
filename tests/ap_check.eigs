@@ -555,10 +555,12 @@ define osc_count(rec) as:
 # 8/300. ORACLE.md round 2 records all seven rows and both variations.
 # The .seed checks separately certify input fidelity, independent of
 # the observer's absolute floor; s17 fabricates a zero and reddens them.
-for cs in [["c010", 5, 0, -1, 300, 140, 92, 18, 3, 15, 23736, 18064, 113, 22, 25, 0],
-           ["c020", 10, 0, -1, 150, 62, 15, 24, 6, 19, 5705, 1430, 54, 23, 20, 0],
+# v0.47.0 re-grade: #1771 removes improving on rising tails; #1891 removes
+# equilibrium on one-direction tails. The physical case parameters are unchanged.
+for cs in [["c010", 5, 0, -1, 300, 140, 92, 30, 3, 14, 23736, 18064, 113, 22, 13, 0],
+           ["c020", 10, 0, -1, 150, 62, 15, 30, 1, 17, 5705, 1430, 54, 28, 14, 0],
            ["c040", 20, 0, -1, 75, 25, 3, 15, 3, 10, 1350, 120, 25, 23, 6, 0],
-           ["c042", 21, 0, -1, 71, 24, 2, 15, 3, 12, 1236, 77, 24, 22, 5, 0],
+           ["c042", 21, 0, -1, 71, 24, 2, 15, 3, 10, 1236, 77, 24, 23, 4, 0],
            ["c050", 25, 0, -1, 60, 19, 0, 15, 3, 7, 836, 0, 19, 19, 4, 0],
            ["c100", 50, 6, 12, 30, 0, 0, 7, 0, 10, 0, 0, 8, 16, 1, 103],
            ["c102", 51, 2, 16, 29, 1, 0, 10, 0, 8, 28, 0, 12, 15, 1, 34]]:
@@ -657,7 +659,7 @@ for pe in [["p365", 73, 0, 109, 0, 109, 1, 109, 0 - 1], ["p370", 74, 1, 108, 0, 
     if pe[2] > 0:
         check_exact of [f"C5.ph.{pe[0]}.at", first_osc of (erec), pe[8]]
 
-for pc in [["p045", 9, 888, 365, 0, 0, 0, 94, 163775, 70, 25, 0, 429], ["p100", 20, 400, 118, 0, 0, 0, 38, 23574, 70, 9, 0, 244]]:
+for pc in [["p045", 9, 888, 365, 0, 0, 0, 37, 163775, 52, 33, 0, 486], ["p100", 20, 400, 118, 0, 0, 0, 10, 23574, 52, 17, 0, 272]]:
     local prec is sup_run of [f"C5.ph.{pc[0]}.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, pc[1], tr.P, method, freeze]
     check_exact of [f"C5.ph.{pc[0]}.osc", osc_count of (prec), 0]
     check_exact of [f"C5.ph.{pc[0]}.reads", len of prec.verdict, pc[2]]
@@ -735,19 +737,19 @@ check_exact of ["C5.p1.inner.osc", osc_count of (inner), 0]
 check_exact of ["C5.p1.inner.engagements", inner.toggles, 0]
 # The ACTUATOR is silent; the OBSERVER is loud and wrong. On a smoothly
 # DECAYING phugoid, sampled at inner-loop rate, the classifier never once
-# says `oscillating`. With physical seeds on main it yields diverging
-# 3941, converged 378, stable 2024, equilibrium 72, moving 1585, zero
-# improving: 8000 reads. Unit conversion preserves this stream but
-# half-excitation changes 350 reads, so its exact counts are EMPIRICAL. An
+# says `oscillating`. With physical seeds on v0.47.0 it yields diverging
+# 3941, converged 378, stable 2096, equilibrium 0, moving 1585, zero
+# improving: 8000 reads. In the prior bank, unit conversion preserved the
+# stream but half-excitation changed 350 reads; these counts are EMPIRICAL. An
 # autopilot acting on this would command corrective action against a
 # healthy decaying mode half the time. "Blind" understates it: the
 # verdicts are confidently wrong, not absent.
 check_exact of ["C5.p1.inner.diverging", verdict_count of [inner, "diverging"], 3941]
 check_exact of ["C5.p1.inner.converged", verdict_count of [inner, "converged"], 378]
-# ...and the remainder, so the distribution is CLOSED on main. The
+# ...and the remainder, so the distribution is CLOSED at the pin. The
 # historical 3934 + 4056 + 9 + 1 bank belonged to v0.43.0, not this run.
-check_exact of ["C5.p1.inner.stable", verdict_count of [inner, "stable"], 2024]
-check_exact of ["C5.p1.inner.equilibrium", verdict_count of [inner, "equilibrium"], 72]
+check_exact of ["C5.p1.inner.stable", verdict_count of [inner, "stable"], 2096]
+check_exact of ["C5.p1.inner.equilibrium", verdict_count of [inner, "equilibrium"], 0]
 # phugoid#8 re-grade: `moving` appeared (#1045); pinned so the five
 # classes sum to reads again.
 check_exact of ["C5.p1.inner.moving", verdict_count of [inner, "moving"], 1585]
@@ -755,7 +757,7 @@ check_exact of ["C5.p1.inner.moving", verdict_count of [inner, "moving"], 1585]
 # above cannot see (round 12). Both rows are red under s7 (stream frozen
 # -> 1 run) and s12 (forced oscillating -> 1 run), so the existing plant
 # matrix covers them.
-check_exact of ["C5.p1.inner.runs", verdict_runs of (inner), 87]
+check_exact of ["C5.p1.inner.runs", verdict_runs of (inner), 70]
 # Round 16: runs and maxrun are BOTH reversal-invariant (a reversal
 # preserves the run-length multiset), so "pinned for ORDER" was false for
 # this stream -- reversing all 8000 verdicts passed 96/96, every plant and

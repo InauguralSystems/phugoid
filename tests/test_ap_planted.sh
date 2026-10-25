@@ -45,13 +45,13 @@ expect_green 'C1\.'
 echo "PASS: S2 red pattern exact"
 
 echo "--- S3: integrator RK4 -> Euler -> periods + dt invariance + supervisory toggles ---"
-run_plant s3; expect_total_fails 40
+run_plant s3; expect_total_fails 35
 expect_red 'C2\.k025\.T ' 'C2\.k050\.T ' 'C2\.k100\.T ' 'C3\.dt\.T ' 'C3\.dt\.zlog ' 'C3\.dt\.zenv ' 'C2\.ph\.zlog ' 'C5\.sp\.c010\.conv ' 'C5\.p1\.inner\.moving '
 expect_green 'C0\.' 'C1\.'
 echo "PASS: S3 red pattern exact"
 
 echo "--- S4: trim offset -> C1 + parity + every graded mode ---"
-run_plant s4; expect_total_fails 125
+run_plant s4; expect_total_fails 123
 expect_red 'C1\.res\.' 'C1\.hold\.' 'C0\.a13 ' 'C2\.k025\.T ' 'C3\.gain\.use ' 'C5\.sp\.c100\.osc '
 echo "PASS: S4 red pattern exact"
 
@@ -68,7 +68,7 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.zlog' 'C4\.' 'C5\.sp'
 echo "PASS: S6 red pattern exact"
 
 echo "--- S7: verdict stream frozen to 'stable' (supervisory inert) ---"
-run_plant s7; expect_total_fails 135
+run_plant s7; expect_total_fails 134
 expect_red 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C4\.ph\.horizon ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a035\.horizon ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.onset ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S7 red pattern exact"
@@ -81,7 +81,7 @@ expect_green 'C0\.' 'C1\.' '\.n ' '\.nr ' '\.nf ' 'C4\.' 'C5\.'
 echo "PASS: S8 red pattern exact"
 
 echo "--- S9: dataset broadly poisoned -> parity + graded modes + verdicts ---"
-run_plant s9; expect_total_fails 128
+run_plant s9; expect_total_fails 127
 expect_red 'C0\.a11 ' 'C0\.a33 ' 'C2\.k050\.zlog ' 'C3\.gain\.use ' 'C4\.ph\.osc ' 'C2\.ph\.Tdft ' 'C5\.p4\.a030\.osc '
 expect_green 'C1\.'
 echo "PASS: S9 red pattern exact"
@@ -99,7 +99,7 @@ expect_green 'C0\.' 'C1\.' 'C2\.k025\.T ' 'C4\.' 'C5\.'
 echo "PASS: S11 red pattern exact"
 
 echo "--- S12: verdicts forced to 'oscillating' (the dual of S7) ---"
-run_plant s12; expect_total_fails 131
+run_plant s12; expect_total_fails 130
 expect_red 'C5\.sp\.c010\.osc ' 'C5\.sp\.c020\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C5\.p1\.inner\.osc ' 'C5\.p1\.inner\.engagements ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a020\.onset ' 'C5\.p4\.a020\.osc ' 'C5\.p1\.inner\.diverging ' 'C5\.p1\.inner\.converged ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C5\.p1\.inner\.moving ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S12 red pattern exact"
@@ -131,14 +131,14 @@ echo "PASS: S16 red pattern exact (round-3 review: as_tp was the one accessor wi
 
 # Consumer seed defect: this runs the real supervisor with a false seed.
 echo "--- S17: fabricated zero initial pitch rate ---"
-run_plant s17; expect_total_fails 58
+run_plant s17; expect_total_fails 59
 expect_red 'C5\.sp\.c010\.seed ' 'C5\.sp\.c102\.seed '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "--- S18: alternating false all-clears (converged/equilibrium) ---"
 run_plant s18; expect_total_fails 154
 expect_red 'C5\.ph\.p045\.conv ' 'C5\.ph\.p100\.equil ' 'C5\.ph\.p365\.runs ' 'C5\.ph\.p365\.maxrun '
 echo "--- S19: verdicts forced to improving ---"
-run_plant s19; expect_total_fails 126
+run_plant s19; expect_total_fails 125
 expect_red 'C5\.sp\.c100\.improving ' 'C5\.sp\.c102\.improving '
 echo "--- S20: exact-comparator result displaced by one (fixed counts included) ---"
 run_plant s20; expect_total_fails 210
