@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rung-2 O2 checks: 8 agreement pins, 4 measured divergences and one
+# Rung-2 O2 checks: 7 agreement pins, 5 measured divergences and one
 # absolute entropy instrument calibration (mirror.mag). The G5 unit
 # triplet now agrees across its three units; it still abstains on a
 # decaying mode. Both plants must flip their exact sets, population 13.
