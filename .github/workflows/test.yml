@@ -13,6 +13,9 @@ jobs:
   test:
     name: suite (in devcontainer)
     runs-on: ubuntu-latest
+    # A hung script used to hold the runner for the 6 h default. The suite
+    # step's p50 is 383 s and p90 ~457 s (hq#58 window); 30 min is ~4x p90.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -25,11 +28,12 @@ jobs:
             set -e
             # Glob, not a hardcoded list: round-9 review showed a script
             # dropped from an inline enumeration keeps CI green silently.
-            # The count assertion makes a missing/unglobbed script loud.
-            N=0
-            for t in tests/test_*.sh; do
-              echo "=== $t"
-              EIGENSCRIPT=eigenscript bash "$t"
-              N=$((N+1))
-            done
-            [ "$N" -eq 19 ] || { echo "FAIL: expected exactly 19 test scripts, found $N"; exit 1; }
+            # The count pin makes a missing/unglobbed script loud. 20 = the
+            # 19 suite scripts + tests/test_suite_runner.sh (the runner's own
+            # planted faults). The non-timing scripts run in parallel; the two
+            # timing-ratio gates then run serially and alone (hq#58 phug-s5).
+            # The runner's planted faults run first, OUTSIDE the runner: a
+            # runner gutted to ignore rc would otherwise also ignore the
+            # self-test that catches it.
+            bash tests/test_suite_runner.sh
+            EIGENSCRIPT=eigenscript bash tests/run_suite.sh 20
