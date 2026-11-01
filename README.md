@@ -119,6 +119,8 @@ bash tests/test_observer_lat.sh   # 13 rung-2 observer checks + 2 plants
 bash tests/test_ap.sh          # 250 rung-3 closed-loop and input-history checks
 bash tests/test_ap_planted.sh  # 20 rung-3 plants, exact red sets + manifest
 bash tests/test_ap_profile.sh  # the observer read-path ratio gate
+bash tests/run_suite.sh 20     # what CI runs: every tests/test_*.sh, count-pinned;
+                               # non-timing scripts in parallel, timing gates alone
 ```
 
 Requires `eigenscript` on PATH (or `EIGENSCRIPT=/path/to/binary`), pinned in
