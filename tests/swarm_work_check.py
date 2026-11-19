@@ -79,19 +79,50 @@ def gut(arm, condition):
         "".join("    " + row if row.strip() else row for row in original.splitlines(True)) + arm[b:]
 
 
+def box_numeric_v(core):
+    def transform(b):
+        needle = "    local V is sqrt of (u * u + w * w)\n"
+        require(b.count(needle) == 1, "numeric-box.unique-V")
+        rows = []
+        for row in b.splitlines(True):
+            if row == needle:
+                rows.append("    local V is [sqrt of (u * u + w * w)]\n")
+            else:
+                rows.append(re.sub(r"\bV\b", "V[0]", row))
+        return "".join(rows)
+    return change(core, "deriv", transform)
+
+
+def freeze_qobs(swarm):
+    # Keep the initial physical value and every real predicate read, but
+    # remove subsequent qobs writes. This loses its numeric window without
+    # changing fleet integration, unlike eliding numeric entropy folding.
+    def transform(arm):
+        arm = once(arm, "    local fleet is fleet_ic of [tstate, n, spread]\n",
+                   "    local fleet is fleet_ic of [tstate, n, spread]\n"
+                   "    local qobs is fleet[0][2] + 0.0\n")
+        return once(arm, "            " + QOBS,
+                    "            # calibration: retain only the initial qobs value\n")
+    return change(swarm, "run_ceiling", transform)
+
+
 def instrument(swarm, core, driver):
+    # Numeric entropy is null on NEW. Inspect retained numeric values and
+    # steps in the actual binding; no synthetic assignment or new history
+    # reader is introduced. Eliding a numeric assignment retains its value work; RK4 containers
+    # still retain assignment-time entropy only on observed integration.
     # Dictionary mutation crosses module boundaries without rebinding globals.
     core = once(core, "define deriv(s, de, P) as:\n", """unobserved:
-    fold_work is {"active": 0, "vc": 0, "vf": 0, "vz": 0, "vb": 0, "qc": 0, "qf": 0, "qz": 0, "qb": 0}
+    fold_work is {"active": 0, "vc": 0, "vf": 0, "vz": 0, "vb": 0, "qc": 0, "qf": 0, "qz": 0, "qb": 0, "kc": 0, "kf": 0, "kz": 0, "kb": 0}
 define deriv(s, de, P) as:
 """)
     hook = """    unobserved:
         if fold_work.active:
             local work_v is trajectory of V
             fold_work.vc is fold_work.vc + 1
-            if work_v.last_entropy > 0 and (len of work_v.dh) == 0 and (len of work_v.raw) == 0:
+            if work_v.numeric and work_v.last_value == V and (len of work_v.values) == 1 and (len of work_v.dh) == 0 and (len of work_v.raw) == 0:
                 fold_work.vf is fold_work.vf + 1
-            elif work_v.last_entropy == 0 and (len of work_v.dh) == 0 and (len of work_v.raw) == 0:
+            elif not work_v.numeric and (len of work_v.dh) == 0 and (len of work_v.raw) == 0:
                 fold_work.vz is fold_work.vz + 1
             else:
                 fold_work.vb is fold_work.vb + 1
@@ -111,9 +142,9 @@ define deriv(s, de, P) as:
     unobserved:
         local work_q is trajectory of qobs
         fold_work.qc is fold_work.qc + 1
-        if work_q.last_entropy > 0 and (len of work_q.dh) == 10 and (len of work_q.raw) == 10:
+        if work_q.numeric and work_q.last_value == qobs and (len of work_q.values) == 11 and (len of work_q.dh) == 0 and (len of work_q.raw) == 10:
             fold_work.qf is fold_work.qf + 1
-        elif work_q.last_entropy == 0 and (len of work_q.dh) == 0 and (len of work_q.raw) == 10:
+        elif not work_q.numeric and (len of work_q.dh) == 0 and (len of work_q.raw) == 10:
             fold_work.qz is fold_work.qz + 1
         else:
             fold_work.qb is fold_work.qb + 1
@@ -122,7 +153,22 @@ define deriv(s, de, P) as:
             return "".join(rows)
         swarm = change(swarm, name, add)
     driver = once(driver, 'if arm == "ceiling":\n', 'unobserved:\n    fold_work.active is 1\nif arm == "ceiling":\n')
-    driver += '\nprint of f"WORK {fold_work.vc} {fold_work.vf} {fold_work.vz} {fold_work.vb} {fold_work.qc} {fold_work.qf} {fold_work.qz} {fold_work.qb}"\n'
+    driver += '\nprint of f"WORK {fold_work.vc} {fold_work.vf} {fold_work.vz} {fold_work.vb} {fold_work.qc} {fold_work.qf} {fold_work.qz} {fold_work.qb} {fold_work.kc} {fold_work.kf} {fold_work.kz} {fold_work.kb}"\n'
+    # Numeric V survives elision, but RK4 also stores non-numeric k1.
+    # Its assignment-time last_entropy still distinguishes actual container
+    # work; trajectory never assigns either target or enables trace history.
+    khook = """    unobserved:
+        if fold_work.active:
+            local work_k is trajectory of k1
+            fold_work.kc is fold_work.kc + 1
+            if not work_k.numeric and work_k.last_entropy > 0 and (len of work_k.dh) == 0:
+                fold_work.kf is fold_work.kf + 1
+            elif not work_k.numeric and work_k.last_entropy == 0 and (len of work_k.dh) == 0:
+                fold_work.kz is fold_work.kz + 1
+            else:
+                fold_work.kb is fold_work.kb + 1
+"""
+    core = change(core, "rk4_step", lambda b: once(b, "    return out\n", khook + "    return out\n"))
     return swarm, core, driver
 
 
@@ -143,16 +189,24 @@ def verdict(output, arm, n, positive=False, disabled=()):
     rows = [r for r in output.splitlines() if r.startswith("WORK ")]
     require(len(rows) == 1, "population.work-row")
     v = [int(x) for x in rows[0].split()[1:]]
-    require(len(v) == 8, "population.work-fields")
-    observed_v = arm in ("ceiling", "ceiling0")
+    require(len(v) == 12, "population.work-fields")
+    # Numeric value samples survive unobserved (OBSERVER.md, R31-2).
+    observed_v = True
     want_v = [4 * n * frames, 4 * n * frames if observed_v else 0,
               0 if observed_v else 4 * n * frames, 0]
-    if "integration" not in disabled:
-        require(v[:4] == want_v, "semantic.integration-fold")
-    observed_q = arm in ("ceiling", "disciplined")
+    if "numeric" not in disabled:
+        require(v[:4] == want_v, "semantic.numeric-values")
+    observed_q = True
     want_q = [n, n if observed_q else 0, 0 if observed_q else n, 0] if arm in ARMS[:3] else [0] * 4
     if "qobs" not in disabled:
-        require(v[4:] == want_q, "semantic.qobs-fold")
+        require(v[4:8] == want_q, "semantic.qobs-fold")
+    # One non-numeric first-stage result per actual RK4 call. This is
+    # stored container work in the unchanged numeric/non-numeric contract.
+    folded_k = arm in ("ceiling", "ceiling0")
+    total_k = n * frames
+    want_k = [total_k, total_k if folded_k else 0, 0 if folded_k else total_k, 0]
+    if "integration" not in disabled:
+        require(v[8:] == want_k, "semantic.integration-fold")
     return v
 
 
@@ -183,7 +237,11 @@ def main():
     require(tier in ("0", "1"), "runtime.tier")
     env.update(EIGS_STRICT="1")
     receipt = {"purpose": "untimed actual-source stored-work acceptance", "runtime": exe,
-               "runtime_sha256": SHA(Path(exe)), "source_sha256": pins, "runs": []}
+               "runtime_sha256": SHA(Path(exe)), "checker_sha256": SHA(Path(__file__)), "source_sha256": pins, "runs": []}
+    receipt["work_fields"] = ["V.count", "V.numeric", "V.nonnumeric", "V.bad",
+                              "qobs.count", "qobs.window", "qobs.nonnumeric", "qobs.bad",
+                              "k1.count", "k1.folded", "k1.elided", "k1.bad"]
+    receipt["controls"] = []
 
     def run(label, texts, arm, n, jit):
         d = out / label
@@ -207,18 +265,45 @@ def main():
     def ordinary(s):
         return "\n".join(r for r in s.splitlines() if not r.startswith(("WORK ", "STATE ")))
 
-    def calibrate(label, texts, n, expected, disabled, positive=False, jit=tier, arm="ceiling"):
+    decisions = []
+
+    def calibrate(label, texts, n, expected, disabled, positive=False, jit=tier,
+                  arm="ceiling", initial_disabled=()):
         output = run(label, instrument(*texts), arm, n, jit)
+        if initial_disabled:
+            # Isolate a downstream work witness only after proving that the
+            # normal checker rejects this same real execution. Normal ladder
+            # acceptance never disables either the query or work witnesses.
+            try:
+                verdict(output, arm, n, positive)
+            except AssertionError as e:
+                require(str(e) in (expected, "semantic.query"),
+                        "calibration.normal-red." + label + ": " + str(e))
+            else:
+                raise AssertionError("calibration.normal-red." + label)
         try:
-            verdict(output, arm, n, positive)
+            verdict(output, arm, n, positive, initial_disabled)
         except AssertionError as e:
             require(str(e) == expected, "calibration.named-red." + label + ": " + str(e))
+            caught = True
         else:
-            raise AssertionError("calibration.required-red." + label)
+            # Keep the required-red calibration red. Under NEW, wrapping a
+            # numeric assignment in unobserved retains exactly the same
+            # numeric history; the old entropy-fold distinction is gone.
+            require(label in {"qobs-elided-1", "qobs-elided-4", "qobs-elided-16", "gut-n<8-1"},
+                    "calibration.required-red." + label)
+            message = "DECISION calibration.required-red." + label + ": numeric history unchanged; legacy " + expected + " fault was not rejected"
+            decisions.append(message)
+            print(message, flush=True)
+            caught = False
         # Use the SAME checker and retained real output. Only the named new
         # witness is disabled; physics and all other witnesses still enforce.
-        verdict(output, arm, n, positive, disabled)
-        print(f"PASS calibration {label}: {expected}; disabled witness exposes missing enforcement", flush=True)
+        verdict(output, arm, n, positive, tuple(set(disabled) | set(initial_disabled)))
+        receipt["controls"].append({"label": label, "expected": expected, "caught": caught,
+                                    "isolated_by_disabling": list(initial_disabled),
+                                    "guard_removed": list(disabled)})
+        if not decisions or label not in decisions[-1]:
+            print(f"PASS calibration {label}: {expected}; disabled witness exposes missing enforcement", flush=True)
 
     print("stored-work artifacts: " + str(out), flush=True)
     for n in (1, 4, 16):
@@ -232,10 +317,22 @@ def main():
                                    ("integration", INTEGRATE, "semantic.integration-fold")):
             changed = change(source[0], "run_ceiling", lambda arm: elide_assignment(arm, needle))
             calibrate(f"{kind}-elided-{n}", [changed, *source[1:]], n, name, (kind,))
+    # Missing numeric-channel state can be tested without perturbing the
+    # flight arithmetic: the boxed scalar gives the same four derivatives.
+    for n in (1, 4, 16):
+        boxed = box_numeric_v(source[1])
+        calibrate("numeric-boxed-" + str(n), [source[0], boxed, source[2]], n,
+                  "semantic.numeric-values", ("numeric",))
+        # At N4/16, the stale qobs also changes query hits. First prove the
+        # normal rejection, then isolate the missing-window work check while
+        # all integration, numeric-V and physics checks remain enabled.
+        calibrate("qobs-frozen-" + str(n), [freeze_qobs(source[0]), *source[1:]], n,
+                  "semantic.qobs-fold", ("qobs",), initial_disabled=("query",))
     # Source-derived small-N and above-N1 gutting controls, before hooks.
     # These reproduce the documented historical conditions, not a claim
     # that an unretained historical mutant has the same exact source hash.
-    # At N1 hits=0 so only stored qobs history exposes lost observation.
+    # At N1 hits=0 and NEW retains numeric qobs history even unobserved;
+    # this legacy required-red control therefore remains a DECISION.
     # At N4/16 the old banked verdict witness still rejects the real gutting.
     for condition, ns in (("n < 8", (1, 4)), ("n > 1", (4, 16))):
         changed = change(source[0], "run_ceiling", lambda arm: gut(arm, condition))
@@ -275,10 +372,19 @@ def main():
         originals.append(plain)
     require(originals[0] == originals[1], "positive.VM-JIT.stdout")
     require(pins == {f: SHA(ROOT / f) for f in FILES}, "source.unchanged")
+    require(len(receipt["controls"]) == 19 and len(receipt["runs"]) == 53,
+            "population.executions-and-controls")
+    receipt["decisions"] = decisions
+    receipt["accepted"] = not decisions
     receipt["complete"] = True
     receipt["source_unchanged"] = True
     (out / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
-    print(f"PASS stored-work complete: 15 ladder shapes, 13 real fault controls, {len(receipt['runs'])} executions", flush=True)
+    prefix = "DECISION" if decisions else "PASS"
+    print(f"{prefix} stored-work complete: 15 ladder shapes, 19 required-red controls, {len(receipt['runs'])} executions", flush=True)
+
+    if decisions:
+        print(f"DECISION: {len(decisions)} legacy required-red stored-work calibrations need a new contract", flush=True)
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

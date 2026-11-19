@@ -56,7 +56,7 @@ predicates classify over a window of the last **10 observed samples**
 samples of the consumer's cadence cannot fold inside the window, so the
 verdict is not merely insensitive — it is **confidently wrong**: the
 phugoid (T = 46.9 s) replayed at 1 Hz reads `diverging` on its rising
-quarter-cycles, `stable`/`improving` elsewhere (measured; the pinned
+quarter-cycles, `stable` elsewhere (O.ph1s.t280: OLD improving, NEW stable; the pinned
 divergence rows in `tests/observer_check.eigs`). The same signal decimated
 to 5 s cadence (9.4 samples/cycle) reads `oscillating` correctly at every
 probe point. `dynamics` already documents the entropy-channel cadence
@@ -72,6 +72,11 @@ adaptively? A time-aware window (seconds, not samples) matches how flight
 modes are specified. Local mitigation: the O checks pin today's misreads
 as `divergence`-class rows so an upstream windowing change flips them
 loudly and rung 1 re-grades.
+
+Current next-runtime pin: O.ph1s.t280 is `stable`, class `divergence`.
+The recent ten one-second steps satisfy the documented <1% step band,
+but the aircraft still executes its analytically live 46.9 s oscillation;
+D2 sees no recent running lower best.
 
 ### G5 — value-channel verdicts are unit-dependent below |v| ≈ 1
 **Upstreamed: EigenScript#1045 (2026-08-24); original unit-triplet defect
@@ -318,3 +323,13 @@ workaround for G7/#1046 (any import arms the observer, so it is the only
 elision tool available) — and the recommended mitigation is not
 verdict-preserving. A consumer wrapping setup for speed silently changes
 what the observer later says, with no diagnostic.
+
+### Next-runtime regrade note (2026-11-19)
+The O2 spiral unit triplet now reads improving in every unit (agree): a
+positive exponential decay makes significant running lower bests at every
+sample, which D2 recognizes. Numeric why now reports raw displacement,
+so the scalar mirror calibration is +5→-5 = -10.0; the older entropy-zero
+measurement above remains historical. The reported P3.unitdep diagnostics came from c3’s deliberately corrupted
+output: D2 changed its donor-bucket population, so its expected diagnostic
+count was stale. The clean producer and direct unit probes pass the
+unchanged guard; receipts and derivation are retained in .scratch/RESULT.md.

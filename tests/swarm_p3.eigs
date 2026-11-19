@@ -198,7 +198,7 @@ define p3_row(idx, sp, cad, uscale, uname) as:
     local mv is 0
     local st is 0
     local eq is 0
-    local nimp is 0
+    local im is 0
     local dg is 0
     local ot is 0
     local fl is 0
@@ -230,7 +230,7 @@ define p3_row(idx, sp, cad, uscale, uname) as:
                     elif rp == "equilibrium":
                         eq is eq + 1
                     elif rp == "improving":
-                        nimp is nimp + 1
+                        im is im + 1
                     elif rp == "diverging":
                         dg is dg + 1
                     else:
@@ -267,8 +267,8 @@ define p3_row(idx, sp, cad, uscale, uname) as:
         unobserved:
             t is t + 0.05
         f is f + 1
-    print of f"p3 unit={uname} ac={idx} sp={sp} cad={cad} reads={rd} conv={cv} osc={os} moving={mv} stable={st} equil={eq} improving={nimp} diverging={dg} other={ot} full={fl} fosc={fos} fquiet={fqu} fnoclaim={fnc} fother={fot}"
-    return [rd, cv, os, mv, st, eq, nimp, dg, ot, fl, fos, fqu, fnc, fot]
+    print of f"p3 unit={uname} ac={idx} sp={sp} cad={cad} reads={rd} conv={cv} osc={os} moving={mv} stable={st} equil={eq} improving={im} diverging={dg} other={ot} full={fl} fosc={fos} fquiet={fqu} fnoclaim={fnc} fother={fot}"
+    return [rd, cv, os, mv, st, eq, im, dg, ot, fl, fos, fqu, fnc, fot]
 
 # The sweep is over FOUR axes. Round 7: the previous version sampled
 # fleet[1] and reported the row as a property of the dispersion -- but the

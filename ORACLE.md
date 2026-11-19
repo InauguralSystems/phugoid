@@ -560,7 +560,7 @@ verdicts against a mode-structure oracle:
   cadence (9.4 samples/cycle) → `oscillating` at every probe point,
   bare-word and named form.
 - **divergence (3):** phugoid replay at 1 s cadence (47 samples/cycle,
-  window 10 samples) → `stable` / `diverging` / `improving` at the three
+  window 10 samples) → `stable` / `diverging` / `stable` at the three
   probe points, physics truth `oscillating` at all three. The verdict is
   confidently wrong on quarter-cycles of a mode slower than the window —
   the multi-timescale prediction landing at the observer layer, upstreamed
@@ -3546,3 +3546,107 @@ host-noise spreads are in `evidence/fleet2-phugoid-profile.md`.
   while the already-retired historical `>1.15` slowdown is again refuted.
   The old-runtime ratio spreads (max minus min) were respectively
   0.067/0.166, 0.176/0.078 and 0.048/0.068, quantifying this host's noise.
+
+## Next-runtime trim comparison (2026-11-19)
+
+W1 compares a computed Newton root with the historical stored root; it is
+not a force-residual equality. The force residual at the stored root is
+identical on OLD and NEW. `linalg.solve_linear` changed from absolute to
+scaled partial pivoting; fixed copies of each algorithm produce the same
+bits on either runtime. The first Newton step alpha is
+-5.438531369251979e-05 (OLD) versus -5.438531369253527e-05 (NEW);
+exact rational elimination of the binary inputs gives
+-0.0000543853136925352634550247984038978404942486670872784.
+NEW is closer, but neither algorithm promises a correctly rounded solve.
+The workload literals and declared identity are restored unchanged.
+
+W1's zero bound was an accidental bit identity. For its replacement use
+the local trim Jacobian (rows in udot,wdot,qdot; columns alpha,de,thrust):
+`[[-19.17889741,-.00045853,5.70428628107e-5],
+[-162.9641397,-8.42637994,-1.0236e-10],
+[-.5029380223,-.55744708477,-7.244e-13]]`. With unit roundoff
+u=2^-53, gamma_100=100u/(1-100u), derivative evaluation scales
+[6,70,.001] bound the sums of force/acceleration terms at this trim
+(100 rounding stages is conservative for the straight-line derivative).
+The solver stops at residual sum <1e-13. Two independently rounded roots
+therefore differ by at most `2*abs(inv(J))*(1e-13+gamma_100*[6,70,.001])`,
+locally [3.075e-14,3.866e-13,1.618e-8]. Propagating alpha through
+u0*cos/sin and allowing two final output ulps gives the rounded-up bounds
+state=[2e-13,1e-11,0,4e-14], de=5e-13, thrust=2e-8. This is a local
+forward-error allowance, not a new physical trim accuracy claim. The q
+component is structurally zero. The existing w3 displacement 1e-6 is
+outside every allowance and must still produce its exact six reds.
+
+## Next-runtime observer regrade (2026-11-19)
+
+O.ph1s.t280 pins `stable` (OLD `improving`) and retains class `divergence`.
+The 1 Hz window is ten seconds, shorter than a quarter of the analytically
+46.9 s phugoid. Its recent steps fit the documented <1% stable band;
+it sets no recent running lower best, so D2 does not say improving.
+The live decaying oscillation is still oscillating by the aircraft model.
+G4 and tests/observer_check.eigs name the same stable pin. The three
+O2.units probes now pin improving/agree: the positive spiral angle decays
+with t-half≈14.9s, setting a significant lower best at every one-second
+sample. OLD's contraction-only test abstained (moving); D2's documented
+lower-is-better convention recognizes this decay. Numeric `why` is now
+raw displacement; the +5→-5 calibration pins -10.0, replacing the OLD
+entropy identity pin of zero. The frozen plant consequently reddens that
+calibration as well as the other twelve O2 checks (13 in total).
+
+## Next-runtime autopilot and stored-work regrade (2026-11-19)
+
+The AP regression bank now has258 checks: the original250 plus eight
+improving-count checks keeping the distributions closed on C4.ph, the
+inner stream, both phugoid edge streams and the four P4 streams. An
+independent implementation of the documented predicates and the controlled
+flight equations/RK4 reproduces all10,620 actual samples across17 baseline
+streams. It derives the51 changed count/order fingerprints and each
+plant’s new observer-derived red set; non-observer numeric fault families
+retain their analytical expectations. SP fingerprints remain BELOW-FLOOR,
+not physics grades. In the independent predicate model, unit conversions of the phugoid
+tapes preserve their complete new distributions; all unit sensitivity remains in already
+qualified SP rows. No aerodynamic reference or physical tolerance moves.
+
+AP ROW tokens retain every original declaration. Only their final four
+solved state components admit W1’s conditioned rounding allowances
+[2e-13,1e-11,0,4e-14]: mode_ic adds the identical clean modal vector to
+the trim state. Controls/cadences/populations remain exact numeric identities;
+int/double spellings compare as Decimal. The embedded comparator rejects
+1e-6 displacement in every input and missing/duplicate/non-finite rows;
+the original live parameter-corruption plant remains mandatory.
+
+The reported P3.unitdep diagnostics were c3’s deliberate corruption,
+printed when its expected diagnostic count drifted. D2 changes which
+rows have a moving donor: c3 has19 eligible radian rows plus one identity
+failure (20, formerly21); c21 has40 eligible non-radian/non-74 rows plus
+identity (41, formerly49). c31 now corrupts improving, still exactly one
+monoclass failure. Clean96-row unit identity and zero-false-clear guards
+are unchanged. Independent equations/RK4 plus predicates reproduce all96
+rows and all42 synthetic controls; all64 claim plants cover all72 sites.
+
+Numeric bindings now expose value history rather than entropy. The
+actual-source N1 probes retain all6,000 fresh derivative V values and the
+full10-step/11-value qobs window in both ceiling and floor. The checker
+requires that work at every N1/4/16 ladder shape. RK4 also stores the
+non-numeric k1 list once per step: its last_entropy is positive only for
+observed integration, zero inside unobserved. This existing container
+channel witnesses the integration fold independently of numeric history.
+Hooks inspect the actual bindings and add no line-qualified history reader
+(which would enable additional storage). Physics, populations, VM/JIT and
+constant-false-query witnesses remain live. Boxing only V while reading
+its sole value in arithmetic preserves physics but loses its numeric
+channel; freezing qobs preserves integration but loses its sample window.
+Both new faults must be rejected, at every ladder N, and removing their
+named guard must expose the lost enforcement.
+
+Four legacy required-red controls remain mandatory red DECISIONs:
+qobs-elided at N1/4/16 and qobs/predicate gutting at N1. Numeric history
+survives unobserved, and the N1 nominal query hits are already zero, so
+these controls no longer remove the work the old checker required. They
+are not made green or removed. Integration-elided at all three N and the
+partial-observed disciplined plant still remove/change real container
+folds and must be rejected. The checker records all19 controls and53
+executions, returns nonzero for the four policy decisions, and the profile
+gate preserves that result while measuring its original cost curves.
+No cost bound or historical cost figure is changed or adopted as a new bar.
+Full receipts and each moved expectation’s evidence: .scratch/RESULT.md.

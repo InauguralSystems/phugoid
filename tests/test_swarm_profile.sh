@@ -582,7 +582,12 @@ echo "minimum ceiling/floor across the ladder = $WORST (historical >$CF_BOUND re
 echo "PASS: ceiling/floor stays below $CEIL_HI at EACH ladder point"
 # Untimed actual-source work checks; never inject readers into timed arms or
 # the genuinely unarmed compilation control. Failure is mandatory here.
-python3 tests/swarm_work_check.py
+# Preserve a stored-work contract failure while measuring every cost curve.
+# Exit 2 denotes legacy required-red calibrations that numeric retention
+# makes equivalent; it is still a red gate, never a waiver or a skip.
+WORK_RC=0
+python3 tests/swarm_work_check.py || WORK_RC=$?
+[ "$WORK_RC" -eq 0 ] || [ "$WORK_RC" -eq 2 ] || exit "$WORK_RC"
 
 # Both original DU measurements remain reported with their old verdicts.
 # Only their existing upper budgets remain mandatory; no required slowdown.
@@ -717,4 +722,8 @@ echo "PASS: the ceiling-family upper bound rejects a REAL more-work arm (${cmr}x
 ratio_ok 1.00 "$DU_BOUND" && { echo "FAIL: historical DU comparator accepted 1.00"; exit 1; }
 ratio_ok 1.00 "$CF_BOUND" && { echo "FAIL: historical CF comparator accepted 1.00"; exit 1; }
 echo "PASS: historical DU/CF arithmetic still rejects 1.00; retired as release minima"
+if [ "$WORK_RC" -ne 0 ]; then
+    echo "DECISION: cost measurements completed; stored-work required-red contract remains red"
+    exit "$WORK_RC"
+fi
 echo "PASS: current swarm work, physics, and cost-budget contract complete"

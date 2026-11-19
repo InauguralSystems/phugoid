@@ -12,7 +12,7 @@
 # s16 its mirror, the extrema slot fed by the DFT (makes as_tp live),
 # s17 false initial q, s18 false all-clears, s19 forced improving,
 # s20 exact-comparator displacement including fixed populations.
-# Population pinned at exactly 250.
+# Population pinned at exactly 258.
 #
 # The rung-1/2 armor arrives pre-built: identity pins with distinct
 # values, read-site accessors, ROW tokens on every graded run, USE
@@ -557,13 +557,14 @@ define osc_count(rec) as:
 # the observer's absolute floor; s17 fabricates a zero and reddens them.
 # v0.47.0 re-grade: #1771 removes improving on rising tails; #1891 removes
 # equilibrium on one-direction tails. The physical case parameters are unchanged.
-for cs in [["c010", 5, 0, -1, 300, 140, 92, 30, 3, 14, 23736, 18064, 113, 22, 13, 0],
-           ["c020", 10, 0, -1, 150, 62, 15, 30, 1, 17, 5705, 1430, 54, 28, 14, 0],
-           ["c040", 20, 0, -1, 75, 25, 3, 15, 3, 10, 1350, 120, 25, 23, 6, 0],
-           ["c042", 21, 0, -1, 71, 24, 2, 15, 3, 10, 1236, 77, 24, 23, 4, 0],
-           ["c050", 25, 0, -1, 60, 19, 0, 15, 3, 7, 836, 0, 19, 19, 4, 0],
-           ["c100", 50, 6, 12, 30, 0, 0, 7, 0, 10, 0, 0, 8, 16, 1, 103],
-           ["c102", 51, 2, 16, 29, 1, 0, 10, 0, 8, 28, 0, 12, 15, 1, 34]]:
+# C5.sp.c010: stable 30->28, moving 22->0, improving 13->37. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+# C5.sp.c020: stable 30->37, moving 28->11, improving 14->24. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+# C5.sp.c040: stable 15->17, runs 10->9, moving 23->9, improving 6->18. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+# C5.sp.c042: stable 15->16, runs 10->9, moving 23->9, improving 4->17. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+# C5.sp.c050: runs 7->6, moving 19->6, improving 4->17. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+# C5.sp.c100: runs 10->8, maxrun 8->12, moving 16->5, improving 1->12. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+# C5.sp.c102: runs 8->7, maxrun 12->13, moving 15->3, improving 1->13. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+for cs in [["c010", 5, 0, -1, 300, 140, 92, 28, 3, 14, 23736, 18064, 113, 0, 37, 0], ["c020", 10, 0, -1, 150, 62, 15, 37, 1, 17, 5705, 1430, 54, 11, 24, 0], ["c040", 20, 0, -1, 75, 25, 3, 17, 3, 9, 1350, 120, 25, 9, 18, 0], ["c042", 21, 0, -1, 71, 24, 2, 16, 3, 9, 1236, 77, 24, 9, 17, 0], ["c050", 25, 0, -1, 60, 19, 0, 15, 3, 6, 836, 0, 19, 6, 17, 0], ["c100", 50, 6, 12, 30, 0, 0, 7, 0, 8, 0, 0, 12, 5, 12, 103], ["c102", 51, 2, 16, 29, 1, 0, 10, 0, 7, 28, 0, 13, 3, 13, 34]]:
     local rec is sup_run of [f"C5.sp.{cs[0]}.run", ic_sp, tr.de, eff_gain of (0.5), 0.02, 1500, 25, cs[1], tr.P, method, freeze]
     check_exact of [f"C5.sp.{cs[0]}.seed", rec.seed, ic_sp[2]]
     check_exact of [f"C5.sp.{cs[0]}.osc", osc_count of (rec), cs[2]]
@@ -638,12 +639,17 @@ for cs in [["c010", 5, 0, -1, 300, 140, 92, 30, 3, 14, 23736, 18064, 113, 22, 13
 # These are verdict streams, so they get the full family -- the streamfam
 # gate rejected a `dist=none` declaration for them, which is the gate
 # catching its own author doing the thing it was built to stop.
-for pe in [["p365", 73, 0, 109, 0, 109, 1, 109, 0 - 1], ["p370", 74, 1, 108, 0, 107, 3, 66, 41]]:
+# C5.ph.p365: moving 109->99, runs 1->7, maxrun 109->90. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+# C5.ph.p370: moving 107->97, runs 3->9. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+for pe in [["p365", 73, 0, 109, 0, 99, 7, 90, -1], ["p370", 74, 1, 108, 0, 97, 9, 66, 41]]:
     local erec is sup_run of [f"C5.ph.{pe[0]}.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, pe[1], tr.P, method, freeze]
     check_exact of [f"C5.ph.{pe[0]}.osc", osc_count of (erec), pe[2]]
     check_exact of [f"C5.ph.{pe[0]}.reads", len of erec.verdict, pe[3]]
     check_exact of [f"C5.ph.{pe[0]}.stable", verdict_count of [erec, "stable"], pe[4]]
     check_exact of [f"C5.ph.{pe[0]}.moving", verdict_count of [erec, "moving"], pe[5]]
+    # D2 sets ten recent running lower bests on each edge stream; retain
+    # their class as finite-window divergence on a live phugoid.
+    check_exact of [f"C5.ph.{pe[0]}.improving", verdict_count of [erec, "improving"], 10]
     check_exact of [f"C5.ph.{pe[0]}.runs", verdict_runs of (erec), pe[6]]
     check_exact of [f"C5.ph.{pe[0]}.maxrun", verdict_maxrun of (erec), pe[7]]
     # WHERE it oscillates, not just that it does. Round 25: p370 was the
@@ -659,7 +665,9 @@ for pe in [["p365", 73, 0, 109, 0, 109, 1, 109, 0 - 1], ["p370", 74, 1, 108, 0, 
     if pe[2] > 0:
         check_exact of [f"C5.ph.{pe[0]}.at", first_osc of (erec), pe[8]]
 
-for pc in [["p045", 9, 888, 365, 0, 0, 0, 37, 163775, 52, 33, 0, 486], ["p100", 20, 400, 118, 0, 0, 0, 10, 23574, 52, 17, 0, 272]]:
+# C5.ph.p045: improving 37->27, runs 52->38, moving 486->496. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+# C5.ph.p100: improving 10->14, runs 52->38, moving 272->268. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+for pc in [["p045", 9, 888, 365, 0, 0, 0, 27, 163775, 38, 33, 0, 496], ["p100", 20, 400, 118, 0, 0, 0, 14, 23574, 38, 17, 0, 268]]:
     local prec is sup_run of [f"C5.ph.{pc[0]}.run", ic_ph, tr.de, eff_gain of (0.5), 0.05, 8000, 100, pc[1], tr.P, method, freeze]
     check_exact of [f"C5.ph.{pc[0]}.osc", osc_count of (prec), 0]
     check_exact of [f"C5.ph.{pc[0]}.reads", len of prec.verdict, pc[2]]
@@ -699,7 +707,8 @@ check_exact of ["C4.ph.osc", osc_count of (ph_rec), 56]
 # left 85/85 and all 16 plants green -- while first_engaged still said 19
 # and toggles still said 17.
 check_exact of ["C4.ph.onset", first_osc of (ph_rec), 9]
-check_exact of ["C4.ph.runs", verdict_runs of (ph_rec), 18]
+# C4.ph.runs: 18->20. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+check_exact of ["C4.ph.runs", verdict_runs of (ph_rec), 20]
 check_exact of ["C4.ph.maxrun", verdict_maxrun of (ph_rec), 13]
 # ...and the same order checksum round 15 gave C5.p4 and did not twin here
 # (the fourth twinning miss in this loop). Reversing ph_rec's interior
@@ -711,7 +720,11 @@ check_exact of ["C4.ph.oidx", verdict_oidx of (ph_rec), 2497]
 # among them the SIXTH verdict class, `moving`, which appeared in no pin, no
 # comment and no manifest row anywhere in the rung. 18 + 56 + 6 = 80.
 check_exact of ["C4.ph.stable", verdict_count of [ph_rec, "stable"], 0]
-check_exact of ["C4.ph.moving", verdict_count of [ph_rec, "moving"], 24]
+# C4.ph.moving: 24->19. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+check_exact of ["C4.ph.moving", verdict_count of [ph_rec, "moving"], 19]
+# D2 now claims improving on this oscillatory trajectory; pin that divergence
+# as well, so the complete distribution still sums to the read population.
+check_exact of ["C4.ph.improving", verdict_count of [ph_rec, "improving"], 5]
 # The SATURATED horizon — the whole evidence for "the flat count is the
 # window, not the physics". Round 4 repacked this stream (count, onset,
 # toggles and reads all preserved) to move the horizon 79 -> 64, i.e. a
@@ -745,19 +758,26 @@ check_exact of ["C5.p1.inner.engagements", inner.toggles, 0]
 # healthy decaying mode half the time. "Blind" understates it: the
 # verdicts are confidently wrong, not absent.
 check_exact of ["C5.p1.inner.diverging", verdict_count of [inner, "diverging"], 3941]
-check_exact of ["C5.p1.inner.converged", verdict_count of [inner, "converged"], 378]
+# C5.p1.inner.converged: 378->362. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+check_exact of ["C5.p1.inner.converged", verdict_count of [inner, "converged"], 362]
 # ...and the remainder, so the distribution is CLOSED at the pin. The
 # historical 3934 + 4056 + 9 + 1 bank belonged to v0.43.0, not this run.
-check_exact of ["C5.p1.inner.stable", verdict_count of [inner, "stable"], 2096]
+# C5.p1.inner.stable: 2096->1975. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+check_exact of ["C5.p1.inner.stable", verdict_count of [inner, "stable"], 1975]
 check_exact of ["C5.p1.inner.equilibrium", verdict_count of [inner, "equilibrium"], 0]
 # phugoid#8 re-grade: `moving` appeared (#1045); pinned so the five
 # classes sum to reads again.
-check_exact of ["C5.p1.inner.moving", verdict_count of [inner, "moving"], 1585]
+# C5.p1.inner.moving: 1585->1506. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+check_exact of ["C5.p1.inner.moving", verdict_count of [inner, "moving"], 1506]
+# D2 now claims improving on this oscillatory trajectory; pin that divergence
+# as well, so the complete distribution still sums to the read population.
+check_exact of ["C5.p1.inner.improving", verdict_count of [inner, "improving"], 216]
 # ...and the ORDER, which is what "alternates" means and what the counts
 # above cannot see (round 12). Both rows are red under s7 (stream frozen
 # -> 1 run) and s12 (forced oscillating -> 1 run), so the existing plant
 # matrix covers them.
-check_exact of ["C5.p1.inner.runs", verdict_runs of (inner), 70]
+# C5.p1.inner.runs: 70->71. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+check_exact of ["C5.p1.inner.runs", verdict_runs of (inner), 71]
 # Round 16: runs and maxrun are BOTH reversal-invariant (a reversal
 # preserves the run-length multiset), so "pinned for ORDER" was false for
 # this stream -- reversing all 8000 verdicts passed 96/96, every plant and
@@ -771,7 +791,8 @@ check_exact of ["C5.p1.inner.didx", verdict_idxsum of [inner, "diverging"], 1603
 # SMALLEST converged-bearing streams and absent from the three largest --
 # and absent silently, since a missing entry inside a comma list is not a
 # missing line. Both index sums now cover every stream that has the class.
-check_exact of ["C5.p1.inner.cidx", verdict_idxsum of [inner, "converged"], 1508201]
+# C5.p1.inner.cidx: 1508201->1496671. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+check_exact of ["C5.p1.inner.cidx", verdict_idxsum of [inner, "converged"], 1496671]
 check_exact of ["C5.p1.inner.maxrun", verdict_maxrun of (inner), 260]
 # And the supervisory layer does NOT hold cleanly either: it sees the
 # regime (56 of 80 reads, pinned by C4.ph.osc) but the engagement
@@ -832,7 +853,11 @@ check_exact of ["C4.ph.first_engaged", first_engaged of (ph_rec), 19]
 # Only the latter two pass the tested physical invariances. Identical-tape
 # scaling passes all four and cannot prove nonlinear closed-loop amplitude
 # invariance. This supersedes the general amplitude claim just above.
-for ramp in [["a020", 0.2, 57, 79, 9, 18, 2569, 0, 0, 0, 0, 23], ["a030", 0.3, 57, 79, 9, 18, 2569, 0, 0, 0, 0, 23], ["a040", 0.4, 57, 79, 9, 18, 2569, 0, 0, 0, 0, 23], ["a035", 0.35, 57, 79, 9, 18, 2569, 0, 0, 0, 0, 23]]:
+# C5.p4.a020: runs 18->20, moving 23->17. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+# C5.p4.a030: runs 18->20, moving 23->17. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+# C5.p4.a040: runs 18->20, moving 23->17. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+# C5.p4.a035: runs 18->20, moving 23->17. D2 tests a recent running lower best, replacing the contraction test; these remain stream fingerprints, with modal truth and BELOW-FLOOR classes unchanged.
+for ramp in [["a020", 0.2, 57, 79, 9, 20, 2569, 0, 0, 0, 0, 17], ["a030", 0.3, 57, 79, 9, 20, 2569, 0, 0, 0, 0, 17], ["a040", 0.4, 57, 79, 9, 20, 2569, 0, 0, 0, 0, 17], ["a035", 0.35, 57, 79, 9, 20, 2569, 0, 0, 0, 0, 17]]:
     local icr is mode_ic of [a_closed of [A_ref, B_ref, [0.0, 0.0, 0.5, 0.0]], pk05.osc[1].re, pk05.osc[1].im, tr.state, 0, ramp[1]]
     local rc is sup_run of [f"C5.p4.{ramp[0]}.run", icr, tr.de, eff_gain of (0.5), 0.05, 8000, 100, 100, tr.P, method, freeze]
     check_exact of [f"C5.p4.{ramp[0]}.osc", osc_count of (rc), ramp[2]]
@@ -858,6 +883,9 @@ for ramp in [["a020", 0.2, 57, 79, 9, 18, 2569, 0, 0, 0, 0, 23], ["a030", 0.3, 5
     check_exact of [f"C5.p4.{ramp[0]}.cidx", verdict_idxsum of [rc, "converged"], ramp[10]]
     # phugoid#8 re-grade: `moving` (the partial-window reads) closes it.
     check_exact of [f"C5.p4.{ramp[0]}.moving", verdict_count of [rc, "moving"], ramp[11]]
+    # D2 claims recent lower bests on six reads of each live phugoid; keep
+    # these finite-window divergences in the closed regression distribution.
+    check_exact of [f"C5.p4.{ramp[0]}.improving", verdict_count of [rc, "improving"], 6]
     if ramp[2] > 0:
         check_exact of [f"C5.p4.{ramp[0]}.horizon", last_osc of (rc), ramp[3]]
         check_exact of [f"C5.p4.{ramp[0]}.onset", first_osc of (rc), ramp[4]]
@@ -875,8 +903,8 @@ for ramp in [["a020", 0.2, 57, 79, 9, 18, 2569, 0, 0, 0, 0, 23], ["a030", 0.3, 5
 
 print of f"CHECKS_RUN {checks_run}"
 print of f"FAILURES {failures}"
-if checks_run != 250:
-    print of f"FAIL harness: expected exactly 250 checks, ran {checks_run}"
+if checks_run != 258:
+    print of f"FAIL harness: expected exactly 258 checks, ran {checks_run}"
     exit of 1
 if failures > 0:
     exit of 1

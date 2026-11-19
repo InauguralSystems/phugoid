@@ -94,10 +94,11 @@ the level-set stress:
   Dutch roll T within 0.1%, ζ 0.01%; roll and spiral t½ within 0.1%.
 - **`tests/observer_lat_check.eigs`** — the level-set grading: the value
   channel correctly reads zero-symmetric motion the entropy channel is
-  provably blind to (the mirror pin: a +5 → −5 assignment registers
-  `why == 0` exactly). The original radian/degree/milliradian unit
+  provably blind to (the original entropy mirror identity; numeric `why` now measures
+  raw displacement, so +5 → −5 registers −10.0). The original radian/degree/milliradian unit
   split (GAPS.md G5, EigenScript#1045) is fixed on main: the spiral
-  triplet now reads `moving` in all three units. Below the remaining
+  triplet now reads `improving` in all three units under the documented
+  running-best convention. Below the remaining
   characteristic floor, verdicts still depend on the numerical unit
   unless the floor is converted too; that policy was deliberately chosen
   upstream.
@@ -116,7 +117,7 @@ bash tests/test_observer.sh    # 11 observer-verdict checks + 2 plants
 bash tests/test_latsim.sh      # 76 rung-2 model checks vs the rung-0 chain
 bash tests/test_latsim_planted.sh # 22 rung-2 plants, exact red sets + manifest
 bash tests/test_observer_lat.sh   # 13 rung-2 observer checks + 2 plants
-bash tests/test_ap.sh          # 250 rung-3 closed-loop and input-history checks
+bash tests/test_ap.sh          # 258 rung-3 closed-loop and input-history checks
 bash tests/test_ap_planted.sh  # 20 rung-3 plants, exact red sets + manifest
 bash tests/test_ap_profile.sh  # the observer read-path ratio gate
 bash tests/run_suite.sh 20     # what CI runs: every tests/test_*.sh, count-pinned;

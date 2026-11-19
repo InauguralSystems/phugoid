@@ -125,9 +125,9 @@ loop while i < (len of recB.t):
         if i == 200:
             check_verdict of ["O.ph1s.t200", report of w1, "diverging", "divergence"]
         if i == 280:
-            # Stable is NEW's documented ten-step <1% band.  The aircraft
-            # is still in its 47 s phugoid, so this is still a deliberate
-            # finite-window divergence rather than physical agreement.
+            # OLD improving -> NEW stable: these ten one-second steps fit
+            # the documented <1% band but set no recent running lower best.
+            # The analytically live 46.9 s mode is oscillating, so retain divergence.
             check_verdict of ["O.ph1s.t280", report of w1, "stable", "divergence"]
     i is i + 1
 

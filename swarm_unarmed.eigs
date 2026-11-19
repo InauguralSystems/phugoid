@@ -33,10 +33,10 @@ load_file of "sim_core.eigs"
 # the real solver and asserts these literals match it, so they cannot
 # drift from the physics they stand in for.
 define trim_pinned as:
-    return [279.09999958677514, 0.0 - 0.015187564279788903, 0.0, 0.0 - 5.441621027332239e-05]
+    return [279.09999958677514, 0.0 - 0.015187564279792735, 0.0, 0.0 - 5.441621027333612e-05]
 
 define de_pinned as:
-    return 5.274186534183555e-05
+    return 5.274186534184886e-05
 
 # The solved THRUST, which trim_solve folds back into P and which the
 # un-trimmed P does not carry. Missing it was a real divergence, caught by
@@ -44,7 +44,7 @@ define de_pinned as:
 # a different aircraft (thrust 0 against 51919) and its digest disagreed
 # with all six armed arms. The digest exists for exactly that.
 define thrust_pinned as:
-    return 51919.29382283137
+    return 51919.293822831365
 
 define int_of_u(x) as:
     if x < 0.0:

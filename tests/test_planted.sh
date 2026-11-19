@@ -217,6 +217,8 @@ echo "PASS: P11 red pattern exact"
 # (b) every plantable name must appear in some plant's red set — a check
 # outside every red set has never been shown able to fail; (c) a
 # structural name in a red set means the exemption list is stale.
+# NEW prints integral doubles with .0; manifest tokens retain identical
+# numeric values, verified token-by-token as Decimal during migration.
 echo "--- manifest: identity + full red-set coverage + class vocabulary ---"
 . "$(dirname "$0")/manifestlib.sh"
 "$EIGS" tests/modes_check.eigs      > "$WORK/clean_modes" 2>&1      || { echo "FAIL: unplanted modes_check nonzero"; exit 1; }

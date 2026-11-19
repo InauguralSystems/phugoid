@@ -97,12 +97,18 @@ if plant == "w3":
     tp[3] is tp[3] + 1e-6
     de_c is de_c + 1e-6
     th_c is th_c + 1e-6
+# OLD's absolute-pivot solve and NEW's scaled-pivot solve round differently;
+# neither promises a bit-exact root.  Bounds are 2*|J^-1|*(1e-13 +
+# gamma_100*[6,70,.001]), propagated through [u0*cos(alpha),u0*sin(alpha)],
+# plus two output ulps: [2e-13,1e-11,0,4e-14], de=5e-13, thrust=2e-8.
+# ORACLE's next-runtime trim note derives these; w3's 1e-6 remains outside.
+trim_bounds is [2e-13, 1e-11, 0.0, 4e-14]
 i is 0
 loop while i < 4:
-    check_below of [f"W1.trim{i}", tr.state[i] - tp[i], 0.0]
+    check_below of [f"W1.trim{i}", tr.state[i] - tp[i], trim_bounds[i]]
     i is i + 1
-check_below of ["W1.de", tr.de - de_c, 0.0]
-check_below of ["W1.thrust", tr.thrust - th_c, 0.0]
+check_below of ["W1.de", tr.de - de_c, 5e-13]
+check_below of ["W1.thrust", tr.thrust - th_c, 2e-8]
 
 # W2 — the ARM DIFFERENTIAL. Observation must not change the physics, so
 # every arm's fleet digest must be identical. This is the check that
