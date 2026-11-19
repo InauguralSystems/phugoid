@@ -4,8 +4,17 @@
 # sole safety factor of two.  That factor provides one further copy of both
 # measured corrections for evaluation-floor and higher-order terms.
 load_file of "sim_core.eigs"
-load_file of "swarm_unarmed.eigs"
 import linalg
+
+# Fixed conditioning certificate for the three stored solve coordinates
+# [alpha, de, thrust] (the stored trim itself is in swarm_unarmed.eigs,
+# whose code lines tests/test_swarm_profile.sh pins by a hash, so the
+# certificate lives here).  Evaluating J(x_st)^-1 r(x_st) with the command in
+# ORACLE.md gives these magnitudes (NEW and OLD agree in the shown digits).
+# This is deliberately not recomputed from x_st: a planted stored literal
+# therefore cannot increase the allowance used to check that literal.
+define trim_pinned_correction as:
+    return [4.438787974791476e-17, 4.302209886930405e-17, 1.491252458565451e-11]
 
 define trim_root_correction(x, P) as:
     local r is trim_residual of [x, P]

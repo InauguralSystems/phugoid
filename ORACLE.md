@@ -3562,7 +3562,9 @@ historical stored root.  For solve coordinates, its local bound is
 
 `2 * (abs(J(x_run)^-1 r(x_run)) + stored_correction)`.
 
-The fixed `stored_correction` is pinned beside the stored constants and is
+The fixed `stored_correction` is pinned in `tests/trim_allowance.eigs`
+(`trim_pinned_correction`; not in `swarm_unarmed.eigs`, which holds the stored
+constants and whose code lines `tests/test_swarm_profile.sh` pins by a hash) and is
 `[4.438787974791476e-17, 4.302209886930405e-17,
 1.491252458565451e-11]` for `[alpha, de, thrust]`.  It is not evaluated from
 the constants at run time.  It was derived on both runtimes with:
