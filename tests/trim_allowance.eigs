@@ -2,6 +2,9 @@
 # J(x)c=r(x); |c| estimates its distance from the nearby root.  The factor
 # two covers both the first neglected Newton term and rounding in the
 # residual/Jacobian evaluation.  It is the only safety factor.
+load_file of "sim_core.eigs"
+import linalg
+
 define trim_root_correction(x, P) as:
     local r is trim_residual of [x, P]
     local cols is []
