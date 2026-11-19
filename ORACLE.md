@@ -3567,10 +3567,11 @@ The fixed `stored_correction` is pinned in `tests/trim_allowance.eigs`
 constants and whose code lines `tests/test_swarm_profile.sh` pins by a hash) and is
 `[4.438787974791476e-17, 4.302209886930405e-17,
 1.491252458565451e-11]` for `[alpha, de, thrust]`.  It is not evaluated from
-the constants at run time.  It was derived on both runtimes with:
+the constants at run time.  It was derived on both runtimes with (from the
+repository's root: `load_file` resolves beside the program's own file):
 
 ```sh
-cat >/tmp/stored.eigs <<'EOF'
+cat >stored-root.eigs <<'EOF'
 load_file of "data/b747_approach.eigs"
 load_file of "sim.eigs"
 load_file of "swarm_unarmed.eigs"
@@ -3579,8 +3580,9 @@ P is sim_params of [b747_approach of null, ctl_nominal of null]
 x is [0.0-5.441621027333612e-05, 5.274186534184886e-05, 51919.293822831365]
 print of (trim_root_correction of [x,P])
 EOF
-NEW/src/eigenscript /tmp/stored.eigs
-OLD/src/eigenscript /tmp/stored.eigs
+NEW/src/eigenscript stored-root.eigs
+OLD/src/eigenscript stored-root.eigs
+rm stored-root.eigs
 ```
 
 NEW printed `[-4.4387879747914757e-17, 4.302209886930404e-17,
