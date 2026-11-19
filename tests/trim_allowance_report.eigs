@@ -1,0 +1,18 @@
+load_file of "data/b747_approach.eigs"
+load_file of "sim.eigs"
+load_file of "swarm_unarmed.eigs"
+load_file of "tests/trim_allowance.eigs"
+
+P is sim_params of [b747_approach of null, ctl_nominal of null]
+tr is trim_solve of P
+tp is trim_pinned of null
+a is trim_allowance of tr
+print of f"W1_ALLOWANCES state={a[0]} de={a[1]} thrust={a[2]}"
+ds is [tr.state[0]-tp[0], tr.state[1]-tp[1], tr.state[2]-tp[2], tr.state[3]-tp[3]]
+for i in range of 4:
+    local ratio is 0.0
+    if a[0][i] > 0.0:
+        ratio is (abs of ds[i]) / a[0][i]
+    print of f"W1_FIELD trim{i} difference={abs of ds[i]} allowance={a[0][i]} ratio={ratio}"
+print of f"W1_FIELD de difference={abs of (tr.de-(de_pinned of null))} allowance={a[1]} ratio={(abs of (tr.de-(de_pinned of null)))/a[1]}"
+print of f"W1_FIELD thrust difference={abs of (tr.thrust-(thrust_pinned of null))} allowance={a[2]} ratio={(abs of (tr.thrust-(thrust_pinned of null)))/a[2]}"

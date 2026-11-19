@@ -9,6 +9,9 @@ EIGS="${EIGENSCRIPT:-eigenscript}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 OUT="$(mktemp)"; WORK="$(mktemp -d)"; trap 'rm -f "$OUT"; rm -rf "$WORK"' EXIT
+W1_LINE=$("$EIGS" tests/trim_allowance_report.eigs | grep '^W1_ALLOWANCES ')
+export W1_STATE_BOUNDS=$(printf '%s\n' "$W1_LINE" | sed 's/.*state=\[\([^]]*\)\].*/\1/; s/,/ /g')
+[ "$(printf '%s\n' "$W1_STATE_BOUNDS" | awk '{print NF}')" -eq 4 ] || { echo "FAIL: could not read W1 state allowances"; exit 1; }
 
 run_plant() {
     if "$EIGS" tests/ap_check.eigs "$1" > "$OUT" 2>&1; then
@@ -321,10 +324,10 @@ ap_input_identity() {
 Only the final four solved-state components have a forward-error allowance;
 all controls, cadences, times, amplitudes and populations remain exact.
 """
-import sys
+import os, sys
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-BOUNDS = list(map(Decimal, ('2e-13','1e-11','0','4e-14')))
+BOUNDS = list(map(Decimal, os.environ['W1_STATE_BOUNDS'].split()))
 def parse(text, manifest=False):
     rows={}
     for line in text.splitlines():

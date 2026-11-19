@@ -3557,33 +3557,41 @@ host-noise spreads are in `evidence/runtime-next/profile-2026-11-19.md`.
 
 ## Next-runtime trim comparison (2026-11-19)
 
-W1 compares a computed Newton root with the historical stored root; it is
-not a force-residual equality. The force residual at the stored root is
-identical on OLD and NEW. `linalg.solve_linear` changed from absolute to
-scaled partial pivoting; fixed copies of each algorithm produce the same
-bits on either runtime. The first Newton step alpha is
--5.438531369251979e-05 (OLD) versus -5.438531369253527e-05 (NEW);
-exact rational elimination of the binary inputs gives
--0.0000543853136925352634550247984038978404942486670872784.
-NEW is closer, but neither algorithm promises a correctly rounded solve.
-The workload literals and declared identity are restored unchanged.
+W1 compares the Newton root computed by this run with the unchanged historical
+stored root.  Its allowance is the standard local a-posteriori forward-error
+estimate
 
-W1's zero bound was an accidental bit identity. For its replacement use
-the local trim Jacobian (rows in udot,wdot,qdot; columns alpha,de,thrust):
-`[[-19.17889741,-.00045853,5.70428628107e-5],
-[-162.9641397,-8.42637994,-1.0236e-10],
-[-.5029380223,-.55744708477,-7.244e-13]]`. With unit roundoff
-u=2^-53, gamma_100=100u/(1-100u), derivative evaluation scales
-[6,70,.001] bound the sums of force/acceleration terms at this trim
-(100 rounding stages is conservative for the straight-line derivative).
-The solver stops at residual sum <1e-13. Two independently rounded roots
-therefore differ by at most `2*abs(inv(J))*(1e-13+gamma_100*[6,70,.001])`,
-locally [3.075e-14,3.866e-13,1.618e-8]. Propagating alpha through
-u0*cos/sin and allowing two final output ulps gives the rounded-up bounds
-state=[2e-13,1e-11,0,4e-14], de=5e-13, thrust=2e-8. This is a local
-forward-error allowance, not a new physical trim accuracy claim. The q
-component is structurally zero. The existing w3 displacement 1e-6 is
-outside every allowance and must still produce its exact six reds.
+`2 * abs(J(x_run)^-1 r(x_run))`,
+
+where `r` is the three-component trim force/acceleration residual and `J` is
+its finite-difference Jacobian at the computed root.  The single safety factor
+is **2**: one copy is the Newton correction measured by the run, and the
+second covers the neglected local Newton remainder and floating-point
+residual/Jacobian evaluation.  The estimate is propagated to the state by
+`[u0*cos(alpha), u0*sin(alpha), 0, alpha]`.  It uses neither the solver stop
+tolerance nor a guessed number of rounding stages.
+
+`tests/trim_allowance_report.eigs` measured these allowances:
+
+| runtime | trim0 | trim1 | trim2 | trim3 | de | thrust |
+|---|---:|---:|---:|---:|---:|---:|
+| NEW `phase2-consumers-1` | 1.3482875538299836e-18 | 2.4777314438601533e-14 | 0 | 8.877575949582903e-17 | 8.604419773859836e-17 | 3.076018362782496e-11 |
+| OLD `v0.48.0` | 1.3482875538303306e-18 | 2.4777314438601662e-14 | 0 | 8.877575949582949e-17 | 8.604419773860793e-17 | 2.9825049171309015e-11 |
+
+On NEW, the largest differences and difference/allowance ratios were trim0
+0/0, trim1 3.832004158432767e-15/0.154657765, trim2 0/0, trim3
+1.37287100090977e-17/0.15464, de 1.3308581667259567e-17/0.15467, and
+thrust 7.275957614183426e-12/0.23654.  On OLD all six differences and ratios
+were zero.  Thus the previous trim1 allowance was about 404 times larger
+than the derived allowance (rather than about 2,600 times the observed
+difference).
+
+The clean-copy planted test applies one unit in the fourth, eighth and
+twelfth significant digit of each of the six constants.  All eighteen are
+caught by their named W1 comparison; the smallest plants (trim3 and de at
+1e-16) remain above their respective 8.877575949582903e-17 and
+8.604419773859836e-17 resolution.  The existing `w3` displacement of 1e-6
+still gives exactly the six W1 reds.
 
 ## Next-runtime observer regrade (2026-11-19)
 
