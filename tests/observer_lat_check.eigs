@@ -35,6 +35,8 @@
 # v0.47.0 (#1771): roll.matched's negative roll rate rises
 # toward zero, so directional improving no longer applies. It now abstains
 # (moving): 7 agree, 5 divergence, 1 instrument; the physical run is unchanged.
+# On the next runtime (2026-11-19) the checks below stand at 10 agree, 2 divergence,
+# 1 instrument: the spiral unit triplet reads improving in every unit and agrees.
 
 load_file of "data/b747_approach.eigs"
 load_file of "modes.eigs"

@@ -14,7 +14,8 @@
 #                window is a fixed 10 SAMPLES, so a mode slower than
 #                ~10 samples of the consumer's cadence cannot fold inside
 #                the window — the phugoid (T=47 s) replayed at 1 Hz reads
-#                diverging/stable/improving on its quarter-cycles.
+#                diverging/stable/equilibrium over its cycle (the next runtime
+#                no longer reads improving there; GAPS.md G4 has the counts).
 #                These pins flip the day upstream changes the windowing;
 #                that flip is the signal to re-grade, not a rung-1 bug.
 

@@ -55,8 +55,11 @@ predicates classify over a window of the last **10 observed samples**
 (docs/PREDICATES.md), with no per-binding control. A mode slower than ~10
 samples of the consumer's cadence cannot fold inside the window, so the
 verdict is not merely insensitive — it is **confidently wrong**: the
-phugoid (T = 46.9 s) replayed at 1 Hz reads `diverging` on its rising
-quarter-cycles, `stable` elsewhere (O.ph1s.t280: OLD improving, NEW stable; the pinned
+phugoid (T = 46.9 s) replayed at 1 Hz reads `diverging` on stretches of
+its rising and of its falling quarter-cycles, and `stable` or `equilibrium`
+elsewhere; it never reads `oscillating` (on the next runtime, of 176 samples
+from t = 105 s: 55 `diverging`, 83 `stable`, 38 `equilibrium`). (O.ph1s.t280:
+OLD improving, NEW stable; the pinned
 divergence rows in `tests/observer_check.eigs`). The same signal decimated
 to 5 s cadence (9.4 samples/cycle) reads `oscillating` correctly at every
 probe point. `dynamics` already documents the entropy-channel cadence
@@ -332,4 +335,5 @@ so the scalar mirror calibration is +5→-5 = -10.0; the older entropy-zero
 measurement above remains historical. The reported P3.unitdep diagnostics came from c3’s deliberately corrupted
 output: D2 changed its donor-bucket population, so its expected diagnostic
 count was stale. The clean producer and direct unit probes pass the
-unchanged guard; receipts and derivation are retained in .scratch/RESULT.md.
+unchanged guard; the derivation is in `evidence/runtime-next/regrade-2026-11-19.md`
+(section 2) and `evidence/runtime-next/p3-derived-rows.txt`.

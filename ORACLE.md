@@ -3451,6 +3451,12 @@ current premise. Source shapes and costs must be reported separately:
 the zero-reader/counterfactual timings no longer straddle 1.20 reliably,
 so they are neither a P1 timing mechanism proof nor a rejected plant.
 
+(The paragraphs from here to the end of this section describe the checker
+as it was through v0.48.0. On the next runtime a numeric binding has no
+entropy history, and the checker reads retained numeric values and container
+folds: "Next-runtime autopilot and stored-work regrade (2026-11-19)" below
+is the present contract.)
+
 `tests/swarm_work_check.py`, called by the mandatory profile gate, derives
 untimed copies of the exact pinned source. It reads stored qobs
 `last_entropy`/`dh` after the final-frame actual read and local derivative
@@ -3522,7 +3528,7 @@ acceptance waiver.
 This is a measurement record, not a changed release bar.  It compares the
 v0.48.0 pin with EigenScript `045c8a1c37c17b7709300386c765920e884c7fdb`
 using five interleaved runs of each runtime; the raw runs, estimator and
-host-noise spreads are in `evidence/fleet2-phugoid-profile.md`.
+host-noise spreads are in `evidence/runtime-next/profile-2026-11-19.md`.
 
 - **C6:** the literal `read/write > 1.5` claim is false on the next runtime:
   the paired-run median is 1.457 (range 1.341--1.487), versus 1.679
@@ -3535,11 +3541,13 @@ host-noise spreads are in `evidence/fleet2-phugoid-profile.md`.
 - **Swarm stored work:** the direct, uninstrumented counters and fleet digests
   are identical on both runtimes at N=1, 4 and 16: hits are 0, 5974 and 21126;
   reads/evaluations are 1500, 6000 and 24000.  The stored-work claim remains
-  true.  The checker that instruments numeric trajectories cannot complete on
-  the next runtime because it compares the now-null numeric `last_entropy`
-  field; the next runtime documents that numeric observation uses the value
-  channel rather than entropy.  The test-file repair is outside this task's
-  explicit no-test-file scope.
+  true.  The checker that instruments numeric trajectories could not complete
+  on the next runtime as it stood at this measurement: it compared the numeric
+  `last_entropy` field, which is null there (the next runtime documents that
+  numeric observation uses the value channel, not entropy).  It has since been
+  rewritten to read retained numeric values and container folds ("Next-runtime
+  autopilot and stored-work regrade" below); it completes its 53 executions
+  there and reports four legacy calibrations as decisions.
 - **Swarm cost curves:** at N=1, 4 and 16, next-runtime ceiling/floor medians
   were 1.080, 1.087 and 1.085; disciplined/floor medians were 1.006, 1.046 and
   0.995.  Thus the current upper-cost and residual-band claims remain true,
@@ -3649,4 +3657,6 @@ folds and must be rejected. The checker records all19 controls and53
 executions, returns nonzero for the four policy decisions, and the profile
 gate preserves that result while measuring its original cost curves.
 No cost bound or historical cost figure is changed or adopted as a new bar.
-Full receipts and each moved expectation’s evidence: .scratch/RESULT.md.
+Each moved expectation’s reason is beside it in the tests; the derivations
+behind the counts and the red sets are in `evidence/runtime-next/`
+(`regrade-2026-11-19.md` says which file holds which).

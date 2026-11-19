@@ -1,0 +1,1 @@
+P3CLAIMS OK rows=96 best_detect=100% (at unit=rad ac=0 sp=0.02 cad=104) rad_falseallclear_max=0% nonrad_max=0% (whole grid) fleet=803 803 803 803
