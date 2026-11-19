@@ -87,7 +87,7 @@ define charpoly4(A) as:
 # ------------------------------------------------- complex helpers
 
 define cadd(a, b) as:
-    return complex.add of [a, b]
+    return complex.complex_add of [a, b]
 
 define csub(a, b) as:
     return complex.sub of [a, b]

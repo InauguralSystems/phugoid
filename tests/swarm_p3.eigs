@@ -198,7 +198,7 @@ define p3_row(idx, sp, cad, uscale, uname) as:
     local mv is 0
     local st is 0
     local eq is 0
-    local im is 0
+    local nimp is 0
     local dg is 0
     local ot is 0
     local fl is 0
@@ -230,7 +230,7 @@ define p3_row(idx, sp, cad, uscale, uname) as:
                     elif rp == "equilibrium":
                         eq is eq + 1
                     elif rp == "improving":
-                        im is im + 1
+                        nimp is nimp + 1
                     elif rp == "diverging":
                         dg is dg + 1
                     else:
@@ -267,8 +267,8 @@ define p3_row(idx, sp, cad, uscale, uname) as:
         unobserved:
             t is t + 0.05
         f is f + 1
-    print of f"p3 unit={uname} ac={idx} sp={sp} cad={cad} reads={rd} conv={cv} osc={os} moving={mv} stable={st} equil={eq} improving={im} diverging={dg} other={ot} full={fl} fosc={fos} fquiet={fqu} fnoclaim={fnc} fother={fot}"
-    return [rd, cv, os, mv, st, eq, im, dg, ot, fl, fos, fqu, fnc, fot]
+    print of f"p3 unit={uname} ac={idx} sp={sp} cad={cad} reads={rd} conv={cv} osc={os} moving={mv} stable={st} equil={eq} improving={nimp} diverging={dg} other={ot} full={fl} fosc={fos} fquiet={fqu} fnoclaim={fnc} fother={fot}"
+    return [rd, cv, os, mv, st, eq, nimp, dg, ot, fl, fos, fqu, fnc, fot]
 
 # The sweep is over FOUR axes. Round 7: the previous version sampled
 # fleet[1] and reported the row as a property of the dispersion -- but the
@@ -484,6 +484,7 @@ define p3_control_ch(kind, amp, cad, uscale, uname) as:
     local mv is 0
     local dg is 0
     local eq is 0
+    local nimp is 0
     local t is 0.0
     local f is 0
     loop while f < 8000:
@@ -521,6 +522,8 @@ define p3_control_ch(kind, amp, cad, uscale, uname) as:
                             dg is dg + 1
                         elif rp == "equilibrium":
                             eq is eq + 1
+                        elif rp == "improving":
+                            nimp is nimp + 1
         unobserved:
             # The noise process advances once per FRAME, so it is a
             # property of TIME and each cadence samples every cad-th value
@@ -535,7 +538,7 @@ define p3_control_ch(kind, amp, cad, uscale, uname) as:
             rs is (rs * 75.0 + 74.0) % 65537.0
             t is t + 0.05
         f is f + 1
-    print of f"p3mono kind={kind} unit={uname} cad={cad} full={fl} fosc={fos} conv={cv} stable={st} moving={mv} diverging={dg} equil={eq}"
+    print of f"p3mono kind={kind} unit={uname} cad={cad} full={fl} fosc={fos} conv={cv} stable={st} moving={mv} improving={nimp} diverging={dg} equil={eq}"
     return [fl, fos]
 
 # AMP is ac0's measured initial pitch-rate peak-to-peak at the shipped

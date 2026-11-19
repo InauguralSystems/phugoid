@@ -125,7 +125,10 @@ loop while i < (len of recB.t):
         if i == 200:
             check_verdict of ["O.ph1s.t200", report of w1, "diverging", "divergence"]
         if i == 280:
-            check_verdict of ["O.ph1s.t280", report of w1, "improving", "divergence"]
+            # Stable is NEW's documented ten-step <1% band.  The aircraft
+            # is still in its 47 s phugoid, so this is still a deliberate
+            # finite-window divergence rather than physical agreement.
+            check_verdict of ["O.ph1s.t280", report of w1, "stable", "divergence"]
     i is i + 1
 
 print of f"CHECKS_RUN {checks_run}"

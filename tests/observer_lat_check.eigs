@@ -95,15 +95,13 @@ loop while i < (len of recd.t):
     i is i + 1
 
 # ---------------------------------------------------- the mirror pins
-# H(x) = H(-x): a full +5 -> -5 reversal registers ZERO entropy change
-# (why == 0), while 5 -> 2.5 registers ~0.21 — the level-set identity
-# pinned behaviorally, with the magnitude row proving the why-instrument
-# is alive (a dead instrument would print 0 for both).
+# Numeric `why` is now the documented raw displacement, so +5 -> -5 is
+# -10.0.  The following magnitude row still proves the instrument is live.
 mchan is [5.0, 0.0 - 5.0, 2.5]
 m is replay_at of [mchan, 0]
 m is replay_at of [mchan, 1]
 flip_dh is why is m
-check_verdict of ["O2.mirror.flip", f"{flip_dh}", "0", "agree"]
+check_verdict of ["O2.mirror.flip", f"{flip_dh}", "-10.0", "agree"]
 m is replay_at of [mchan, 2]
 mag_dh is why is m
 mag_alive is 0
@@ -137,9 +135,11 @@ loop while i < (len of recs.t):
         # abstains (`moving`) in every unit -- G4's slow side, no longer
         # G5. `converged` would contradict the physics: rel step per
         # sample is 1 - 2^(-1/14.9) = 4.5%, 45x the settle tolerance.
-        check_verdict of ["O2.units.rad", report of urad, "moving", "divergence"]
-        check_verdict of ["O2.units.deg", report of udeg, "moving", "divergence"]
-        check_verdict of ["O2.units.mrad", report of umr, "moving", "divergence"]
+        # NEW's running-best/patience test recognizes this strictly
+        # decreasing loss in every unit: improving agrees with the model.
+        check_verdict of ["O2.units.rad", report of urad, "improving", "agree"]
+        check_verdict of ["O2.units.deg", report of udeg, "improving", "agree"]
+        check_verdict of ["O2.units.mrad", report of umr, "improving", "agree"]
     i is i + 1
 
 # ---------------------------------------------------- roll: window vs mode

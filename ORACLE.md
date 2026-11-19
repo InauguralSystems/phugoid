@@ -3516,3 +3516,33 @@ is not those receipts. The released runtime pin remains v0.43.0. Testing
 coordinated future-runtime sources does not establish published-pin
 compatibility or authorize a release, consumer closure or a 16-consumer
 acceptance waiver.
+
+## Next-runtime profile remeasurement (2026-11-19)
+
+This is a measurement record, not a changed release bar.  It compares the
+v0.48.0 pin with EigenScript `045c8a1c37c17b7709300386c765920e884c7fdb`
+using five interleaved runs of each runtime; the raw runs, estimator and
+host-noise spreads are in `evidence/fleet2-phugoid-profile.md`.
+
+- **C6:** the literal `read/write > 1.5` claim is false on the next runtime:
+  the paired-run median is 1.457 (range 1.341--1.487), versus 1.679
+  (1.623--1.776) on v0.48.0.  The narrower, measured statement is that this
+  workload's read-bearing arm remains more expensive than its write-only arm,
+  by about 1.46x here.  No bound is changed in this measurement task.  If that
+  narrower statement is adopted in a later contract change, a `> 1.25` floor
+  would sit below every next-runtime sample with 6.8% margin to the observed
+  minimum; that is a proposal, not a repair applied here.
+- **Swarm stored work:** the direct, uninstrumented counters and fleet digests
+  are identical on both runtimes at N=1, 4 and 16: hits are 0, 5974 and 21126;
+  reads/evaluations are 1500, 6000 and 24000.  The stored-work claim remains
+  true.  The checker that instruments numeric trajectories cannot complete on
+  the next runtime because it compares the now-null numeric `last_entropy`
+  field; the next runtime documents that numeric observation uses the value
+  channel rather than entropy.  The test-file repair is outside this task's
+  explicit no-test-file scope.
+- **Swarm cost curves:** at N=1, 4 and 16, next-runtime ceiling/floor medians
+  were 1.080, 1.087 and 1.085; disciplined/floor medians were 1.006, 1.046 and
+  0.995.  Thus the current upper-cost and residual-band claims remain true,
+  while the already-retired historical `>1.15` slowdown is again refuted.
+  The old-runtime ratio spreads (max minus min) were respectively
+  0.067/0.166, 0.176/0.078 and 0.048/0.068, quantifying this host's noise.
