@@ -46,6 +46,14 @@ define de_pinned as:
 define thrust_pinned as:
     return 51919.293822831365
 
+# Fixed conditioning certificate for the three stored solve coordinates
+# [alpha, de, thrust].  Evaluating J(x_st)^-1 r(x_st) with the command in
+# ORACLE.md gives these magnitudes (NEW and OLD agree in the shown digits).
+# This is deliberately not recomputed from x_st: a planted stored literal
+# therefore cannot increase the allowance used to check that literal.
+define trim_pinned_correction as:
+    return [4.438787974791476e-17, 4.302209886930405e-17, 1.491252458565451e-11]
+
 define int_of_u(x) as:
     if x < 0.0:
         return 0 - (floor of (0.0 - x))

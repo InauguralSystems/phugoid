@@ -1,8 +1,10 @@
 # A-posteriori resolution of the trim solve.  For each candidate x, solve
-# J(x)c=r(x); |c| estimates its distance from the nearby root.  The factor
-# two covers both the first neglected Newton term and rounding in the
-# residual/Jacobian evaluation.  It is the only safety factor.
+# J(x)c=r(x); |c| estimates its distance from the nearby root.  Add the
+# independently pinned correction of the stored root before applying the
+# sole safety factor of two.  That factor provides one further copy of both
+# measured corrections for evaluation-floor and higher-order terms.
 load_file of "sim_core.eigs"
+load_file of "swarm_unarmed.eigs"
 import linalg
 
 define trim_root_correction(x, P) as:
@@ -25,9 +27,10 @@ define trim_root_correction(x, P) as:
 define trim_allowance(tr) as:
     local xc is [tr.alpha, tr.de, tr.thrust]
     local cc is trim_root_correction of [xc, tr.P]
-    local a is 2.0 * (abs of cc[0])
-    local d is 2.0 * (abs of cc[1])
-    local t is 2.0 * (abs of cc[2])
+    local sc is trim_pinned_correction of null
+    local a is 2.0 * ((abs of cc[0]) + sc[0])
+    local d is 2.0 * ((abs of cc[1]) + sc[1])
+    local t is 2.0 * ((abs of cc[2]) + sc[2])
     # Propagate alpha through [u0*cos(alpha),u0*sin(alpha),0,alpha].
     local s0 is a * tr.P.u0 * (abs of (sin of tr.alpha))
     local s1 is a * tr.P.u0 * (abs of (cos of tr.alpha))

@@ -36,4 +36,4 @@ jobs:
             # runner gutted to ignore rc would otherwise also ignore the
             # self-test that catches it.
             bash tests/test_suite_runner.sh
-            EIGENSCRIPT=eigenscript bash tests/run_suite.sh 21
+            EIGENSCRIPT=eigenscript bash tests/run_suite.sh 22

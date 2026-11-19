@@ -3557,41 +3557,62 @@ host-noise spreads are in `evidence/runtime-next/profile-2026-11-19.md`.
 
 ## Next-runtime trim comparison (2026-11-19)
 
-W1 compares the Newton root computed by this run with the unchanged historical
-stored root.  Its allowance is the standard local a-posteriori forward-error
-estimate
+W1 resolves drift between the root computed by this run and the unchanged
+historical stored root.  For solve coordinates, its local bound is
 
-`2 * abs(J(x_run)^-1 r(x_run))`,
+`2 * (abs(J(x_run)^-1 r(x_run)) + stored_correction)`.
 
-where `r` is the three-component trim force/acceleration residual and `J` is
-its finite-difference Jacobian at the computed root.  The single safety factor
-is **2**: one copy is the Newton correction measured by the run, and the
-second covers the neglected local Newton remainder and floating-point
-residual/Jacobian evaluation.  The estimate is propagated to the state by
-`[u0*cos(alpha), u0*sin(alpha), 0, alpha]`.  It uses neither the solver stop
-tolerance nor a guessed number of rounding stages.
+The fixed `stored_correction` is pinned beside the stored constants and is
+`[4.438787974791476e-17, 4.302209886930405e-17,
+1.491252458565451e-11]` for `[alpha, de, thrust]`.  It is not evaluated from
+the constants at run time.  It was derived on both runtimes with:
 
-`tests/trim_allowance_report.eigs` measured these allowances:
+```sh
+cat >/tmp/stored.eigs <<'EOF'
+load_file of "data/b747_approach.eigs"
+load_file of "sim.eigs"
+load_file of "swarm_unarmed.eigs"
+load_file of "tests/trim_allowance.eigs"
+P is sim_params of [b747_approach of null, ctl_nominal of null]
+x is [0.0-5.441621027333612e-05, 5.274186534184886e-05, 51919.293822831365]
+print of (trim_root_correction of [x,P])
+EOF
+NEW/src/eigenscript /tmp/stored.eigs
+OLD/src/eigenscript /tmp/stored.eigs
+```
 
-| runtime | trim0 | trim1 | trim2 | trim3 | de | thrust |
-|---|---:|---:|---:|---:|---:|---:|
-| NEW `phase2-consumers-1` | 1.3482875538299836e-18 | 2.4777314438601533e-14 | 0 | 8.877575949582903e-17 | 8.604419773859836e-17 | 3.076018362782496e-11 |
-| OLD `v0.48.0` | 1.3482875538303306e-18 | 2.4777314438601662e-14 | 0 | 8.877575949582949e-17 | 8.604419773860793e-17 | 2.9825049171309015e-11 |
+NEW printed `[-4.4387879747914757e-17, 4.302209886930404e-17,
+-1.4912524585654507e-11]`; OLD printed
+`[-4.4387879747914744e-17, 4.3022098869303963e-17,
+-1.4912524585654507e-11]`.  The only safety factor is **2**.  The first copy
+is the two explicit root-distance terms.  The added copy is the combined
+budget for residual/Jacobian evaluation-floor error and the local nonlinear
+remainder: respectively `4.438787974791476e-17`, `4.302209886930405e-17`
+and `1.491252458565451e-11` plus this run's printed corrections in the three
+solve coordinates.  Thus the margin is numerical and component-wise rather
+than an assumption that the current solve stopped farther from the root.
+Alpha is propagated through `[u0*cos(alpha),u0*sin(alpha),0,alpha]`.
 
-On NEW, the largest differences and difference/allowance ratios were trim0
-0/0, trim1 3.832004158432767e-15/0.154657765, trim2 0/0, trim3
-1.37287100090977e-17/0.15464, de 1.3308581667259567e-17/0.15467, and
-thrust 7.275957614183426e-12/0.23654.  On OLD all six differences and ratios
-were zero.  Thus the previous trim1 allowance was about 404 times larger
-than the derived allowance (rather than about 2,600 times the observed
-difference).
+The resulting allowance and the smallest drift certain to be caught in either
+direction are below.  The latter is `allowance + baseline difference` in the
+bad direction; the cross-runtime guarantee is the larger runtime value.
 
-The clean-copy planted test applies one unit in the fourth, eighth and
-twelfth significant digit of each of the six constants.  All eighteen are
-caught by their named W1 comparison; the smallest plants (trim3 and de at
-1e-16) remain above their respective 8.877575949582903e-17 and
-8.604419773859836e-17 resolution.  The existing `w3` displacement of 1e-6
-still gives exactly the six W1 reds.
+| field | NEW allowance | OLD allowance | certain drift (either runtime/direction) |
+|---|---:|---:|---:|
+| trim0 | 2.6965751076599745e-18 | 2.696575107660662e-18 | 2.696575107660662e-18 |
+| trim1 | 4.9554628877203205e-14 | 4.955462887720334e-14 | 5.338663303563597e-14 |
+| trim2 | 0 | 0 | 0 |
+| trim3 | 1.7755151899165856e-16 | 1.7755151899165903e-16 | 1.9128022900075626e-16 |
+| de | 1.7208839547720646e-16 | 1.7208839547721603e-16 | 1.8539697714446602e-16 |
+| thrust | 6.058523279913398e-11 | 5.965009834261804e-11 | 6.786119041331741e-11 |
+
+The bidirectional plant matrix catches exactly 32 of 36 plants on each
+runtime.  The `1e-16` twelfth-digit plants for `trim3` and `de` are UNDER in
+both directions: `1e-16` is below their cross-runtime resolutions
+`1.9128022900075626e-16` and `1.8539697714446602e-16`.  Every plant prints
+the same allowance as its clean control, demonstrating that a changed stored
+constant cannot enlarge its own bound.  The older `w3` displacement of
+`1e-6` remains six W1 failures.
 
 ## Next-runtime observer regrade (2026-11-19)
 

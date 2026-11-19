@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# One-unit plants in the 4th, 8th and 12th significant digit of every W1
-# stored constant.  All mutation is confined to a temporary copy.
+# One-unit plants in both directions at the 4th, 8th and 12th significant
+# digit of every W1 stored constant. All mutation stays in a temporary copy.
 set -euo pipefail
 EIGS="${EIGENSCRIPT:-eigenscript}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -31,28 +31,36 @@ fi
 echo "PASS: clean control"
 
 examined=0
+caught_set=""
+under_set=""
 while read -r field digit delta check; do
-    cp "$WORK/swarm_unarmed.clean.eigs" "$WORK/swarm_unarmed.eigs"
-    python3 - "$WORK/swarm_unarmed.eigs" "$field" "$delta" <<'PY'
+    for direction in plus minus; do
+        signed=$delta
+        [ "$direction" = minus ] && signed="-$delta"
+        cp "$WORK/swarm_unarmed.clean.eigs" "$WORK/swarm_unarmed.eigs"
+        python3 - "$WORK/swarm_unarmed.eigs" "$field" "$signed" <<'PYPLANT'
 from decimal import Decimal
 import pathlib, re, sys
 p, field, delta = pathlib.Path(sys.argv[1]), sys.argv[2], Decimal(sys.argv[3])
 s=p.read_text()
-patterns={
-'trim0':r'279\.09999958677514', 'trim1':r'0\.015187564279792735',
-'trim2':r'(?<=, )0\.0(?=, 0\.0 - 5\.441621027333612e-05)',
-'trim3':r'5\.441621027333612e-05', 'de':r'5\.274186534184886e-05',
-'thrust':r'51919\.293822831365'}
-m=re.search(patterns[field],s); assert m, field
-old=Decimal(m.group()); new=old+delta
-s=s[:m.start()]+str(new)+s[m.end():]
+patterns={'trim0':r'279\.09999958677514','trim1':r'0\.015187564279792735','trim2':r'(?<=, )0\.0(?=, 0\.0 - 5\.441621027333612e-05)','trim3':r'5\.441621027333612e-05','de':r'5\.274186534184886e-05','thrust':r'51919\.293822831365'}
+m=re.search(patterns[field],s); assert m,field
+s=s[:m.start()]+str(Decimal(m.group())+delta)+s[m.end():]
 p.write_text(s)
-PY
-    "$EIGS" "$WORK/swarm_check.eigs" >"$WORK/out" 2>&1 || true
-    grep -q "^FAIL $check " "$WORK/out" || {
-        echo "FAIL: $field digit$digit did not red $check"; grep '^FAIL ' "$WORK/out"; exit 1; }
-    echo "CAUGHT $field digit$digit delta=$delta check=$check"
-    examined=$((examined+1))
+PYPLANT
+        "$EIGS" "$WORK/swarm_check.eigs" >"$WORK/out" 2>&1 || true
+        line=$(grep "^[A-Z]* $check " "$WORK/out")
+        allowance=$(printf '%s\n' "$line" | sed 's/.*below=\([^ ]*\).*/\1/')
+        difference=$(printf '%s\n' "$line" | sed 's/.*val=//; s/^-//')
+        id="$field.$digit.$direction"
+        if printf '%s\n' "$line" | grep -q '^FAIL '; then
+            status=CAUGHT; caught_set="$caught_set $id"
+        else
+            status=UNDER; under_set="$under_set $id"
+        fi
+        echo "$id allowance=$allowance difference=$difference $status"
+        examined=$((examined+1))
+    done
 done <<'PLANTS'
 trim0 4 0.1 W1.trim0
 trim0 8 0.00001 W1.trim0
@@ -73,6 +81,11 @@ thrust 4 10 W1.thrust
 thrust 8 0.001 W1.thrust
 thrust 12 0.0000001 W1.thrust
 PLANTS
-[ "$examined" -eq 18 ] || { echo "FAIL: examined=$examined"; exit 1; }
-echo "examined=18"
-echo "PASS: all 18 stored-trim plants red their W1 check"
+[ "$examined" -eq 36 ] || { echo "FAIL: examined=$examined"; exit 1; }
+expected_under="de.12.minus de.12.plus trim3.12.minus trim3.12.plus"
+actual_under=$(printf '%s\n' $under_set | sort | tr '\n' ' ' | sed 's/ $//')
+expected=$(printf '%s\n' $expected_under | sort | tr '\n' ' ' | sed 's/ $//')
+[ "$actual_under" = "$expected" ] || { echo "FAIL: UNDER set drifted: $actual_under"; exit 1; }
+[ "$(printf '%s\n' $caught_set | wc -l | tr -d ' ')" -eq 32 ] || { echo "FAIL: caught set drifted"; exit 1; }
+echo "examined=36 caught=32 under=4"
+echo "PASS: exact bidirectional stored-trim plant sets"

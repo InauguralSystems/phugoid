@@ -13,6 +13,32 @@ W1_LINE=$("$EIGS" tests/trim_allowance_report.eigs | grep '^W1_ALLOWANCES ')
 export W1_STATE_BOUNDS=$(printf '%s\n' "$W1_LINE" | sed 's/.*state=\[\([^]]*\)\].*/\1/; s/,/ /g')
 [ "$(printf '%s\n' "$W1_STATE_BOUNDS" | awk '{print NF}')" -eq 4 ] || { echo "FAIL: could not read W1 state allowances"; exit 1; }
 
+if [ "${1:-}" = "--identity-only" ]; then
+    "$EIGS" tests/ap_check.eigs > "$OUT" 2>&1 || true
+    python3 - tests/ap_manifest.txt "$OUT" $W1_STATE_BOUNDS <<'PYIDENT'
+from decimal import Decimal
+from pathlib import Path
+import sys
+manifest,out=sys.argv[1:3]; bounds=list(map(Decimal,sys.argv[3:]))
+def rows(lines,prefix):
+ d={}
+ for line in lines:
+  if not line.startswith(prefix): continue
+  bits=line[len(prefix):].split(); d[bits[0]]=list(map(Decimal,bits[1][7:].split('|')))
+ return d
+a=rows(Path(manifest).read_text().splitlines(),'rowparams ')
+b=rows(Path(out).read_text().splitlines(),'ROW ')
+assert a.keys()==b.keys()
+for k,v in a.items():
+ w=b[k]; assert len(v)==len(w) and v[:-4]==w[:-4]
+
+ for i,(x,y,e) in enumerate(zip(v[-4:],w[-4:],bounds)):
+  assert abs(x-y)<=e,(k,i,x,y,e,abs(x-y))
+PYIDENT
+    echo "PASS: run-parameter set matches manifest under W1 allowance"
+    exit 0
+fi
+
 run_plant() {
     if "$EIGS" tests/ap_check.eigs "$1" > "$OUT" 2>&1; then
         echo "FAIL: plant $1 did not make ap_check exit nonzero — the checker cannot fail"; exit 1
