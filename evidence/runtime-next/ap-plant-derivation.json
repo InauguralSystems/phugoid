@@ -1,0 +1,298 @@
+[
+  {
+    "plant": "s1",
+    "old_count": 64,
+    "new_count": 68,
+    "added": [
+      "C4.ph.improving",
+      "C5.p4.a020.improving",
+      "C5.p4.a030.improving",
+      "C5.p4.a035.improving",
+      "C5.p4.a040.improving"
+    ],
+    "removed": [
+      "C5.sp.c100.maxrun"
+    ],
+    "reason": "Negative gain changes the controlled trajectory; recompute D2 fingerprints while retaining the same numeric gain/pole failures."
+  },
+  {
+    "plant": "s2",
+    "old_count": 65,
+    "new_count": 70,
+    "added": [
+      "C4.ph.improving",
+      "C5.p4.a020.improving",
+      "C5.p4.a030.improving",
+      "C5.p4.a035.improving",
+      "C5.p4.a040.improving"
+    ],
+    "removed": [],
+    "reason": "Inert gain is simulated at zero; D2 fingerprints are recomputed, including the healthy inner stream where gain never engages."
+  },
+  {
+    "plant": "s3",
+    "old_count": 35,
+    "new_count": 36,
+    "added": [
+      "C5.p1.inner.improving",
+      "C5.p1.inner.runs",
+      "C5.sp.c010.improving",
+      "C5.sp.c010.stable"
+    ],
+    "removed": [
+      "C5.p1.inner.converged",
+      "C5.sp.c020.improving",
+      "C5.sp.c020.moving"
+    ],
+    "reason": "Euler changes sampled trajectory and phase; recompute every verdict-derived count and order fingerprint under D2."
+  },
+  {
+    "plant": "s4",
+    "old_count": 123,
+    "new_count": 132,
+    "added": [
+      "C5.p1.inner.improving",
+      "C5.p4.a020.improving",
+      "C5.p4.a020.moving",
+      "C5.p4.a030.improving",
+      "C5.p4.a030.moving",
+      "C5.p4.a035.improving",
+      "C5.p4.a035.moving",
+      "C5.p4.a040.improving",
+      "C5.p4.a040.moving",
+      "C5.ph.p045.improving",
+      "C5.ph.p100.improving",
+      "C5.sp.c050.runs"
+    ],
+    "removed": [
+      "C5.ph.p045.maxrun",
+      "C5.ph.p100.maxrun",
+      "C5.sp.c100.runs"
+    ],
+    "reason": "The displaced trim changes the physical trajectory; the independent integration and D2 rules determine its new fingerprints."
+  },
+  {
+    "plant": "s5",
+    "old_count": 1,
+    "new_count": 1,
+    "added": [],
+    "removed": [],
+    "reason": "This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy."
+  },
+  {
+    "plant": "s6",
+    "old_count": 6,
+    "new_count": 6,
+    "added": [],
+    "removed": [],
+    "reason": "This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy."
+  },
+  {
+    "plant": "s7",
+    "old_count": 134,
+    "new_count": 143,
+    "added": [
+      "C4.ph.improving",
+      "C5.p1.inner.improving",
+      "C5.p4.a020.improving",
+      "C5.p4.a030.improving",
+      "C5.p4.a035.improving",
+      "C5.p4.a040.improving",
+      "C5.ph.p365.improving",
+      "C5.ph.p365.maxrun",
+      "C5.ph.p365.runs",
+      "C5.ph.p370.improving"
+    ],
+    "removed": [
+      "C5.sp.c010.moving"
+    ],
+    "reason": "A frozen stable stream has a constant closed-form distribution, one run, and no engagements; the new improving pins must also fail."
+  },
+  {
+    "plant": "s8",
+    "old_count": 13,
+    "new_count": 13,
+    "added": [],
+    "removed": [],
+    "reason": "This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy."
+  },
+  {
+    "plant": "s9",
+    "old_count": 127,
+    "new_count": 136,
+    "added": [
+      "C5.p1.inner.improving",
+      "C5.p4.a020.improving",
+      "C5.p4.a030.improving",
+      "C5.p4.a035.improving",
+      "C5.p4.a040.improving",
+      "C5.ph.p365.improving",
+      "C5.ph.p365.moving",
+      "C5.ph.p370.improving",
+      "C5.sp.c020.moving",
+      "C5.sp.c040.improving",
+      "C5.sp.c042.runs",
+      "C5.sp.c050.improving",
+      "C5.sp.c100.improving",
+      "C5.sp.c100.moving"
+    ],
+    "removed": [
+      "C5.ph.p045.improving",
+      "C5.ph.p045.runs",
+      "C5.sp.c010.moving",
+      "C5.sp.c040.runs",
+      "C5.sp.c102.maxrun"
+    ],
+    "reason": "Poisoned aero and weight require the poisoned trim and dynamics; recompute D2 fingerprints from that model."
+  },
+  {
+    "plant": "s10",
+    "old_count": 1,
+    "new_count": 1,
+    "added": [],
+    "removed": [],
+    "reason": "This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy."
+  },
+  {
+    "plant": "s11",
+    "old_count": 16,
+    "new_count": 16,
+    "added": [],
+    "removed": [],
+    "reason": "This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy."
+  },
+  {
+    "plant": "s12",
+    "old_count": 130,
+    "new_count": 139,
+    "added": [
+      "C4.ph.improving",
+      "C5.p1.inner.improving",
+      "C5.p4.a020.improving",
+      "C5.p4.a030.improving",
+      "C5.p4.a035.improving",
+      "C5.p4.a040.improving",
+      "C5.ph.p365.improving",
+      "C5.ph.p365.maxrun",
+      "C5.ph.p365.runs",
+      "C5.ph.p370.improving"
+    ],
+    "removed": [
+      "C5.sp.c010.moving"
+    ],
+    "reason": "Every verdict is forced oscillating: derive counts, index sums, one run and immediate engagement algebraically."
+  },
+  {
+    "plant": "s13",
+    "old_count": 21,
+    "new_count": 21,
+    "added": [],
+    "removed": [],
+    "reason": "This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy."
+  },
+  {
+    "plant": "s14",
+    "old_count": 19,
+    "new_count": 19,
+    "added": [],
+    "removed": [],
+    "reason": "This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy."
+  },
+  {
+    "plant": "s15",
+    "old_count": 2,
+    "new_count": 2,
+    "added": [],
+    "removed": [],
+    "reason": "This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy."
+  },
+  {
+    "plant": "s16",
+    "old_count": 1,
+    "new_count": 1,
+    "added": [],
+    "removed": [],
+    "reason": "This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy."
+  },
+  {
+    "plant": "s17",
+    "old_count": 59,
+    "new_count": 67,
+    "added": [
+      "C4.ph.improving",
+      "C4.ph.moving",
+      "C5.p1.inner.improving",
+      "C5.ph.p045.improving",
+      "C5.sp.c010.improving",
+      "C5.sp.c010.runs",
+      "C5.sp.c020.improving",
+      "C5.sp.c050.runs",
+      "C5.sp.c100.moving",
+      "C5.sp.c102.moving",
+      "C5.sp.c102.runs"
+    ],
+    "removed": [
+      "C5.ph.p045.maxrun",
+      "C5.sp.c040.maxrun",
+      "C5.sp.c042.stable"
+    ],
+    "reason": "A zero observer seed fabricates the first displacement; simulate the resulting observer history and conditional feedback, retaining all real-seed failures."
+  },
+  {
+    "plant": "s18",
+    "old_count": 154,
+    "new_count": 161,
+    "added": [
+      "C4.ph.improving",
+      "C5.p1.inner.improving",
+      "C5.p4.a020.improving",
+      "C5.p4.a030.improving",
+      "C5.p4.a035.improving",
+      "C5.p4.a040.improving",
+      "C5.ph.p365.improving",
+      "C5.ph.p370.improving"
+    ],
+    "removed": [
+      "C5.sp.c010.moving"
+    ],
+    "reason": "Alternating false all-clears have the closed-form alternating distribution and no engagements; compare it with the independently derived new baseline."
+  },
+  {
+    "plant": "s19",
+    "old_count": 125,
+    "new_count": 134,
+    "added": [
+      "C4.ph.improving",
+      "C5.p1.inner.improving",
+      "C5.p4.a020.improving",
+      "C5.p4.a030.improving",
+      "C5.p4.a035.improving",
+      "C5.p4.a040.improving",
+      "C5.ph.p365.improving",
+      "C5.ph.p365.maxrun",
+      "C5.ph.p365.runs",
+      "C5.ph.p370.improving"
+    ],
+    "removed": [
+      "C5.sp.c010.moving"
+    ],
+    "reason": "All verdicts are forced improving, giving one run and no engagements; every nonconstant baseline fingerprint is recomputed."
+  },
+  {
+    "plant": "s20",
+    "old_count": 210,
+    "new_count": 218,
+    "added": [
+      "C4.ph.improving",
+      "C5.p1.inner.improving",
+      "C5.p4.a020.improving",
+      "C5.p4.a030.improving",
+      "C5.p4.a035.improving",
+      "C5.p4.a040.improving",
+      "C5.ph.p365.improving",
+      "C5.ph.p370.improving"
+    ],
+    "removed": [],
+    "reason": "The exact comparator displaces every result by one; all exact sites, including eight newly added distribution checks, must fail."
+  }
+]

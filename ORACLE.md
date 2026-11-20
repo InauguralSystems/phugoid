@@ -560,7 +560,7 @@ verdicts against a mode-structure oracle:
   cadence (9.4 samples/cycle) → `oscillating` at every probe point,
   bare-word and named form.
 - **divergence (3):** phugoid replay at 1 s cadence (47 samples/cycle,
-  window 10 samples) → `stable` / `diverging` / `improving` at the three
+  window 10 samples) → `stable` / `diverging` / `stable` at the three
   probe points, physics truth `oscillating` at all three. The verdict is
   confidently wrong on quarter-cycles of a mode slower than the window —
   the multi-timescale prediction landing at the observer layer, upstreamed
@@ -3451,6 +3451,12 @@ current premise. Source shapes and costs must be reported separately:
 the zero-reader/counterfactual timings no longer straddle 1.20 reliably,
 so they are neither a P1 timing mechanism proof nor a rejected plant.
 
+(The paragraphs from here to the end of this section describe the checker
+as it was through v0.48.0. On the next runtime a numeric binding has no
+entropy history, and the checker reads retained numeric values and container
+folds: "Next-runtime autopilot and stored-work regrade (2026-11-19)" below
+is the present contract.)
+
 `tests/swarm_work_check.py`, called by the mandatory profile gate, derives
 untimed copies of the exact pinned source. It reads stored qobs
 `last_entropy`/`dh` after the final-frame actual read and local derivative
@@ -3516,3 +3522,174 @@ is not those receipts. The released runtime pin remains v0.43.0. Testing
 coordinated future-runtime sources does not establish published-pin
 compatibility or authorize a release, consumer closure or a 16-consumer
 acceptance waiver.
+
+## Next-runtime profile remeasurement (2026-11-19)
+
+This is a measurement record, not a changed release bar.  It compares the
+v0.48.0 pin with EigenScript `045c8a1c37c17b7709300386c765920e884c7fdb`
+using five interleaved runs of each runtime; the raw runs, estimator and
+host-noise spreads are in `evidence/runtime-next/profile-2026-11-19.md`.
+
+- **C6:** the literal `read/write > 1.5` claim is false on the next runtime:
+  the paired-run median is 1.457 (range 1.341--1.487), versus 1.679
+  (1.623--1.776) on v0.48.0.  The narrower, measured statement is that this
+  workload's read-bearing arm remains more expensive than its write-only arm,
+  by about 1.46x here.  No bound is changed in this measurement task.  If that
+  narrower statement is adopted in a later contract change, a `> 1.25` floor
+  would sit below every next-runtime sample with 6.8% margin to the observed
+  minimum; that is a proposal, not a repair applied here.
+- **Swarm stored work:** the direct, uninstrumented counters and fleet digests
+  are identical on both runtimes at N=1, 4 and 16: hits are 0, 5974 and 21126;
+  reads/evaluations are 1500, 6000 and 24000.  The stored-work claim remains
+  true.  The checker that instruments numeric trajectories could not complete
+  on the next runtime as it stood at this measurement: it compared the numeric
+  `last_entropy` field, which is null there (the next runtime documents that
+  numeric observation uses the value channel, not entropy).  It has since been
+  rewritten to read retained numeric values and container folds ("Next-runtime
+  autopilot and stored-work regrade" below); it completes its 53 executions
+  there and reports four legacy calibrations as decisions.
+- **Swarm cost curves:** at N=1, 4 and 16, next-runtime ceiling/floor medians
+  were 1.080, 1.087 and 1.085; disciplined/floor medians were 1.006, 1.046 and
+  0.995.  Thus the current upper-cost and residual-band claims remain true,
+  while the already-retired historical `>1.15` slowdown is again refuted.
+  The old-runtime ratio spreads (max minus min) were respectively
+  0.067/0.166, 0.176/0.078 and 0.048/0.068, quantifying this host's noise.
+
+## Next-runtime trim comparison (2026-11-19)
+
+W1 resolves drift between the root computed by this run and the unchanged
+historical stored root.  For solve coordinates, its local bound is
+
+`2 * (abs(J(x_run)^-1 r(x_run)) + stored_correction)`.
+
+The fixed `stored_correction` is pinned in `tests/trim_allowance.eigs`
+(`trim_pinned_correction`; not in `swarm_unarmed.eigs`, which holds the stored
+constants and whose code lines `tests/test_swarm_profile.sh` pins by a hash) and is
+`[4.438787974791476e-17, 4.302209886930405e-17,
+1.491252458565451e-11]` for `[alpha, de, thrust]`.  It is not evaluated from
+the constants at run time.  It was derived on both runtimes with (from the
+repository's root: `load_file` resolves beside the program's own file):
+
+```sh
+cat >stored-root.eigs <<'EOF'
+load_file of "data/b747_approach.eigs"
+load_file of "sim.eigs"
+load_file of "swarm_unarmed.eigs"
+load_file of "tests/trim_allowance.eigs"
+P is sim_params of [b747_approach of null, ctl_nominal of null]
+x is [0.0-5.441621027333612e-05, 5.274186534184886e-05, 51919.293822831365]
+print of (trim_root_correction of [x,P])
+EOF
+NEW/src/eigenscript stored-root.eigs
+OLD/src/eigenscript stored-root.eigs
+rm stored-root.eigs
+```
+
+NEW printed `[-4.4387879747914757e-17, 4.302209886930404e-17,
+-1.4912524585654507e-11]`; OLD printed
+`[-4.4387879747914744e-17, 4.3022098869303963e-17,
+-1.4912524585654507e-11]`.  The only safety factor is **2**.  The first copy
+is the two explicit root-distance terms.  The added copy is the combined
+budget for residual/Jacobian evaluation-floor error and the local nonlinear
+remainder: respectively `4.438787974791476e-17`, `4.302209886930405e-17`
+and `1.491252458565451e-11` plus this run's printed corrections in the three
+solve coordinates.  Thus the margin is numerical and component-wise rather
+than an assumption that the current solve stopped farther from the root.
+Alpha is propagated through `[u0*cos(alpha),u0*sin(alpha),0,alpha]`.
+
+The resulting allowance and the smallest drift certain to be caught in either
+direction are below.  The latter is `allowance + baseline difference` in the
+bad direction; the cross-runtime guarantee is the larger runtime value.
+
+| field | NEW allowance | OLD allowance | certain drift (either runtime/direction) |
+|---|---:|---:|---:|
+| trim0 | 2.6965751076599745e-18 | 2.696575107660662e-18 | 2.696575107660662e-18 |
+| trim1 | 4.9554628877203205e-14 | 4.955462887720334e-14 | 5.338663303563597e-14 |
+| trim2 | 0 | 0 | 0 |
+| trim3 | 1.7755151899165856e-16 | 1.7755151899165903e-16 | 1.9128022900075626e-16 |
+| de | 1.7208839547720646e-16 | 1.7208839547721603e-16 | 1.8539697714446602e-16 |
+| thrust | 6.058523279913398e-11 | 5.965009834261804e-11 | 6.786119041331741e-11 |
+
+The bidirectional plant matrix catches exactly 32 of 36 plants on each
+runtime.  The `1e-16` twelfth-digit plants for `trim3` and `de` are UNDER in
+both directions: `1e-16` is below their cross-runtime resolutions
+`1.9128022900075626e-16` and `1.8539697714446602e-16`.  Every plant prints
+the same allowance as its clean control, demonstrating that a changed stored
+constant cannot enlarge its own bound.  The older `w3` displacement of
+`1e-6` remains six W1 failures.
+
+## Next-runtime observer regrade (2026-11-19)
+
+O.ph1s.t280 pins `stable` (OLD `improving`) and retains class `divergence`.
+The 1 Hz window is ten seconds, shorter than a quarter of the analytically
+46.9 s phugoid. Its recent steps fit the documented <1% stable band;
+it sets no recent running lower best, so D2 does not say improving.
+The live decaying oscillation is still oscillating by the aircraft model.
+G4 and tests/observer_check.eigs name the same stable pin. The three
+O2.units probes now pin improving/agree: the positive spiral angle decays
+with t-half≈14.9s, setting a significant lower best at every one-second
+sample. OLD's contraction-only test abstained (moving); D2's documented
+lower-is-better convention recognizes this decay. Numeric `why` is now
+raw displacement; the +5→-5 calibration pins -10.0, replacing the OLD
+entropy identity pin of zero. The frozen plant consequently reddens that
+calibration as well as the other twelve O2 checks (13 in total).
+
+## Next-runtime autopilot and stored-work regrade (2026-11-19)
+
+The AP regression bank now has258 checks: the original250 plus eight
+improving-count checks keeping the distributions closed on C4.ph, the
+inner stream, both phugoid edge streams and the four P4 streams. An
+independent implementation of the documented predicates and the controlled
+flight equations/RK4 reproduces all10,620 actual samples across17 baseline
+streams. It derives the51 changed count/order fingerprints and each
+plant’s new observer-derived red set; non-observer numeric fault families
+retain their analytical expectations. SP fingerprints remain BELOW-FLOOR,
+not physics grades. In the independent predicate model, unit conversions of the phugoid
+tapes preserve their complete new distributions; all unit sensitivity remains in already
+qualified SP rows. No aerodynamic reference or physical tolerance moves.
+
+AP ROW tokens retain every original declaration. Only their final four
+solved state components admit W1’s conditioned rounding allowances
+[2e-13,1e-11,0,4e-14]: mode_ic adds the identical clean modal vector to
+the trim state. Controls/cadences/populations remain exact numeric identities;
+int/double spellings compare as Decimal. The embedded comparator rejects
+1e-6 displacement in every input and missing/duplicate/non-finite rows;
+the original live parameter-corruption plant remains mandatory.
+
+The reported P3.unitdep diagnostics were c3’s deliberate corruption,
+printed when its expected diagnostic count drifted. D2 changes which
+rows have a moving donor: c3 has19 eligible radian rows plus one identity
+failure (20, formerly21); c21 has40 eligible non-radian/non-74 rows plus
+identity (41, formerly49). c31 now corrupts improving, still exactly one
+monoclass failure. Clean96-row unit identity and zero-false-clear guards
+are unchanged. Independent equations/RK4 plus predicates reproduce all96
+rows and all42 synthetic controls; all64 claim plants cover all72 sites.
+
+Numeric bindings now expose value history rather than entropy. The
+actual-source N1 probes retain all6,000 fresh derivative V values and the
+full10-step/11-value qobs window in both ceiling and floor. The checker
+requires that work at every N1/4/16 ladder shape. RK4 also stores the
+non-numeric k1 list once per step: its last_entropy is positive only for
+observed integration, zero inside unobserved. This existing container
+channel witnesses the integration fold independently of numeric history.
+Hooks inspect the actual bindings and add no line-qualified history reader
+(which would enable additional storage). Physics, populations, VM/JIT and
+constant-false-query witnesses remain live. Boxing only V while reading
+its sole value in arithmetic preserves physics but loses its numeric
+channel; freezing qobs preserves integration but loses its sample window.
+Both new faults must be rejected, at every ladder N, and removing their
+named guard must expose the lost enforcement.
+
+Four legacy required-red controls remain mandatory red DECISIONs:
+qobs-elided at N1/4/16 and qobs/predicate gutting at N1. Numeric history
+survives unobserved, and the N1 nominal query hits are already zero, so
+these controls no longer remove the work the old checker required. They
+are not made green or removed. Integration-elided at all three N and the
+partial-observed disciplined plant still remove/change real container
+folds and must be rejected. The checker records all19 controls and53
+executions, returns nonzero for the four policy decisions, and the profile
+gate preserves that result while measuring its original cost curves.
+No cost bound or historical cost figure is changed or adopted as a new bar.
+Each moved expectation’s reason is beside it in the tests; the derivations
+behind the counts and the red sets are in `evidence/runtime-next/`
+(`regrade-2026-11-19.md` says which file holds which).

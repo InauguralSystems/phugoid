@@ -146,7 +146,9 @@ plant c2 'P3.blind74 P3.noise P3.profile P3.unitdep' 4 f_mvdetect '^p3 unit=rad 
 # refutes anything now the claim ranges over the whole grid -- the other
 # seven radian cadences still carry it. A claim over 96 rows needs a plant
 # over 96 rows.
-plant c3 P3.unitdep 21 f_setbucket '^p3 unit=rad ' fquiet 10
+# D2 leaves 19 radian rows with at least 10 moving donor reads (formerly 20).
+# The plant therefore yields 19 false-clear diagnostics plus unit identity.
+plant c3 P3.unitdep 20 f_setbucket '^p3 unit=rad ' fquiet 10
 # c4: a false all-clear appears in a NON-radian unit, which would refute
 # the deadband attribution (EigenScript#1045) the write-up now rests on.
 plant c4 'P3.unitdep P3.unitid' 3 f_setbucket '^p3 unit=deg ac=0 sp=0\.05 cad=74 ' fquiet 50
@@ -210,7 +212,9 @@ f_nonrad_fac() {
       print s; next
     } { print }'
 }
-plant c21 P3.unitdep 49 f_nonrad_fac
+# D2 leaves 40 non-radian, non-74 rows with positive moving counts
+# (formerly 48); moving that bucket to quiet yields 40 diagnostics + identity.
+plant c21 P3.unitdep 41 f_nonrad_fac
 # c22/c23: the vacuity guards P3.unitid was missing -- population, then
 # distinctness. Both are the shape round 15 fixed for P3.phase and did
 # not apply here.
@@ -243,7 +247,8 @@ plant c30 'P3.monoclass P3.monotone' 2 f_sed '/^p3mono kind=ramp unit=mrad /d'
 # c31 re-aimed at the phugoid#8 re-grade: the claim is now that all three
 # units read `moving` on every read, so the plant moves the degree row's
 # `moving` count (it used to move `stable`, the old degree class).
-plant c31 P3.monoclass 1 f_sed 's/^(p3mono kind=decay_slow unit=deg cad=94 .*)moving=[0-9]+/\1moving=2/'
+# c31 corrupts D2's improving count; moving is no longer the decay claim.
+plant c31 P3.monoclass 1 f_sed 's/^(p3mono kind=decay_slow unit=deg cad=94 .*)improving=[0-9]+/\1improving=2/'
 plant c32 P3.monoclass 1 f_sed 's/^(p3mono kind=ramp unit=rad .*)diverging=[0-9]+/\1diverging=3/'
 # c33/c34: THE DISCRIMINATING CONTROL. Aperiodic noise at the phugoid's
 # own amplitude has no mode and no period, and the observer reports

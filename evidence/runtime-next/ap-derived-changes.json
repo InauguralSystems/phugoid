@@ -1,0 +1,206 @@
+{
+  "C5.sp.c010.stable": {
+    "old": 30,
+    "new": 28
+  },
+  "C5.sp.c010.moving": {
+    "old": 22,
+    "new": 0
+  },
+  "C5.sp.c010.improving": {
+    "old": 13,
+    "new": 37
+  },
+  "C5.sp.c020.stable": {
+    "old": 30,
+    "new": 37
+  },
+  "C5.sp.c020.moving": {
+    "old": 28,
+    "new": 11
+  },
+  "C5.sp.c020.improving": {
+    "old": 14,
+    "new": 24
+  },
+  "C5.sp.c040.stable": {
+    "old": 15,
+    "new": 17
+  },
+  "C5.sp.c040.runs": {
+    "old": 10,
+    "new": 9
+  },
+  "C5.sp.c040.moving": {
+    "old": 23,
+    "new": 9
+  },
+  "C5.sp.c040.improving": {
+    "old": 6,
+    "new": 18
+  },
+  "C5.sp.c042.stable": {
+    "old": 15,
+    "new": 16
+  },
+  "C5.sp.c042.runs": {
+    "old": 10,
+    "new": 9
+  },
+  "C5.sp.c042.moving": {
+    "old": 23,
+    "new": 9
+  },
+  "C5.sp.c042.improving": {
+    "old": 4,
+    "new": 17
+  },
+  "C5.sp.c050.runs": {
+    "old": 7,
+    "new": 6
+  },
+  "C5.sp.c050.moving": {
+    "old": 19,
+    "new": 6
+  },
+  "C5.sp.c050.improving": {
+    "old": 4,
+    "new": 17
+  },
+  "C5.sp.c100.runs": {
+    "old": 10,
+    "new": 8
+  },
+  "C5.sp.c100.maxrun": {
+    "old": 8,
+    "new": 12
+  },
+  "C5.sp.c100.moving": {
+    "old": 16,
+    "new": 5
+  },
+  "C5.sp.c100.improving": {
+    "old": 1,
+    "new": 12
+  },
+  "C5.sp.c102.runs": {
+    "old": 8,
+    "new": 7
+  },
+  "C5.sp.c102.maxrun": {
+    "old": 12,
+    "new": 13
+  },
+  "C5.sp.c102.moving": {
+    "old": 15,
+    "new": 3
+  },
+  "C5.sp.c102.improving": {
+    "old": 1,
+    "new": 13
+  },
+  "C5.ph.p365.moving": {
+    "old": 109,
+    "new": 99
+  },
+  "C5.ph.p365.runs": {
+    "old": 1,
+    "new": 7
+  },
+  "C5.ph.p365.maxrun": {
+    "old": 109,
+    "new": 90
+  },
+  "C5.ph.p370.moving": {
+    "old": 107,
+    "new": 97
+  },
+  "C5.ph.p370.runs": {
+    "old": 3,
+    "new": 9
+  },
+  "C5.ph.p045.improving": {
+    "old": 37,
+    "new": 27
+  },
+  "C5.ph.p045.runs": {
+    "old": 52,
+    "new": 38
+  },
+  "C5.ph.p045.moving": {
+    "old": 486,
+    "new": 496
+  },
+  "C5.ph.p100.improving": {
+    "old": 10,
+    "new": 14
+  },
+  "C5.ph.p100.runs": {
+    "old": 52,
+    "new": 38
+  },
+  "C5.ph.p100.moving": {
+    "old": 272,
+    "new": 268
+  },
+  "C4.ph.runs": {
+    "old": 18,
+    "new": 20
+  },
+  "C4.ph.moving": {
+    "old": 24,
+    "new": 19
+  },
+  "C5.p1.inner.converged": {
+    "old": 378,
+    "new": 362
+  },
+  "C5.p1.inner.stable": {
+    "old": 2096,
+    "new": 1975
+  },
+  "C5.p1.inner.moving": {
+    "old": 1585,
+    "new": 1506
+  },
+  "C5.p1.inner.runs": {
+    "old": 70,
+    "new": 71
+  },
+  "C5.p1.inner.cidx": {
+    "old": 1508201,
+    "new": 1496671
+  },
+  "C5.p4.a020.moving": {
+    "old": 23,
+    "new": 17
+  },
+  "C5.p4.a020.runs": {
+    "old": 18,
+    "new": 20
+  },
+  "C5.p4.a030.moving": {
+    "old": 23,
+    "new": 17
+  },
+  "C5.p4.a030.runs": {
+    "old": 18,
+    "new": 20
+  },
+  "C5.p4.a040.moving": {
+    "old": 23,
+    "new": 17
+  },
+  "C5.p4.a040.runs": {
+    "old": 18,
+    "new": 20
+  },
+  "C5.p4.a035.moving": {
+    "old": 23,
+    "new": 17
+  },
+  "C5.p4.a035.runs": {
+    "old": 18,
+    "new": 20
+  }
+}

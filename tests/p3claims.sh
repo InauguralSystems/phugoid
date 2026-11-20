@@ -595,12 +595,11 @@ p3_claims() {
             mdom=$(sed -n "s/^p3mono kind=decay_slow unit=$mu cad=$cd2 .*/&/p" "$out")
             [ -n "$mdom" ] || { _cf P3.monoclass "decay_slow/$mu/cad$cd2 row absent (vacuous check)"; continue; }
             mfull=$(echo "$mdom" | grep -oP 'full=\K[0-9]+')
-            # RE-GRADED at phugoid#8: through v0.43.0 the three units split
-            # this decay three ways (converged / stable / moving). On main
-            # all three read `moving` on every full-window read -- the
-            # unit-invariance the physics requires (EigenScript#1045).
+            # NEW's documented running-best/patience test calls this
+            # strictly decreasing loss improving in every unit.  That is
+            # both unit-invariant and the model-correct decay verdict.
             case "$mu" in
-                rad|deg|mrad) mcls=moving; mlbl=moving ;;
+                rad|deg|mrad) mcls=improving; mlbl=improving ;;
             esac
             mv2=$(echo "$mdom" | grep -oP "$mcls=\K[0-9]+")
             [ "$mv2" = "$mfull" ] || _cf P3.monoclass "in $mu a monotone decay no longer reads '$mlbl' on every read ($mv2 of $mfull)"

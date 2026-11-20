@@ -1,10 +1,9 @@
 # observer_lat_check.eigs — the rung-2 O2 checks (ORACLE.md): observer
 # verdicts graded against lateral physics ground truth — the level-set
 # stress this rung exists for. Run: eigenscript tests/observer_lat_check.eigs [plant]
-# Plants: o1 replay frozen at first sample; o2 replay replaced by an
-# UNEQUAL-magnitude alternation (unlike rung-1's o2, the magnitudes must
-# differ so the mirror-flip pin can red — a pure +/-A alternation is
-# entropy-invisible by the very identity being pinned).
+# Plants: o1 freezes the replay; o2 retains the original unequal-magnitude
+# alternation. Numeric why now grades raw displacement; the earlier
+# entropy-level-set interpretation of the scalar calibration is historical.
 # Population pinned at exactly 13.
 #
 # Round 2: mirror.mag is an absolute entropy instrument calibration,
@@ -36,6 +35,8 @@
 # v0.47.0 (#1771): roll.matched's negative roll rate rises
 # toward zero, so directional improving no longer applies. It now abstains
 # (moving): 7 agree, 5 divergence, 1 instrument; the physical run is unchanged.
+# On the next runtime (2026-11-19) the checks below stand at 10 agree, 2 divergence,
+# 1 instrument: the spiral unit triplet reads improving in every unit and agrees.
 
 load_file of "data/b747_approach.eigs"
 load_file of "modes.eigs"
@@ -95,15 +96,13 @@ loop while i < (len of recd.t):
     i is i + 1
 
 # ---------------------------------------------------- the mirror pins
-# H(x) = H(-x): a full +5 -> -5 reversal registers ZERO entropy change
-# (why == 0), while 5 -> 2.5 registers ~0.21 — the level-set identity
-# pinned behaviorally, with the magnitude row proving the why-instrument
-# is alive (a dead instrument would print 0 for both).
+# Numeric `why` is now the documented raw displacement, so +5 -> -5 is
+# -10.0.  The following magnitude row still proves the instrument is live.
 mchan is [5.0, 0.0 - 5.0, 2.5]
 m is replay_at of [mchan, 0]
 m is replay_at of [mchan, 1]
 flip_dh is why is m
-check_verdict of ["O2.mirror.flip", f"{flip_dh}", "0", "agree"]
+check_verdict of ["O2.mirror.flip", f"{flip_dh}", "-10.0", "agree"]
 m is replay_at of [mchan, 2]
 mag_dh is why is m
 mag_alive is 0
@@ -127,19 +126,13 @@ loop while i < (len of recs.t):
     udeg is s * 57.29577951308232 + 0.0
     umr is s * 1000.0 + 0.0
     if i == 30:
-        # Re-graded 2026-09-30 (phugoid#8): EigenScript#1045 made the
-        # step scale-free, so radians now read what degrees and mrad read
-        # -- the G5 unit split this triplet pinned is CLOSED, and all
-        # three rows now pin one verdict. They stay divergence: the
-        # physics is a geometric decay (improving), but at t-half = 14.9
-        # samples a 10-sample window's halves contract by 2^(-5/14.9) =
-        # 0.79 per half-window, above improving's 0.7, so the runtime
-        # abstains (`moving`) in every unit -- G4's slow side, no longer
-        # G5. `converged` would contradict the physics: rel step per
-        # sample is 1 - 2^(-1/14.9) = 4.5%, 45x the settle tolerance.
-        check_verdict of ["O2.units.rad", report of urad, "moving", "divergence"]
-        check_verdict of ["O2.units.deg", report of udeg, "moving", "divergence"]
-        check_verdict of ["O2.units.mrad", report of umr, "moving", "divergence"]
+        # OLD moving/divergence -> NEW improving/agree in each unit: phi
+        # is a positive exponential decay with t-half about 14.9 seconds.
+        # Each second sets a significant lower best, so documented D2
+        # improvement agrees with this decay in the analytical model.
+        check_verdict of ["O2.units.rad", report of urad, "improving", "agree"]
+        check_verdict of ["O2.units.deg", report of udeg, "improving", "agree"]
+        check_verdict of ["O2.units.mrad", report of umr, "improving", "agree"]
     i is i + 1
 
 # ---------------------------------------------------- roll: window vs mode

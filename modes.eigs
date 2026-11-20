@@ -86,8 +86,10 @@ define charpoly4(A) as:
 
 # ------------------------------------------------- complex helpers
 
+# NEW exposes the complex sum under complex_add (the same arithmetic);
+# the chain and CU comparisons still grade the operation independently.
 define cadd(a, b) as:
-    return complex.add of [a, b]
+    return complex.complex_add of [a, b]
 
 define csub(a, b) as:
     return complex.sub of [a, b]

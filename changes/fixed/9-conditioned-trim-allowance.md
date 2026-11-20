@@ -1,0 +1,1 @@
+- Derive the stored-trim regression allowance from the measured residual and local Jacobian conditioning (#9).

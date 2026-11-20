@@ -1,0 +1,1 @@
+- W1 now bounds both the current and stored trim roots, so a more-converged correct solve is accepted while documented resolution remains explicit (#runtime-next).

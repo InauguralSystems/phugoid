@@ -21,6 +21,7 @@ load_file of "swarm_unarmed.eigs"
 load_file of "tests/checklib.eigs"
 load_file of "measure.eigs"
 load_file of "modes.eigs"
+load_file of "tests/trim_allowance.eigs"
 
 cli is args of null
 plant is ""
@@ -97,12 +98,19 @@ if plant == "w3":
     tp[3] is tp[3] + 1e-6
     de_c is de_c + 1e-6
     th_c is th_c + 1e-6
+# The allowance is 2*(|J(x_run)^-1 r(x_run)| + pinned stored-root
+# correction), propagated through trim_state.  The sole factor 2 supplies
+# one extra copy of both terms for evaluation-floor and higher-order effects.
+# The stored certificate is not recomputed from the literals under test.
+allowance is trim_allowance of tr
+trim_bounds is allowance[0]
+print of f"W1_ALLOWANCES state={trim_bounds} de={allowance[1]} thrust={allowance[2]}"
 i is 0
 loop while i < 4:
-    check_below of [f"W1.trim{i}", tr.state[i] - tp[i], 0.0]
+    check_below of [f"W1.trim{i}", tr.state[i] - tp[i], trim_bounds[i]]
     i is i + 1
-check_below of ["W1.de", tr.de - de_c, 0.0]
-check_below of ["W1.thrust", tr.thrust - th_c, 0.0]
+check_below of ["W1.de", tr.de - de_c, allowance[1]]
+check_below of ["W1.thrust", tr.thrust - th_c, allowance[2]]
 
 # W2 — the ARM DIFFERENTIAL. Observation must not change the physics, so
 # every arm's fleet digest must be identical. This is the check that

@@ -1,0 +1,46 @@
+# A-posteriori resolution of the trim solve.  For each candidate x, solve
+# J(x)c=r(x); |c| estimates its distance from the nearby root.  Add the
+# independently pinned correction of the stored root before applying the
+# sole safety factor of two.  That factor provides one further copy of both
+# measured corrections for evaluation-floor and higher-order terms.
+load_file of "sim_core.eigs"
+import linalg
+
+# Fixed conditioning certificate for the three stored solve coordinates
+# [alpha, de, thrust] (the stored trim itself is in swarm_unarmed.eigs,
+# whose code lines tests/test_swarm_profile.sh pins by a hash, so the
+# certificate lives here).  Evaluating J(x_st)^-1 r(x_st) with the command in
+# ORACLE.md gives these magnitudes (NEW and OLD agree in the shown digits).
+# This is deliberately not recomputed from x_st: a planted stored literal
+# therefore cannot increase the allowance used to check that literal.
+define trim_pinned_correction as:
+    return [4.438787974791476e-17, 4.302209886930405e-17, 1.491252458565451e-11]
+
+define trim_root_correction(x, P) as:
+    local r is trim_residual of [x, P]
+    local cols is []
+    for j in range of 3:
+        local h is 1e-7
+        if j == 2:
+            h is 1.0
+        local xp is [x[0], x[1], x[2]]
+        xp[j] is xp[j] + h
+        local rp is trim_residual of [xp, P]
+        append of [cols, [(rp[0] - r[0]) / h, (rp[1] - r[1]) / h, (rp[2] - r[2]) / h]]
+    local c is linalg.solve_linear of [linalg.mat_transpose of (cols), r]
+    # trim_residual folds thrust into its parameter object; restore the
+    # candidate so measuring the allowance cannot alter the later flight.
+    P.thrust is x[2]
+    return c
+
+define trim_allowance(tr) as:
+    local xc is [tr.alpha, tr.de, tr.thrust]
+    local cc is trim_root_correction of [xc, tr.P]
+    local sc is trim_pinned_correction of null
+    local a is 2.0 * ((abs of cc[0]) + sc[0])
+    local d is 2.0 * ((abs of cc[1]) + sc[1])
+    local t is 2.0 * ((abs of cc[2]) + sc[2])
+    # Propagate alpha through [u0*cos(alpha),u0*sin(alpha),0,alpha].
+    local s0 is a * tr.P.u0 * (abs of (sin of tr.alpha))
+    local s1 is a * tr.P.u0 * (abs of (cos of tr.alpha))
+    return [[s0, s1, 0.0, a], d, t]

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The rung-3 planted-fault matrix (ORACLE.md): each s-plant must flip
 # EXACTLY its declared red set, every plant run executes the full pinned
-# 250-check population (217 until the phugoid#8 re-grade), and the manifest rules hold (identity incl.
+# 258-check population (217 until the phugoid#8 re-grade), and the manifest rules hold (identity incl.
 # tolerance tokens and ROW parameters; every plantable name in some red
 # set; no structural assertion exemptions; unknown class tokens FAIL).
 set -euo pipefail
@@ -9,6 +9,35 @@ EIGS="${EIGENSCRIPT:-eigenscript}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 OUT="$(mktemp)"; WORK="$(mktemp -d)"; trap 'rm -f "$OUT"; rm -rf "$WORK"' EXIT
+W1_LINE=$("$EIGS" tests/trim_allowance_report.eigs | grep '^W1_ALLOWANCES ')
+export W1_STATE_BOUNDS=$(printf '%s\n' "$W1_LINE" | sed 's/.*state=\[\([^]]*\)\].*/\1/; s/,/ /g')
+[ "$(printf '%s\n' "$W1_STATE_BOUNDS" | awk '{print NF}')" -eq 4 ] || { echo "FAIL: could not read W1 state allowances"; exit 1; }
+
+if [ "${1:-}" = "--identity-only" ]; then
+    "$EIGS" tests/ap_check.eigs > "$OUT" 2>&1 || true
+    python3 - tests/ap_manifest.txt "$OUT" $W1_STATE_BOUNDS <<'PYIDENT'
+from decimal import Decimal
+from pathlib import Path
+import sys
+manifest,out=sys.argv[1:3]; bounds=list(map(Decimal,sys.argv[3:]))
+def rows(lines,prefix):
+ d={}
+ for line in lines:
+  if not line.startswith(prefix): continue
+  bits=line[len(prefix):].split(); d[bits[0]]=list(map(Decimal,bits[1][7:].split('|')))
+ return d
+a=rows(Path(manifest).read_text().splitlines(),'rowparams ')
+b=rows(Path(out).read_text().splitlines(),'ROW ')
+assert a.keys()==b.keys()
+for k,v in a.items():
+ w=b[k]; assert len(v)==len(w) and v[:-4]==w[:-4]
+
+ for i,(x,y,e) in enumerate(zip(v[-4:],w[-4:],bounds)):
+  assert abs(x-y)<=e,(k,i,x,y,e,abs(x-y))
+PYIDENT
+    echo "PASS: run-parameter set matches manifest under W1 allowance"
+    exit 0
+fi
 
 run_plant() {
     if "$EIGS" tests/ap_check.eigs "$1" > "$OUT" 2>&1; then
@@ -19,7 +48,7 @@ run_plant() {
     [ -s "$WORK/expected" ] || { echo "FAIL: plant $1 has no declared red set"; exit 1; }
     diff -u "$WORK/expected" "$WORK/actual" || { echo "FAIL: plant $1 red set drifted"; exit 1; }
     cat "$WORK/actual" >> "$WORK/red_union"
-    grep -q '^CHECKS_RUN 250$' "$OUT" || { echo "FAIL: plant $1 run population != 250"; exit 1; }
+    grep -q '^CHECKS_RUN 258$' "$OUT" || { echo "FAIL: plant $1 run population != 258"; exit 1; }
 }
 expect_total_fails() {
     got=$(grep -c '^FAIL ' "$OUT" || true)
@@ -33,47 +62,55 @@ no_refusals() { grep '^FAIL ' "$OUT" | grep -q 'refused' && { echo "FAIL: $1 red
 # Round 2: physical seeds and complete measured red sets in ap_plant_reds.txt.
 # Every invocation is compared by check identity, not count alone.
 echo "--- S1: gain sign flipped -> pitch rows + every zeta + the gain witnesses ---"
-run_plant s1; expect_total_fails 64
+# Negative gain changes the controlled trajectory; recompute D2 fingerprints while retaining the same numeric gain/pole failures.
+run_plant s1; expect_total_fails 68
 expect_red 'C0\.a23 ' 'C0\.a33 ' 'C2\.k050\.T ' 'C2\.k100\.zlog ' 'C3\.gain\.use ' 'C2\.ph\.Tdft\.k ' 'C3\.amp\.zenv ' 'C5\.p4\.a020\.osc '
 expect_green 'C1\.'
 echo "PASS: S1 red pattern exact"
 
 echo "--- S2: gain never reaches the dynamics (inert controller) ---"
-run_plant s2; expect_total_fails 65
+# Inert gain is simulated at zero; D2 fingerprints are recomputed, including the healthy inner stream where gain never engages.
+run_plant s2; expect_total_fails 70
 expect_red 'C3\.gain\.use ' 'C3\.lin\.shrinks ' 'C2\.k100\.T ' 'C2\.ph\.T ' 'C3\.amp\.zenv '
 expect_green 'C1\.'
 echo "PASS: S2 red pattern exact"
 
 echo "--- S3: integrator RK4 -> Euler -> periods + dt invariance + supervisory toggles ---"
-run_plant s3; expect_total_fails 35
+# Euler changes sampled trajectory and phase; recompute every verdict-derived count and order fingerprint under D2.
+run_plant s3; expect_total_fails 36
 expect_red 'C2\.k025\.T ' 'C2\.k050\.T ' 'C2\.k100\.T ' 'C3\.dt\.T ' 'C3\.dt\.zlog ' 'C3\.dt\.zenv ' 'C2\.ph\.zlog ' 'C5\.sp\.c010\.conv ' 'C5\.p1\.inner\.moving '
 expect_green 'C0\.' 'C1\.'
 echo "PASS: S3 red pattern exact"
 
 echo "--- S4: trim offset -> C1 + parity + every graded mode ---"
-run_plant s4; expect_total_fails 123
+# The displaced trim changes the physical trajectory; the independent integration and D2 rules determine its new fingerprints.
+run_plant s4; expect_total_fails 132
 expect_red 'C1\.res\.' 'C1\.hold\.' 'C0\.a13 ' 'C2\.k025\.T ' 'C3\.gain\.use ' 'C5\.sp\.c100\.osc '
 echo "PASS: S4 red pattern exact"
 
 echo "--- S5: linearity witness made vacuous (rerun at the base amplitude) -> exactly 1 ---"
+# This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy.
 run_plant s5; expect_total_fails 1
 expect_red 'C3\.lin\.shrinks '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C4\.' 'C5\.'
 echo "PASS: S5 red pattern exact"
 
 echo "--- S6: grading dt dilated x1.02 -> the period rows + the dt-invariance rows ---"
+# This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy.
 run_plant s6; expect_total_fails 6
 expect_red 'C2\.k025\.T ' 'C2\.k050\.T ' 'C2\.k100\.T ' 'C3\.lin\.shrinks ' 'C2\.ph\.T ' 'C2\.ph\.Tdft '
 expect_green 'C0\.' 'C1\.' 'C2\.k025\.zlog' 'C4\.' 'C5\.sp'
 echo "PASS: S6 red pattern exact"
 
 echo "--- S7: verdict stream frozen to 'stable' (supervisory inert) ---"
-run_plant s7; expect_total_fails 134
+# A frozen stable stream has a constant closed-form distribution, one run, and no engagements; the new improving pins must also fail.
+run_plant s7; expect_total_fails 143
 expect_red 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C4\.ph\.horizon ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a030\.horizon ' 'C5\.p4\.a035\.horizon ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C4\.ph\.onset ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S7 red pattern exact"
 
 echo "--- S8: zeta->0.05 and T->5.0 with identity carried -> the numeric rows ---"
+# This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy.
 run_plant s8; expect_total_fails 13
 expect_red 'C2\.k025\.T ' 'C2\.k100\.zenv ' 'C3\.gain\.use ' 'C3\.lin\.shrinks ' 'C2\.ph\.T ' 'C2\.ph\.zlog '
 no_refusals S8
@@ -81,36 +118,42 @@ expect_green 'C0\.' 'C1\.' '\.n ' '\.nr ' '\.nf ' 'C4\.' 'C5\.'
 echo "PASS: S8 red pattern exact"
 
 echo "--- S9: dataset broadly poisoned -> parity + graded modes + verdicts ---"
-run_plant s9; expect_total_fails 127
+# Poisoned aero and weight require the poisoned trim and dynamics; recompute D2 fingerprints from that model.
+run_plant s9; expect_total_fails 136
 expect_red 'C0\.a11 ' 'C0\.a33 ' 'C2\.k050\.zlog ' 'C3\.gain\.use ' 'C4\.ph\.osc ' 'C2\.ph\.Tdft ' 'C5\.p4\.a030\.osc '
 expect_green 'C1\.'
 echo "PASS: S9 red pattern exact"
 
 echo "--- S10: dt-rerun grading separator -> exactly C3.dt.T ---"
+# This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy.
 run_plant s10; expect_total_fails 1
 expect_red 'C3\.dt\.T '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C4\.' 'C5\.'
 echo "PASS: S10 red pattern exact"
 
 echo "--- S11: zeta slots swapped -> the zeta rows and their identity pins ---"
+# This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy.
 run_plant s11; expect_total_fails 16
 expect_red 'C2\.k025\.zl\.nr ' 'C2\.k025\.ze\.nf ' 'C2\.k100\.zlog ' 'C3\.dt\.zenv ' 'C3\.amp\.zlog '
 expect_green 'C0\.' 'C1\.' 'C2\.k025\.T ' 'C4\.' 'C5\.'
 echo "PASS: S11 red pattern exact"
 
 echo "--- S12: verdicts forced to 'oscillating' (the dual of S7) ---"
-run_plant s12; expect_total_fails 130
+# Every verdict is forced oscillating: derive counts, index sums, one run and immediate engagement algebraically.
+run_plant s12; expect_total_fails 139
 expect_red 'C5\.sp\.c010\.osc ' 'C5\.sp\.c020\.osc ' 'C5\.sp\.c100\.osc ' 'C4\.ph\.osc ' 'C5\.p1\.inner\.osc ' 'C5\.p1\.inner\.engagements ' 'C5\.p2\.sup\.toggles ' 'C5\.p4\.a030\.osc ' 'C5\.p4\.a020\.onset ' 'C5\.p4\.a020\.osc ' 'C5\.p1\.inner\.diverging ' 'C5\.p1\.inner\.converged ' 'C5\.p1\.inner\.runs ' 'C5\.p1\.inner\.maxrun ' 'C4\.ph\.runs ' 'C5\.p1\.inner\.moving ' 'C4\.ph\.moving '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "PASS: S12 red pattern exact"
 
 echo "--- S13: below/relabs values displaced 1.1x their executed tolerance -> C1 + plantable C0 ---"
+# This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy.
 run_plant s13; expect_total_fails 21
 expect_red 'C1\.res\.' 'C1\.hold\.' 'C0\.a11 ' 'C0\.a34 '
 expect_green 'C2\.' 'C3\.' 'C4\.' 'C5\.'
 echo "PASS: S13 red pattern exact"
 
 echo "--- S14: check_rel values displaced 1.1x their executed arm -> the tolerance rows ---"
+# This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy.
 run_plant s14; expect_total_fails 19
 expect_red 'C2\.k025\.T ' 'C2\.k100\.zenv ' 'C3\.dt\.T ' 'C3\.amp\.T ' 'C3\.gain\.use ' 'C2\.ph\.Tdft '
 no_refusals S14
@@ -118,12 +161,14 @@ expect_green 'C0\.' 'C1\.' '\.n ' '\.nr ' '\.nf ' 'C4\.' 'C5\.'
 echo "PASS: S14 red pattern exact"
 
 echo "--- S15: the phugoid DFT slot aliased to period_peaks -> exactly the 2 Tdft rows ---"
+# This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy.
 run_plant s15; expect_total_fails 2
 expect_red 'C2\.ph\.Tdft ' 'C2\.ph\.Tdft\.k '
 expect_green 'C2\.ph\.T ' 'C2\.ph\.zlog ' 'C0\.' 'C1\.' 'C3\.' 'C4\.' 'C5\.'
 echo "PASS: S15 red pattern exact (round-1 review: as_td/as_tp were dead armor with only one period estimator; the phugoid window supports a DFT, so the accessors are now live)"
 
 echo "--- S16: the phugoid extrema slot fed by the DFT (mirror of S15) -> exactly C2.ph.T ---"
+# This plant changes only its numeric estimator/comparator witness; supervisor trajectories and all newly derived fingerprints remain healthy.
 run_plant s16; expect_total_fails 1
 expect_red 'C2\.ph\.T '
 expect_green 'C2\.ph\.Tdft ' 'C0\.' 'C1\.' 'C3\.' 'C4\.' 'C5\.'
@@ -131,17 +176,21 @@ echo "PASS: S16 red pattern exact (round-3 review: as_tp was the one accessor wi
 
 # Consumer seed defect: this runs the real supervisor with a false seed.
 echo "--- S17: fabricated zero initial pitch rate ---"
-run_plant s17; expect_total_fails 59
+# A zero observer seed fabricates the first displacement; simulate the resulting observer history and conditional feedback, retaining all real-seed failures.
+run_plant s17; expect_total_fails 67
 expect_red 'C5\.sp\.c010\.seed ' 'C5\.sp\.c102\.seed '
 expect_green 'C0\.' 'C1\.' 'C2\.' 'C3\.'
 echo "--- S18: alternating false all-clears (converged/equilibrium) ---"
-run_plant s18; expect_total_fails 154
+# Alternating false all-clears have the closed-form alternating distribution and no engagements; compare it with the independently derived new baseline.
+run_plant s18; expect_total_fails 161
 expect_red 'C5\.ph\.p045\.conv ' 'C5\.ph\.p100\.equil ' 'C5\.ph\.p365\.runs ' 'C5\.ph\.p365\.maxrun '
 echo "--- S19: verdicts forced to improving ---"
-run_plant s19; expect_total_fails 125
+# All verdicts are forced improving, giving one run and no engagements; every nonconstant baseline fingerprint is recomputed.
+run_plant s19; expect_total_fails 134
 expect_red 'C5\.sp\.c100\.improving ' 'C5\.sp\.c102\.improving '
 echo "--- S20: exact-comparator result displaced by one (fixed counts included) ---"
-run_plant s20; expect_total_fails 210
+# The exact comparator displaces every result by one; all exact sites, including eight newly added distribution checks, must fail.
+run_plant s20; expect_total_fails 218
 expect_red 'C5\.sp\.c010\.reads ' 'C5\.p4\.a020\.reads '
 
 # ------------------------------------------------------------------
@@ -292,10 +341,65 @@ manifest_identity() {   # <manifest> <names-file>
     grep '^ap ' "$1" | awk '{print $2, $4}' | sort > "$WORK/_mi"
     diff -u "$WORK/_mi" "$2" > /dev/null
 }
+# Input controls retain exact numeric identity. Solved state rounding uses
+# W1's conditioned trim bounds; mode_ic adds the same clean mode vector,
+# so it inherits those component bounds (ORACLE next-runtime trim note).
+ap_input_identity() {
+    python3 - "$@" <<'PYROW'
+"""Compare supervisory input identities, including conditioned trim rounding.
+Only the final four solved-state components have a forward-error allowance;
+all controls, cadences, times, amplitudes and populations remain exact.
+"""
+import os, sys
+from decimal import Decimal, InvalidOperation
+from pathlib import Path
+BOUNDS = list(map(Decimal, os.environ['W1_STATE_BOUNDS'].split()))
+def parse(text, manifest=False):
+    rows={}
+    for line in text.splitlines():
+        if manifest:
+            if not line.startswith('rowparams '):continue
+            line=line.removeprefix('rowparams ')
+        name, fields=line.split()
+        if name in rows or not fields.startswith('params='):raise ValueError('duplicate/malformed row')
+        values=[Decimal(v) for v in fields[7:].split('|')]
+        if len(values)<8 or not all(v.is_finite() for v in values):raise ValueError('invalid parameters')
+        rows[name]=values
+    if not rows:raise ValueError('empty population')
+    return rows
+def compare(a,b):
+    if a.keys()!=b.keys():return False
+    for k,v in a.items():
+        w=b[k]
+        if len(v)!=len(w) or v[:-4]!=w[:-4]:return False
+        if any(abs(x-y)>eps for x,y,eps in zip(v[-4:],w[-4:],BOUNDS)):return False
+    return True
+if __name__=='__main__':
+    if sys.argv[1:]==['--selftest']:
+        a={'x':[Decimal(0)]*8}
+        assert compare(a,a)
+        for i in range(8):
+            b={'x':a['x'].copy()};b['x'][i]=Decimal('1e-6')
+            assert not compare(a,b),i
+        assert not compare(a,{})
+        assert not compare(a,{'y':a['x']})
+        for text in ['x params=0|0|0|0|0|0|0|nan','x params=0|0|0|0|0|0|0|0\nx params=0|0|0|0|0|0|0|0']:
+            try:parse(text)
+            except ValueError:pass
+            else:raise AssertionError('invalid row accepted')
+        print('PASS: input identity: exact controls, bounded trim, missing/duplicate/nonfinite controls')
+    else:
+        try:ok=compare(parse(Path(sys.argv[1]).read_text(),True),parse(Path(sys.argv[2]).read_text()))
+        except (ValueError,InvalidOperation):ok=False
+        sys.exit(0 if ok else 1)
+PYROW
+}
 rowparams_identity() {  # <manifest> <rows-file>
     grep '^rowparams ' "$1" | awk '{print $2, $3}' | sort > "$WORK/_mr"
-    diff -u "$WORK/_mr" "$2" > /dev/null
+    ap_input_identity "$1" "$2"
 }
+ap_input_identity --selftest
+
 coverage_ok() {         # <manifest> <red-union>  -- every plantable must red
     local kind name klass tolspec
     while read -r kind name klass tolspec; do
@@ -355,5 +459,5 @@ rowparams_identity tests/ap_manifest.txt "$WORK/rows" || { echo "FAIL: run-param
 coverage_ok tests/ap_manifest.txt "$WORK/redu" || { echo "FAIL: a plantable check never went red"; exit 1; }
 structural_ok tests/ap_manifest.txt "$WORK/redu" || { echo "FAIL: a structural check went red — exemption stale"; exit 1; }
 class_ok tests/ap_manifest.txt || { echo "FAIL: unknown manifest class token"; exit 1; }
-echo "PASS: manifest identity holds; all 250 assertion sites fire under some plant (no exemptions)"
+echo "PASS: manifest identity holds; all 258 assertion sites fire under some plant (no exemptions)"
 echo "PASS: all 20 rung-3 plants flip exactly their declared checks"

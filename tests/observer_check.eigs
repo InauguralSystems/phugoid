@@ -14,7 +14,8 @@
 #                window is a fixed 10 SAMPLES, so a mode slower than
 #                ~10 samples of the consumer's cadence cannot fold inside
 #                the window — the phugoid (T=47 s) replayed at 1 Hz reads
-#                diverging/stable/improving on its quarter-cycles.
+#                diverging/stable/equilibrium over its cycle (the next runtime
+#                no longer reads improving there; GAPS.md G4 has the counts).
 #                These pins flip the day upstream changes the windowing;
 #                that flip is the signal to re-grade, not a rung-1 bug.
 
@@ -125,7 +126,10 @@ loop while i < (len of recB.t):
         if i == 200:
             check_verdict of ["O.ph1s.t200", report of w1, "diverging", "divergence"]
         if i == 280:
-            check_verdict of ["O.ph1s.t280", report of w1, "improving", "divergence"]
+            # OLD improving -> NEW stable: these ten one-second steps fit
+            # the documented <1% band but set no recent running lower best.
+            # The analytically live 46.9 s mode is oscillating, so retain divergence.
+            check_verdict of ["O.ph1s.t280", report of w1, "stable", "divergence"]
     i is i + 1
 
 print of f"CHECKS_RUN {checks_run}"

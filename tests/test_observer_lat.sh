@@ -25,16 +25,16 @@ echo "PASS: 13/13 rung-2 observer checks green"
 
 # phugoid#8 re-grade: O2.units.rad now expects `moving` and O2.phi.t35
 # `oscillating`, so a frozen (converged) replay reds both -- 10 -> 12.
-echo "--- O1: replay frozen at first sample -> the 12 motion-expecting checks red ---"
+echo "--- O1: replay frozen at first sample -> all 13 checks red: the raw-displacement calibration also changes ---"
 if "$EIGS" tests/observer_lat_check.eigs o1 > "$OUT" 2>&1; then
     echo "FAIL: plant o1 did not make observer_lat_check exit nonzero"; exit 1
 fi
 grep -q '^CHECKS_RUN 13$' "$OUT" || { echo "FAIL: o1 population != 13"; exit 1; }
-[ "$(grep -c '^FAIL ' "$OUT")" -eq 12 ] || { echo "FAIL: o1 expected 12 FAILs"; grep '^FAIL ' "$OUT"; exit 1; }
-for name in 'O2\.dr\.t15 ' 'O2\.dr\.t30 ' 'O2\.dr\.t44 ' 'O2\.mirror\.mag ' 'O2\.units\.rad ' 'O2\.units\.deg ' 'O2\.units\.mrad ' 'O2\.roll\.fast ' 'O2\.roll\.matched ' 'O2\.phi\.t10 ' 'O2\.phi\.t20 ' 'O2\.phi\.t35 '; do
+[ "$(grep -c '^FAIL ' "$OUT")" -eq 13 ] || { echo "FAIL: o1 expected 13 FAILs"; grep '^FAIL ' "$OUT"; exit 1; }
+for name in 'O2\.mirror\.flip ' 'O2\.dr\.t15 ' 'O2\.dr\.t30 ' 'O2\.dr\.t44 ' 'O2\.mirror\.mag ' 'O2\.units\.rad ' 'O2\.units\.deg ' 'O2\.units\.mrad ' 'O2\.roll\.fast ' 'O2\.roll\.matched ' 'O2\.phi\.t10 ' 'O2\.phi\.t20 ' 'O2\.phi\.t35 '; do
     grep -Eq "^FAIL $name" "$OUT" || { echo "FAIL: o1 expected red '$name'"; exit 1; }
 done
-grep '^FAIL ' "$OUT" | grep -Eq 'O2\.mirror\.flip ' && { echo "FAIL: o1 reddened a frozen-compatible check"; exit 1; }
+# The raw-displacement calibration must red when the stream is frozen.
 echo "PASS: O1 red pattern exact"
 
 # phugoid#8 re-grade: O2.phi.t35 now expects `oscillating`, which the
